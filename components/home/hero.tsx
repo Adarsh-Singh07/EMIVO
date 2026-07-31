@@ -61,7 +61,7 @@ export function Hero() {
   const isDark = (theme: string) => theme === "dark" || theme === "cinematic";
 
   // Easing inspired by Apple Keynote
-  const easePremium = [0.16, 1, 0.3, 1];
+  const easePremium = [0.16, 1, 0.3, 1] as const;
 
   return (
     <section className="relative w-full h-[85vh] md:h-[90vh] overflow-hidden bg-black">
