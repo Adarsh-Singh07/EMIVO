@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Facebook, Twitter, Instagram, Linkedin } from "lucide-react";
+import { Globe, MessageCircle, Share2, Mail } from "lucide-react";
 
 export function Footer() {
   return (
@@ -33,10 +33,10 @@ export function Footer() {
           <div>
             <h4 className="font-semibold mb-4">Connect</h4>
             <div className="flex gap-4">
-              <a href="#" className="text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"><Facebook className="w-5 h-5" /></a>
-              <a href="#" className="text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"><Twitter className="w-5 h-5" /></a>
-              <a href="#" className="text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"><Instagram className="w-5 h-5" /></a>
-              <a href="#" className="text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"><Linkedin className="w-5 h-5" /></a>
+              <a href="#" className="text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"><Globe className="w-5 h-5" /></a>
+              <a href="#" className="text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"><MessageCircle className="w-5 h-5" /></a>
+              <a href="#" className="text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"><Share2 className="w-5 h-5" /></a>
+              <a href="#" className="text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"><Mail className="w-5 h-5" /></a>
             </div>
           </div>
         </div>

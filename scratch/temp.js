@@ -1,4 +1,4 @@
-export const mockProducts = [
+module.exports = [
   {
     id: "iphone-16-pro",
     name: "Apple iPhone 16 Pro",

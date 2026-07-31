@@ -1,19 +1,28 @@
 import type { Metadata } from "next";
-import { Inter, Space_Grotesk, Plus_Jakarta_Sans } from "next/font/google";
+import { Inter, Manrope, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/lib/theme";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { Nav } from "@/components/nav";
-import { Footer } from "@/components/footer";
+import { Providers } from "@/components/providers";
 import { cn } from "@/lib/utils";
 
+// Typography: Strict adherence to Inter for structural UI, as per EMIVO Design Bible
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
-const plusJakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-plus-jakarta" });
 
 export const metadata: Metadata = {
-  title: "EMIVO | AI-Native EMI Electronics Retail",
-  description: "Making EMI financing first-class for Indian electronics retail",
+  title: "EMIVO | Premium Electronics",
+  description: "India's premium AI-powered electronics shopping platform.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "EMIVO",
+  },
+};
+
+export const viewport = {
+  themeColor: "#ffffff",
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -23,21 +32,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={cn(
-        inter.variable,
-        spaceGrotesk.variable,
-        plusJakarta.variable,
-        "antialiased min-h-screen flex flex-col"
-      )}>
-        <ThemeProvider>
-          <Nav />
-          <main className="flex-1">
-            {children}
-          </main>
-          <Footer />
-          <ThemeToggle />
-        </ThemeProvider>
+      <body
+        className={cn(
+          inter.variable,
+          "font-sans antialiased min-h-screen flex flex-col bg-[var(--color-background)] text-[var(--color-foreground)]"
+        )}
+      >
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
 }
+

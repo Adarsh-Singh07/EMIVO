@@ -1,166 +1,200 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
-import { Bot, User, Sparkles, ArrowRight, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, Mic, BrainCircuit, X, Sparkles, SlidersHorizontal, Check, ArrowRight } from "lucide-react";
+import Link from "next/link";
 
-const MOCK_CONVERSATION = [
-  { role: "user", text: "Show me laptops under ₹60,000 with good battery life" },
-  { role: "ai", text: "I found 3 great laptops under ₹60,000 that excel in battery life. Let me pull up their details and EMI options for you.", loading: true },
-  { role: "ai", text: "Here are the top picks:\n\n**1. HP Pavilion 14**\n- Battery: Up to 10 hours\n- Price: ₹58,990\n- EMI from: ₹4,915/mo (No Cost EMI available via HDFC)\n\n**2. ASUS VivoBook 15**\n- Battery: Up to 9 hours\n- Price: ₹54,990\n- EMI from: ₹4,582/mo (Bajaj Finserv)\n\n**3. Lenovo IdeaPad Slim 3**\n- Battery: Up to 8 hours\n- Price: ₹52,490\n- EMI from: ₹4,374/mo (ICICI Bank)\n\nWhich one would you like to explore further?" },
-  { role: "user", text: "What's the EMI on the HP Pavilion if I choose a 6-month plan?" },
-  { role: "ai", text: "For the **HP Pavilion 14 (₹58,990)** on a 6-month plan, here are your options:\n\n• **HDFC Bank (No Cost EMI)**: ₹9,831/month. Zero processing fee.\n• **Bajaj Finserv**: ₹9,831/month. ₹499 processing fee.\n• **ZestMoney**: ₹10,215/month (includes interest). Zero processing fee.\n\nHDFC Bank offers the best deal here. Would you like me to start the application process?" }
-];
+export default function AILandingPage() {
+  const [step, setStep] = useState(0);
 
-export default function AiDemoPage() {
-  const [messages, setMessages] = useState<{role: string, text: string, loading?: boolean}[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isTyping, setIsTyping] = useState(false);
-  const [activeTab, setActiveTab] = useState("shopping");
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const transitionConfig = { duration: 0.6, ease: [0.16, 1, 0.3, 1] as const };
 
-  useEffect(() => {
-    if (currentIndex < MOCK_CONVERSATION.length) {
-      const msg = MOCK_CONVERSATION[currentIndex];
-      
-      const timer = setTimeout(() => {
-        if (msg.role === 'ai') {
-          setIsTyping(true);
-          setTimeout(() => {
-            setIsTyping(false);
-            setMessages(prev => [...prev, msg]);
-            setCurrentIndex(prev => prev + 1);
-          }, msg.loading ? 1500 : 800);
-        } else {
-          setMessages(prev => [...prev, msg]);
-          setCurrentIndex(prev => prev + 1);
-        }
-      }, 1000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [currentIndex]);
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages, isTyping]);
+  // AI "Thinking" Sequence for Demo
+  const triggerAI = () => {
+    setStep(1);
+    setTimeout(() => setStep(2), 2500); // Analysis complete
+  };
 
   return (
-    <div className="container mx-auto px-4 py-8 h-[calc(100vh-4rem)] flex flex-col">
-      
-      <div className="flex flex-col items-center mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Sparkles className="w-6 h-6 text-[var(--color-accent)]" /> 
-          EMIVO AI Assistants
-        </h1>
-        <p className="text-[var(--color-text-secondary)] mt-2 text-center max-w-lg">
-          Experience our domain-specific AI models designed to assist customers, empower retailers, and provide business insights.
-        </p>
-      </div>
+    <div className="min-h-screen bg-[var(--color-background)] overflow-hidden relative">
+      {/* Cinematic Ambient Background */}
+      <div className="absolute top-0 inset-x-0 h-[500px] bg-gradient-to-b from-[var(--color-accent)]/10 to-transparent -z-10 blur-3xl pointer-events-none" />
 
-      <div className="flex justify-center mb-6">
-        <div className="flex p-1 bg-[var(--color-surface-elevated)] rounded-lg">
-          {["shopping", "retail", "copilot"].map(tab => (
-            <button
-              key={tab}
-              onClick={() => { setActiveTab(tab); setMessages([]); setCurrentIndex(0); }}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === tab ? 'bg-[var(--color-surface)] shadow text-[var(--color-text-primary)]' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'}`}
-            >
-              {tab === 'shopping' && 'Shopping Assistant'}
-              {tab === 'retail' && 'Retail Assistant'}
-              {tab === 'copilot' && 'Business Copilot'}
-            </button>
-          ))}
+      {/* Header */}
+      <header className="container mx-auto px-4 h-24 flex items-center justify-between relative z-20">
+        <Link href="/" className="inline-flex items-center gap-2 text-[var(--color-text-secondary)] hover:text-[var(--color-foreground)] transition-colors">
+          <ArrowLeft className="w-5 h-5" />
+          <span className="font-medium">Back to Shopping</span>
+        </Link>
+        <div className="flex items-center gap-2 bg-[var(--color-surface)]/80 backdrop-blur-md px-4 py-2 rounded-full border border-[var(--color-border)] shadow-sm">
+          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+          <span className="text-sm font-semibold tracking-wider uppercase text-[var(--color-foreground)]">EMIVO AI Active</span>
         </div>
-      </div>
+      </header>
 
-      <div className="flex-1 max-w-3xl w-full mx-auto bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-lg)] shadow-lg overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-[var(--color-border)] bg-[var(--color-surface-elevated)] flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[var(--color-accent)]/20 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-[var(--color-accent)]" />
-            </div>
-            <div>
-              <h3 className="font-bold">Shopping Assistant</h3>
-              <p className="text-xs text-[var(--color-text-secondary)]">Powered by EMIVO AI</p>
-            </div>
-          </div>
-          <Button variant="ghost" size="icon"><X className="w-5 h-5" /></Button>
-        </div>
-
-        <div ref={scrollRef} className="flex-1 p-6 overflow-y-auto space-y-6">
-          <div className="text-center text-xs text-[var(--color-text-muted)] my-4">Today, 10:42 AM</div>
-          
-          {messages.map((msg, idx) => (
+      <main className="container mx-auto px-4 pt-12 pb-32 max-w-5xl relative z-10">
+        <AnimatePresence mode="wait">
+          {/* STEP 0: The Prompt */}
+          {step === 0 && (
             <motion.div 
-              key={idx}
-              initial={{ opacity: 0, y: 10 }}
+              key="step0"
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} gap-3`}
+              exit={{ opacity: 0, y: -40, scale: 0.95 }}
+              transition={transitionConfig}
+              className="flex flex-col items-center justify-center text-center mt-20"
             >
-              {msg.role === 'ai' && (
-                <div className="w-8 h-8 rounded-full bg-[var(--color-accent)]/20 flex items-center justify-center shrink-0 mt-1">
-                  <Bot className="w-4 h-4 text-[var(--color-accent)]" />
-                </div>
-              )}
-              
-              <div className={`max-w-[80%] rounded-[var(--radius-md)] p-4 ${msg.role === 'user' ? 'bg-[var(--color-primary)] text-[var(--color-surface)]' : 'bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)] border border-[var(--color-border)]'}`}>
-                {msg.loading ? (
-                  <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-                    <div className="w-4 h-4 rounded-full border-2 border-[var(--color-accent)] border-t-transparent animate-spin" />
-                    Fetching product data...
+              <div className="w-24 h-24 rounded-full bg-[var(--color-surface-elevated)] flex items-center justify-center mb-8 relative border border-[var(--color-border)] shadow-2xl">
+                <BrainCircuit className="w-10 h-10 text-[var(--color-accent)]" />
+                <motion.div 
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                  className="absolute -inset-1 border-2 border-dashed border-[var(--color-accent)]/30 rounded-full"
+                />
+              </div>
+              <h1 className="text-4xl md:text-6xl font-bold text-[var(--color-foreground)] mb-6 tracking-tight leading-tight max-w-3xl">
+                What are you looking for today?
+              </h1>
+              <p className="text-xl text-[var(--color-text-secondary)] mb-12 max-w-2xl font-light">
+                Speak naturally. Describe your needs, your budget, or your lifestyle. EMIVO AI will curate the perfect setup and handle the financing.
+              </p>
+
+              {/* The "Microphone" Input */}
+              <div className="relative w-full max-w-2xl group cursor-pointer" onClick={triggerAI}>
+                <div className="absolute -inset-1 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] rounded-[var(--radius-full)] opacity-20 blur-lg group-hover:opacity-40 transition-opacity duration-500" />
+                <div className="relative flex items-center gap-4 bg-[var(--color-surface)] border border-[var(--color-border)] p-2 rounded-[var(--radius-full)] shadow-xl">
+                  <div className="w-16 h-16 rounded-full bg-[var(--color-accent)] flex items-center justify-center shadow-inner shrink-0 group-hover:scale-105 transition-transform">
+                    <Mic className="w-7 h-7 text-[var(--color-on-primary)]" />
                   </div>
-                ) : (
-                  <div className="whitespace-pre-line text-sm leading-relaxed" dangerouslySetInnerHTML={{__html: msg.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}} />
-                )}
-              </div>
-
-              {msg.role === 'user' && (
-                <div className="w-8 h-8 rounded-full bg-[var(--color-surface-elevated)] flex items-center justify-center shrink-0 mt-1 border border-[var(--color-border)]">
-                  <User className="w-4 h-4 text-[var(--color-text-secondary)]" />
+                  <div className="flex-1 text-left py-2">
+                    <div className="text-sm font-semibold text-[var(--color-accent)] uppercase tracking-widest mb-1">Click to simulate</div>
+                    <div className="text-lg text-[var(--color-text-primary)] font-medium">
+                      "I need a premium phone for photography, under ₹4,000 a month."
+                    </div>
+                  </div>
                 </div>
-              )}
-            </motion.div>
-          ))}
-
-          {isTyping && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start gap-3">
-              <div className="w-8 h-8 rounded-full bg-[var(--color-accent)]/20 flex items-center justify-center shrink-0 mt-1">
-                <Bot className="w-4 h-4 text-[var(--color-accent)]" />
-              </div>
-              <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-md)] px-4 py-3 flex gap-1 items-center h-10">
-                <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0 }} className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-muted)]" />
-                <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-muted)]" />
-                <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }} className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-muted)]" />
               </div>
             </motion.div>
           )}
-        </div>
 
-        <div className="p-4 border-t border-[var(--color-border)] bg-[var(--color-surface)]">
-          <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
-            {["Best phones under 30k", "Compare HDFC vs Bajaj EMI", "Track my order"].map(prompt => (
-              <button key={prompt} className="whitespace-nowrap px-3 py-1.5 rounded-full text-xs border border-[var(--color-border)] bg-[var(--color-surface-elevated)] hover:border-[var(--color-accent)] transition-colors">
-                {prompt}
-              </button>
-            ))}
-          </div>
-          <div className="relative">
-            <input 
-              type="text" 
-              disabled
-              placeholder="Type your message... (Demo mode)" 
-              className="w-full bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-md)] py-3 pl-4 pr-12 text-sm focus:outline-none focus:border-[var(--color-accent)]"
-            />
-            <Button size="icon" className="absolute right-1.5 top-1.5 h-9 w-9 rounded-[var(--radius-sm)]">
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
+          {/* STEP 1: The Analysis Phase */}
+          {step === 1 && (
+            <motion.div
+              key="step1"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              transition={transitionConfig}
+              className="flex flex-col items-center justify-center mt-32"
+            >
+              <div className="flex items-center gap-6 mb-12">
+                <motion.div animate={{ height: [20, 60, 20] }} transition={{ duration: 1, repeat: Infinity }} className="w-2 bg-[var(--color-primary)] rounded-full" />
+                <motion.div animate={{ height: [40, 80, 40] }} transition={{ duration: 1, delay: 0.2, repeat: Infinity }} className="w-2 bg-[var(--color-accent)] rounded-full" />
+                <motion.div animate={{ height: [30, 70, 30] }} transition={{ duration: 1, delay: 0.4, repeat: Infinity }} className="w-2 bg-[var(--color-primary)] rounded-full" />
+              </div>
+              <h2 className="text-3xl font-bold text-[var(--color-foreground)] mb-4">Analyzing your request...</h2>
+              <div className="flex flex-col gap-3 text-[var(--color-text-secondary)]">
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500"/> Extracting intent: Photography</motion.div>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }} className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500"/> Constraint: Premium tier</motion.div>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5 }} className="flex items-center gap-2"><Check className="w-4 h-4 text-green-500"/> Constraint: Under ₹4,000/mo EMI</motion.div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* STEP 2: The Rich UI Recommendation */}
+          {step === 2 && (
+            <motion.div
+              key="step2"
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={transitionConfig}
+            >
+              {/* AI Voice Bubble */}
+              <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-8 mb-12 relative overflow-hidden shadow-[var(--shadow-lg)]">
+                <div className="absolute top-0 right-0 p-8 opacity-10"><BrainCircuit className="w-32 h-32 text-[var(--color-foreground)]" /></div>
+                <div className="flex items-start gap-4 relative z-10">
+                  <div className="w-12 h-12 rounded-full bg-[var(--color-accent)] flex items-center justify-center shrink-0">
+                    <Sparkles className="w-6 h-6 text-[var(--color-on-primary)]" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-[var(--color-foreground)] mb-4">Here is the perfect match.</h3>
+                    <p className="text-lg text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
+                      Based on your need for <span className="font-bold text-[var(--color-foreground)] bg-[var(--color-accent)]/10 px-2 py-0.5 rounded">premium photography</span>, the iPhone 15 Pro is the best choice. It features a 48MP main camera and Photonic Engine.
+                      <br /><br />
+                      I have configured a <span className="font-bold text-[var(--color-foreground)] bg-[var(--color-primary)]/10 px-2 py-0.5 rounded">24-month EMI plan at ₹3,950/mo</span>, which fits perfectly under your ₹4,000 budget. 
+                      There is a verified retailer 2.4 km away who has this in stock today.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* The Curated Product Card (Not standard PLP card, highly specific to AI) */}
+              <div className="grid md:grid-cols-12 gap-8">
+                <div className="md:col-span-8">
+                  <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-lg)] overflow-hidden shadow-[var(--shadow-md)] flex flex-col md:flex-row group hover:shadow-2xl transition-shadow cursor-pointer relative">
+                    <div className="w-full md:w-1/2 aspect-square relative bg-[var(--color-surface-elevated)] p-8 flex items-center justify-center">
+                      <motion.img 
+                        src="https://images.unsplash.com/photo-1696446701796-da61225697cc?q=80&w=1000&auto=format&fit=crop" 
+                        alt="iPhone 15 Pro" 
+                        className="object-contain w-full h-full drop-shadow-2xl group-hover:scale-105 transition-transform duration-700"
+                      />
+                    </div>
+                    <div className="w-full md:w-1/2 p-8 flex flex-col justify-center">
+                      <div className="text-xs font-bold text-[var(--color-accent)] uppercase tracking-widest mb-2">99% Match</div>
+                      <h4 className="text-3xl font-bold text-[var(--color-foreground)] mb-4">iPhone 15 Pro</h4>
+                      <ul className="space-y-3 mb-8 relative z-10">
+                        <li className="flex items-center gap-3 text-[var(--color-text-secondary)] font-medium">
+                          <Check className="w-5 h-5 text-green-500 shrink-0" />
+                          48MP Pro Camera System
+                        </li>
+                        <li className="flex items-center gap-3 text-[var(--color-text-secondary)] font-medium">
+                          <Check className="w-5 h-5 text-green-500 shrink-0" />
+                          A17 Pro Chip
+                        </li>
+                      </ul>
+                      <div className="mt-auto pt-6 border-t border-[var(--color-border)] flex items-center justify-between relative z-10">
+                        <div>
+                          <div className="text-sm font-medium text-[var(--color-text-secondary)]">Your Custom EMI</div>
+                          <div className="text-3xl font-bold text-[var(--color-accent)]">₹3,950<span className="text-base font-normal">/mo</span></div>
+                        </div>
+                        <Link href="/product/p_001" className="w-12 h-12 rounded-full bg-[var(--color-primary)] flex items-center justify-center group-hover:bg-[var(--color-accent)] transition-colors">
+                          <ArrowRight className="w-5 h-5 text-[var(--color-on-primary)]" />
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* AI Competitor Comparison */}
+                <div className="md:col-span-4 flex flex-col gap-6">
+                  <div className="bg-[var(--color-surface-elevated)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-6 h-full flex flex-col">
+                    <h5 className="font-bold text-[var(--color-foreground)] mb-6 flex items-center gap-2">
+                      <SlidersHorizontal className="w-4 h-4" /> Why this beats the alternative
+                    </h5>
+                    <div className="space-y-4 flex-1">
+                      <div className="p-4 rounded-md bg-[var(--color-background)] border border-[var(--color-border)] opacity-60">
+                        <div className="text-sm font-semibold mb-1 text-[var(--color-foreground)]">Galaxy S24 Ultra</div>
+                        <div className="text-xs text-[var(--color-text-secondary)] leading-relaxed">Also great, but EMI starts at ₹4,200/mo (over your budget limit).</div>
+                      </div>
+                      <div className="p-4 rounded-md bg-[var(--color-background)] border border-[var(--color-border)] opacity-60">
+                        <div className="text-sm font-semibold mb-1 text-[var(--color-foreground)]">iPhone 15 (Standard)</div>
+                        <div className="text-xs text-[var(--color-text-secondary)] leading-relaxed">Fits budget, but lacks the pro-level 48MP raw photography you requested.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-12 text-center">
+                <button className="text-[var(--color-text-secondary)] hover:text-[var(--color-foreground)] font-medium transition-colors" onClick={() => setStep(0)}>
+                  Ask something else
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
     </div>
   );
 }
