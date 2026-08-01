@@ -95,20 +95,13 @@ export const HERO_SLIDES: HeroSlide[] = [
 /* ------------------------------------------------------------------ */
 
 export const BRAND_LOGOS = [
-  "/images/fynode/logo-01.png",
-  "/images/fynode/logo-02.png",
-  "/images/fynode/logo-03.png",
-  "/images/fynode/logo-04.png",
-  "/images/fynode/logo-05.png",
-  "/images/fynode/logo-06.png",
-  "/images/fynode/logo-08.png",
-  "/images/fynode/logo-01.png",
-  "/images/fynode/logo-02.png",
-  "/images/fynode/logo-03.png",
-  "/images/fynode/logo-04.png",
-  "/images/fynode/logo-05.png",
-  "/images/fynode/logo-06.png",
-  "/images/fynode/logo-08.png",
+  "/images/fynode/logo-black.png",
+  "/images/fynode/logo-light.png",
+  "/images/fynode/payment.png",
+  "/images/fynode/payment2.png",
+  "/images/fynode/payment3.png",
+  "/images/fynode/payment4.png",
+  "/images/fynode/payment5.png",
 ];
 
 /* ------------------------------------------------------------------ */
@@ -401,7 +394,7 @@ export const JOURNAL_POSTS: JournalPost[] = [
     title: "Essential Tips for Maintaining Your Electronic Devices",
     category: "Tech Tips",
     date: "January 2, 2025",
-    image: "/images/fynode/blog-1.jpg",
+    image: "/images/fynode/blog-1-456x486.jpg",
     excerpt:
       "Extend the lifespan of your electronics with these simple, practical maintenance habits.",
   },
@@ -409,7 +402,7 @@ export const JOURNAL_POSTS: JournalPost[] = [
     title: "Top 5 Home Electronics to Upgrade Your Living Space",
     category: "Guides",
     date: "December 18, 2024",
-    image: "/images/fynode/blog-2.jpg",
+    image: "/images/fynode/blog-2-456x486.jpg",
     excerpt:
       "From smart speakers to ambient lighting, these upgrades transform how your home feels.",
   },
@@ -417,7 +410,7 @@ export const JOURNAL_POSTS: JournalPost[] = [
     title: "How to Choose the Perfect Smartphone: A Buyer's Guide",
     category: "Buying Guide",
     date: "December 2, 2024",
-    image: "/images/fynode/blog-3.jpg",
+    image: "/images/fynode/blog-3-456x486.jpg",
     excerpt:
       "Camera, battery, display, ecosystem — a no-nonsense framework for your next upgrade.",
   },

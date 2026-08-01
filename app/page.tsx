@@ -25,8 +25,7 @@ export default function Home() {
           <Image
             src={HERO_BANNERS[0].image}
             alt="Hero Banner"
-            fill
-            className="object-cover opacity-60 mix-blend-overlay"
+            fill sizes="100vw" className="object-cover opacity-60 mix-blend-overlay"
             priority
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[#12213B] via-[#12213B]/80 to-transparent" />
@@ -64,8 +63,7 @@ export default function Home() {
                <Image 
                  src={brand.src}
                  alt={brand.name}
-                 fill
-                 className="object-contain"
+                 fill sizes="128px" className="object-contain"
                />
              </div>
            ))}
@@ -88,8 +86,7 @@ export default function Home() {
               <Image 
                 src={cat.image}
                 alt={cat.name}
-                fill
-                className="object-cover transition-transform duration-700 group-hover:scale-105"
+                fill sizes="(max-width: 768px) 50vw, 25vw" className="object-cover transition-transform duration-700 group-hover:scale-105"
               />
               <div className="absolute bottom-0 left-0 p-6 z-20">
                 <h3 className="text-xl font-bold text-white mb-1">{cat.name}</h3>
@@ -136,8 +133,7 @@ export default function Home() {
                 <Image
                   src={banner.image}
                   alt={banner.title}
-                  fill
-                  className="object-cover transition-transform duration-700 group-hover:scale-105"
+                  fill sizes="(max-width: 768px) 50vw, 25vw" className="object-cover transition-transform duration-700 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors" />
                 <div className="absolute inset-x-0 bottom-0 p-8 flex flex-col items-start z-10">
