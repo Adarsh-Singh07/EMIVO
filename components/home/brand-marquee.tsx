@@ -9,7 +9,9 @@ const brands = [
 export function BrandMarquee() {
   return (
     <div className="w-full bg-[var(--color-background)] border-b border-[var(--color-border)] py-8 overflow-hidden flex items-center">
-      <div className="flex w-fit animate-marquee hover:[animation-play-state:paused]">
+      {/* Decorative animated strip — aria-hidden so the 3× duplication isn't
+          read aloud; brand names appear in the static logo grid on this page. */}
+      <div className="flex w-fit animate-marquee hover:[animation-play-state:paused]" aria-hidden="true">
         {/* Duplicate array for seamless infinite scroll */}
         {[...brands, ...brands, ...brands].map((brand, i) => (
           <span 

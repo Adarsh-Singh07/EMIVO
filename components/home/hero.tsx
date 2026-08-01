@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,14 +44,18 @@ const slides = [
 export function Hero() {
   const [current, setCurrent] = useState(0);
   const [direction, setDirection] = useState(1); // 1 for forward, -1 for backward
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
+    // Auto-advance is paused when the user prefers reduced motion — slides
+    // remain navigable via dots/arrows (WCAG 2.2.2: pause, stop, hide).
+    if (reduceMotion) return;
     const timer = setInterval(() => {
       setDirection(1);
       setCurrent((prev) => (prev + 1) % slides.length);
     }, 6000);
     return () => clearInterval(timer);
-  }, []);
+  }, [reduceMotion]);
 
   const handleDotClick = (index: number) => {
     setDirection(index > current ? 1 : -1);

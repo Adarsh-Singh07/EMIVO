@@ -3,6 +3,7 @@
 import { ReactNode } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { useState } from "react"
+import { MotionConfig } from "framer-motion"
 import { Toaster } from "@/components/ui/toast"
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -21,8 +22,13 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
-      <Toaster />
+      {/* reducedMotion="user" honours prefers-reduced-motion globally for all
+          framer-motion animations — transforms/layout jumps are disabled for
+          those users, opacity fades remain. */}
+      <MotionConfig reducedMotion="user">
+        {children}
+        <Toaster />
+      </MotionConfig>
     </QueryClientProvider>
   )
 }

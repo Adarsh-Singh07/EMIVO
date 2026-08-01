@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Search,
   Heart,
@@ -40,13 +40,17 @@ function AnnouncementBar() {
   const [index, setIndex] = useState(0);
   const [language, setLanguage] = useState(LANGUAGES[0]);
   const [currency, setCurrency] = useState(CURRENCIES[0]);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
+    // Pause the auto-rotating message for users who prefer reduced motion —
+    // static content instead of auto-updating text (WCAG 2.2.2).
+    if (reduceMotion) return;
     const t = setInterval(() => {
       setIndex((i) => (i + 1) % ANNOUNCEMENT_MESSAGES.length);
     }, 4000);
     return () => clearInterval(t);
-  }, []);
+  }, [reduceMotion]);
 
   return (
     <div className="bg-[var(--color-announcement-bg)] text-white text-[13px]">
@@ -111,6 +115,9 @@ function Switcher({
         type="button"
         onClick={() => setOpen((o) => !o)}
         onBlur={() => setTimeout(() => setOpen(false), 120)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={`${label}-menu`}
         className="flex items-center gap-1 px-2 py-1 text-white/80 transition-colors hover:text-white"
       >
         {icon}
@@ -120,6 +127,9 @@ function Switcher({
       <AnimatePresence>
         {open && (
           <motion.ul
+            id={`${label}-menu`}
+            role="listbox"
+            aria-label={label}
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
@@ -130,6 +140,8 @@ function Switcher({
               <li key={opt}>
                 <button
                   type="button"
+                  role="option"
+                  aria-selected={opt === label}
                   onMouseDown={(e) => {
                     e.preventDefault();
                     onChange(opt);
@@ -287,6 +299,7 @@ function CategoryNav() {
           onClick={() => setMobileOpen((o) => !o)}
           className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wide text-[var(--color-foreground)] md:hidden"
           aria-label="Toggle menu"
+          aria-expanded={mobileOpen}
         >
           {mobileOpen ? (
             <X className="h-4 w-4" aria-hidden />
@@ -313,7 +326,9 @@ function CategoryNav() {
               </a>
 
               {item.children && (
-                <div className="invisible absolute left-0 top-full z-40 min-w-[200px] translate-y-1 rounded-md border border-[var(--color-border)] bg-white py-2 opacity-0 shadow-lg transition-all duration-150 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+                <div
+                  className="invisible absolute left-0 top-full z-40 min-w-[200px] translate-y-1 rounded-md border border-[var(--color-border)] bg-white py-2 opacity-0 shadow-lg transition-all duration-150 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100"
+                >
                   {item.children.map((child) => (
                     <a
                       key={child.label}

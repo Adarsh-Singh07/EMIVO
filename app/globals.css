@@ -154,6 +154,25 @@
     display: none;
   }
 
+  /* Reduced motion — neutralize CSS-driven motion for users who ask for it.
+     framer-motion is handled separately via <MotionConfig reducedMotion="user">. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+
+    /* Kill the brand marquee drift entirely */
+    .animate-marquee {
+      animation: none !important;
+      transform: none !important;
+    }
+  }
+
   /* Premium easing helper */
   .ease-premium {
     transition-timing-function: var(--ease-premium);

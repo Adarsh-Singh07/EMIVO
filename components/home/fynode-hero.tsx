@@ -6,20 +6,23 @@
  */
 
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { HERO_SLIDES } from "@/lib/fynode";
 
 export function FynodeHero() {
   const [index, setIndex] = useState(0);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
+    // Pause auto-advance for users who prefer reduced motion (WCAG 2.2.2).
+    if (reduceMotion) return;
     const t = setInterval(
       () => setIndex((i) => (i + 1) % HERO_SLIDES.length),
       6000
     );
     return () => clearInterval(t);
-  }, []);
+  }, [reduceMotion]);
 
   const go = (dir: number) =>
     setIndex((i) => (i + dir + HERO_SLIDES.length) % HERO_SLIDES.length);
