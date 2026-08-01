@@ -22,9 +22,11 @@ export default function Home() {
       {/* 1. Hero Section - Static first banner for now (can map later to carousel) */}
       <section className="relative w-full h-[600px] md:h-[70vh] min-h-[500px] bg-[#12213B] overflow-hidden flex items-center">
         <div className="absolute inset-0 z-0">
+          {/* Decorative background — overlay text conveys the message, so
+              the image is marked empty for screen readers. */}
           <Image
             src={HERO_BANNERS[0].image}
-            alt="Hero Banner"
+            alt=""
             fill sizes="100vw" className="object-cover opacity-60 mix-blend-overlay"
             priority
           />
@@ -57,12 +59,22 @@ export default function Home() {
       {/* 2. Brand Marquee */}
       <div className="w-full bg-white border-y border-border py-8 overflow-hidden flex">
         <div className="flex shrink-0 animate-marquee items-center gap-16 px-8 h-12">
-           {/* Duplicate content for seamless scrolling */}
-           {[...BRAND_LOGOS, ...BRAND_LOGOS].map((brand, i) => (
+           {/* First copy read aloud; the second (seamless-loop duplicate) is
+               aria-hidden so brand names aren't announced twice. */}
+           {BRAND_LOGOS.map((brand, i) => (
              <div key={i} className="relative w-32 h-10 grayscale hover:grayscale-0 opacity-60 hover:opacity-100 transition-all">
-               <Image 
+               <Image
                  src={brand.src}
                  alt={brand.name}
+                 fill sizes="128px" className="object-contain"
+               />
+             </div>
+           ))}
+           {BRAND_LOGOS.map((brand, i) => (
+             <div key={`dup-${i}`} aria-hidden="true" className="relative w-32 h-10 grayscale hover:grayscale-0 opacity-60 hover:opacity-100 transition-all">
+               <Image
+                 src={brand.src}
+                 alt=""
                  fill sizes="128px" className="object-contain"
                />
              </div>
