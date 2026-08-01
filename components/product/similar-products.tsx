@@ -1,7 +1,7 @@
 "use client";
 
 import { Product } from "@/types/product";
-import { MOCK_PRODUCTS } from "@/lib/data";
+import { getAllProducts } from "@/lib/emivo-data";
 import Image from "next/image";
 import { ArrowRight, Lightbulb } from "lucide-react";
 import Link from "next/link";
@@ -14,8 +14,9 @@ export function SimilarProducts({ product }: SimilarProductsProps) {
   if (!product.recommendations || product.recommendations.length === 0) return null;
 
   // Resolve recommended products from the catalog
+  const allProducts = getAllProducts();
   const recommendations = product.recommendations.map(rec => {
-    const matchedProduct = MOCK_PRODUCTS.find(p => p.id === rec.productId);
+    const matchedProduct = allProducts.find(p => p.id === rec.productId);
     return {
       product: matchedProduct,
       reason: rec.reason

@@ -1,109 +1,107 @@
-"use client";
+﻿"use client"
 
-import Link from "next/link";
-import { formatINR } from "@/lib/utils";
-import { Heart, Plus, Sparkles, Repeat } from "lucide-react";
-import { Product } from "@/types/product";
-import { motion } from "framer-motion";
+import Link from "next/link"
+import Image from "next/image"
+import { Product } from "@/types/product"
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { LedgerFigure } from "@/components/ui/ledger-figure"
+import { useCartStore } from "@/lib/store/cart"
+import { toast } from "sonner"
+import { ShoppingBag, Star } from "lucide-react"
 
 interface ProductCardProps {
   product: Product;
-  isFeatured?: boolean;
 }
 
-export function ProductCard({ product, isFeatured = false }: ProductCardProps) {
-  const minEmi = product.baseEMI;
-  const primaryImage = product.gallery[0]?.url || "";
-  const secondaryImage = product.gallery[1]?.url || primaryImage;
+export function ProductCard({ product }: ProductCardProps) {
+  const addItem = useCartStore((state) => state.addItem)
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault() // prevent navigating to product detail
+    addItem({
+      product,
+      quantity: 1,
+      selectedColor: product.colors?.[0], // default to first color
+    })
+    toast.success(`${product.title} added to cart!`)
+  }
+
+  // Calculate discount percentage if MRP exists
+  const discount = product.mrp > product.basePrice 
+    ? Math.round(((product.mrp - product.basePrice) / product.mrp) * 100) 
+    : 0
 
   return (
-    <div className="group relative flex flex-col h-full w-full rounded-2xl bg-[var(--color-surface)] hover:bg-white transition-colors duration-[700ms] ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-transparent hover:border-black/5">
-      
-      {/* Link Wrap */}
-      <Link href={`/product/${product.id}`} className="absolute inset-0 z-10">
-        <span className="sr-only">View {product.title}</span>
-      </Link>
-
-      {/* Top Badges */}
-      <div className="absolute top-4 left-4 z-20 flex flex-col gap-2 items-start pointer-events-none">
-        {isFeatured && (
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black text-white text-[10px] font-bold tracking-widest uppercase shadow-sm">
-            <Sparkles className="w-3 h-3 text-yellow-400" /> AI Pick
-          </div>
-        )}
-        {minEmi > 0 && (
-          <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-200 text-[10px] font-bold tracking-widest uppercase">
-            0% EMI
-          </div>
-        )}
-      </div>
-
-      {/* Hover Actions (Right Side) */}
-      <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 pointer-events-auto">
-        <button 
-          className="w-9 h-9 flex items-center justify-center rounded-full bg-white text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all shadow-sm opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 duration-[600ms] ease-[cubic-bezier(0.16,1,0.3,1)] delay-75"
-          aria-label="Add to wishlist"
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-        >
-          <Heart className="w-4 h-4" />
-        </button>
-        <button 
-          className="w-9 h-9 flex items-center justify-center rounded-full bg-white text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-all shadow-sm opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 duration-[600ms] ease-[cubic-bezier(0.16,1,0.3,1)] delay-100"
-          aria-label="Compare"
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-        >
-          <Repeat className="w-4 h-4" />
-        </button>
-      </div>
-      
-      {/* Massive Product Canvas (80% of card visual weight) */}
-      <div className="relative w-full pt-[100%] bg-[#F5F5F7] group-hover:bg-transparent transition-colors duration-[700ms] ease-[cubic-bezier(0.16,1,0.3,1)] rounded-t-2xl overflow-hidden flex-shrink-0">
+    <Link href={`/products/${product.id}`} className="group h-full flex">
+      <Card className="flex flex-col h-full w-full overflow-hidden transition-all duration-300 hover:shadow-elevated hover:border-primary/20 bg-surface">
         
-        {/* Primary Image */}
-        <img 
-          src={primaryImage} 
-          alt={product.title}
-          className="absolute inset-0 w-full h-full object-contain p-8 scale-100 group-hover:scale-105 group-hover:opacity-0 transition-all duration-[700ms] ease-[cubic-bezier(0.16,1,0.3,1)] mix-blend-multiply"
-        />
-        
-        {/* Secondary Image (Crossfade) */}
-        <img 
-          src={secondaryImage} 
-          alt={`${product.title} alternate view`}
-          className="absolute inset-0 w-full h-full object-contain p-8 scale-95 opacity-0 group-hover:scale-105 group-hover:opacity-100 transition-all duration-[700ms] ease-[cubic-bezier(0.16,1,0.3,1)] mix-blend-multiply"
-        />
-
-      </div>
-
-      {/* Typography & Merchandising Container */}
-      <div className="flex flex-col flex-1 p-6 relative bg-white">
-        <div className="mb-1 text-[11px] font-bold tracking-widest text-gray-400 uppercase letter-spacing-1">{product.brand}</div>
-        <h3 className="font-bold text-[17px] leading-snug tracking-tight text-gray-900 mb-2 line-clamp-2">
-          {product.title}
-        </h3>
-        
-        <div className="mt-auto pt-4 flex flex-col gap-1">
-          <span className="text-sm font-semibold text-gray-900">
-            {formatINR(product.basePrice * 100)}
-          </span>
-          {minEmi > 0 && (
-            <span className="text-xs font-medium text-gray-500">
-              From ₹{minEmi.toLocaleString('en-IN')}/mo.
-            </span>
+        {/* Top Badges overlay */}
+        <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10 w-fit">
+          {product.isNew && (
+            <Badge variant="ai" className="shadow-sm truncate flex-shrink-0 w-min">New</Badge>
+          )}
+          {discount > 0 && (
+            <Badge variant="discount" className="shadow-sm w-min">{discount}% OFF</Badge>
           )}
         </div>
-
-        {/* Add to Cart Slide-up */}
-        <div className="absolute bottom-0 left-0 w-full p-6 translate-y-full opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-[600ms] ease-[cubic-bezier(0.16,1,0.3,1)] bg-gradient-to-t from-white via-white to-transparent pointer-events-auto z-20">
-           <button 
-            className="w-full h-11 bg-black text-white rounded-full text-sm font-bold flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-transform"
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-           >
-             Add to Bag
-           </button>
-        </div>
-      </div>
-      
-    </div>
-  );
+        
+        {/* Image Box */}
+        <CardHeader className="p-0 border-b border-border/50 bg-[#F5F6F8] relative aspect-square overflow-hidden">
+          <div className="absolute inset-0 flex items-center justify-center p-6 mix-blend-multiply">
+             <Image
+                src={product.gallery[0]?.url || "/placeholder.png"}
+                alt={product.title}
+                width={300}
+                height={300}
+                className="object-contain w-full h-full transition-transform duration-500 group-hover:scale-[1.03]"
+              />
+          </div>
+        </CardHeader>
+        
+        <CardContent className="flex flex-col flex-1 p-5 pb-3">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="text-eyebrow">{product.brand}</span>
+            <div className="flex items-center gap-1 text-[11px] font-medium text-secondary">
+              <Star className="w-3 h-3 fill-accent text-accent" />
+              {product.rating} <span className="opacity-60">({product.reviewsCount})</span>
+            </div>
+          </div>
+          
+          <h3 className="font-semibold text-foreground leading-snug line-clamp-2 mb-3 group-hover:text-primary transition-colors">
+            {product.title}
+          </h3>
+          
+          <div className="mt-auto space-y-1">
+            <div className="flex items-end gap-2 pr-2">
+              <LedgerFigure paisa={product.basePrice} size="lg" />
+              {product.mrp > product.basePrice && (
+                <span className="text-xs text-muted line-through tabular-nums mb-[3px]">
+                   ₹{Math.round(product.mrp / 100).toLocaleString('en-IN')}
+                </span>
+              )}
+            </div>
+            
+            {(product.baseEMI ?? 0) > 0 && (
+              <div className="flex items-center gap-1.5 text-xs font-medium text-secondary">
+                From <LedgerFigure paisa={product.baseEMI ?? 0} size="xs" noLine tone="navy" suffix="/mo" />
+              </div>
+            )}
+          </div>
+        </CardContent>
+        
+        <CardFooter className="p-5 pt-0 mt-2">
+          <Button 
+            className="w-full h-9 rounded-md text-xs font-semibold bg-surface border-border text-foreground hover:bg-primary hover:border-primary hover:text-white transition-all shadow-sm"
+            variant="outline"
+            onClick={handleAddToCart}
+          >
+            <ShoppingBag className="w-3.5 h-3.5 mr-2" />
+            Add to Cart
+          </Button>
+        </CardFooter>
+      </Card>
+    </Link>
+  )
 }

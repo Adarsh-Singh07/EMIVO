@@ -4,20 +4,20 @@ import { cn } from "@/lib/utils"
 import { Sparkles } from "lucide-react"
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2",
   {
     variants: {
       variant: {
         default:
-          "border-transparent bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)]/80",
+          "border-transparent bg-[var(--color-primary)] text-[var(--color-primary-foreground)]",
         secondary:
-          "border-transparent bg-[var(--color-surface)] text-[var(--color-foreground)] hover:bg-black/5",
+          "border-transparent bg-[var(--color-surface)] text-[var(--color-foreground)] border-[var(--color-border)]",
         destructive:
-          "border-transparent bg-red-500 text-white hover:bg-red-500/80",
-        outline: "text-[var(--color-foreground)] border-black/10",
-        emi: "border-transparent bg-black text-white font-bold tracking-tight",
-        discount: "border-transparent bg-green-500/10 text-green-700 border-green-500/20",
-        ai: "ai-glass text-[var(--color-foreground)] font-medium gap-1 px-3",
+          "border-transparent bg-[var(--color-error)] text-white",
+        outline: "text-[var(--color-foreground)] border-[var(--color-border)]",
+        emi: "border-transparent bg-[var(--color-primary)] text-[var(--color-primary-foreground)] font-bold tracking-tight",
+        discount: "border-transparent bg-[var(--color-success)]/10 text-[var(--color-success)] border-[var(--color-success)]/25",
+        ai: "border-[var(--color-accent)]/30 bg-[var(--color-accent)]/10 text-[var(--color-primary)] font-medium gap-1 px-3",
       },
     },
     defaultVariants: {

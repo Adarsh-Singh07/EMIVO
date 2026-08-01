@@ -1,98 +1,151 @@
 @import "tailwindcss";
 
+/* ==================================================================
+   EMIVO Design Tokens — Tailwind v4 @theme
+   Primary   : Circuit Navy  #12213B
+   Accent    : Signal Amber  #E8A33D
+   Background: #F5F6F8 · Surface #FFFFFF · Text #1B1F27
+   ================================================================== */
 @theme {
-  --font-sans: var(--font-inter);
-  
-  --color-background: var(--color-background);
-  --color-foreground: var(--color-foreground);
-  --color-primary: var(--color-primary);
-  --color-on-primary: var(--color-on-primary);
-  --color-secondary: var(--color-secondary);
-  --color-border: var(--color-border);
-  --color-accent: var(--color-accent);
-  --color-surface: var(--color-surface);
-  --color-surface-elevated: var(--color-surface-elevated);
-  
-  --radius-sm: var(--radius-sm);
-  --radius-md: var(--radius-md);
-  --radius-lg: var(--radius-lg);
-  --radius-card: var(--radius-card);
-  --radius-bento: var(--radius-bento);
-  --radius-full: var(--radius-full);
-}
+  /* Typography */
+  --font-heading: var(--font-space-grotesk), sans-serif;
+  --font-sans: var(--font-ibm-plex-sans), sans-serif;
+  --font-mono: var(--font-ibm-plex-mono), monospace;
 
-@layer base {
-  :root {
-    /* EMIVO Unified Light Theme - Subtractive Palette */
-    --color-background: #FFFFFF;
-    --color-foreground: #09090B; /* Extreme contrast ink */
-    --color-primary: #09090B; /* Primary buttons / fills */
-    --color-on-primary: #FFFFFF;
-    --color-secondary: #6B7280; /* Muted text */
-    --color-border: rgba(0, 0, 0, 0.05); /* Subtle borders */
-    --color-accent: #0066CC; /* Apple Blue for Trust/EMI */
-    --color-surface: #F5F5F7; /* Apple Gray for Bento/Cards */
-    --color-surface-elevated: #FFFFFF;
-    
-    --radius-sm: 4px;
-    --radius-md: 8px;
-    --radius-lg: 16px;
-    --radius-card: 20px;
-    --radius-bento: 32px;
-    --radius-full: 9999px;
+  /* Brand palette */
+  --color-primary: #12213b; /* Circuit Navy */
+  --color-primary-foreground: #ffffff;
+  --color-accent: #e8a33d; /* Signal Amber */
+  --color-accent-foreground: #12213b;
+  --color-background: #f5f6f8;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-foreground: #1b1f27;
+  --color-secondary: #5b6472;
+  --color-muted: #8a93a2;
+  --color-border: #d8dce3;
+  --color-success: #1f8a5f;
+  --color-error: #d14343;
+
+  /* Ledger line colour — 2px Signal Amber underline for money figures */
+  --color-ledger: #e8a33d;
+
+  /* Legacy aliases (pre-makeover pages, kept for compatibility) */
+  --color-on-primary: #ffffff;
+  --color-text-secondary: #5b6472;
+  --color-fynode-accent: #3b82f6;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-card: 8px;
+  --radius-full: 9999px;
+
+  /* Motion — durations + easing per design bible */
+  --ease-premium: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 120ms;
+  --duration-standard: 220ms;
+  --duration-page: 320ms;
+
+  /* Shadows */
+  --shadow-card: 0 1px 2px rgba(18, 33, 59, 0.04), 0 4px 16px rgba(18, 33, 59, 0.06);
+  --shadow-elevated: 0 2px 4px rgba(18, 33, 59, 0.05), 0 12px 32px rgba(18, 33, 59, 0.12);
+
+  /* Brand marquee (content duplicated 2×, translate by 50%) */
+  --animate-marquee: marquee 32s linear infinite;
+  @keyframes marquee {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
   }
 }
 
 @layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-family: var(--font-sans), sans-serif;
+    font-family: var(--font-ibm-plex-sans), sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
-  
-  /* Extreme Typography Scale (Linear/Apple Inspired) */
-  h1, .text-display { 
-    font-size: 80px; 
-    line-height: 0.9; 
-    letter-spacing: -0.04em; 
-    font-weight: 700; 
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-space-grotesk), sans-serif;
+    color: var(--color-foreground);
   }
-  h2, .text-heading { 
-    font-size: 48px; 
-    line-height: 1.1; 
-    letter-spacing: -0.02em; 
-    font-weight: 600; 
+
+  ::selection {
+    background: var(--color-accent);
+    color: var(--color-primary);
   }
-  h3, .text-subheading { 
-    font-size: 24px; 
-    line-height: 1.3; 
-    letter-spacing: -0.01em; 
-    font-weight: 600; 
-  }
-  .text-eyebrow { 
-    font-size: 11px; 
-    letter-spacing: 0.25em; 
-    text-transform: uppercase; 
-    font-weight: 700; 
-    color: var(--color-secondary); 
-  }
-  p { 
-    font-size: 16px; 
-    line-height: 1.5; 
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
   }
 }
 
 @layer utilities {
-  @keyframes marquee {
-    0% { transform: translateX(0%); }
-    100% { transform: translateX(-33.33%); }
+  /* Structural container */
+  .container-emivo {
+    width: 100%;
+    max-width: 1440px;
+    margin-inline: auto;
+    padding-inline: 1.25rem;
   }
-  .animate-marquee {
-    animation: marquee 20s linear infinite;
+  @media (min-width: 768px) {
+    .container-emivo {
+      padding-inline: 2rem;
+    }
   }
 
+  /* Eyebrow label */
+  .text-eyebrow {
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--color-secondary);
+  }
+
+  /* Ledger line — 2px Signal Amber underline.
+     RESERVED for monetary/EMI figures via <LedgerFigure />. */
+  .ledger-line {
+    position: relative;
+  }
+  .ledger-line::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -0.12em;
+    height: 2px;
+    border-radius: 999px;
+    background-color: var(--color-ledger);
+  }
+
+  /* Hide scrollbars (carousels, chip rails) */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -100,43 +153,9 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
-  
-  .tabular-nums {
-    font-variant-numeric: tabular-nums;
-  }
 
-  /* Structural Classes */
-  .container-emivo {
-    width: 100%;
-    max-width: 1520px;
-    margin-left: auto;
-    margin-right: auto;
-    padding-left: 2rem;
-    padding-right: 2rem;
-  }
-
-  .emivo-shadow {
-    box-shadow: 0 4px 24px -4px rgba(0,0,0,0.05), 0 12px 48px -12px rgba(0,0,0,0.05);
-  }
-
-  .emivo-glass {
-    background-color: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-  }
-
-  .ai-glass {
-    background-color: rgba(255, 255, 255, 0.5);
-    backdrop-filter: blur(40px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    /* Iridescent subtle glow on hover handled in components */
-  }
-
+  /* Premium easing helper */
   .ease-premium {
-    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  
-  .duration-premium {
-    transition-duration: 700ms;
+    transition-timing-function: var(--ease-premium);
   }
 }

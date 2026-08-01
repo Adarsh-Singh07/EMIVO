@@ -1,167 +1,116 @@
-"use client";
+﻿"use client"
 
-import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ProductCard } from "@/components/product-card";
-import { MOCK_PRODUCTS } from "@/lib/data";
-import { Sparkles, ChevronDown, Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useSearchParams } from "next/navigation"
+import { Suspense } from "react"
+import { getAllProducts, CATEGORIES } from "@/lib/emivo-data"
+import { ProductCard } from "@/components/product-card"
+import { Sparkles, SlidersHorizontal, ChevronDown } from "lucide-react"
 
-export default function ProductsPage() {
-  const [activeCategory, setActiveCategory] = useState("All");
+function ProductListing() {
+  const searchParams = useSearchParams()
+  const categoryFilter = searchParams.get("category")
   
-  const categories = ["All", "Smartphone", "Laptop", "TV", "Audio", "Accessories"];
+  let products = getAllProducts()
   
-  const filteredProducts = activeCategory === "All" 
-    ? MOCK_PRODUCTS 
-    : MOCK_PRODUCTS.filter(p => p.category === activeCategory);
+  if (categoryFilter) {
+    products = products.filter(p => p.category === categoryFilter)
+  }
 
-  const transitionConfig = { duration: 0.7, ease: [0.16, 1, 0.3, 1] as const };
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 40 },
-    show: { 
-      opacity: 1, 
-      y: 0,
-      transition: transitionConfig
-    },
-    exit: {
-      opacity: 0,
-      scale: 0.95,
-      transition: { duration: 0.2 }
-    }
-  };
+  const currentCategoryLabel = CATEGORIES.find(c => c.slug === categoryFilter)?.name || "All Products"
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] pt-24 pb-20">
-      <div className="container-emivo flex flex-col lg:flex-row gap-12">
-        
-        {/* Left Sidebar: Sticky Filter Architecture */}
-        <aside className="w-full lg:w-64 shrink-0">
-          <div className="sticky top-24">
-            <h1 className="text-4xl font-bold tracking-tight text-[var(--color-foreground)] mb-8">
-              The Catalog.
-            </h1>
-            
-            <div className="space-y-8">
-              <div>
-                <h3 className="text-eyebrow mb-4">Categories</h3>
-                <ul className="space-y-1">
-                  {categories.map((cat) => (
-                    <li key={cat}>
-                      <button
-                        onClick={() => setActiveCategory(cat)}
-                        className={`w-full text-left px-4 py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors flex items-center justify-between ${
-                          activeCategory === cat 
-                            ? "bg-black text-white" 
-                            : "text-[var(--color-secondary)] hover:bg-black/5 hover:text-black"
-                        }`}
-                      >
-                        {cat}
-                        {activeCategory === cat && <Check className="w-4 h-4" />}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="pt-8 border-t border-[var(--color-border)]">
-                <h3 className="text-eyebrow mb-4">Price</h3>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-[var(--color-surface)] rounded-md px-3 py-2 text-sm text-[var(--color-secondary)]">Min</div>
-                  <span className="text-[var(--color-secondary)]">-</span>
-                  <div className="flex-1 bg-[var(--color-surface)] rounded-md px-3 py-2 text-sm text-[var(--color-secondary)]">Max</div>
-                </div>
-              </div>
-            </div>
+    <div className="container-emivo py-12 md:py-16">
+      
+      {/* Header and Breadcrumb */}
+      <div className="mb-10 flex flex-col gap-4">
+        <h1 className="text-3xl md:text-5xl font-heading font-bold text-primary">
+          {currentCategoryLabel}
+        </h1>
+        <p className="text-secondary max-w-2xl text-lg">
+          Explore our premium selection of {currentCategoryLabel.toLowerCase()} with flexible EMI options to suit your lifestyle.
+        </p>
+      </div>
+      
+      <div className="flex flex-col lg:flex-row gap-8 items-start">
+        {/* Filters Sidebar - Simplified for Demo */}
+        <div className="w-full lg:w-64 shrink-0 bg-surface border border-border rounded-xl p-5 hidden lg:block sticky top-24">
+          <div className="flex items-center gap-2 font-semibold mb-6 pb-4 border-b border-border">
+            <SlidersHorizontal className="w-4 h-4" />
+            Filters
           </div>
-        </aside>
-
-        {/* Right Content: AI Injection + Dense Grid */}
-        <div className="flex-1 min-w-0">
           
-          {/* Top Bar */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-            {/* AI Summary Pill */}
-            <div className="ai-glass px-5 py-4 rounded-[var(--radius-card)] flex gap-4 items-start max-w-2xl">
-              <Sparkles className="w-5 h-5 text-[var(--color-accent)] shrink-0 mt-0.5" />
-              <div>
-                <span className="text-sm font-bold block mb-1">EMIVO Intelligence</span>
-                <p className="text-sm text-[var(--color-secondary)] leading-relaxed">
-                  {activeCategory === "All" 
-                    ? "Currently showing our entire premium collection. Many of these flagship devices feature high-margin exchange offers today."
-                    : activeCategory === "Smartphone"
-                    ? "Most smartphones in this range focus on camera parity. If you prioritize video, lean towards Apple; for zoom and stylus, lean towards Samsung."
-                    : `Showing the best in ${activeCategory}. Consider balancing performance specs with battery longevity based on your usage.`}
-                </p>
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-sm font-semibold mb-3">Categories</h3>
+              <ul className="space-y-2 text-sm text-secondary">
+                <li>
+                  <a href="/products" className={`hover:text-primary transition-colors ${!categoryFilter ? 'text-primary font-medium' : ''}`}>
+                    All Products
+                  </a>
+                </li>
+                {CATEGORIES.map(cat => (
+                  <li key={cat.id}>
+                    <a href={`/products?category=${cat.slug}`} className={`hover:text-primary transition-colors ${categoryFilter === cat.slug ? 'text-primary font-medium' : ''}`}>
+                      {cat.name}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            
+            <div className="pt-6 border-t border-border">
+              <h3 className="text-sm font-semibold mb-3">Sort By</h3>
+              <div className="relative group bg-background border border-border rounded-md px-3 py-2 flex items-center justify-between text-sm cursor-pointer text-secondary">
+                Recommended
+                <ChevronDown className="w-4 h-4" />
               </div>
             </div>
             
-            <div className="flex items-center gap-3 shrink-0">
-              <span className="text-sm text-[var(--color-secondary)]">{filteredProducts.length} Results</span>
-              <Button variant="outline" className="rounded-full">
-                Sort by: Featured <ChevronDown className="w-4 h-4 ml-2" />
-              </Button>
+            <div className="pt-6 border-t border-border">
+              <div className="flex items-center gap-2 p-3 bg-accent/10 border border-accent/20 rounded-md">
+                <Sparkles className="w-4 h-4 text-accent shrink-0" />
+                <span className="text-xs text-primary font-medium">AI sorting is active. Products are ranked based on overall value and performance ratings.</span>
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Product Grid */}
-          <motion.div 
-            variants={containerVariants}
-            initial="hidden"
-            animate="show"
-            className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6"
-          >
-            <AnimatePresence mode="popLayout">
-              {filteredProducts.map((product, index) => (
-                <React.Fragment key={product.id}>
-                  <motion.div
-                    variants={itemVariants}
-                    layout
-                    className="col-span-1"
-                  >
-                    <ProductCard product={product} />
-                  </motion.div>
-                  
-                  {/* Editorial Break after 4th product */}
-                  {index === 3 && activeCategory === "All" && (
-                    <motion.div 
-                      layout
-                      variants={itemVariants}
-                      className="col-span-full my-8 bg-black text-white rounded-2xl overflow-hidden relative"
-                    >
-                      <div className="absolute inset-0 z-0">
-                        <img 
-                          src="https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?q=80&w=2000&auto=format&fit=crop" 
-                          alt="MacBook Campaign"
-                          className="w-full h-full object-cover opacity-50 mix-blend-luminosity"
-                        />
-                      </div>
-                      <div className="relative z-10 p-12 md:p-20 text-center max-w-3xl mx-auto">
-                        <span className="text-xs font-bold tracking-widest uppercase text-gray-400 mb-4 block">Apple Silicon</span>
-                        <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">M3. Scary fast.</h2>
-                        <p className="text-lg text-gray-300 mb-8">MacBook Air sails through work and play — and the M3 chip brings even greater capabilities and advanced AI features to this super-portable laptop.</p>
-                        <Button variant="outline" className="rounded-full bg-white text-black hover:bg-gray-200 border-none px-8">
-                          Shop Mac
-                        </Button>
-                      </div>
-                    </motion.div>
-                  )}
-                </React.Fragment>
+        {/* Product Grid */}
+        <div className="flex-1 w-full">
+          {/* Mobile Filter Toggle */}
+          <div className="lg:hidden mb-6 py-3 px-4 bg-surface border border-border rounded-md flex items-center justify-between">
+             <span className="text-sm font-medium">{products.length} Products</span>
+             <div className="flex items-center gap-1.5 text-sm font-medium cursor-pointer">
+               <SlidersHorizontal className="w-4 h-4" />
+               Filters
+             </div>
+          </div>
+          
+          {products.length === 0 ? (
+            <div className="py-20 text-center border border-border border-dashed rounded-xl flex flex-col items-center">
+              <p className="text-secondary text-lg">No products found in this category.</p>
+              <a href="/products" className="text-primary font-medium mt-4 hover:underline">
+                Clear all filters
+              </a>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {products.map(product => (
+                <ProductCard key={product.id} product={product} />
               ))}
-            </AnimatePresence>
-          </motion.div>
-
+            </div>
+          )}
         </div>
       </div>
+      
     </div>
-  );
+  )
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={<div className="container-emivo py-20 animate-pulse bg-background h-screen" />}>
+      <ProductListing />
+    </Suspense>
+  )
 }

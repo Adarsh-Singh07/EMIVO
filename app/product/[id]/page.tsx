@@ -1,5 +1,5 @@
 import { use } from "react";
-import { MOCK_PRODUCTS } from "@/lib/data";
+import { getProductById } from "@/lib/emivo-data";
 import { notFound } from "next/navigation";
 import { StoryEngine } from "@/components/product/story-engine";
 import { ProductGallery } from "@/components/product/gallery";
@@ -13,8 +13,8 @@ import { SimilarProducts } from "@/components/product/similar-products";
 
 export default function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const product = MOCK_PRODUCTS.find((p) => p.id === id) || MOCK_PRODUCTS[0];
-  
+  const product = getProductById(id);
+
   if (!product) return notFound();
 
   // The Category Worlds System

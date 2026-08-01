@@ -2,14 +2,32 @@
 
 import { useProduct } from "./product-context";
 import { ShieldCheck, Zap, Truck, Store, Gift, ChevronDown, Check } from "lucide-react";
+import { LedgerFigure } from "@/components/ui/ledger-figure";
+import { Button } from "@/components/ui/button";
+import { useCartStore } from "@/lib/store/cart";
+import { toast } from "sonner";
 
 export function PurchasePanel() {
-  const { 
-    product, 
-    selectedColor, setSelectedColor, 
-    selectedStorage, setSelectedStorage, 
-    dynamicPrice, dynamicEMI 
+  const {
+    product,
+    selectedColor, setSelectedColor,
+    selectedStorage, setSelectedStorage,
+    dynamicPrice, dynamicEMI
   } = useProduct();
+
+  const addItem = useCartStore((state) => state.addItem);
+  const selectedColorVariant = product.colors.find(c => c.id === selectedColor);
+  const selectedStorageVariant = product.storageOptions.find(s => s.id === selectedStorage);
+
+  const handleAddToCart = () => {
+    addItem({
+      product,
+      quantity: 1,
+      selectedColor: selectedColorVariant,
+      selectedStorage: selectedStorageVariant,
+    });
+    toast.success(`${product.title} added to cart!`);
+  };
 
   return (
     <div className="bg-[var(--color-surface)]/80 backdrop-blur-2xl border border-[var(--color-border)] rounded-[2rem] shadow-[var(--shadow-xl)] flex flex-col lg:max-h-[calc(100vh-8rem)] relative lg:overflow-hidden">
@@ -27,12 +45,10 @@ export function PurchasePanel() {
           </h1>
           
           <div className="pt-4 pb-2">
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold tracking-tight">
-                ₹{dynamicPrice.toLocaleString('en-IN')}
-              </span>
+            <div className="flex items-baseline gap-3">
+              <LedgerFigure paisa={dynamicPrice} size="xl" />
               <span className="text-sm text-[var(--color-secondary)] line-through">
-                MRP ₹{(product.mrp + (dynamicPrice - product.basePrice)).toLocaleString('en-IN')}
+                MRP <LedgerFigure paisa={product.mrp + (dynamicPrice - product.basePrice)} noLine />
               </span>
             </div>
           </div>
@@ -89,9 +105,13 @@ export function PurchasePanel() {
                   >
                     <span>{storage.name}</span>
                     {storage.priceModifier !== undefined && storage.priceModifier > 0 && (
-                      <span className={`text-xs ${selectedStorage === storage.id ? 'text-[var(--color-background)] opacity-80' : 'text-[var(--color-secondary)]'}`}>
-                        +₹{storage.priceModifier.toLocaleString('en-IN')}
-                      </span>
+                      <LedgerFigure
+                        paisa={storage.priceModifier}
+                        size="xs"
+                        noLine
+                        className={selectedStorage === storage.id ? 'text-[var(--color-background)] opacity-80' : 'text-[var(--color-secondary)]'}
+                        aria-label={`Additional ${storage.priceModifier} paisa`}
+                      />
                     )}
                   </button>
                 ))}
@@ -163,16 +183,16 @@ export function PurchasePanel() {
 
       {/* 5. CTAs (Inline on mobile, Absolute sticky on desktop) */}
       <div className="mt-8 lg:mt-0 lg:absolute lg:bottom-0 left-0 right-0 p-6 md:p-8 lg:pt-4 bg-transparent lg:bg-gradient-to-t lg:from-[var(--color-surface)] lg:via-[var(--color-surface)] lg:to-transparent space-y-3 lg:border-t lg:border-[var(--color-border)]/50 z-20 lg:shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
-        <button className="w-full h-14 bg-[var(--color-foreground)] text-[var(--color-background)] rounded-full font-bold text-lg hover:bg-[var(--color-accent)] hover:text-white hover:scale-[1.02] transition-all shadow-[var(--shadow-lg)]">
-          Buy on EMI @ ₹{dynamicEMI.toLocaleString('en-IN')}/mo
-        </button>
+        <Button variant="accent" size="lg" className="w-full rounded-full text-base font-bold">
+          Buy on EMI @ <LedgerFigure paisa={dynamicEMI} size="sm" noLine suffix="/mo" tone="on-dark" />
+        </Button>
         <div className="flex gap-3">
-          <button className="flex-1 h-12 bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-foreground)] rounded-full font-semibold text-sm hover:bg-[var(--color-surface-elevated)] transition-colors shadow-sm">
+          <Button variant="outline" onClick={handleAddToCart} className="flex-1 rounded-full">
             Add to Cart
-          </button>
-          <a href="#compare" className="flex-1 h-12 flex items-center justify-center bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-foreground)] rounded-full font-semibold text-sm hover:bg-[var(--color-surface-elevated)] transition-colors shadow-sm">
-            Compare
-          </a>
+          </Button>
+          <Button variant="outline" asChild className="flex-1 rounded-full">
+            <a href="#compare">Compare</a>
+          </Button>
         </div>
       </div>
     </div>

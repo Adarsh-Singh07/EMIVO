@@ -1,0 +1,1421 @@
+
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+	<title>Page not found &#8211; Fynode &#8211; Electronis Store eCommerce Theme</title>
+<meta name='robots' content='noindex, nofollow' />
+<link rel='dns-prefetch' href='//fonts.googleapis.com' />
+<link rel="alternate" type="application/rss+xml" title="Fynode - Electronis Store eCommerce Theme &raquo; Feed" href="https://klbtheme.com/fynode/feed/" />
+<link rel="alternate" type="application/rss+xml" title="Fynode - Electronis Store eCommerce Theme &raquo; Comments Feed" href="https://klbtheme.com/fynode/comments/feed/" />
+<style id="wp-img-auto-sizes-contain-inline-css">
+img:is([sizes=auto i],[sizes^="auto," i]){contain-intrinsic-size:3000px 1500px}
+/*# sourceURL=wp-img-auto-sizes-contain-inline-css */
+</style>
+<style id="wp-emoji-styles-inline-css">
+
+	img.wp-smiley, img.emoji {
+		display: inline !important;
+		border: none !important;
+		box-shadow: none !important;
+		height: 1em !important;
+		width: 1em !important;
+		margin: 0 0.07em !important;
+		vertical-align: -0.1em !important;
+		background: none !important;
+		padding: 0 !important;
+	}
+/*# sourceURL=wp-emoji-styles-inline-css */
+</style>
+<link rel='stylesheet' id='wp-block-library-css' href='https://klbtheme.com/fynode/wp-includes/css/dist/block-library/style.min.css?ver=7.0.2' media='all' />
+<style id="classic-theme-styles-inline-css">
+/*! This file is auto-generated */
+.wp-block-button__link{color:#fff;background-color:#32373c;border-radius:9999px;box-shadow:none;text-decoration:none;padding:calc(.667em + 2px) calc(1.333em + 2px);font-size:1.125em}.wp-block-file__button{background:#32373c;color:#fff;text-decoration:none}
+/*# sourceURL=/wp-includes/css/classic-themes.min.css */
+</style>
+<style id="global-styles-inline-css">
+:root{--wp--preset--aspect-ratio--square: 1;--wp--preset--aspect-ratio--4-3: 4/3;--wp--preset--aspect-ratio--3-4: 3/4;--wp--preset--aspect-ratio--3-2: 3/2;--wp--preset--aspect-ratio--2-3: 2/3;--wp--preset--aspect-ratio--16-9: 16/9;--wp--preset--aspect-ratio--9-16: 9/16;--wp--preset--color--black: #000000;--wp--preset--color--cyan-bluish-gray: #abb8c3;--wp--preset--color--white: #ffffff;--wp--preset--color--pale-pink: #f78da7;--wp--preset--color--vivid-red: #cf2e2e;--wp--preset--color--luminous-vivid-orange: #ff6900;--wp--preset--color--luminous-vivid-amber: #fcb900;--wp--preset--color--light-green-cyan: #7bdcb5;--wp--preset--color--vivid-green-cyan: #00d084;--wp--preset--color--pale-cyan-blue: #8ed1fc;--wp--preset--color--vivid-cyan-blue: #0693e3;--wp--preset--color--vivid-purple: #9b51e0;--wp--preset--gradient--vivid-cyan-blue-to-vivid-purple: linear-gradient(135deg,rgb(6,147,227) 0%,rgb(155,81,224) 100%);--wp--preset--gradient--light-green-cyan-to-vivid-green-cyan: linear-gradient(135deg,rgb(122,220,180) 0%,rgb(0,208,130) 100%);--wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange: linear-gradient(135deg,rgb(252,185,0) 0%,rgb(255,105,0) 100%);--wp--preset--gradient--luminous-vivid-orange-to-vivid-red: linear-gradient(135deg,rgb(255,105,0) 0%,rgb(207,46,46) 100%);--wp--preset--gradient--very-light-gray-to-cyan-bluish-gray: linear-gradient(135deg,rgb(238,238,238) 0%,rgb(169,184,195) 100%);--wp--preset--gradient--cool-to-warm-spectrum: linear-gradient(135deg,rgb(74,234,220) 0%,rgb(151,120,209) 20%,rgb(207,42,186) 40%,rgb(238,44,130) 60%,rgb(251,105,98) 80%,rgb(254,248,76) 100%);--wp--preset--gradient--blush-light-purple: linear-gradient(135deg,rgb(255,206,236) 0%,rgb(152,150,240) 100%);--wp--preset--gradient--blush-bordeaux: linear-gradient(135deg,rgb(254,205,165) 0%,rgb(254,45,45) 50%,rgb(107,0,62) 100%);--wp--preset--gradient--luminous-dusk: linear-gradient(135deg,rgb(255,203,112) 0%,rgb(199,81,192) 50%,rgb(65,88,208) 100%);--wp--preset--gradient--pale-ocean: linear-gradient(135deg,rgb(255,245,203) 0%,rgb(182,227,212) 50%,rgb(51,167,181) 100%);--wp--preset--gradient--electric-grass: linear-gradient(135deg,rgb(202,248,128) 0%,rgb(113,206,126) 100%);--wp--preset--gradient--midnight: linear-gradient(135deg,rgb(2,3,129) 0%,rgb(40,116,252) 100%);--wp--preset--font-size--small: 13px;--wp--preset--font-size--medium: 20px;--wp--preset--font-size--large: 36px;--wp--preset--font-size--x-large: 42px;--wp--preset--spacing--20: 0.44rem;--wp--preset--spacing--30: 0.67rem;--wp--preset--spacing--40: 1rem;--wp--preset--spacing--50: 1.5rem;--wp--preset--spacing--60: 2.25rem;--wp--preset--spacing--70: 3.38rem;--wp--preset--spacing--80: 5.06rem;--wp--preset--shadow--natural: 6px 6px 9px rgba(0, 0, 0, 0.2);--wp--preset--shadow--deep: 12px 12px 50px rgba(0, 0, 0, 0.4);--wp--preset--shadow--sharp: 6px 6px 0px rgba(0, 0, 0, 0.2);--wp--preset--shadow--outlined: 6px 6px 0px -3px rgb(255, 255, 255), 6px 6px rgb(0, 0, 0);--wp--preset--shadow--crisp: 6px 6px 0px rgb(0, 0, 0);}:where(body) { margin: 0; }:where(.is-layout-flex){gap: 0.5em;}:where(.is-layout-grid){gap: 0.5em;}body .is-layout-flex{display: flex;}.is-layout-flex{flex-wrap: wrap;align-items: center;}.is-layout-flex > :is(*, div){margin: 0;}body .is-layout-grid{display: grid;}.is-layout-grid > :is(*, div){margin: 0;}body{padding-top: 0px;padding-right: 0px;padding-bottom: 0px;padding-left: 0px;}:root :where(.wp-element-button, .wp-block-button__link){background-color: #32373c;border-width: 0;color: #fff;font-family: inherit;font-size: inherit;font-style: inherit;font-weight: inherit;letter-spacing: inherit;line-height: inherit;padding-top: calc(0.667em + 2px);padding-right: calc(1.333em + 2px);padding-bottom: calc(0.667em + 2px);padding-left: calc(1.333em + 2px);text-decoration: none;text-transform: inherit;}.has-black-color{color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-color{color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-color{color: var(--wp--preset--color--white) !important;}.has-pale-pink-color{color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-color{color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-color{color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-color{color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-color{color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-color{color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-color{color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-color{color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-color{color: var(--wp--preset--color--vivid-purple) !important;}.has-black-background-color{background-color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-background-color{background-color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-background-color{background-color: var(--wp--preset--color--white) !important;}.has-pale-pink-background-color{background-color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-background-color{background-color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-background-color{background-color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-background-color{background-color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-background-color{background-color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-background-color{background-color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-background-color{background-color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-background-color{background-color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-background-color{background-color: var(--wp--preset--color--vivid-purple) !important;}.has-black-border-color{border-color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-border-color{border-color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-border-color{border-color: var(--wp--preset--color--white) !important;}.has-pale-pink-border-color{border-color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-border-color{border-color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-border-color{border-color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-border-color{border-color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-border-color{border-color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-border-color{border-color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-border-color{border-color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-border-color{border-color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-border-color{border-color: var(--wp--preset--color--vivid-purple) !important;}.has-vivid-cyan-blue-to-vivid-purple-gradient-background{background: var(--wp--preset--gradient--vivid-cyan-blue-to-vivid-purple) !important;}.has-light-green-cyan-to-vivid-green-cyan-gradient-background{background: var(--wp--preset--gradient--light-green-cyan-to-vivid-green-cyan) !important;}.has-luminous-vivid-amber-to-luminous-vivid-orange-gradient-background{background: var(--wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange) !important;}.has-luminous-vivid-orange-to-vivid-red-gradient-background{background: var(--wp--preset--gradient--luminous-vivid-orange-to-vivid-red) !important;}.has-very-light-gray-to-cyan-bluish-gray-gradient-background{background: var(--wp--preset--gradient--very-light-gray-to-cyan-bluish-gray) !important;}.has-cool-to-warm-spectrum-gradient-background{background: var(--wp--preset--gradient--cool-to-warm-spectrum) !important;}.has-blush-light-purple-gradient-background{background: var(--wp--preset--gradient--blush-light-purple) !important;}.has-blush-bordeaux-gradient-background{background: var(--wp--preset--gradient--blush-bordeaux) !important;}.has-luminous-dusk-gradient-background{background: var(--wp--preset--gradient--luminous-dusk) !important;}.has-pale-ocean-gradient-background{background: var(--wp--preset--gradient--pale-ocean) !important;}.has-electric-grass-gradient-background{background: var(--wp--preset--gradient--electric-grass) !important;}.has-midnight-gradient-background{background: var(--wp--preset--gradient--midnight) !important;}.has-small-font-size{font-size: var(--wp--preset--font-size--small) !important;}.has-medium-font-size{font-size: var(--wp--preset--font-size--medium) !important;}.has-large-font-size{font-size: var(--wp--preset--font-size--large) !important;}.has-x-large-font-size{font-size: var(--wp--preset--font-size--x-large) !important;}
+:root :where(.wp-block-icon svg){width: 24px;}
+:where(.wp-block-post-template.is-layout-flex){gap: 1.25em;}:where(.wp-block-post-template.is-layout-grid){gap: 1.25em;}
+:where(.wp-block-term-template.is-layout-flex){gap: 1.25em;}:where(.wp-block-term-template.is-layout-grid){gap: 1.25em;}
+:where(.wp-block-columns.is-layout-flex){gap: 2em;}:where(.wp-block-columns.is-layout-grid){gap: 2em;}
+:root :where(.wp-block-pullquote){font-size: 1.5em;line-height: 1.6;}
+/*# sourceURL=global-styles-inline-css */
+</style>
+<link rel='stylesheet' id='contact-form-7-css' href='https://klbtheme.com/fynode/wp-content/plugins/contact-form-7/includes/css/styles.css?ver=6.1.6' media='all' />
+<style id="woocommerce-inline-inline-css">
+.woocommerce form .form-row .required { visibility: visible; }
+/*# sourceURL=woocommerce-inline-inline-css */
+</style>
+<link rel='stylesheet' id='klb-single-ajax-css' href='https://klbtheme.com/fynode/wp-content/plugins/fynode-core/woocommerce-filter/single-ajax/css/single-ajax.css?ver=1.0' media='all' />
+<link rel='stylesheet' id='klbtheme-swatches-css' href='https://klbtheme.com/fynode/wp-content/plugins/fynode-core/woocommerce-filter/swatches/css/swatches.css?ver=7.0.2' media='all' />
+<link rel='stylesheet' id='fynode-single-gallery-css' href='https://klbtheme.com/fynode/wp-content/plugins/fynode-core/woocommerce-filter/single-gallery/css/single-gallery.css?ver=1.0' media='all' />
+<link rel='stylesheet' id='fynode-ajax-search-css' href='https://klbtheme.com/fynode/wp-content/plugins/fynode-core/woocommerce-filter/ajax-search/css/ajax-search.css?ver=1.0' media='all' />
+<link rel='stylesheet' id='klb-product-badge-css' href='https://klbtheme.com/fynode/wp-content/plugins/fynode-core/woocommerce-filter/product-badge/css/product-badge.css?ver=1.0' media='all' />
+<link rel='stylesheet' id='fynode-wishlist-css' href='https://klbtheme.com/fynode/wp-content/plugins/fynode-core/woocommerce-filter/wishlist/css/wishlist.css?ver=1.0' media='all' />
+<link rel='stylesheet' id='klbcp-frontend-css' href='https://klbtheme.com/fynode/wp-content/plugins/fynode-core/woocommerce-filter/compare/css/compare.css?ver=1.0' media='all' />
+<link rel='stylesheet' id='klb-social-login-css' href='https://klbtheme.com/fynode/wp-content/plugins/fynode-core/woocommerce-filter/social-login/css/social-login.css?ver=7.0.2' media='all' />
+<link rel='stylesheet' id='brands-styles-css' href='https://klbtheme.com/fynode/wp-content/plugins/woocommerce/assets/css/brands.css?ver=10.9.1' media='all' />
+<link rel='stylesheet' id='bootstrap-min-css' href='https://klbtheme.com/fynode/wp-content/themes/fynode/assets/css/bootstrap.min.css?ver=1.0' media='all' />
+<link rel='stylesheet' id='slick-css' href='https://klbtheme.com/fynode/wp-content/themes/fynode/assets/css/slick.css?ver=1.0' media='all' />
+<link rel='stylesheet' id='fynode-klbtheme-social-css' href='https://klbtheme.com/fynode/wp-content/themes/fynode/assets/css/klbtheme-social.css?ver=1.0' media='all' />
+<link rel='stylesheet' id='fynode-klbtheme-icons-css' href='https://klbtheme.com/fynode/wp-content/themes/fynode/assets/css/klbtheme.css?ver=1.0' media='all' />
+<link rel='stylesheet' id='magnific-popup-css' href='https://klbtheme.com/fynode/wp-content/themes/fynode/assets/css/magnific-popup.css?ver=1.0' media='all' />
+<link rel='stylesheet' id='fynode-base-css' href='https://klbtheme.com/fynode/wp-content/themes/fynode/assets/css/base.css?ver=1.0' media='all' />
+<link rel='stylesheet' id='fynode-font-url-css' href='//fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&#038;subset=latin,latin-ext' media='all' />
+<link rel='stylesheet' id='fynode-style-css' href='https://klbtheme.com/fynode/wp-content/themes/fynode/style.css?ver=7.0.2' media='all' />
+<script type="text/template" id="tmpl-variation-template">
+	<div class="woocommerce-variation-description">{{{ data.variation.variation_description }}}</div>
+	<div class="woocommerce-variation-price">{{{ data.variation.price_html }}}</div>
+	<div class="woocommerce-variation-availability">{{{ data.variation.availability_html }}}</div>
+</script>
+<script type="text/template" id="tmpl-unavailable-variation-template">
+	<p role="alert">Sorry, this product is unavailable. Please choose a different combination.</p>
+</script>
+<script id="jquery-core-js" src="https://klbtheme.com/fynode/wp-includes/js/jquery/jquery.min.js?ver=3.7.1" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="jquery-migrate-js" src="https://klbtheme.com/fynode/wp-includes/js/jquery/jquery-migrate.min.js?ver=3.4.1" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script data-wp-strategy="defer" defer id="wc-jquery-blockui-js" src="https://klbtheme.com/fynode/wp-content/plugins/woocommerce/assets/js/jquery-blockui/jquery.blockUI.min.js?ver=2.7.0-wc.10.9.1" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="wc-add-to-cart-js-extra" type="8d936110b6bf8a9b0bd84ba7-text/javascript">
+var wc_add_to_cart_params = {"ajax_url":"/fynode/wp-admin/admin-ajax.php","wc_ajax_url":"/fynode/?wc-ajax=%%endpoint%%","i18n_view_cart":"View cart","cart_url":"https://klbtheme.com/fynode/cart/","is_cart":"","cart_redirect_after_add":"no"};
+//# sourceURL=wc-add-to-cart-js-extra
+</script>
+<script data-wp-strategy="defer" defer id="wc-add-to-cart-js" src="https://klbtheme.com/fynode/wp-content/plugins/woocommerce/assets/js/frontend/add-to-cart.min.js?ver=10.9.1" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script data-wp-strategy="defer" id="wc-js-cookie-js" src="https://klbtheme.com/fynode/wp-content/plugins/woocommerce/assets/js/js-cookie/js.cookie.min.js?ver=2.1.4-wc.10.9.1" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="woocommerce-js-extra" type="8d936110b6bf8a9b0bd84ba7-text/javascript">
+var woocommerce_params = {"ajax_url":"/fynode/wp-admin/admin-ajax.php","wc_ajax_url":"/fynode/?wc-ajax=%%endpoint%%","i18n_password_show":"Show password","i18n_password_hide":"Hide password"};
+//# sourceURL=woocommerce-js-extra
+</script>
+<script data-wp-strategy="defer" defer id="woocommerce-js" src="https://klbtheme.com/fynode/wp-content/plugins/woocommerce/assets/js/frontend/woocommerce.min.js?ver=10.9.1" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="klb-single-ajax-js" src="https://klbtheme.com/fynode/wp-content/plugins/fynode-core/woocommerce-filter/single-ajax/js/single-ajax.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="wc-cart-fragments-js-extra" type="8d936110b6bf8a9b0bd84ba7-text/javascript">
+var wc_cart_fragments_params = {"ajax_url":"/fynode/wp-admin/admin-ajax.php","wc_ajax_url":"/fynode/?wc-ajax=%%endpoint%%","cart_hash_key":"wc_cart_hash_6f6c060a20bab263ed5d8f3b29b51da9","fragment_name":"wc_fragments_6f6c060a20bab263ed5d8f3b29b51da9","request_timeout":"5000"};
+//# sourceURL=wc-cart-fragments-js-extra
+</script>
+<script data-wp-strategy="defer" defer id="wc-cart-fragments-js" src="https://klbtheme.com/fynode/wp-content/plugins/woocommerce/assets/js/frontend/cart-fragments.min.js?ver=10.9.1" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="underscore-js" src="https://klbtheme.com/fynode/wp-includes/js/underscore.min.js?ver=1.13.8" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="wp-util-js-extra" type="8d936110b6bf8a9b0bd84ba7-text/javascript">
+var _wpUtilSettings = {"ajax":{"url":"/fynode/wp-admin/admin-ajax.php"}};
+//# sourceURL=wp-util-js-extra
+</script>
+<script id="wp-util-js" src="https://klbtheme.com/fynode/wp-includes/js/wp-util.min.js?ver=7.0.2" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="wc-add-to-cart-variation-js-extra" type="8d936110b6bf8a9b0bd84ba7-text/javascript">
+var wc_add_to_cart_variation_params = {"wc_ajax_url":"/fynode/?wc-ajax=%%endpoint%%","i18n_no_matching_variations_text":"Sorry, no products matched your selection. Please choose a different combination.","i18n_make_a_selection_text":"Please select some product options before adding this product to your cart.","i18n_unavailable_text":"Sorry, this product is unavailable. Please choose a different combination.","i18n_reset_alert_text":"Your selection has been reset. Please select some product options before adding this product to your cart."};
+//# sourceURL=wc-add-to-cart-variation-js-extra
+</script>
+<script data-wp-strategy="defer" defer id="wc-add-to-cart-variation-js" src="https://klbtheme.com/fynode/wp-content/plugins/woocommerce/assets/js/frontend/add-to-cart-variation.min.js?ver=10.9.1" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="fynode-ajax-search-js-extra" type="8d936110b6bf8a9b0bd84ba7-text/javascript">
+var fynodesearch = {"ajaxurl":"https://klbtheme.com/fynode/wp-admin/admin-ajax.php","nonce":"d3ef1dbe8c"};
+//# sourceURL=fynode-ajax-search-js-extra
+</script>
+<script id="fynode-ajax-search-js" src="https://klbtheme.com/fynode/wp-content/plugins/fynode-core/woocommerce-filter/ajax-search/js/ajax-search.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="fynode-wishlist-js-extra" type="8d936110b6bf8a9b0bd84ba7-text/javascript">
+var klbwl_vars = {"ajax_url":"https://klbtheme.com/fynode/wp-admin/admin-ajax.php","wishlist_url":"https://klbtheme.com/fynode/wishlist/","empty_confirm":"This action cannot be undone. Are you sure?","delete_confirm":"This action cannot be undone. Are you sure?","menu_text":"Wishlist","button_text":"Add to wishlist","button_text_added":"View wishlist"};
+//# sourceURL=fynode-wishlist-js-extra
+</script>
+<script id="fynode-wishlist-js" src="https://klbtheme.com/fynode/wp-content/plugins/fynode-core/woocommerce-filter/wishlist/js/wishlist.js?ver=1" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="pjax-helpers-js" src="https://klbtheme.com/fynode/wp-content/themes/fynode/includes/pjax/js/helpers.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<link rel="https://api.w.org/" href="https://klbtheme.com/fynode/wp-json/" /><link rel="EditURI" type="application/rsd+xml" title="RSD" href="https://klbtheme.com/fynode/xmlrpc.php?rsd" />
+<meta name="generator" content="WordPress 7.0.2" />
+<meta name="generator" content="WooCommerce 10.9.1" />
+
+<style type="text/css">
+
+
+
+@media(max-width:64rem){
+	.single .product-type-simple form.cart {
+	    position: fixed;
+	    bottom: 0;
+	    right: 0;
+	    z-index: 999;
+	    background: #fff;
+	    margin-bottom: 0;
+	    padding: 15px;
+	    -webkit-box-shadow: 0 -2px 5px rgb(0 0 0 / 7%);
+	    box-shadow: 0 -2px 5px rgb(0 0 0 / 7%);
+	    justify-content: space-between;
+		width: 100%;
+	}
+
+	.single .woocommerce-variation-add-to-cart {
+	    display: -webkit-box;
+	    display: -ms-flexbox;
+	    display: flex;
+	    position: fixed;
+	    bottom: 0;
+	    right: 0;
+	    z-index: 10000000;
+	    background: #fff;
+	    margin-bottom: 0;
+	    padding: 15px;
+	    -webkit-box-shadow: 0 -2px 5px rgb(0 0 0 / 7%);
+	    box-shadow: 0 -2px 5px rgb(0 0 0 / 7%);
+	    justify-content: space-between;
+    	width: 100%;
+		flex-wrap: wrap;
+		width: 100%; 
+		margin-bottom: 0px !important;
+	}
+
+	.single .site-footer .footer-row.footer-copyright {
+	    margin-bottom: 79px;
+	}
+
+}
+
+
+
+
+.site-header .site-brand img {
+	width: 149px;
+}
+
+
+@media (max-width: 768px){
+	.site-header .site-brand img, .site-drawer .site-brand img{
+		width: px;
+	}
+}
+
+.site-header.header-type1:not(.header-transparent)::before{
+	background-color: ;
+}
+
+.site-header.header-type1 .site-header-row .site-nav .site-menu > li > a,
+.site-header.header-type1 .site-header-row .site-action-button .site-action-link {
+    color: ;
+}
+
+.site-header.header-type1 .site-header-row .site-nav .site-menu > li > a:hover,
+.site-header.header-type1 .site-header-row .site-action-button .site-action-link:hover {
+    color: ;
+}
+
+.site-header.header-type1 .site-header-row .site-nav.menu-horizontal .site-menu > li.mega-menu > .sub-menu > .sub-menu .menu-item-has-children > a{
+	color:  !important;
+}
+
+.site-header.header-type1 .site-header-row .site-nav.menu-horizontal .site-menu > li.mega-menu > .sub-menu > .sub-menu .menu-item > a{
+	color: ;
+}
+
+.site-header.header-type1 .site-header-row .site-nav.menu-horizontal .site-menu > li.mega-menu > .sub-menu > .sub-menu .menu-item > a:hover{
+	color: #212529;
+}
+
+.site-announcement-bar.top-header::before {
+	background-color: ;
+}
+body.content-rounded:has(.site-announcement-bar)::before {
+    background-color: ;
+}
+.site-announcement-bar .site-nav .site-menu .sub-menu {
+    background-color:  !important;
+}
+.site-announcement-bar .site-nav .site-menu .sub-menu::before {
+    -webkit-box-shadow: 0 -1rem 0 0 ;
+    box-shadow: 0 -1rem 0 0 ;
+}
+.site-announcement-bar .site-nav .site-menu .sub-menu::after {
+    -webkit-box-shadow: 0 -1rem 0 0 ;
+    box-shadow: 0 -1rem 0 0 ;
+}
+.site-announcement-bar.top-header {
+	color: ;
+}
+
+.site-announcement-bar.top-header .site-nav .site-menu .sub-menu a{
+	color: ;
+}
+.site-announcement-bar.top-header .site-nav .site-menu > li > a:hover,
+.site-announcement-bar.top-header .site-nav .site-menu .sub-menu a:hover {
+	color: ;
+}
+
+.site-header.header-type2.header-transparent:not(:hover){
+	background-color: ;
+}
+
+.site-header.header-type2.header-transparent::before{
+	background-color: ;
+}
+
+.site-header.header-type2.header-transparent:not(:hover) .site-header-row .site-nav .site-menu > li > a,
+.site-header.header-type2.header-transparent:not(:hover) .site-header-row .site-action-button .site-action-link{
+	color: ;	
+}
+
+.site-header.header-type2 .site-header-row .site-nav .site-menu > li > a,
+.site-header.header-type2 .site-header-row .site-action-button .site-action-link {
+    color: ;
+}
+
+.site-header.header-type2 .site-header-row .site-nav.menu-horizontal .site-menu > li.mega-menu > .sub-menu > .sub-menu .menu-item-has-children > a{
+	color:  !important;
+}
+
+.site-header.header-type2 .site-header-row .site-nav.menu-horizontal .site-menu > li.mega-menu > .sub-menu > .sub-menu .menu-item > a{
+	color: ;
+}
+
+.site-header.header-type2 .site-header-row .site-nav.menu-horizontal .site-menu > li.mega-menu > .sub-menu > .sub-menu .menu-item > a:hover{
+	color: ;
+}
+
+.klb-mobile-bottom.site-mobile-navbar .site-mobile-navbar-inner .site-nav .site-menu li a span{
+	color: ;
+}
+
+.klb-mobile-bottom.site-mobile-navbar .site-mobile-navbar-inner{
+	background-color: ;
+	color: ;
+	border-color: ;
+}
+
+.single-product .main-content {
+	background-color:  !important;
+}
+
+.single-product .single-product-wrapper .klb-flexslider-thumbnail .flex-control-thumbs li img.flex-active{
+	border-color: ;
+}
+
+.single-product .single-product-wrapper .single-product-detail .product-brand a {
+    color: ;
+}
+
+.single-product .single-product-wrapper .single-product-detail .product_title{
+	color: ;
+}
+
+.single-product-wrapper .single-product-detail .product-price-wrapper .price del{
+	color: ;
+}
+
+.single-product-wrapper .single-product-detail .product-price-wrapper .price ins{
+	color: ;
+}
+
+.single-product-wrapper .single-product-detail .orderon-whatsapp a{
+	background-color: ;
+	color: ;
+}
+
+.single-product-wrapper .single-product-detail .orderon-whatsapp a:hover{
+	background-color: ;
+	color: ;
+}
+
+.single-product-wrapper .single-product-detail .woocommerce-product-details__short-description{
+	color: ;
+}
+
+.single-product-wrapper .single-product-detail form.cart .single_add_to_cart_button{
+	background-color: ;
+	color: ;
+}
+
+.single-product-wrapper .single-product-detail form.cart .single_add_to_cart_button:hover{
+	background-color: ;
+	color: ;
+}
+
+.single-product-wrapper .single-product-detail .buy_now_button{
+	background-color:  !important;
+	color:  !important;
+}
+
+.single-product-wrapper .single-product-detail .buy_now_button:hover{
+	background-color:  !important;
+	color:  !important;
+}
+
+.single-product-wrapper .single-product-detail .product-actions a.klbwl-btn{
+	border-color:  !important;
+	background-color: ;
+}
+
+.single-product-wrapper .single-product-detail .product-actions .product-wishlist a::before{
+	color: ;
+}
+
+.single-product-wrapper .single-product-detail .product-actions .klbcp-btn{
+	border-color:  !important;
+	background-color: ;
+}
+
+.single-product-wrapper .single-product-detail .product-actions .klbcp-btn::before{
+	color: ;
+}
+
+.site-mini-cart p.woocommerce-mini-cart__buttons.buttons a:not(.checkout){
+	background-color: ;
+	color: ;
+}
+
+.site-mini-cart p.woocommerce-mini-cart__buttons.buttons a:not(.checkout):hover{
+	background-color: ;
+	color: ;
+}
+
+
+.site-mini-cart p.woocommerce-mini-cart__buttons.buttons a.checkout{
+	background-color: ;
+	color: ;
+}
+
+.site-mini-cart p.woocommerce-mini-cart__buttons.buttons a.checkout:hover{
+	background-color: ;
+	color: ;
+}
+
+.site-footer{
+	background-color: #09090b;
+	color: ;
+}
+body.content-rounded .main-content::after {
+   background-color: #09090b;
+}
+.site-footer .footer-copyright .site-footer-inner{
+	border-color:  !important;
+}
+
+.site-footer .footer-widgets .site-footer-inner .widget .widget-title{
+	color: ;
+}
+
+.site-footer .footer-copyright .site-footer-inner .site-copyright{
+	color: ;
+}
+
+:root {
+--theme-body-font: "Inter", sans-serif;--theme-body-font-weight: regular;--theme-heading-font: "Inter", sans-serif;--theme-heading-font-weight: 500;--theme-heading-letter-spacing: -0.025em;--theme-menu-font: "Inter", sans-serif;--theme-menu-font-weight: 500;--theme-input-font: "Inter", sans-serif;--theme-input-font-weight: 500;--theme-button-font-weight: 600;--theme-button-font-size: 15px;--theme-product-price-weight: regular;--theme-product-name-weight: 600;--theme-radius-base: 16px;--theme-width: 1520px;--theme-gutter: 36px;}
+
+</style>
+<meta name="og:url" content="https://klbtheme.com/fynode/essential-tips-for-maintaining-your-electronic-devices/" />	<noscript><style>.woocommerce-product-gallery{ opacity: 1 !important; }</style></noscript>
+				<style>
+				.e-con.e-parent:nth-of-type(n+4):not(.e-lazyloaded):not(.e-no-lazyload),
+				.e-con.e-parent:nth-of-type(n+4):not(.e-lazyloaded):not(.e-no-lazyload) * {
+					background-image: none !important;
+				}
+				@media screen and (max-height: 1024px) {
+					.e-con.e-parent:nth-of-type(n+3):not(.e-lazyloaded):not(.e-no-lazyload),
+					.e-con.e-parent:nth-of-type(n+3):not(.e-lazyloaded):not(.e-no-lazyload) * {
+						background-image: none !important;
+					}
+				}
+				@media screen and (max-height: 640px) {
+					.e-con.e-parent:nth-of-type(n+2):not(.e-lazyloaded):not(.e-no-lazyload),
+					.e-con.e-parent:nth-of-type(n+2):not(.e-lazyloaded):not(.e-no-lazyload) * {
+						background-image: none !important;
+					}
+				}
+			</style>
+			<link rel="icon" href="https://klbtheme.com/fynode/wp-content/uploads/2025/01/cropped-fynode-thumbnail-32x32.png" sizes="32x32" />
+<link rel="icon" href="https://klbtheme.com/fynode/wp-content/uploads/2025/01/cropped-fynode-thumbnail-192x192.png" sizes="192x192" />
+<link rel="apple-touch-icon" href="https://klbtheme.com/fynode/wp-content/uploads/2025/01/cropped-fynode-thumbnail-180x180.png" />
+<meta name="msapplication-TileImage" content="https://klbtheme.com/fynode/wp-content/uploads/2025/01/cropped-fynode-thumbnail-270x270.png" />
+<style id="kirki-inline-styles"></style></head>
+<body class="error404 wp-theme-fynode content-rounded theme-fynode woocommerce-no-js klb-bottom-menu klb-swatches input-variation-default  elementor-default elementor-kit-5">
+									
+				<div class="site-announcement-bar top-header">
+					<div class="container">
+						<div class="site-announcement-bar-inner d-flex align-items-center justify-content-between">
+							<div class="column announcement-extra left">
+																	<div class="site-nav menu-horizontal announcement-menu-left">
+										<ul id="menu-top-left" class="site-menu"><li id="menu-item-1841" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1841"><a href="https://klbtheme.com/fynode/order-tracking/">Order Tracking</a></li>
+<li id="menu-item-1843" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1843"><a href="https://klbtheme.com/fynode/about-us/">About Us</a></li>
+<li id="menu-item-1842" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1842"><a href="https://klbtheme.com/fynode/faq/">FAQ</a></li>
+</ul>									</div><!-- site-nav -->
+										
+							</div><!-- column -->
+							<div class="column announcement-messages center">
+								<div class="site-slider text-style loader-default" data-items="1" data-items-tablet="1" data-items-mobile="1" data-itemsscroll="1" data-speed="600" data-arrows="true" data-dots="false" data-loop="false" data-autoplay="true" data-autoplay-speed="5000" data-infinite="true">
+																		  <div class="site-slider-item">
+										<div class="announcement-message">
+										  <p>Enjoy free shipping on all orders this week!</p>
+										  <a href="https://klbtheme.com/fynode/shop" class="btn btn-link">Shop Now <i class="klb-icon-move-right"></i></a>
+										</div><!-- announcement-message -->
+									  </div><!-- site-slider-item -->
+																		  <div class="site-slider-item">
+										<div class="announcement-message">
+										  <p>Celebrate our anniversary with exclusive deals!</p>
+										  <a href="https://klbtheme.com/fynode/shop" class="btn btn-link">Shop Now <i class="klb-icon-move-right"></i></a>
+										</div><!-- announcement-message -->
+									  </div><!-- site-slider-item -->
+																		  <div class="site-slider-item">
+										<div class="announcement-message">
+										  <p>Enjoy free shipping on all orders this week!</p>
+										  <a href="https://klbtheme.com/fynode/shop" class="btn btn-link">Shop Now <i class="klb-icon-move-right"></i></a>
+										</div><!-- announcement-message -->
+									  </div><!-- site-slider-item -->
+										
+								</div><!-- site-slider -->
+							</div><!-- column -->
+							<div class="column announcement-extra right">
+																	<div class="site-nav menu-horizontal announcement-menu-right">
+										<ul id="menu-top-right" class="site-menu"><li id="menu-item-1801" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-has-children menu-item-1801"><a href="#">English</a>
+<ul class="sub-menu">
+	<li id="menu-item-1802" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1802"><a href="#">Spanish</a></li>
+	<li id="menu-item-1803" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1803"><a href="#">French</a></li>
+	<li id="menu-item-1804" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1804"><a href="#">German</a></li>
+</ul>
+</li>
+<li id="menu-item-1805" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-has-children menu-item-1805"><a href="#">USD</a>
+<ul class="sub-menu">
+	<li id="menu-item-1806" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1806"><a href="#">EUR</a></li>
+	<li id="menu-item-1807" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1807"><a href="#">INR</a></li>
+	<li id="menu-item-1808" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1808"><a href="#">GBP</a></li>
+</ul>
+</li>
+</ul>									</div><!-- site-nav -->
+															</div><!-- column -->
+						</div><!-- site-announcement-bar-inner -->
+					</div><!-- container -->
+				</div><!-- site-announcement-bar -->
+						
+	
+	
+	<div id="page" class="page-content">
+		
+		
+					<header id="masthead" class="site-header header-type1">
+    <div class="site-header-row">
+        <div class="container">
+			<div class="site-header-inner d-flex align-items-center">
+				<div class="column mobile-column">
+					<div class="site-action-button">
+						<a href="#" class="site-action-link toggle-button menu-toggle">
+						  <div class="site-action-icon">
+							<i class="klb-icon-menu"></i>
+						  </div><!-- site-action-icon -->
+						</a>
+					</div><!-- site-action-button --> 
+				</div><!-- column -->
+				<div class="column brand-column">
+					<div class="site-brand black">
+						 
+						
+															<a href="https://klbtheme.com/fynode/" title="Fynode &#8211; Electronis Store eCommerce Theme">
+																			<img src="https://klbtheme.com/fynode/wp-content/uploads/2024/11/logo-black.png" alt="Fynode &#8211; Electronis Store eCommerce Theme" class="site-brand-logo default">
+																		
+									
+																			<img src="https://klbtheme.com/fynode/wp-content/uploads/2024/11/logo-light.png" alt="Fynode &#8211; Electronis Store eCommerce Theme" class="site-brand-logo transparent">
+																	</a>
+												</div><!-- site-brand -->   
+
+					<div class="site-nav menu-horizontal primary-menu">
+						<ul id="menu-menu-1" class="site-menu"><li id="menu-item-1859" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-home menu-item-has-children menu-item-1859"><a href="https://klbtheme.com/fynode/">Home</a>
+<ul class="sub-menu">
+	<li id="menu-item-1858" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-home menu-item-1858"><a href="https://klbtheme.com/fynode/">Home 1</a></li>
+	<li id="menu-item-1860" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1860"><a href="https://klbtheme.com/fynode/home-2/">Home 2</a></li>
+	<li id="menu-item-1861" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1861"><a href="https://klbtheme.com/fynode/home-3/">Home 3</a></li>
+	<li id="menu-item-1862" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1862"><a href="https://klbtheme.com/fynode/home-4/">Home 4</a></li>
+	<li id="menu-item-1863" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1863"><a href="https://klbtheme.com/fynode/home-5/">Home 5</a></li>
+	<li id="menu-item-1864" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1864"><a href="https://klbtheme.com/fynode/home-6/">Home 6</a></li>
+</ul>
+</li>
+<li id="menu-item-1865" class="mega-menu menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1865"><a href="https://klbtheme.com/fynode/shop/">Shop</a>
+<ul class="sub-menu">
+	<li id="menu-item-1866" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1866"><a href="https://klbtheme.com/fynode/shop/">Shop Lists</a>
+	<ul class="sub-menu">
+		<li id="menu-item-1867" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1867"><a href="https://klbtheme.com/fynode/shop/">Shop Default</a></li>
+		<li id="menu-item-1813" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1813"><a href="https://klbtheme.com/fynode/shop/?opt=right-sidebar">Shop Right Sidebar</a></li>
+		<li id="menu-item-1814" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1814"><a href="https://klbtheme.com/fynode/shop/?column=3&amp;opt=wide">Shop Wide</a></li>
+		<li id="menu-item-1815" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1815"><a href="https://klbtheme.com/fynode/shop/?column=3&amp;opt=full-width">Filters Area</a></li>
+		<li id="menu-item-1816" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1816"><a href="https://klbtheme.com/fynode/shop/?shop_view=list_view">List Left Sidebar</a></li>
+		<li id="menu-item-1817" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1817"><a href="https://klbtheme.com/fynode/shop/?ft=load-more">Load More Button</a></li>
+		<li id="menu-item-1818" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1818"><a href="https://klbtheme.com/fynode/shop/?ft=infinite">Infinite Scrolling</a></li>
+		<li id="menu-item-1819" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1819"><a href="https://klbtheme.com/fynode/shop/?ft=productbox_zoom">Image Hover – Zoom</a></li>
+		<li id="menu-item-1820" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1820"><a href="https://klbtheme.com/fynode/shop/?ft=productbox_slider">Image Hover – Slider</a></li>
+		<li id="menu-item-1821" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1821"><a href="https://klbtheme.com/fynode/shop/?ft=productbox_flip">Image Hover – Flip</a></li>
+		<li id="menu-item-1822" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1822"><a href="https://klbtheme.com/fynode/shop/?ft=box_variable">Product Variable</a></li>
+		<li id="menu-item-1823" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1823"><a href="https://klbtheme.com/fynode/shop/?ft=box_countdown">Sale Countdown</a></li>
+	</ul>
+</li>
+	<li id="menu-item-1953" class="menu-item menu-item-type-post_type menu-item-object-product menu-item-has-children menu-item-1953"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/">Product Detail</a>
+	<ul class="sub-menu">
+		<li id="menu-item-1954" class="menu-item menu-item-type-post_type menu-item-object-product menu-item-1954"><a href="https://klbtheme.com/fynode/product/amazfit-active-smartwatch/">Product Default</a></li>
+		<li id="menu-item-1955" class="menu-item menu-item-type-post_type menu-item-object-product menu-item-1955"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-dm420/">Product Variable</a></li>
+		<li id="menu-item-1956" class="menu-item menu-item-type-post_type menu-item-object-product menu-item-1956"><a href="https://klbtheme.com/fynode/product/premium-dual-pattern-usb-nano-210/">Product Grouped</a></li>
+		<li id="menu-item-1957" class="menu-item menu-item-type-post_type menu-item-object-product menu-item-1957"><a href="https://klbtheme.com/fynode/product/apple-watch-series-10-gps-46mm-aluminum-case/">Product External</a></li>
+		<li id="menu-item-1958" class="menu-item menu-item-type-post_type menu-item-object-product menu-item-1958"><a href="https://klbtheme.com/fynode/product/jbl-tour-pro-2-true-wireless-noise-cancelling-earbuds/">Product Downloadable</a></li>
+		<li id="menu-item-1960" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1960"><a href="https://klbtheme.com/fynode/product/extra-charging-power/?ft=imgzoom">Product Zoom Image</a></li>
+		<li id="menu-item-1961" class="menu-item menu-item-type-post_type menu-item-object-product menu-item-1961"><a href="https://klbtheme.com/fynode/product/marshall-portable-bluetooth-speaker/">Produt With Video</a></li>
+		<li id="menu-item-1962" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1962"><a href="https://klbtheme.com/fynode/product/palo-over-earhphone/?ft=vertical">Thumbnails Left</a></li>
+		<li id="menu-item-1968" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1968"><a href="https://klbtheme.com/fynode/product/jbl-tune-flex-true-wireless-noise-cancelling-earbuds/?ft=1column">Gallery 1 Column</a></li>
+		<li id="menu-item-1969" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1969"><a href="https://klbtheme.com/fynode/product/amazfit-bip-5-smartwatch-49mm-polycarbonate-plastic/?ft=2columns">Gallery 2 Columns</a></li>
+		<li id="menu-item-1970" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1970"><a href="https://klbtheme.com/fynode/product/klipsch-reference-4-speaker/?ft=carousel2columns">Carousel 2 Columns</a></li>
+	</ul>
+</li>
+	<li id="menu-item-1971" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-has-children menu-item-1971"><a href="#">Product Features</a>
+	<ul class="sub-menu">
+		<li id="menu-item-1972" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1972"><a href="https://klbtheme.com/fynode/product/klipsch-reference-4-speaker/?ft=buynow">Buy Now Button</a></li>
+		<li id="menu-item-1973" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1973"><a href="https://klbtheme.com/fynode/product/bose-bass-module-700-wireless-subwoofer/?ft=orderonwhatsapp">Order on WhatsApp</a></li>
+		<li id="menu-item-1974" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1974"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/?ft=progressbar">Stock Progress Bar</a></li>
+		<li id="menu-item-1975" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1975"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/?ft=countdown">Sale Countdown</a></li>
+		<li id="menu-item-1977" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1977"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/?ft=stickycart">Sticky Add to Cart</a></li>
+		<li id="menu-item-1978" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1978"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/?ft=stickytitles">Sticky Tab Titles</a></li>
+		<li id="menu-item-1979" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1979"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/?ft=movereviewtab">Reviews Without Tab</a></li>
+		<li id="menu-item-1980" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1980"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/?opt=wide">Product Full Width</a></li>
+		<li id="menu-item-1981" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1981"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/?ft=1column">Sticky Description</a></li>
+		<li id="menu-item-1982" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1982"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/?ft=vertical_tab">Vertical Tabs</a></li>
+		<li id="menu-item-1983" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1983"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/?ft=accordion_tab">Accordion Tabs</a></li>
+		<li id="menu-item-1984" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1984"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/?ft=accordion_tab_content">Accordion in Content</a></li>
+	</ul>
+</li>
+	<li id="menu-item-1985" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-has-children menu-item-1985"><a href="#">Shop Pages</a>
+	<ul class="sub-menu">
+		<li id="menu-item-1986" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1986"><a href="https://klbtheme.com/fynode/cart/">Cart</a></li>
+		<li id="menu-item-1987" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1987"><a href="https://klbtheme.com/fynode/checkout/">Checkout</a></li>
+		<li id="menu-item-1989" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1989"><a href="https://klbtheme.com/fynode/my-account/">My account</a></li>
+		<li id="menu-item-1991" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1991"><a href="https://klbtheme.com/fynode/wishlist/">Wishlist </a></li>
+		<li id="menu-item-1988" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1988"><a href="https://klbtheme.com/fynode/compare/">Compare</a></li>
+		<li id="menu-item-1990" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1990"><a href="https://klbtheme.com/fynode/order-tracking/">Order Tracking</a></li>
+		<li id="menu-item-1992" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1992"><a href="https://klbtheme.com/fynode/shop/?opt=catalogmode">Catalog Mode</a></li>
+		<li id="menu-item-1993" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1993"><a href="https://klbtheme.com/fynode/shop/?featured=yes">Featured Products</a></li>
+		<li id="menu-item-1994" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1994"><a href="https://klbtheme.com/fynode/shop/?orderby=popularity">Best Selling Products</a></li>
+		<li id="menu-item-1995" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1995"><a href="https://klbtheme.com/fynode/shop/?ft=progressbar">Stock Progress Bar</a></li>
+		<li id="menu-item-1996" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1996"><a href="https://klbtheme.com/fynode/shop/?ft=stock_status">Stock Status</a></li>
+		<li id="menu-item-2211" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2211"><a href="https://klbtheme.com/fynode/shop-by-brand/">Shop by Brand</a></li>
+	</ul>
+</li>
+	<li id="menu-item-1997" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-has-children menu-item-1997"><a href="#">Shop Layouts</a>
+	<ul class="sub-menu">
+		<li id="menu-item-1998" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1998"><a href="https://klbtheme.com/fynode/shop/?column=2">Two Columns</a></li>
+		<li id="menu-item-1999" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1999"><a href="https://klbtheme.com/fynode/shop/?column=3">Three Columns</a></li>
+		<li id="menu-item-2000" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-2000"><a href="https://klbtheme.com/fynode/shop/?column=3&amp;opt=wide">Three Columns Wide</a></li>
+		<li id="menu-item-2001" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-2001"><a href="https://klbtheme.com/fynode/shop/?column=4">Four Columns</a></li>
+		<li id="menu-item-2002" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-2002"><a href="https://klbtheme.com/fynode/shop/?column=4&amp;opt=wide">Four Columns Wide</a></li>
+		<li id="menu-item-2003" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-2003"><a href="https://klbtheme.com/fynode/shop/?column=5&amp;opt=wide">Five Columns Wide</a></li>
+		<li id="menu-item-2005" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-2005"><a href="https://klbtheme.com/fynode/shop/?ft=box_shipping">Bordered Shipping Class</a></li>
+		<li id="menu-item-2006" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-2006"><a href="https://klbtheme.com/fynode/shop/?ft=box_sku">Product SKU</a></li>
+		<li id="menu-item-2007" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-2007"><a href="https://klbtheme.com/fynode/shop/?ft=product_attributes">Additional Information</a></li>
+		<li id="menu-item-2240" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-2240"><a href="https://klbtheme.com/fynode/shop/?ft=hideprice">Login to See Prices</a></li>
+	</ul>
+</li>
+</ul>
+</li>
+<li id="menu-item-1824" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1824"><a href="https://klbtheme.com/fynode/shop/?filter_cat=36">Headphones</a></li>
+<li id="menu-item-1825" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1825"><a href="https://klbtheme.com/fynode/shop/?filter_cat=22">Accessories</a></li>
+<li id="menu-item-1868" class="menu-item menu-item-type-post_type menu-item-object-page current_page_parent menu-item-1868"><a href="https://klbtheme.com/fynode/blog/">Blog</a></li>
+<li id="menu-item-1869" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1869"><a href="https://klbtheme.com/fynode/contact/">Contact</a></li>
+</ul>	   
+					</div><!-- site-nav -->       
+				</div><!-- column -->
+				<div class="column actions-column">
+					<div class="site-actions">
+									<div class="site-action-button">
+				<a href="#" class="site-action-link toggle-button search-toggle">
+					<div class="site-action-icon">
+					  <i class="klb-icon-search"></i>
+					</div><!-- site-action-icon -->
+				</a>
+			</div><!-- site-action-button -->  
+			
+	 
+						
+									<div class="site-action-button action-account">
+				<a href="https://klbtheme.com/fynode/my-account/" class="site-action-link">
+					<div class="site-action-icon">
+					  <!-- <i class="klb-icon-user-circle"></i> -->
+					  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+						<path d="M18.5,19.3c-1.5-2-4-3.3-6.5-3.3-2.6,0-5,1.2-6.5,3.3M18.5,19.3c4.1-3.6,4.4-9.8.8-13.9-3.6-4.1-9.8-4.4-13.9-.8-4.1,3.6-4.4,9.8-.8,13.9.3.3.5.6.8.8M18.5,19.3c-1.8,1.6-4.1,2.5-6.5,2.5-2.4,0-4.7-.9-6.5-2.5M15.3,9.5c0,1.8-1.5,3.3-3.3,3.3s-3.3-1.5-3.3-3.3,1.5-3.3,3.3-3.3,3.3,1.5,3.3,3.3Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.4"/>
+					  </svg>
+					</div><!-- site-action-icon -->
+					<div class="site-action-label">
+
+													<p>Account</p>
+						
+					</div><!-- site-action-label -->
+				</a>
+			</div><!-- site-action-button --> 
+	       
+						
+						
+			
+			
+			<div class="site-action-button">
+				<a href="https://klbtheme.com/fynode/wishlist/" class="site-action-link toggle-button wishlist-toggle">
+					<div class="site-action-icon">
+					  <i class="klb-icon-hearth"></i>
+					  <div class="site-action-count klbwl-wishlist-count">0</div>
+					</div><!-- site-action-icon -->
+				</a>
+			</div><!-- site-action-button --> 
+				
+		
+	  
+					
+						
+		
+					<div class="site-action-button action-compare">
+				<a href="https://klbtheme.com/fynode/compare/" class="site-action-link compare-toggle">
+					<div class="site-action-icon">
+					  <i class="klb-icon-repeat"></i>
+					</div><!-- site-action-icon -->
+				</a>
+			</div><!-- site-action-button -->
+				
+		
+	        
+						
+										
+				<div class="site-action-button action-cart">
+					<a href="https://klbtheme.com/fynode/cart/" class="site-action-link toggle-button cart-toggle">
+						<div class="site-action-icon">
+						  <!-- <i class="klb-icon-shopping-bag"></i> -->
+						  <svg xmlns="http://www.w3.org/2000/svg" width="25" height="22" viewBox="0 0 25 22">
+							<path d="M1.4,1.4h3.4c.2,0,.4.1.4.3l2.3,11.9c0,.2.2.3.4.3h13c.2,0,.3-.1.4-.3l2.3-9.7c0-.3-.1-.5-.4-.5H5.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+							<circle cx="8.8" cy="18.9" r="1.9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+							<circle cx="19.2" cy="18.9" r="1.9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+						  </svg>
+						  <div class="site-action-count cart-count count">0</div>
+						</div><!-- site-action-icon -->
+					</a>
+                </div><!-- site-action-button -->  
+				
+		       
+					</div><!-- site-actions -->
+				</div><!-- column -->
+				<div class="column mobile-column">
+									
+				<div class="site-action-button action-cart">
+					<a href="https://klbtheme.com/fynode/cart/" class="site-action-link toggle-button cart-toggle">
+						<div class="site-action-icon">
+						  <!-- <i class="klb-icon-shopping-bag"></i> -->
+						  <svg xmlns="http://www.w3.org/2000/svg" width="25" height="22" viewBox="0 0 25 22">
+							<path d="M1.4,1.4h3.4c.2,0,.4.1.4.3l2.3,11.9c0,.2.2.3.4.3h13c.2,0,.3-.1.4-.3l2.3-9.7c0-.3-.1-.5-.4-.5H5.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+							<circle cx="8.8" cy="18.9" r="1.9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+							<circle cx="19.2" cy="18.9" r="1.9" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+						  </svg>
+						  <div class="site-action-count cart-count count">0</div>
+						</div><!-- site-action-icon -->
+					</a>
+                </div><!-- site-action-button -->  
+				
+		       
+				</div><!-- column -->
+			</div><!-- site-header-inner -->
+        </div><!-- container -->
+    </div><!-- site-header-row -->
+</header><!-- site-header -->				
+		 
+	
+		<div id="main" class="main-content">
+<div class="container">
+	<div class="content-not-found text-center">
+		<h1 class="entry-title font-extrabold leading-none">404</h1>
+		<h2 class="entry-subtitle font-semibold">That Page Cant Be Found</h2>
+		<div class="entry-teaser">
+		  <p>It looks like nothing was found at this location. Maybe try to search for what you are looking for?</p>
+		</div><!-- entry-teaser -->
+		<a href="https://klbtheme.com/fynode/" class="btn btn-black btn-rounded">Go To Homepage</a>
+	</div><!-- content-not-found -->
+</div><!-- container -->
+
+ 
+		
+					
+	<div class="container">		
+		<div class="section-padding border-top section-margin" style="--padding-top-mobile: 40px; --padding-top-tablet: 40px; --padding-top-desktop: 60px;">
+			<div class="site-slider carousel-style loader-default gap-base" data-items="4" data-items-tablet="3" data-items-mobile="1" data-itemsscroll="1" data-speed="600" data-arrows="false" data-dots="false" data-dots-tablet="true" data-dots-mobile="true" data-loop="false">
+				
+									<div class="site-slider-item">
+					  <div class="site-iconbox horizontal">
+						<div class="site-iconbox-icon">
+							<img src="https://klbtheme.com/fynode/wp-content/uploads/2024/12/footer.png"/>   
+						</div>
+						<div class="site-iconbox-content">
+						  <h4 class="entry-title">Customer service</h4>
+						  <div class="entry-description"><p>It’s not actually free we just price it into the products.</p></div>
+						</div><!-- site-iconbox-content -->
+					  </div><!-- site-iconbox -->
+					</div><!-- site-slider-item -->
+									<div class="site-slider-item">
+					  <div class="site-iconbox horizontal">
+						<div class="site-iconbox-icon">
+							<img src="https://klbtheme.com/fynode/wp-content/uploads/2024/12/footer2.png"/>   
+						</div>
+						<div class="site-iconbox-content">
+						  <h4 class="entry-title">Fast Free Shipping</h4>
+						  <div class="entry-description"><p>Get free shipping on orders of $150 or more (within the US)</p></div>
+						</div><!-- site-iconbox-content -->
+					  </div><!-- site-iconbox -->
+					</div><!-- site-slider-item -->
+									<div class="site-slider-item">
+					  <div class="site-iconbox horizontal">
+						<div class="site-iconbox-icon">
+							<img src="https://klbtheme.com/fynode/wp-content/uploads/2024/12/footer3.png"/>   
+						</div>
+						<div class="site-iconbox-content">
+						  <h4 class="entry-title">Returns &amp; Exchanges</h4>
+						  <div class="entry-description"><p>We offer free returns and exchanges within 30 days of purchase.</p></div>
+						</div><!-- site-iconbox-content -->
+					  </div><!-- site-iconbox -->
+					</div><!-- site-slider-item -->
+									<div class="site-slider-item">
+					  <div class="site-iconbox horizontal">
+						<div class="site-iconbox-icon">
+							<img src="https://klbtheme.com/fynode/wp-content/uploads/2024/12/footer4.png"/>   
+						</div>
+						<div class="site-iconbox-content">
+						  <h4 class="entry-title">Secure payment</h4>
+						  <div class="entry-description"><p>Your payment information is processed securely and encrypted.</p></div>
+						</div><!-- site-iconbox-content -->
+					  </div><!-- site-iconbox -->
+					</div><!-- site-slider-item -->
+								
+			</div><!-- site-slider -->  
+		</div>
+	</div>
+				
+		</div><!-- main-content -->
+		
+		
+				
+			<footer class="site-footer">
+
+
+    <div class="site-footer-row footer-widgets">
+        <div class="container">
+			<div class="site-footer-inner">
+				<div class="row gap-y-20">
+											<div class="col col-12 col-md-6 col-lg-3">
+							<div class="klbfooterwidget widget widget_text">			<div class="textwidget"><div class="widget-body">
+<div class="site-brand"><a href="#"><img decoding="async" class="alignnone size-medium wp-image-9" src="https://klbtheme.com/fynode/wp-content/uploads/2024/11/logo-light-300x68.png" alt="" width="300" height="68" srcset="https://klbtheme.com/fynode/wp-content/uploads/2024/11/logo-light-300x68.png 300w, https://klbtheme.com/fynode/wp-content/uploads/2024/11/logo-light-90x21.png 90w, https://klbtheme.com/fynode/wp-content/uploads/2024/11/logo-light-600x137.png 600w, https://klbtheme.com/fynode/wp-content/uploads/2024/11/logo-light.png 636w" sizes="(max-width: 300px) 100vw, 300px" /></a></div>
+<p><!-- site-brand --></p>
+<div class="branding-detail">
+<p><strong>Address:</strong> 1234 Fashion Street, Suite 567, New York, NY</p>
+<p><strong>Phone:</strong> +123 456 7890</p>
+<p><strong>Email:</strong> <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="751c1b131a35100d14180519105b161a18">[email&#160;protected]</a></p>
+</div>
+<p><!-- branding-detail --></p>
+</div>
+</div>
+		</div>						</div><!-- col -->
+						<div class="col col-12 col-md-6 col-lg-3">
+							<div class="klbfooterwidget widget widget_nav_menu"><h4 class="widget-title">Let Us Help You</h4><div class="menu-let-us-help-you-container"><ul id="menu-let-us-help-you" class="menu"><li id="menu-item-1844" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1844"><a href="https://klbtheme.com/fynode/my-account/">Accessibility Statement</a></li>
+<li id="menu-item-1811" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1811"><a href="https://klbtheme.com/fynode/my-account/orders/">Your Orders</a></li>
+<li id="menu-item-1845" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1845"><a href="https://klbtheme.com/fynode/refund-and-returns-policy/">Returns &#038; Replacements</a></li>
+<li id="menu-item-1846" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1846"><a href="https://klbtheme.com/fynode/faq/">Shipping Rates &#038; Policies</a></li>
+<li id="menu-item-1847" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-privacy-policy menu-item-1847"><a rel="privacy-policy" href="https://klbtheme.com/fynode/privacy-policy-2/">Refund and Returns Policy</a></li>
+<li id="menu-item-1848" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-privacy-policy menu-item-1848"><a rel="privacy-policy" href="https://klbtheme.com/fynode/privacy-policy-2/">Privacy Policy</a></li>
+<li id="menu-item-1849" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1849"><a href="https://klbtheme.com/fynode/terms-and-conditions/">Terms and Conditions</a></li>
+<li id="menu-item-1812" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1812"><a href="https://klbtheme.com/fynode/terms-and-conditions/">Cookie Settings</a></li>
+<li id="menu-item-1850" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1850"><a href="https://klbtheme.com/fynode/contact/">Help Center</a></li>
+</ul></div></div>						</div><!-- col -->
+						<div class="col col-12 col-md-6 col-lg-3">
+							<div class="klbfooterwidget widget widget_nav_menu"><h4 class="widget-title">Get to Know Us</h4><div class="menu-get-to-know-us-container"><ul id="menu-get-to-know-us" class="menu"><li id="menu-item-1851" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1851"><a href="https://klbtheme.com/fynode/contact/">Careers for Fynode</a></li>
+<li id="menu-item-1852" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1852"><a href="https://klbtheme.com/fynode/about-us/">About Fynode</a></li>
+<li id="menu-item-1853" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-privacy-policy menu-item-1853"><a rel="privacy-policy" href="https://klbtheme.com/fynode/privacy-policy-2/">Inverstor Relations</a></li>
+<li id="menu-item-1854" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1854"><a href="https://klbtheme.com/fynode/about-us/">Fynode Devices</a></li>
+<li id="menu-item-1855" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1855"><a href="https://klbtheme.com/fynode/order-tracking/">Customer reviews</a></li>
+<li id="menu-item-1856" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-privacy-policy menu-item-1856"><a rel="privacy-policy" href="https://klbtheme.com/fynode/privacy-policy-2/">Social Responsibility</a></li>
+<li id="menu-item-1857" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1857"><a href="https://klbtheme.com/fynode/shop/">Store Locations</a></li>
+</ul></div></div>						</div><!-- col -->
+						
+																			<div class="col col-12 col-md-6 col-lg-3">
+								<div class="widget">
+								  <h4 class="widget-title">Sign Up for Email</h4>
+								  <div class="widget-body">
+									<div class="site-newsletter-form">
+									  <p>Sign up to get first dibs on new arrivals, sales, exclusive content, events and more!</p>
+									  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type="8d936110b6bf8a9b0bd84ba7-text/javascript">(function() {
+	window.mc4wp = window.mc4wp || {
+		listeners: [],
+		forms: {
+			on: function(evt, cb) {
+				window.mc4wp.listeners.push(
+					{
+						event   : evt,
+						callback: cb
+					}
+				);
+			}
+		}
+	}
+})();
+</script><!-- Mailchimp for WordPress v4.13.1 - https://wordpress.org/plugins/mailchimp-for-wp/ --><form id="mc4wp-form-1" class="mc4wp-form mc4wp-form-104" method="post" data-id="104" data-name="Fynode" ><div class="mc4wp-form-fields"><input class="subscribe-input no-style" type="email" name="EMAIL" placeholder="Enter your email address" required="">
+<button class="button no-style" type="submit">SEND</button>
+<p class="privacy-text">By subscribing you agree to our <a href="#">Terms &amp; Conditions and Privacy &amp; Cookies Policy.</a></p></div><label style="display: none !important;">Leave this field empty if you&#039;re human: <input type="text" name="_mc4wp_honeypot" value="" tabindex="-1" autocomplete="off" /></label><input type="hidden" name="_mc4wp_timestamp" value="1785580291" /><input type="hidden" name="_mc4wp_form_id" value="104" /><input type="hidden" name="_mc4wp_form_element_id" value="mc4wp-form-1" /><div class="mc4wp-response"></div></form><!-- / Mailchimp for WordPress Plugin -->									</div><!-- site-newsletter-form -->
+								  </div><!-- widget-body -->
+								</div><!-- widget -->
+							</div><!-- col -->
+																
+				</div><!-- row -->
+			</div><!-- site-footer-inner -->
+        </div><!-- container -->
+    </div><!-- site-footer-row -->
+	
+    <div class="site-row footer-copyright">
+        <div class="container">
+			<div class="site-footer-inner">
+									<p class="site-copyright">Copyright © 2026<a href="https://klbtheme.com/fynode"> Fynode</a>. All rights reserved.</p>
+				 
+				
+												
+					<div class="site-payment-cards">
+					  <ul>
+																					<li>
+								  <img src="https://klbtheme.com/fynode/wp-content/uploads/2024/11/payment.png" alt="payment"/>           
+								</li>
+																												<li>
+								  <img src="https://klbtheme.com/fynode/wp-content/uploads/2024/11/payment2.png" alt="payment"/>           
+								</li>
+																												<li>
+								  <img src="https://klbtheme.com/fynode/wp-content/uploads/2024/11/payment3.png" alt="payment"/>           
+								</li>
+																												<li>
+								  <img src="https://klbtheme.com/fynode/wp-content/uploads/2024/11/payment4.png" alt="payment"/>           
+								</li>
+																												<li>
+								  <img src="https://klbtheme.com/fynode/wp-content/uploads/2024/11/payment5.png" alt="payment"/>           
+								</li>
+																		  </ul>
+					</div><!-- site-payment-cards -->
+								
+			</div><!-- site-footer-inner -->
+        </div><!-- container -->
+    </div><!-- site-row -->
+</footer><!-- site-footer -->			
+				
+			
+		
+	</div><!-- page-content -->
+  
+	<script type="speculationrules">
+{"prefetch":[{"source":"document","where":{"and":[{"href_matches":"/fynode/*"},{"not":{"href_matches":["/fynode/wp-*.php","/fynode/wp-admin/*","/fynode/wp-content/uploads/*","/fynode/wp-content/*","/fynode/wp-content/plugins/*","/fynode/wp-content/themes/fynode/*","/fynode/*\\?(.+)"]}},{"not":{"selector_matches":"a[rel~=\"nofollow\"]"}},{"not":{"selector_matches":".no-prefetch, .no-prefetch a"}}]},"eagerness":"conservative"}]}
+</script>
+<script type="8d936110b6bf8a9b0bd84ba7-text/javascript">(function() {function maybePrefixUrlField () {
+  const value = this.value.trim()
+  if (value !== '' && value.indexOf('http') !== 0) {
+    this.value = 'http://' + value
+  }
+}
+
+const urlFields = document.querySelectorAll('.mc4wp-form input[type="url"]')
+for (let j = 0; j < urlFields.length; j++) {
+  urlFields[j].addEventListener('blur', maybePrefixUrlField)
+}
+})();</script>	
+
+				<div class="klb-mobile-bottom site-mobile-navbar">
+			<div class="site-mobile-navbar-inner">
+				<nav class="site-nav menu-horizontal">
+					<ul class="site-menu">
+						<li class="menu-item">
+															<a href="https://klbtheme.com/fynode/shop/">
+									<i class="klb-icon-store-minimal"></i>
+									<span>STORE</span>
+								</a>							
+													</li>
+
+												
+						<li class="menu-item">
+							<a href="#" class="toggle-button search-toggle">
+							   <i class="klb-icon-search"></i>
+							   <span>SEARCH</span>
+							</a>
+						</li>	
+						
+													<li class="menu-item">
+								<a href="#" class="toggle-button wishlist-toggle">
+									<i class="klb-icon-hearth"></i>
+									<span>WISHLIST</span>
+								</a>
+							</li>	
+												
+						<li class="menu-item">
+							<a href="https://klbtheme.com/fynode/my-account/">
+								<i class="klb-icon-user-line"></i>
+								<span>ACCOUNT</span>
+							</a>
+						</li>
+
+																											<li class="menu-item">
+									 <a href="#" class="toggle-button categories-toggle">
+										<i class="klb-icon-layout-grid"></i>
+										<span>CATEGORIES</span>
+									</a>
+								</li>
+																		</ul>
+				</nav><!-- site-menu -->
+			</div><!-- site-mobile-navbar-inner -->
+		</div><!-- site-mobile-navbar -->
+
+		
+<div id="klbwl_wishlist" class="klbwl-popup"></div>	
+	<div class="klb-modal-root authentication-modal site-drawer">
+		<div class="klb-modal-inner">
+							<div class="authentication-modal-banner min-1024 ">
+					<a href="https://klbtheme.com/fynode/my-account/">
+						<img src="https://klbtheme.com/fynode/wp-content/uploads/2024/11/collection-speakers.jpg" alt="Fynode &#8211; Electronis Store eCommerce Theme">
+					</a>
+				</div><!-- authentication-modal-banner -->
+						<div class="klb-authentication-modal">
+				<div class="klb-modal-header">
+					<h4 class="entry-title">Log in</h4>
+					<div class="site-close">
+						<i class="klb-icon-x"></i>
+					</div><!-- site-close -->        
+				</div><!-- klb-modal-header -->
+				<div class="klb-authentication-form tab-style">
+					<div id="klb-authentication" class="klb-authentication-inner">
+						<div class="klb-login-form">
+							<div class="woocommerce-notices-wrapper"></div>							<form class="woocommerce-form woocommerce-form-login login" method="post">
+
+								
+								<p class="woocommerce-form-row woocommerce-form-row--wide form-row form-row-wide">
+									<label for="username">Username or email address&nbsp;<span class="required">*</span></label>
+									<input type="text" class="woocommerce-Input woocommerce-Input--text input-text" name="username" id="username" autocomplete="username" value="" />								</p>
+								<p class="woocommerce-form-row woocommerce-form-row--wide form-row form-row-wide">
+									<label for="password">Password&nbsp;<span class="required">*</span></label>
+									<input class="woocommerce-Input woocommerce-Input--text input-text" type="password" name="password" id="password" autocomplete="current-password" />
+								</p>
+
+																
+								<p class="form-row">
+									<label class="woocommerce-form__label woocommerce-form__label-for-checkbox woocommerce-form-login__rememberme">
+										<input class="woocommerce-form__input woocommerce-form__input-checkbox" name="rememberme" type="checkbox" id="rememberme" value="forever" /> <span>Remember me</span>
+									</label>
+									
+									<input type="hidden" id="woocommerce-login-nonce" name="woocommerce-login-nonce" value="663fe415db" /><input type="hidden" name="_wp_http_referer" value="/fynode/wp-content/uploads/12/03-26.jpg" />									<button type="submit" class="woocommerce-button button primary woocommerce-form-login__submit" name="login" value="Log in">Log in</button>
+								</p>
+
+								<div class="lost-password">
+									<p class="woocommerce-LostPassword lost_password">
+										<a href="https://klbtheme.com/fynode/my-account/lost-password/">Lost your password?</a>
+									</p>
+								</div>
+
+								<div class="klb-social-login"><p class="social-divider"><span>Or login with</span></p><a class='klb-social-login-btn klb-btn-google' href='https://klbtheme.com/fynode/?klb_oauth=auth&#038;provider=google&#038;redirect_to=https%3A%2F%2Fklbtheme.com%2Ffynode%2Fwp-content%2Fuploads%2F12%2F03-26.jpg' rel='nofollow noopener'>Google</a><a class='klb-social-login-btn klb-btn-facebook' href='https://klbtheme.com/fynode/?klb_oauth=auth&#038;provider=facebook&#038;redirect_to=https%3A%2F%2Fklbtheme.com%2Ffynode%2Fwp-content%2Fuploads%2F12%2F03-26.jpg' rel='nofollow noopener'>Facebook</a></div>
+							</form>
+
+							
+							<p class="privacy-text">By continuing, you accept the Website Regulations , Regulations for the sale of alcoholic beverages and the <a class="privacy-policy-link" href="https://klbtheme.com/fynode/privacy-policy-2/" rel="privacy-policy">Privacy Policy</a></p>
+
+						</div><!-- klb-login-form -->
+					</div><!-- klb-authentication-inner -->
+				</div><!-- klb-authentication-form -->
+				<div class="klb-authentication-tab">
+					<p>You dont have an account yet? <a href="https://klbtheme.com/fynode/my-account/#register">Register Now</a></p>
+				</div><!-- klb-authentication-tab -->
+			</div><!-- klb-authentication-modal -->
+		</div><!-- klb-modal-inner -->
+		<div class="site-drawer-overlay"></div>
+	</div><!-- klb-theme-modal -->
+
+	<script id='kirki-viewport-lists' type="8d936110b6bf8a9b0bd84ba7-text/javascript">var kirkiViewports = {"md":{"value":1200,"scale":1,"minWidth":1200,"maxWidth":1200,"title":"Desktop","icon":"desktop","activeIcon":"desktop-hover","id":"md","type":"max"},"tablet":{"value":991,"scale":1,"minWidth":991,"maxWidth":991,"title":"Tablet","icon":"tablet-default","activeIcon":"tablet-hover","type":"max","id":"tablet"},"mobileLandscape":{"value":767,"scale":1,"minWidth":767,"maxWidth":767,"title":"Landscape","icon":"phone-hr-default","activeIcon":"phone-hr-hover","type":"max","id":"mobileLandscape"},"mobile":{"value":575,"scale":1,"minWidth":575,"maxWidth":575,"title":"Mobile","icon":"phone-vr-default","activeIcon":"phone-vr-hover","type":"max","id":"mobile"}};</script><script id='kirki-variable-lists' type="8d936110b6bf8a9b0bd84ba7-text/javascript">var kirkiCSSVariable = {"data":[{"title":"Colors","key":"color","modes":[{"key":"default","title":"Default"}],"variables":[]},{"title":"Numbers","key":"size","modes":[{"key":"default","title":"Default"}],"variables":[]},{"title":"Text Styles","key":"text-style","modes":[{"key":"default","title":"Default"}],"variables":[]},{"title":"Font Family","key":"font-family","modes":[{"key":"default","title":"Default"}],"variables":[]}]};</script><script id="kirki-api-and-nonce" type="8d936110b6bf8a9b0bd84ba7-text/javascript">
+    window.wp_kirki = {
+        ajaxUrl: "https://klbtheme.com/fynode/wp-admin/admin-ajax.php",
+        restUrl: "https://klbtheme.com/fynode/wp-json/",
+        siteUrl: "https://klbtheme.com/fynode",
+        apiVersion: "v1",
+        postId: "135",
+        nonce: "68e515bdc2",
+        call_from: "",
+        templateId: "",
+        context: {"type":"404"}
+    };
+    </script>		
+			<div class="site-drawer search-drawer">
+				<div class="site-drawer-inner">
+					<div class="site-drawer-row site-drawer-header flex items-center justify-between">
+						<h3 class="entry-title">Search</h3>
+						<div class="site-close">
+						  <a href="#">
+							<i class="klb-icon-x"></i>
+						  </a>
+						</div><!-- site-close -->    
+					</div><!-- site-drawer-row -->
+					<div class="site-drawer-body">
+						<div class="site-search-form site-mobile-search filled-dark">
+							<form action="https://klbtheme.com/fynode/" class="search-form" method="get" id="searchform" autocomplete="off"><div class="search-form-icon"><i class="klb-icon-search"></i></div><input type="search" class="form-control search-input no-style" name="s" placeholder="Search everything..." autocomplete="off"><button type="submit" class="btn no-style">Search</button><input type="hidden" name="post_type" value="product" /></form>						</div>
+					</div><!-- site-drawer-body -->
+				</div><!-- site-drawer-inner -->
+				<div class="site-drawer-overlay"></div>
+			</div><!-- site-drawer -->
+
+				
+			<div class="site-drawer cart-drawer">
+				<div class="site-drawer-inner">
+					<div class="site-drawer-row site-drawer-header flex items-center justify-between">
+						<h3 class="entry-title">Your Cart</h3>
+						<div class="site-close">
+						  <a href="#">
+							<i class="klb-icon-x"></i>
+						  </a>
+						</div><!-- site-close -->    
+					</div><!-- site-drawer-row -->
+					<div class="site-drawer-body">
+						<div class="site-mini-cart">
+							<div class="site-mini-cart-inner">
+								<div class="site-mini-cart-row site-mini-cart-body">
+									<div class="fl-mini-cart-content">
+											
+		<div class="klb-cart-free-shipping warning site-cart-notice">
+			<div class="site-cart-notice-inner">
+				<p>Add <span class="woocommerce-Price-amount amount"><span class="woocommerce-Price-currencySymbol">&#036;</span>500.00</span> to cart and get free shipping!</p>
+				<div class="site-cart-progress">
+					<span style="width: 0%;"></span>
+				</div><!-- site-cart-progress -->
+			</div><!-- site-cart-notice-inner -->
+        </div>
+		
+	
+		
+		<div class="site-empty-content">
+			<svg width="89" height="80" viewBox="0 0 89 80" fill="currentColor">
+				<path d="M24.4444 53.3338H77.7778C78.8444 53.356 79.7778 52.6449 80 51.6005L88.8889 11.6005C89.0444 10.9338 88.8667 10.2449 88.4444 9.71158C88 9.17824 87.3556 8.86713 86.6667 8.88935H19.0222L17.7778 1.82269C17.5778 0.75602 16.6444 -0.0217579 15.5556 0.000464342H2.22222C1 0.000464342 0 1.00046 0 2.22269C0 3.44491 1 4.44491 2.22222 4.44491H13.7111L22.2222 51.5116C22.4222 52.5782 23.3556 53.356 24.4444 53.3338ZM83.8889 13.3338L76 48.8894H26.2889L19.8444 13.3338H83.8889Z"></path>
+				<path d="M31.1101 62.2222C26.199 62.2222 22.2212 66.2 22.2212 71.1111C22.2212 76.0222 26.199 80 31.1101 80C36.0212 80 39.999 76.0222 39.999 71.1111C39.999 66.2 36.0212 62.2222 31.1101 62.2222ZM31.1101 75.5556C28.6656 75.5556 26.6656 73.5556 26.6656 71.1111C26.6656 68.6667 28.6656 66.6667 31.1101 66.6667C33.5545 66.6667 35.5545 68.6667 35.5545 71.1111C35.5545 73.5556 33.5545 75.5556 31.1101 75.5556Z"></path>
+				<path d="M71.1101 62.2222C66.199 62.2222 62.2212 66.2 62.2212 71.1111C62.2212 76.0222 66.199 80 71.1101 80C76.0212 80 79.999 76.0222 79.999 71.1111C79.999 66.2 76.0212 62.2222 71.1101 62.2222ZM71.1101 75.5556C68.6656 75.5556 66.6656 73.5556 66.6656 71.1111C66.6656 68.6667 68.6656 66.6667 71.1101 66.6667C73.5545 66.6667 75.5545 68.6667 75.5545 71.1111C75.5545 73.5556 73.5545 75.5556 71.1101 75.5556Z"></path>
+			</svg>
+			<h4 class="entry-title">Your cart is empty!</h4>
+			<div class="entry-description">
+				<p>You may check out all the available products and buy some in the shop..</p>
+			</div><!-- entry-description -->
+        </div>
+		
+
+									</div><!-- fl-mini-cart-content -->
+								</div><!-- site-mini-cart-row -->
+							</div><!-- site-mini-cart-inner -->
+						</div><!-- site-mini-cart --> 
+					</div><!-- site-drawer-body -->
+				</div><!-- site-drawer-inner -->
+				<div class="site-drawer-overlay"></div>
+			</div><!-- site-drawer -->
+			
+					
+				
+				<div class="site-drawer wishlist-drawer">
+					<div class="site-drawer-inner">
+						<div class="site-drawer-row site-drawer-header flex items-center justify-between">
+							<h3 class="entry-title">Wishlist</h3>
+							<div class="site-close">
+							  <a href="#">
+								<i class="klb-icon-x"></i>
+							  </a>
+							</div><!-- site-close -->    
+						</div><!-- site-drawer-row -->
+						<div class="site-drawer-body">
+							<div class="klbwl-list"><div class="klbwl-no-result">
+						<div class="cart-empty-page">
+							<div class="empty-icon">
+								<i class="klb-icon-hearth"></i>
+							</div>
+							<p class="cart-empty">The wishlist table is empty.</p>
+							<p class="return-to-shop">
+								<a class="button wc-backward" href="https://klbtheme.com/fynode/shop/">
+									Return to shop
+								</a>
+							</p>
+						</div>
+					</div><div class="klbwl-actions"><div class="footer-social"><span class="d-block text-12 mt-30 sm-mt-50 mb-10">Share on:</span><div class="site-social"><ul><li><a href="https://www.facebook.com/sharer.php?u=https%3A%2F%2Fklbtheme.com%2Ffynode%2Fwishlist%2FKLBWISHLIST" class=" md facebook"><i class="klb-social-icon-facebook"></i></a></li><li><a href="https://twitter.com/share?url=https%3A%2F%2Fklbtheme.com%2Ffynode%2Fwishlist%2FKLBWISHLIST" class=" md twitter"><i class="klb-social-icon-twitter"></i></a></li><li><a href="https://instagram.com/pin/create/button/?url=https%3A%2F%2Fklbtheme.com%2Ffynode%2Fwishlist%2FKLBWISHLIST" class=" md instagram"><i class="klb-social-icon-instagram"></i></a></li><li><a href="https://linkedin.com/pin/create/button/?url=https%3A%2F%2Fklbtheme.com%2Ffynode%2Fwishlist%2FKLBWISHLIST"" class=" md linkedin"><i class="klb-social-icon-linkedin"></i></a></li></ul></div><!-- site-social --></div></div><!-- /klbwl-actions --></div><!-- /klbwl-list -->						</div><!-- site-drawer-body -->
+					</div><!-- site-drawer-inner -->
+					<div class="site-drawer-overlay"></div>
+				</div><!-- site-drawer -->  
+						
+				
+		<div class="site-drawer menu-drawer">
+			<div class="site-drawer-inner">
+				<div class="site-drawer-row site-drawer-header flex items-center justify-between">
+					<h3 class="entry-title">Menu</h3>
+					<div class="site-close">
+					  <a href="#">
+						<i class="klb-icon-x"></i>
+					  </a>
+					</div><!-- site-close -->    
+				</div><!-- site-drawer-row -->
+				<div class="site-drawer-body">
+					<div class="site-nav menu-vertical drawer-menu">
+						<ul id="menu-menu-2" class="site-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-home menu-item-has-children menu-item-1859"><a href="https://klbtheme.com/fynode/">Home</a>
+<ul class="sub-menu">
+	<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-home menu-item-1858"><a href="https://klbtheme.com/fynode/">Home 1</a></li>
+	<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1860"><a href="https://klbtheme.com/fynode/home-2/">Home 2</a></li>
+	<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1861"><a href="https://klbtheme.com/fynode/home-3/">Home 3</a></li>
+	<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1862"><a href="https://klbtheme.com/fynode/home-4/">Home 4</a></li>
+	<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1863"><a href="https://klbtheme.com/fynode/home-5/">Home 5</a></li>
+	<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1864"><a href="https://klbtheme.com/fynode/home-6/">Home 6</a></li>
+</ul>
+</li>
+<li class="mega-menu menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1865"><a href="https://klbtheme.com/fynode/shop/">Shop</a>
+<ul class="sub-menu">
+	<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1866"><a href="https://klbtheme.com/fynode/shop/">Shop Lists</a>
+	<ul class="sub-menu">
+		<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1867"><a href="https://klbtheme.com/fynode/shop/">Shop Default</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1813"><a href="https://klbtheme.com/fynode/shop/?opt=right-sidebar">Shop Right Sidebar</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1814"><a href="https://klbtheme.com/fynode/shop/?column=3&amp;opt=wide">Shop Wide</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1815"><a href="https://klbtheme.com/fynode/shop/?column=3&amp;opt=full-width">Filters Area</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1816"><a href="https://klbtheme.com/fynode/shop/?shop_view=list_view">List Left Sidebar</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1817"><a href="https://klbtheme.com/fynode/shop/?ft=load-more">Load More Button</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1818"><a href="https://klbtheme.com/fynode/shop/?ft=infinite">Infinite Scrolling</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1819"><a href="https://klbtheme.com/fynode/shop/?ft=productbox_zoom">Image Hover – Zoom</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1820"><a href="https://klbtheme.com/fynode/shop/?ft=productbox_slider">Image Hover – Slider</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1821"><a href="https://klbtheme.com/fynode/shop/?ft=productbox_flip">Image Hover – Flip</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1822"><a href="https://klbtheme.com/fynode/shop/?ft=box_variable">Product Variable</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1823"><a href="https://klbtheme.com/fynode/shop/?ft=box_countdown">Sale Countdown</a></li>
+	</ul>
+</li>
+	<li class="menu-item menu-item-type-post_type menu-item-object-product menu-item-has-children menu-item-1953"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/">Product Detail</a>
+	<ul class="sub-menu">
+		<li class="menu-item menu-item-type-post_type menu-item-object-product menu-item-1954"><a href="https://klbtheme.com/fynode/product/amazfit-active-smartwatch/">Product Default</a></li>
+		<li class="menu-item menu-item-type-post_type menu-item-object-product menu-item-1955"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-dm420/">Product Variable</a></li>
+		<li class="menu-item menu-item-type-post_type menu-item-object-product menu-item-1956"><a href="https://klbtheme.com/fynode/product/premium-dual-pattern-usb-nano-210/">Product Grouped</a></li>
+		<li class="menu-item menu-item-type-post_type menu-item-object-product menu-item-1957"><a href="https://klbtheme.com/fynode/product/apple-watch-series-10-gps-46mm-aluminum-case/">Product External</a></li>
+		<li class="menu-item menu-item-type-post_type menu-item-object-product menu-item-1958"><a href="https://klbtheme.com/fynode/product/jbl-tour-pro-2-true-wireless-noise-cancelling-earbuds/">Product Downloadable</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1960"><a href="https://klbtheme.com/fynode/product/extra-charging-power/?ft=imgzoom">Product Zoom Image</a></li>
+		<li class="menu-item menu-item-type-post_type menu-item-object-product menu-item-1961"><a href="https://klbtheme.com/fynode/product/marshall-portable-bluetooth-speaker/">Produt With Video</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1962"><a href="https://klbtheme.com/fynode/product/palo-over-earhphone/?ft=vertical">Thumbnails Left</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1968"><a href="https://klbtheme.com/fynode/product/jbl-tune-flex-true-wireless-noise-cancelling-earbuds/?ft=1column">Gallery 1 Column</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1969"><a href="https://klbtheme.com/fynode/product/amazfit-bip-5-smartwatch-49mm-polycarbonate-plastic/?ft=2columns">Gallery 2 Columns</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1970"><a href="https://klbtheme.com/fynode/product/klipsch-reference-4-speaker/?ft=carousel2columns">Carousel 2 Columns</a></li>
+	</ul>
+</li>
+	<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-has-children menu-item-1971"><a href="#">Product Features</a>
+	<ul class="sub-menu">
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1972"><a href="https://klbtheme.com/fynode/product/klipsch-reference-4-speaker/?ft=buynow">Buy Now Button</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1973"><a href="https://klbtheme.com/fynode/product/bose-bass-module-700-wireless-subwoofer/?ft=orderonwhatsapp">Order on WhatsApp</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1974"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/?ft=progressbar">Stock Progress Bar</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1975"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/?ft=countdown">Sale Countdown</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1977"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/?ft=stickycart">Sticky Add to Cart</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1978"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/?ft=stickytitles">Sticky Tab Titles</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1979"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/?ft=movereviewtab">Reviews Without Tab</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1980"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/?opt=wide">Product Full Width</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1981"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/?ft=1column">Sticky Description</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1982"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/?ft=vertical_tab">Vertical Tabs</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1983"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/?ft=accordion_tab">Accordion Tabs</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1984"><a href="https://klbtheme.com/fynode/product/wireless-gaming-headphones-ms920/?ft=accordion_tab_content">Accordion in Content</a></li>
+	</ul>
+</li>
+	<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-has-children menu-item-1985"><a href="#">Shop Pages</a>
+	<ul class="sub-menu">
+		<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1986"><a href="https://klbtheme.com/fynode/cart/">Cart</a></li>
+		<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1987"><a href="https://klbtheme.com/fynode/checkout/">Checkout</a></li>
+		<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1989"><a href="https://klbtheme.com/fynode/my-account/">My account</a></li>
+		<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1991"><a href="https://klbtheme.com/fynode/wishlist/">Wishlist </a></li>
+		<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1988"><a href="https://klbtheme.com/fynode/compare/">Compare</a></li>
+		<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1990"><a href="https://klbtheme.com/fynode/order-tracking/">Order Tracking</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1992"><a href="https://klbtheme.com/fynode/shop/?opt=catalogmode">Catalog Mode</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1993"><a href="https://klbtheme.com/fynode/shop/?featured=yes">Featured Products</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1994"><a href="https://klbtheme.com/fynode/shop/?orderby=popularity">Best Selling Products</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1995"><a href="https://klbtheme.com/fynode/shop/?ft=progressbar">Stock Progress Bar</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1996"><a href="https://klbtheme.com/fynode/shop/?ft=stock_status">Stock Status</a></li>
+		<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2211"><a href="https://klbtheme.com/fynode/shop-by-brand/">Shop by Brand</a></li>
+	</ul>
+</li>
+	<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-has-children menu-item-1997"><a href="#">Shop Layouts</a>
+	<ul class="sub-menu">
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1998"><a href="https://klbtheme.com/fynode/shop/?column=2">Two Columns</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1999"><a href="https://klbtheme.com/fynode/shop/?column=3">Three Columns</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-2000"><a href="https://klbtheme.com/fynode/shop/?column=3&amp;opt=wide">Three Columns Wide</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-2001"><a href="https://klbtheme.com/fynode/shop/?column=4">Four Columns</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-2002"><a href="https://klbtheme.com/fynode/shop/?column=4&amp;opt=wide">Four Columns Wide</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-2003"><a href="https://klbtheme.com/fynode/shop/?column=5&amp;opt=wide">Five Columns Wide</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-2005"><a href="https://klbtheme.com/fynode/shop/?ft=box_shipping">Bordered Shipping Class</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-2006"><a href="https://klbtheme.com/fynode/shop/?ft=box_sku">Product SKU</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-2007"><a href="https://klbtheme.com/fynode/shop/?ft=product_attributes">Additional Information</a></li>
+		<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-2240"><a href="https://klbtheme.com/fynode/shop/?ft=hideprice">Login to See Prices</a></li>
+	</ul>
+</li>
+</ul>
+</li>
+<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1824"><a href="https://klbtheme.com/fynode/shop/?filter_cat=36">Headphones</a></li>
+<li class="menu-item menu-item-type-custom menu-item-object-custom menu-item-1825"><a href="https://klbtheme.com/fynode/shop/?filter_cat=22">Accessories</a></li>
+<li class="menu-item menu-item-type-post_type menu-item-object-page current_page_parent menu-item-1868"><a href="https://klbtheme.com/fynode/blog/">Blog</a></li>
+<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1869"><a href="https://klbtheme.com/fynode/contact/">Contact</a></li>
+</ul>    
+					</div><!-- site-nav -->     
+				</div><!-- site-drawer-body -->
+			</div><!-- site-drawer-inner -->
+			<div class="site-drawer-overlay"></div>
+		</div><!-- site-drawer --> 
+		
+				<div class="site-drawer categories-drawer">
+			<div class="site-drawer-inner">
+				<div class="site-drawer-row site-drawer-header flex items-center justify-between">
+					<h3 class="entry-title">All Categories</h3>
+					<div class="site-close">
+					  <a href="#">
+						<i class="klb-icon-x"></i>
+					  </a>
+					</div><!-- site-close -->    
+				</div><!-- site-drawer-row -->
+				<div class="site-drawer-body">
+					<div class="site-nav menu-vertical categories-menu">
+						<ul id="menu" class="site-menu"><li id="menu-item-1875" class="menu-item menu-item-type-taxonomy menu-item-object-product_cat menu-item-1875"><a href="https://klbtheme.com/fynode/product-category/accessories/">Accessories</a></li>
+<li id="menu-item-1876" class="menu-item menu-item-type-taxonomy menu-item-object-product_cat menu-item-1876"><a href="https://klbtheme.com/fynode/product-category/camera/">Camera</a></li>
+<li id="menu-item-1877" class="menu-item menu-item-type-taxonomy menu-item-object-product_cat menu-item-has-children menu-item-1877"><a href="https://klbtheme.com/fynode/product-category/earphones/">Earphones</a>
+<ul class="sub-menu">
+	<li id="menu-item-1878" class="menu-item menu-item-type-taxonomy menu-item-object-product_cat menu-item-1878"><a href="https://klbtheme.com/fynode/product-category/earphones/bluetooth-earphones/">Bluetooth Earphones</a></li>
+	<li id="menu-item-1879" class="menu-item menu-item-type-taxonomy menu-item-object-product_cat menu-item-1879"><a href="https://klbtheme.com/fynode/product-category/earphones/sports-earphones/">Sports Earphones</a></li>
+	<li id="menu-item-1880" class="menu-item menu-item-type-taxonomy menu-item-object-product_cat menu-item-1880"><a href="https://klbtheme.com/fynode/product-category/earphones/wired-earphones/">Wired Earphones</a></li>
+	<li id="menu-item-1881" class="menu-item menu-item-type-taxonomy menu-item-object-product_cat menu-item-1881"><a href="https://klbtheme.com/fynode/product-category/earphones/wireless-earphones/">Wireless Earphones</a></li>
+</ul>
+</li>
+<li id="menu-item-1882" class="menu-item menu-item-type-taxonomy menu-item-object-product_cat menu-item-has-children menu-item-1882"><a href="https://klbtheme.com/fynode/product-category/headphones/">Headphones</a>
+<ul class="sub-menu">
+	<li id="menu-item-1883" class="menu-item menu-item-type-taxonomy menu-item-object-product_cat menu-item-1883"><a href="https://klbtheme.com/fynode/product-category/headphones/bluetooth-headphones/">Bluetooth Headphones</a></li>
+	<li id="menu-item-1884" class="menu-item menu-item-type-taxonomy menu-item-object-product_cat menu-item-1884"><a href="https://klbtheme.com/fynode/product-category/headphones/noise-canceling/">Noise Canceling</a></li>
+	<li id="menu-item-1885" class="menu-item menu-item-type-taxonomy menu-item-object-product_cat menu-item-1885"><a href="https://klbtheme.com/fynode/product-category/headphones/over-ear/">Over-EAR</a></li>
+</ul>
+</li>
+<li id="menu-item-1886" class="menu-item menu-item-type-taxonomy menu-item-object-product_cat menu-item-1886"><a href="https://klbtheme.com/fynode/product-category/microphones/">Microphones</a></li>
+<li id="menu-item-1887" class="menu-item menu-item-type-taxonomy menu-item-object-product_cat menu-item-1887"><a href="https://klbtheme.com/fynode/product-category/phone/">Smartphone &amp; Gadges</a></li>
+<li id="menu-item-1888" class="menu-item menu-item-type-taxonomy menu-item-object-product_cat menu-item-has-children menu-item-1888"><a href="https://klbtheme.com/fynode/product-category/smartwatches/">Smartwatches</a>
+<ul class="sub-menu">
+	<li id="menu-item-1889" class="menu-item menu-item-type-taxonomy menu-item-object-product_cat menu-item-1889"><a href="https://klbtheme.com/fynode/product-category/smartwatches/kids-watches/">Kids Watches</a></li>
+	<li id="menu-item-1890" class="menu-item menu-item-type-taxonomy menu-item-object-product_cat menu-item-1890"><a href="https://klbtheme.com/fynode/product-category/smartwatches/men-watches/">Men Watches</a></li>
+	<li id="menu-item-1891" class="menu-item menu-item-type-taxonomy menu-item-object-product_cat menu-item-1891"><a href="https://klbtheme.com/fynode/product-category/smartwatches/sport-watches/">Sport Watches</a></li>
+	<li id="menu-item-1892" class="menu-item menu-item-type-taxonomy menu-item-object-product_cat menu-item-1892"><a href="https://klbtheme.com/fynode/product-category/smartwatches/women-watches/">Women Watches</a></li>
+</ul>
+</li>
+<li id="menu-item-1893" class="menu-item menu-item-type-taxonomy menu-item-object-product_cat menu-item-1893"><a href="https://klbtheme.com/fynode/product-category/speakers/">Speakers</a></li>
+</ul>					</div><!-- site-nav -->    
+				</div><!-- site-drawer-body -->
+			</div><!-- site-drawer-inner -->
+			<div class="site-drawer-overlay"></div>
+		</div><!-- site-drawer -->
+					
+				
+				<div class="site-sticky-category">
+					<div class="site-sticky-category-inner">
+						<nav class="site-category-nav">
+							<ul class="site-category-list">
+																	<li><a href="https://klbtheme.com/fynode/shop/?filter_cat=49" data-bs-toggle="tooltip" data-bs-title="Speakers" data-bs-placement="right" data-bs-custom-class="white-tooltip"><img src="https://klbtheme.com/fynode/wp-content/uploads/2024/12/speaker.svg"></a></li>
+																	<li><a href="https://klbtheme.com/fynode/shop/?filter_cat=36" data-bs-toggle="tooltip" data-bs-title="Headphones" data-bs-placement="right" data-bs-custom-class="white-tooltip"><img src="https://klbtheme.com/fynode/wp-content/uploads/2024/12/headphones.svg"></a></li>
+																	<li><a href="https://klbtheme.com/fynode/shop/?filter_cat=31" data-bs-toggle="tooltip" data-bs-title="Earphones" data-bs-placement="right" data-bs-custom-class="white-tooltip"><img src="https://klbtheme.com/fynode/wp-content/uploads/2024/12/earphones.svg"></a></li>
+																	<li><a href="https://klbtheme.com/fynode/shop/?filter_cat=41" data-bs-toggle="tooltip" data-bs-title="Microphones" data-bs-placement="right" data-bs-custom-class="white-tooltip"><img src="https://klbtheme.com/fynode/wp-content/uploads/2024/12/microphone.svg"></a></li>
+																	<li><a href="https://klbtheme.com/fynode/shop/?filter_cat=48" data-bs-toggle="tooltip" data-bs-title="Smartwatches" data-bs-placement="right" data-bs-custom-class="white-tooltip"><img src="https://klbtheme.com/fynode/wp-content/uploads/2024/12/smartwatch.svg"></a></li>
+																	<li><a href="https://klbtheme.com/fynode/shop/?filter_cat=22" data-bs-toggle="tooltip" data-bs-title="Accessories" data-bs-placement="right" data-bs-custom-class="white-tooltip"><img src="https://klbtheme.com/fynode/wp-content/uploads/2024/12/cable.svg"></a></li>
+									
+							</ul>
+						</nav>
+					</div><!-- site-sticky-category-inner -->
+				</div>
+				
+					<script type="8d936110b6bf8a9b0bd84ba7-text/javascript">
+				const lazyloadRunObserver = () => {
+					const lazyloadBackgrounds = document.querySelectorAll( `.e-con.e-parent:not(.e-lazyloaded)` );
+					const lazyloadBackgroundObserver = new IntersectionObserver( ( entries ) => {
+						entries.forEach( ( entry ) => {
+							if ( entry.isIntersecting ) {
+								let lazyloadBackground = entry.target;
+								if( lazyloadBackground ) {
+									lazyloadBackground.classList.add( 'e-lazyloaded' );
+								}
+								lazyloadBackgroundObserver.unobserve( entry.target );
+							}
+						});
+					}, { rootMargin: '200px 0px 200px 0px' } );
+					lazyloadBackgrounds.forEach( ( lazyloadBackground ) => {
+						lazyloadBackgroundObserver.observe( lazyloadBackground );
+					} );
+				};
+				const events = [
+					'DOMContentLoaded',
+					'elementor/lazyload/observe',
+				];
+				events.forEach( ( event ) => {
+					document.addEventListener( event, lazyloadRunObserver );
+				} );
+			</script>
+				<script type="8d936110b6bf8a9b0bd84ba7-text/javascript">
+		(function () {
+			var c = document.body.className;
+			c = c.replace(/woocommerce-no-js/, 'woocommerce-js');
+			document.body.className = c;
+		})();
+	</script>
+	<link rel='stylesheet' id='wc-blocks-style-css' href='https://klbtheme.com/fynode/wp-content/plugins/woocommerce/assets/client/blocks/wc-blocks.css?ver=wc-10.9.1' media='all' />
+<link rel='stylesheet' id='klb-login-popup-css' href='https://klbtheme.com/fynode/wp-content/plugins/fynode-core/woocommerce-filter/login-popup/css/login-popup.css?ver=1.0' media='all' />
+<link rel='stylesheet' id='fynode-ajax-login-css' href='https://klbtheme.com/fynode/wp-content/plugins/fynode-core/woocommerce-filter/ajax-login/css/ajax-login.css?ver=1.0' media='all' />
+<script id="wp-hooks-js" src="https://klbtheme.com/fynode/wp-includes/js/dist/hooks.min.js?ver=7496969728ca0f95732d" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="wp-i18n-js" src="https://klbtheme.com/fynode/wp-includes/js/dist/i18n.min.js?ver=781d11515ad3d91786ec" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="wp-i18n-js-after" type="8d936110b6bf8a9b0bd84ba7-text/javascript">
+wp.i18n.setLocaleData( { 'text direction\u0004ltr': [ 'ltr' ] } );
+//# sourceURL=wp-i18n-js-after
+</script>
+<script id="swv-js" src="https://klbtheme.com/fynode/wp-content/plugins/contact-form-7/includes/swv/js/index.js?ver=6.1.6" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="contact-form-7-js-before" type="8d936110b6bf8a9b0bd84ba7-text/javascript">
+var wpcf7 = {
+    "api": {
+        "root": "https:\/\/klbtheme.com\/fynode\/wp-json\/",
+        "namespace": "contact-form-7\/v1"
+    }
+};
+//# sourceURL=contact-form-7-js-before
+</script>
+<script id="contact-form-7-js" src="https://klbtheme.com/fynode/wp-content/plugins/contact-form-7/includes/js/index.js?ver=6.1.6" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="jquery-socialshare-js" src="https://klbtheme.com/fynode/wp-content/plugins/fynode-core//js/jquery-socialshare.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="klbtheme-swatches-js" src="https://klbtheme.com/fynode/wp-content/plugins/fynode-core/woocommerce-filter/swatches/js/swatches.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="klbcp-frontend-js-extra" type="8d936110b6bf8a9b0bd84ba7-text/javascript">
+var klbcp_vars = {"ajax_url":"https://klbtheme.com/fynode/wp-admin/admin-ajax.php","user_id":"064c228d92e89a435578ae973677bd2c","page_url":"https://klbtheme.com/fynode/compare/","view_page_text":"View Compare Page","close_text":"Close","message_added":"{name} has been added to Compare list.","message_removed":"{name} has been removed from the Compare list.","message_exists":"{name} is already in the Compare list.","limit":"100","limit_notice":"You can add a maximum of {limit} products to the comparison table.","button_text":"Compare","button_text_added":"Compare"};
+//# sourceURL=klbcp-frontend-js-extra
+</script>
+<script id="klbcp-frontend-js" src="https://klbtheme.com/fynode/wp-content/plugins/fynode-core/woocommerce-filter/compare/js/compare.js?ver=1" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="bootstrap-bundle-js" src="https://klbtheme.com/fynode/wp-content/themes/fynode/assets/js/bootstrap.bundle.min.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="moment-min-js" src="https://klbtheme.com/fynode/wp-content/themes/fynode/assets/js/moment.min.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="moment-timezone-js" src="https://klbtheme.com/fynode/wp-content/themes/fynode/assets/js/moment-timezone.min.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="jquery-countdown-js" src="https://klbtheme.com/fynode/wp-content/themes/fynode/assets/js/jquery.countdown.min.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="jquery-magnific-popup-js" src="https://klbtheme.com/fynode/wp-content/themes/fynode/assets/js/jquery.magnific-popup.min.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="slick-min-js" src="https://klbtheme.com/fynode/wp-content/themes/fynode/assets/js/slick.min.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="hover-slider-js" src="https://klbtheme.com/fynode/wp-content/themes/fynode/assets/js/hover-slider.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="fynode-cartquantity-js" src="https://klbtheme.com/fynode/wp-content/themes/fynode/assets/js/custom/cartquantity.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="fynode-countdown-js" src="https://klbtheme.com/fynode/wp-content/themes/fynode/assets/js/custom/countdown.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="fynode-siteslider-js" src="https://klbtheme.com/fynode/wp-content/themes/fynode/assets/js/custom/siteslider.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="fynode-productquantity-js" src="https://klbtheme.com/fynode/wp-content/themes/fynode/assets/js/custom/productquantity.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="fynode-producthover-js" src="https://klbtheme.com/fynode/wp-content/themes/fynode/assets/js/custom/producthover.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="fynode-draweranimation-js" src="https://klbtheme.com/fynode/wp-content/themes/fynode/assets/js/custom/draweranimation.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="fynode-layered-dropdown-js" src="https://klbtheme.com/fynode/wp-content/themes/fynode/assets/js/custom/layered-dropdown.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="bundle-js" src="https://klbtheme.com/fynode/wp-content/themes/fynode/assets/js/bundle.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="fynode-quick-ajax-js-extra" type="8d936110b6bf8a9b0bd84ba7-text/javascript">
+var MyAjax = {"ajaxurl":"https://klbtheme.com/fynode/wp-admin/admin-ajax.php"};
+//# sourceURL=fynode-quick-ajax-js-extra
+</script>
+<script id="fynode-quick-ajax-js" src="https://klbtheme.com/fynode/wp-content/themes/fynode/assets/js/custom/quick_ajax.js?ver=1.0.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="fynode-tab-ajax-js" src="https://klbtheme.com/fynode/wp-content/themes/fynode/assets/js/custom/tab-ajax.js?ver=1.0.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="fynode-variationform-js" src="https://klbtheme.com/fynode/wp-content/themes/fynode/assets/js/custom/variationform.js?ver=1.0.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="sourcebuster-js-js" src="https://klbtheme.com/fynode/wp-content/plugins/woocommerce/assets/js/sourcebuster/sourcebuster.min.js?ver=10.9.1" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="wc-order-attribution-js-extra" type="8d936110b6bf8a9b0bd84ba7-text/javascript">
+var wc_order_attribution = {"params":{"lifetime":1.0000000000000000818030539140313095458623138256371021270751953125e-5,"session":30,"base64":false,"ajaxurl":"https://klbtheme.com/fynode/wp-admin/admin-ajax.php","prefix":"wc_order_attribution_","allowTracking":true},"fields":{"source_type":"current.typ","referrer":"current_add.rf","utm_campaign":"current.cmp","utm_source":"current.src","utm_medium":"current.mdm","utm_content":"current.cnt","utm_id":"current.id","utm_term":"current.trm","utm_source_platform":"current.plt","utm_creative_format":"current.fmt","utm_marketing_tactic":"current.tct","session_entry":"current_add.ep","session_start_time":"current_add.fd","session_pages":"session.pgs","session_count":"udata.vst","user_agent":"udata.uag"}};
+//# sourceURL=wc-order-attribution-js-extra
+</script>
+<script id="wc-order-attribution-js" src="https://klbtheme.com/fynode/wp-content/plugins/woocommerce/assets/js/frontend/order-attribution.min.js?ver=10.9.1" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="mc4wp-forms-api-js" defer src="https://klbtheme.com/fynode/wp-content/plugins/mailchimp-for-wp/assets/js/forms.js?ver=4.13.1" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="klb-login-popup-js" src="https://klbtheme.com/fynode/wp-content/plugins/fynode-core/woocommerce-filter/login-popup/js/login-popup.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="zxcvbn-async-js-extra" type="8d936110b6bf8a9b0bd84ba7-text/javascript">
+var _zxcvbnSettings = {"src":"https://klbtheme.com/fynode/wp-includes/js/zxcvbn.min.js"};
+//# sourceURL=zxcvbn-async-js-extra
+</script>
+<script id="zxcvbn-async-js" src="https://klbtheme.com/fynode/wp-includes/js/zxcvbn-async.min.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="password-strength-meter-js-extra" type="8d936110b6bf8a9b0bd84ba7-text/javascript">
+var pwsL10n = {"unknown":"Password strength unknown","short":"Very weak","bad":"Weak","good":"Medium","strong":"Strong","mismatch":"Mismatch"};
+//# sourceURL=password-strength-meter-js-extra
+</script>
+<script id="password-strength-meter-js" src="https://klbtheme.com/fynode/wp-admin/js/password-strength-meter.min.js?ver=7.0.2" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="wc-password-strength-meter-js-extra" type="8d936110b6bf8a9b0bd84ba7-text/javascript">
+var wc_password_strength_meter_params = {"min_password_strength":"3","stop_checkout":"","i18n_password_error":"Please enter a stronger password.","i18n_password_hint":"Hint: The password should be at least twelve characters long. To make it stronger, use upper and lower case letters, numbers, and symbols like ! \" ? $ % ^ & )."};
+//# sourceURL=wc-password-strength-meter-js-extra
+</script>
+<script data-wp-strategy="defer" defer id="wc-password-strength-meter-js" src="https://klbtheme.com/fynode/wp-content/plugins/woocommerce/assets/js/frontend/password-strength-meter.min.js?ver=10.9.1" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="fynode-ajax-login-js-extra" type="8d936110b6bf8a9b0bd84ba7-text/javascript">
+var MyAjax = {"ajaxurl":"https://klbtheme.com/fynode/wp-admin/admin-ajax.php"};
+//# sourceURL=fynode-ajax-login-js-extra
+</script>
+<script id="fynode-ajax-login-js" src="https://klbtheme.com/fynode/wp-content/plugins/fynode-core/woocommerce-filter/ajax-login/js/ajax-login.js?ver=1.0" type="8d936110b6bf8a9b0bd84ba7-text/javascript"></script>
+<script id="wp-emoji-settings" type="application/json">
+{"baseUrl":"https://s.w.org/images/core/emoji/17.0.2/72x72/","ext":".png","svgUrl":"https://s.w.org/images/core/emoji/17.0.2/svg/","svgExt":".svg","source":{"concatemoji":"https://klbtheme.com/fynode/wp-includes/js/wp-emoji-release.min.js?ver=7.0.2"}}
+</script>
+<script type="8d936110b6bf8a9b0bd84ba7-module">
+/*! This file is auto-generated */
+const a=JSON.parse(document.getElementById("wp-emoji-settings").textContent),o=(window._wpemojiSettings=a,"wpEmojiSettingsSupports"),s=["flag","emoji"];function i(e){try{var t={supportTests:e,timestamp:(new Date).valueOf()};sessionStorage.setItem(o,JSON.stringify(t))}catch(e){}}function c(e,t,n){e.clearRect(0,0,e.canvas.width,e.canvas.height),e.fillText(t,0,0);t=new Uint32Array(e.getImageData(0,0,e.canvas.width,e.canvas.height).data);e.clearRect(0,0,e.canvas.width,e.canvas.height),e.fillText(n,0,0);const a=new Uint32Array(e.getImageData(0,0,e.canvas.width,e.canvas.height).data);return t.every((e,t)=>e===a[t])}function p(e,t){e.clearRect(0,0,e.canvas.width,e.canvas.height),e.fillText(t,0,0);var n=e.getImageData(16,16,1,1);for(let e=0;e<n.data.length;e++)if(0!==n.data[e])return!1;return!0}function u(e,t,n,a){switch(t){case"flag":return n(e,"\ud83c\udff3\ufe0f\u200d\u26a7\ufe0f","\ud83c\udff3\ufe0f\u200b\u26a7\ufe0f")?!1:!n(e,"\ud83c\udde8\ud83c\uddf6","\ud83c\udde8\u200b\ud83c\uddf6")&&!n(e,"\ud83c\udff4\udb40\udc67\udb40\udc62\udb40\udc65\udb40\udc6e\udb40\udc67\udb40\udc7f","\ud83c\udff4\u200b\udb40\udc67\u200b\udb40\udc62\u200b\udb40\udc65\u200b\udb40\udc6e\u200b\udb40\udc67\u200b\udb40\udc7f");case"emoji":return!a(e,"\ud83e\u1fac8")}return!1}function f(e,t,n,a){let r;const o=(r="undefined"!=typeof WorkerGlobalScope&&self instanceof WorkerGlobalScope?new OffscreenCanvas(300,150):document.createElement("canvas")).getContext("2d",{willReadFrequently:!0}),s=(o.textBaseline="top",o.font="600 32px Arial",{});return e.forEach(e=>{s[e]=t(o,e,n,a)}),s}function r(e){var t=document.createElement("script");t.src=e,t.defer=!0,document.head.appendChild(t)}a.supports={everything:!0,everythingExceptFlag:!0},new Promise(t=>{let n=function(){try{var e=JSON.parse(sessionStorage.getItem(o));if("object"==typeof e&&"number"==typeof e.timestamp&&(new Date).valueOf()<e.timestamp+604800&&"object"==typeof e.supportTests)return e.supportTests}catch(e){}return null}();if(!n){if("undefined"!=typeof Worker&&"undefined"!=typeof OffscreenCanvas&&"undefined"!=typeof URL&&URL.createObjectURL&&"undefined"!=typeof Blob)try{var e="postMessage("+f.toString()+"("+[JSON.stringify(s),u.toString(),c.toString(),p.toString()].join(",")+"));",a=new Blob([e],{type:"text/javascript"});const r=new Worker(URL.createObjectURL(a),{name:"wpTestEmojiSupports"});return void(r.onmessage=e=>{i(n=e.data),r.terminate(),t(n)})}catch(e){}i(n=f(s,u,c,p))}t(n)}).then(e=>{for(const n in e)a.supports[n]=e[n],a.supports.everything=a.supports.everything&&a.supports[n],"flag"!==n&&(a.supports.everythingExceptFlag=a.supports.everythingExceptFlag&&a.supports[n]);var t;a.supports.everythingExceptFlag=a.supports.everythingExceptFlag&&!a.supports.flag,a.supports.everything||((t=a.source||{}).concatemoji?r(t.concatemoji):t.wpemoji&&t.twemoji&&(r(t.twemoji),r(t.wpemoji)))});
+//# sourceURL=https://klbtheme.com/fynode/wp-includes/js/wp-emoji-loader.min.js
+</script>
+  
+	<script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="8d936110b6bf8a9b0bd84ba7-|49" defer></script></body>
+</html>
