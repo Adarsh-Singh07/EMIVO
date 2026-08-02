@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -57,6 +57,23 @@ export default function CheckoutPage() {
   const { items, getSubtotal, getEMISubtotal, clearCart } = useCartStore();
   const [step, setStep] = useState<Step>("details");
   const [tenure, setTenure] = useState<(typeof TENURES)[number]>(12);
+  // Cart rehydrates from localStorage on the client, so the empty/full
+  // branch must not flip during hydration — wait for mount before branching.
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-[var(--color-background)] px-4">
+        <div className="text-sm font-medium text-[var(--color-secondary)]">
+          Loading your checkout…
+        </div>
+      </main>
+    );
+  }
 
   const subtotal = getSubtotal();
   const cartEmiSubtotal = getEMISubtotal();

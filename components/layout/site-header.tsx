@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { ShoppingBag, Search, Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useCartStore } from "@/lib/store/cart"
 
 const NAV_LINKS = [
@@ -18,8 +18,15 @@ const NAV_LINKS = [
 export function SiteHeader() {
   const pathname = usePathname()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  // The cart store rehydrates from localStorage on the client. Until the
+  // component is mounted, render no count so the server and client HTML match.
+  const [mounted, setMounted] = useState(false)
   const cartItemCount = useCartStore((state) => state.getTotalItems())
   const toggleCart = useCartStore((state) => state.toggleCart)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-surface/80 backdrop-blur-md">
@@ -71,9 +78,9 @@ export function SiteHeader() {
             onClick={toggleCart}
           >
             <ShoppingBag className="h-5 w-5" />
-            {cartItemCount > 0 && (
-              <Badge 
-                variant="emi" 
+            {mounted && cartItemCount > 0 && (
+              <Badge
+                variant="emi"
                 className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-[10px]"
               >
                 {cartItemCount}

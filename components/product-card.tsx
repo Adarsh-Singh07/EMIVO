@@ -38,7 +38,7 @@ export function ProductCard({ product }: ProductCardProps) {
       <Card className="flex flex-col h-full w-full overflow-hidden transition-all duration-300 hover:shadow-elevated hover:border-primary/20 bg-surface">
         
         {/* Top Badges overlay */}
-        <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10 w-fit">
+        <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex flex-col gap-1 sm:gap-1.5 z-10 w-fit">
           {product.isNew && (
             <Badge variant="ai" className="shadow-sm truncate flex-shrink-0 w-min">New</Badge>
           )}
@@ -49,7 +49,7 @@ export function ProductCard({ product }: ProductCardProps) {
         
         {/* Image Box */}
         <CardHeader className="p-0 border-b border-border/50 bg-[#F5F6F8] relative aspect-square overflow-hidden">
-          <div className="absolute inset-0 flex items-center justify-center p-6 mix-blend-multiply">
+          <div className="absolute inset-0 flex items-center justify-center p-3 sm:p-6 mix-blend-multiply">
              <Image
                 src={product.gallery[0]?.url || "/placeholder.png"}
                 alt={product.title}
@@ -60,7 +60,7 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
         </CardHeader>
         
-        <CardContent className="flex flex-col flex-1 p-5 pb-3">
+        <CardContent className="flex flex-col flex-1 p-3.5 pb-2 sm:p-5 sm:pb-3">
           <div className="flex items-center justify-between gap-2 mb-2">
             <span className="text-eyebrow">{product.brand}</span>
             <div className="flex items-center gap-1 text-[11px] font-medium text-secondary">
@@ -91,7 +91,7 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
         </CardContent>
         
-        <CardFooter className="p-5 pt-0 mt-2">
+        <CardFooter className="p-3.5 pt-0 mt-2 sm:p-5">
           <Button 
             className="w-full h-9 rounded-md text-xs font-semibold bg-surface border-border text-foreground hover:bg-primary hover:border-primary hover:text-white transition-all shadow-sm"
             variant="outline"

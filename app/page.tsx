@@ -125,7 +125,7 @@ export default function Home() {
              </Button>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {newArrivals.map((prod) => (
               <ProductCard key={prod.id} product={prod} />
             ))}
@@ -170,7 +170,7 @@ export default function Home() {
              </Button>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {topHeadphones.map((prod) => (
               <ProductCard key={prod.id} product={prod} />
             ))}
