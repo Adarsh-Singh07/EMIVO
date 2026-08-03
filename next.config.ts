@@ -1,21 +1,16 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
+  // Pin tracing root to this project so a stray lockfile in a parent dir
+  // (e.g. C:\Users\dheer\package-lock.json) isn't picked as the workspace root.
+  outputFileTracingRoot: path.join(__dirname),
+
+  // Images are served from GitHub raw + Unsplash. Allowed for future next/image use.
   images: {
-    dangerouslyAllowSVG: true,
-    contentDispositionType: 'attachment',
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     remotePatterns: [
+      { protocol: "https", hostname: "raw.githubusercontent.com" },
       { protocol: "https", hostname: "images.unsplash.com" },
-      { protocol: "https", hostname: "store.storeimages.cdn-apple.com" },
-      { protocol: "https", hostname: "images.samsung.com" },
-      { protocol: "https", hostname: "oasis.opstatics.com" },
-      { protocol: "https", hostname: "sony.scene7.com" },
-      { protocol: "https", hostname: "www.lg.com" },
-      { protocol: "https", hostname: "image01.realme.net" },
-      { protocol: "https", hostname: "in-media.apjonlinecdn.com" },
-      { protocol: "https", hostname: "i.dell.com" },
-      { protocol: "https", hostname: "dlcdnwebimgs.asus.com" },
     ],
   },
 };

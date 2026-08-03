@@ -1,180 +1,86 @@
 @import "tailwindcss";
 
-/* ==================================================================
-   EMIVO Design Tokens — Tailwind v4 @theme
-   Primary   : Circuit Navy  #12213B
-   Accent    : Signal Amber  #E8A33D
-   Background: #F5F6F8 · Surface #FFFFFF · Text #1B1F27
-   ================================================================== */
 @theme {
-  /* Typography */
-  --font-heading: var(--font-space-grotesk), sans-serif;
-  --font-sans: var(--font-ibm-plex-sans), sans-serif;
-  --font-mono: var(--font-ibm-plex-mono), monospace;
-
-  /* Brand palette */
-  --color-primary: #12213b; /* Circuit Navy */
-  --color-primary-foreground: #ffffff;
-  --color-accent: #e8a33d; /* Signal Amber */
-  --color-accent-foreground: #12213b;
-  --color-background: #f5f6f8;
-  --color-surface: #ffffff;
-  --color-surface-elevated: #ffffff;
-  --color-foreground: #1b1f27;
-  --color-secondary: #5b6472;
-  --color-muted: #8a93a2;
-  --color-border: #d8dce3;
-  --color-success: #1f8a5f;
-  --color-error: #d14343;
-
-  /* Ledger line colour — 2px Signal Amber underline for money figures */
-  --color-ledger: #e8a33d;
-
-  /* Legacy aliases (pre-makeover pages, kept for compatibility) */
-  --color-on-primary: #ffffff;
-  --color-text-secondary: #5b6472;
-  --color-fynode-accent: #3b82f6;
-
-  /* Radii */
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-card: 8px;
-  --radius-full: 9999px;
-
-  /* Motion — durations + easing per design bible */
-  --ease-premium: cubic-bezier(0.2, 0, 0, 1);
-  --duration-fast: 120ms;
-  --duration-standard: 220ms;
-  --duration-page: 320ms;
-
-  /* Shadows */
-  --shadow-card: 0 1px 2px rgba(18, 33, 59, 0.04), 0 4px 16px rgba(18, 33, 59, 0.06);
-  --shadow-elevated: 0 2px 4px rgba(18, 33, 59, 0.05), 0 12px 32px rgba(18, 33, 59, 0.12);
-
-  /* Brand marquee (content duplicated 2×, translate by 50%) */
-  --animate-marquee: marquee 32s linear infinite;
-  @keyframes marquee {
-    0% {
-      transform: translateX(0);
-    }
-    100% {
-      transform: translateX(-50%);
-    }
-  }
+  /* Inter (loaded via next/font in layout) is the primary sans */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
-@layer base {
-  * {
-    border-color: var(--color-border);
-  }
-
-  html {
-    scroll-behavior: smooth;
-    -webkit-text-size-adjust: 100%;
-  }
-
-  body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
-    font-family: var(--font-ibm-plex-sans), sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
-  }
-
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    font-family: var(--font-space-grotesk), sans-serif;
-    color: var(--color-foreground);
-  }
-
-  ::selection {
-    background: var(--color-accent);
-    color: var(--color-primary);
-  }
-
-  :focus-visible {
-    outline: 2px solid var(--color-accent);
-    outline-offset: 2px;
-  }
+:root {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 6%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 6%;
+  --primary: 0 0% 6%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 6%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 40%;
+  --accent: 43 96% 56%;
+  --accent-foreground: 0 0% 6%;
+  --border: 0 0% 92%;
+  --input: 0 0% 92%;
+  --ring: 0 0% 6%;
+  --radius: 0.75rem;
 }
 
-@layer utilities {
-  /* Structural container */
-  .container-emivo {
-    width: 100%;
-    max-width: 1440px;
-    margin-inline: auto;
-    padding-inline: 1.25rem;
-  }
-  @media (min-width: 768px) {
-    .container-emivo {
-      padding-inline: 2rem;
-    }
-  }
+html,
+body {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  /* Stop mobile browsers from auto-inflating text (can look like a zoomed-in page) */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 
-  /* Eyebrow label */
-  .text-eyebrow {
-    font-size: 11px;
-    line-height: 1;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    font-weight: 600;
-    color: var(--color-secondary);
-  }
+/* Hide scrollbar for horizontal category scrollers */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 
-  /* Ledger line — 2px Signal Amber underline.
-     RESERVED for monetary/EMI figures via <LedgerFigure />. */
-  .ledger-line {
-    position: relative;
+/* Marquee announcement bar / brand strip */
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
   }
-  .ledger-line::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: -0.12em;
-    height: 2px;
-    border-radius: 999px;
-    background-color: var(--color-ledger);
+  100% {
+    transform: translateX(-50%);
   }
+}
+.animate-marquee {
+  animation: marquee 30s linear infinite;
+}
 
-  /* Hide scrollbars (carousels, chip rails) */
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
+/* Product card hover reveal — second image fades in on hover */
+.hover-swap .img-primary {
+  opacity: 1;
+  transition: opacity 400ms ease;
+}
+.hover-swap .img-secondary {
+  opacity: 0;
+  transition: opacity 400ms ease;
+}
+.hover-swap:hover .img-primary {
+  opacity: 0;
+}
+.hover-swap:hover .img-secondary {
+  opacity: 1;
+}
 
-  /* Reduced motion — neutralize CSS-driven motion for users who ask for it.
-     framer-motion is handled separately via <MotionConfig reducedMotion="user">. */
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-      scroll-behavior: auto !important;
-    }
+/* Fade slide for hero */
+.fade-slide {
+  transition: opacity 700ms ease, transform 700ms ease;
+}
 
-    /* Kill the brand marquee drift entirely */
-    .animate-marquee {
-      animation: none !important;
-      transform: none !important;
-    }
+/* Hero content entrance */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
   }
-
-  /* Premium easing helper */
-  .ease-premium {
-    transition-timing-function: var(--ease-premium);
+  to {
+    opacity: 1;
   }
 }

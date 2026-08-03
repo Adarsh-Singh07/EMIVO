@@ -1,0 +1,88 @@
+"use client";
+
+import { useState } from "react";
+import { Mail, Phone, MapPin, Clock, Send } from "lucide-react";
+import { toast } from "sonner";
+
+export default function ContactPage() {
+  const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
+
+  const update = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name || !form.email || !form.message) {
+      toast.error("Please fill in your name, email and message");
+      return;
+    }
+    setForm({ name: "", email: "", subject: "", message: "" });
+    toast.success("Message sent — we'll get back to you within 24 hours");
+  };
+
+  const inputCls =
+    "h-12 w-full border border-neutral-200 rounded-xl px-4 text-sm focus:outline-none focus:border-neutral-950";
+
+  return (
+    <div className="max-w-[1100px] mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <p className="text-xs uppercase tracking-[0.2em] text-neutral-500 mb-3">Get in touch</p>
+      <h1 className="text-4xl font-semibold tracking-tight mb-10">We reply within a day.</h1>
+
+      <div className="grid lg:grid-cols-[1fr_380px] gap-10 items-start">
+        <form onSubmit={submit} className="space-y-4">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium block mb-1.5" htmlFor="c-name">Name</label>
+              <input id="c-name" value={form.name} onChange={update("name")} placeholder="Your name" className={inputCls} />
+            </div>
+            <div>
+              <label className="text-sm font-medium block mb-1.5" htmlFor="c-email">Email</label>
+              <input id="c-email" type="email" value={form.email} onChange={update("email")} placeholder="you@example.com" className={inputCls} />
+            </div>
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1.5" htmlFor="c-subject">Subject</label>
+            <input id="c-subject" value={form.subject} onChange={update("subject")} placeholder="Order, returns, product support…" className={inputCls} />
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1.5" htmlFor="c-message">Message</label>
+            <textarea
+              id="c-message"
+              value={form.message}
+              onChange={update("message")}
+              placeholder="How can we help?"
+              rows={6}
+              className="w-full border border-neutral-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-neutral-950 resize-none"
+            />
+          </div>
+          <button
+            type="submit"
+            className="inline-flex items-center gap-2 h-12 px-8 bg-neutral-950 text-white rounded-full text-sm font-medium hover:bg-neutral-800"
+          >
+            <Send className="w-4 h-4" /> Send Message
+          </button>
+        </form>
+
+        <aside className="space-y-4">
+          {[
+            { icon: Phone, label: "Call us", value: "+91 98765 43210", note: "Mon–Sat, 9am–9pm IST" },
+            { icon: Mail, label: "Email", value: "support@emivo.com", note: "Replies within 24 hours" },
+            { icon: MapPin, label: "Store", value: "Andheri East, Mumbai, India", note: "Walk-ins welcome" },
+            { icon: Clock, label: "Support hours", value: "9:00 – 21:00 IST", note: "7 days a week" },
+          ].map((c) => (
+            <div key={c.label} className="flex gap-4 rounded-2xl border border-neutral-100 bg-white p-5">
+              <div className="w-10 h-10 rounded-full bg-neutral-950 text-white grid place-items-center shrink-0">
+                <c.icon className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-sm text-neutral-500">{c.label}</p>
+                <p className="font-medium">{c.value}</p>
+                <p className="text-xs text-neutral-400 mt-0.5">{c.note}</p>
+              </div>
+            </div>
+          ))}
+        </aside>
+      </div>
+    </div>
+  );
+}

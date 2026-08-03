@@ -1,424 +1,312 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import {
-  ArrowLeft,
-  Check,
-  ChevronRight,
-  CreditCard,
-  Home,
-  IndianRupee,
-  MapPin,
-  PackageCheck,
-  ShieldCheck,
-  Smartphone,
-  Sparkles,
-  Truck,
-  User,
-  Zap,
-} from "lucide-react";
-import Image from "next/image";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { LedgerFigure } from "@/components/ui/ledger-figure";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { useCartStore } from "@/lib/store/cart";
+import {
+  MapPin,
+  CreditCard,
+  Smartphone,
+  Banknote,
+  ShieldCheck,
+  Lock,
+  CheckCircle2,
+  Tag,
+  X,
+} from "lucide-react";
+import { useCart, type Address } from "@/components/site/CartProvider";
+import { toast } from "sonner";
 
-const SHIPPING_PAISA = 0;
-const PROCESSING_FEE_PAISA = 9900;
-const TENURES = [3, 6, 9, 12, 18, 24] as const;
-const transitionConfig = { duration: 0.45, ease: [0.16, 1, 0.3, 1] as const };
+const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
-type Step = "details" | "emi" | "pay" | "processing";
+const PAYMENT_METHODS = [
+  { id: "card", label: "Credit / Debit Card", icon: CreditCard },
+  { id: "upi", label: "UPI", icon: Smartphone },
+  { id: "cod", label: "Cash on Delivery", icon: Banknote },
+];
 
-interface CheckoutFieldProps {
-  icon: React.ReactNode;
-  label: string;
-  children: React.ReactNode;
-}
-
-function CheckoutField({ icon, label, children }: CheckoutFieldProps) {
-  return (
-    <label className="space-y-2">
-      <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[var(--color-secondary)]">
-        {icon}
-        {label}
-      </span>
-      {children}
-    </label>
-  );
-}
+const EMPTY: Address = {
+  name: "",
+  phone: "",
+  line1: "",
+  line2: "",
+  city: "",
+  state: "",
+  pincode: "",
+};
 
 export default function CheckoutPage() {
-  const router = useRouter();
-  const { items, getSubtotal, getEMISubtotal, clearCart } = useCartStore();
-  const [step, setStep] = useState<Step>("details");
-  const [tenure, setTenure] = useState<(typeof TENURES)[number]>(12);
-  // Cart rehydrates from localStorage on the client, so the empty/full
-  // branch must not flip during hydration — wait for mount before branching.
-  const [mounted, setMounted] = useState(false);
+  const {
+    items,
+    subtotal,
+    discount,
+    shipping,
+    total,
+    applied,
+    removeCoupon,
+    address,
+    setAddress,
+    paymentMethod,
+    setPaymentMethod,
+    clear,
+  } = useCart();
 
+  const [form, setForm] = useState<Address>(address ?? EMPTY);
+  const [placed, setPlaced] = useState(false);
+  const [orderId, setOrderId] = useState("");
+
+  // Prefill from a saved address once CartProvider rehydrates from localStorage.
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    if (address) setForm(address);
+  }, [address]);
 
-  if (!mounted) {
-    return (
-      <main className="grid min-h-screen place-items-center bg-[var(--color-background)] px-4">
-        <div className="text-sm font-medium text-[var(--color-secondary)]">
-          Loading your checkout…
-        </div>
-      </main>
-    );
-  }
+  const update = (k: keyof Address) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const subtotal = getSubtotal();
-  const cartEmiSubtotal = getEMISubtotal();
-  const payableToday = PROCESSING_FEE_PAISA;
-  const orderTotal = subtotal + SHIPPING_PAISA;
-  const monthlyAmount = useMemo(() => Math.round(orderTotal / tenure), [orderTotal, tenure]);
-  const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);
-  const leadItem = items[0];
+  const formValid =
+    form.name.trim() &&
+    form.phone.trim().length >= 10 &&
+    form.line1.trim() &&
+    form.city.trim() &&
+    form.state.trim() &&
+    form.pincode.trim().length === 6;
 
-  const handleProcessPayment = () => {
-    setStep("processing");
-    window.sessionStorage.setItem(
-      "emivo-last-order",
-      JSON.stringify({
-        totalItems,
-        orderTotal,
-        monthlyAmount,
-        tenure,
-        leadTitle: leadItem?.product.title ?? "your EMIVO order",
-      })
-    );
-
-    setTimeout(() => {
-      clearCart();
-      router.push("/checkout/success");
-    }, 2200);
+  const placeOrder = () => {
+    if (!formValid) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+    setAddress(form);
+    setOrderId(`EMIVO${Date.now().toString().slice(-6)}`);
+    setPlaced(true);
+    clear();
+    toast.success("Order placed successfully");
   };
 
-  if (items.length === 0 && step !== "processing") {
+  /* --------------------------- Success screen --------------------------- */
+  if (placed) {
     return (
-      <main className="min-h-screen bg-[var(--color-background)] px-4 py-10 md:py-16">
-        <div className="container-emivo max-w-xl">
-          <Link href="/products" className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--color-secondary)] hover:text-[var(--color-foreground)] transition-colors">
-            <ArrowLeft className="h-4 w-4" /> Back to products
-          </Link>
-          <div className="mt-10 rounded-[2rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-8 text-center shadow-[var(--shadow-card)]">
-            <div className="mx-auto grid h-20 w-20 place-items-center rounded-full border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-secondary)]">
-              <PackageCheck className="h-9 w-9" />
-            </div>
-            <h1 className="mt-6 text-3xl font-bold tracking-tight text-[var(--color-foreground)]">Your checkout is empty</h1>
-            <p className="mt-3 text-sm leading-6 text-[var(--color-secondary)]">
-              Add a Fynode-powered audio product to continue with EMIVO instant EMI checkout.
-            </p>
-            <Button asChild variant="accent" size="lg" className="mt-8 rounded-full">
-              <Link href="/products">Explore products</Link>
-            </Button>
-          </div>
+      <div className="max-w-xl mx-auto px-4 py-20 text-center">
+        <CheckCircle2 className="w-16 h-16 text-green-600 mx-auto mb-6" />
+        <h1 className="text-3xl font-semibold tracking-tight">Order placed!</h1>
+        <p className="text-neutral-500 mt-3">
+          Thank you, {form.name.split(" ")[0]}. Your order <span className="font-medium text-neutral-900">#{orderId}</span> has
+          been confirmed. A confirmation has been sent to your registered details.
+        </p>
+        <div className="mt-8 border border-neutral-200 rounded-2xl p-5 text-left text-sm space-y-2">
+          <p className="font-medium">Delivering to</p>
+          <p className="text-neutral-600">
+            {form.name}, {form.line1}
+            {form.line2 ? `, ${form.line2}` : ""}, {form.city}, {form.state} — {form.pincode}
+          </p>
         </div>
-      </main>
+        <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+          <Link
+            href="/shop"
+            className="h-12 inline-flex items-center justify-center px-8 bg-neutral-950 text-white rounded-full text-sm font-medium hover:bg-neutral-800"
+          >
+            Continue Shopping
+          </Link>
+          <Link
+            href="/"
+            className="h-12 inline-flex items-center justify-center px-8 border border-neutral-200 rounded-full text-sm font-medium hover:bg-neutral-50"
+          >
+            Back to Home
+          </Link>
+        </div>
+      </div>
     );
   }
 
+  /* --------------------------- Empty cart guard --------------------------- */
+  if (items.length === 0) {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-24 text-center">
+        <h1 className="text-3xl font-semibold tracking-tight mb-3">Checkout</h1>
+        <p className="text-neutral-500 mb-6">Your cart is empty — add something first.</p>
+        <Link
+          href="/shop"
+          className="inline-flex items-center gap-2 h-12 px-8 bg-neutral-950 text-white rounded-full text-sm font-medium hover:bg-neutral-800"
+        >
+          Start Shopping
+        </Link>
+      </div>
+    );
+  }
+
+  /* ------------------------------ Checkout form ------------------------------ */
+  const inputCls =
+    "h-12 w-full border border-neutral-200 rounded-xl px-4 text-sm focus:outline-none focus:border-neutral-950";
+
   return (
-    <main className="min-h-screen bg-[var(--color-background)] relative overflow-hidden">
-      <div className="pointer-events-none absolute -top-40 right-[-12rem] h-[34rem] w-[34rem] rounded-full bg-[var(--color-accent)]/10 blur-[120px]" />
-      <div className="pointer-events-none absolute bottom-[-18rem] left-[-10rem] h-[30rem] w-[30rem] rounded-full bg-[var(--color-primary)]/10 blur-[120px]" />
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-8">Checkout</h1>
 
-      <div className="container-emivo relative z-10 py-8 md:py-12">
-        <header className="mb-8 flex items-center justify-between gap-4">
-          <Link href="/products" className="inline-flex h-11 items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 text-sm font-semibold text-[var(--color-foreground)] shadow-sm transition-colors hover:bg-[var(--color-surface-elevated)]">
-            <ArrowLeft className="h-4 w-4" />
-            Continue shopping
-          </Link>
-          <div className="hidden items-center gap-2 rounded-full bg-[var(--color-surface)] px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-secondary)] md:flex">
-            <ShieldCheck className="h-4 w-4 text-[var(--color-success)]" /> Secure EMI checkout
-          </div>
-        </header>
-
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_430px] lg:items-start">
-          <section className="space-y-5">
-            <div className="rounded-[2rem] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card)] md:p-7">
-              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <Badge variant="emi" className="mb-4">Instant approval</Badge>
-                  <h1 className="text-3xl font-bold tracking-tight text-[var(--color-foreground)] md:text-5xl">
-                    Checkout built for monthly ownership.
-                  </h1>
-                  <p className="mt-4 max-w-2xl text-sm leading-6 text-[var(--color-secondary)] md:text-base">
-                    Confirm delivery, design your EMI plan, and complete a Fynode-inspired express payment experience.
-                  </p>
-                </div>
-                <div className="grid min-w-36 place-items-center rounded-2xl border border-[var(--color-accent)]/25 bg-[var(--color-accent)]/10 p-4 text-center">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-secondary)]">Starts at</span>
-                  <LedgerFigure paisa={cartEmiSubtotal || monthlyAmount} size="lg" tone="accent" suffix="/mo" />
-                </div>
+      <div className="grid lg:grid-cols-[1fr_400px] gap-10 items-start">
+        <div className="space-y-10">
+          {/* Contact + Address */}
+          <section>
+            <h2 className="flex items-center gap-2 font-semibold text-lg mb-4">
+              <MapPin className="w-5 h-5" /> Shipping Address
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium block mb-1.5" htmlFor="addr-name">
+                  Full name *
+                </label>
+                <input id="addr-name" value={form.name} onChange={update("name")} placeholder="Rahul Sharma" className={inputCls} />
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-1.5" htmlFor="addr-phone">
+                  Phone *
+                </label>
+                <input
+                  id="addr-phone"
+                  value={form.phone}
+                  onChange={update("phone")}
+                  placeholder="98765 43210"
+                  inputMode="tel"
+                  className={inputCls}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="text-sm font-medium block mb-1.5" htmlFor="addr-line1">
+                  Address *
+                </label>
+                <input
+                  id="addr-line1"
+                  value={form.line1}
+                  onChange={update("line1")}
+                  placeholder="Flat / House no., Street, Area"
+                  className={inputCls}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="text-sm font-medium block mb-1.5" htmlFor="addr-line2">
+                  Landmark <span className="text-neutral-400">(optional)</span>
+                </label>
+                <input id="addr-line2" value={form.line2} onChange={update("line2")} placeholder="Near Metro Station" className={inputCls} />
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-1.5" htmlFor="addr-city">
+                  City *
+                </label>
+                <input id="addr-city" value={form.city} onChange={update("city")} placeholder="Mumbai" className={inputCls} />
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-1.5" htmlFor="addr-state">
+                  State *
+                </label>
+                <input id="addr-state" value={form.state} onChange={update("state")} placeholder="Maharashtra" className={inputCls} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="text-sm font-medium block mb-1.5" htmlFor="addr-pincode">
+                  PIN code *
+                </label>
+                <input
+                  id="addr-pincode"
+                  value={form.pincode}
+                  onChange={update("pincode")}
+                  placeholder="400001"
+                  inputMode="numeric"
+                  maxLength={6}
+                  className={inputCls}
+                />
               </div>
             </div>
+          </section>
 
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                ["details", "Delivery"],
-                ["emi", "EMI plan"],
-                ["pay", "Payment"],
-              ].map(([key, label], index) => {
-                const activeIndex = ["details", "emi", "pay", "processing"].indexOf(step);
-                const currentIndex = ["details", "emi", "pay"].indexOf(key);
-                const isDone = activeIndex > currentIndex;
-                const isActive = step === key;
+          {/* Payment method */}
+          <section>
+            <h2 className="flex items-center gap-2 font-semibold text-lg mb-4">
+              <CreditCard className="w-5 h-5" /> Payment Method
+            </h2>
+            <div className="grid sm:grid-cols-3 gap-3">
+              {PAYMENT_METHODS.map((m) => {
+                const Icon = m.icon;
+                const active = paymentMethod === m.id;
                 return (
-                  <div
-                    key={key}
-                    className={`rounded-2xl border px-3 py-3 text-sm font-bold transition-colors ${
-                      isActive || isDone
-                        ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
-                        : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-secondary)]"
+                  <button
+                    key={m.id}
+                    onClick={() => setPaymentMethod(m.id)}
+                    className={`flex flex-col items-center gap-2 rounded-2xl border-2 p-5 text-sm font-medium transition-all ${
+                      active ? "border-neutral-950 bg-neutral-50" : "border-neutral-200 hover:border-neutral-400"
                     }`}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="grid h-6 w-6 place-items-center rounded-full bg-white/15 text-xs">{isDone ? <Check className="h-3.5 w-3.5" /> : index + 1}</span>
-                      {label}
-                    </div>
-                  </div>
+                    <Icon className="w-5 h-5" />
+                    {m.label}
+                  </button>
                 );
               })}
             </div>
-
-            <motion.div layout className="overflow-hidden rounded-[2rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-xl)]">
-              <AnimatePresence mode="wait">
-                {step === "details" && (
-                  <motion.div key="details" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={transitionConfig} className="p-5 md:p-7">
-                    <div className="mb-6 flex items-center gap-3">
-                      <div className="grid h-11 w-11 place-items-center rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
-                        <MapPin className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold tracking-tight">Delivery details</h2>
-                        <p className="text-sm text-[var(--color-secondary)]">Pre-filled demo information for a fast client walkthrough.</p>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <CheckoutField icon={<User className="h-3.5 w-3.5" />} label="Full name">
-                        <Input defaultValue="Dheeraj Kumar" autoComplete="name" />
-                      </CheckoutField>
-                      <CheckoutField icon={<Smartphone className="h-3.5 w-3.5" />} label="Mobile number">
-                        <Input defaultValue="98765 43210" inputMode="tel" autoComplete="tel" />
-                      </CheckoutField>
-                      <CheckoutField icon={<Home className="h-3.5 w-3.5" />} label="Address" >
-                        <Input defaultValue="42, Residency Road" autoComplete="street-address" />
-                      </CheckoutField>
-                      <CheckoutField icon={<MapPin className="h-3.5 w-3.5" />} label="PIN code">
-                        <Input defaultValue="560001" inputMode="numeric" autoComplete="postal-code" />
-                      </CheckoutField>
-                    </div>
-
-                    <div className="mt-6 rounded-2xl border border-[var(--color-success)]/20 bg-[var(--color-success)]/10 p-4">
-                      <div className="flex items-start gap-3">
-                        <Truck className="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-success)]" />
-                        <div>
-                          <div className="font-bold text-[var(--color-foreground)]">Free priority delivery unlocked</div>
-                          <p className="mt-1 text-sm text-[var(--color-secondary)]">Ships from an EMIVO partner retailer with insured delivery and doorstep verification.</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Button onClick={() => setStep("emi")} variant="accent" size="lg" className="mt-7 w-full rounded-full font-bold">
-                      Continue to EMI design <ChevronRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </motion.div>
-                )}
-
-                {step === "emi" && (
-                  <motion.div key="emi" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={transitionConfig} className="p-5 md:p-7">
-                    <div className="mb-6 flex items-center gap-3">
-                      <div className="grid h-11 w-11 place-items-center rounded-full bg-[var(--color-accent)]/15 text-[var(--color-accent)]">
-                        <Zap className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold tracking-tight">Design your EMI</h2>
-                        <p className="text-sm text-[var(--color-secondary)]">No-cost demo plan with transparent monthly ownership.</p>
-                      </div>
-                    </div>
-
-                    <div className="rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-background)] p-4 md:p-5">
-                      <div className="flex items-end justify-between gap-4 border-b border-dashed border-[var(--color-border)] pb-5">
-                        <div>
-                          <span className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-secondary)]">Monthly installment</span>
-                          <div className="mt-2"><LedgerFigure paisa={monthlyAmount} size="2xl" tone="accent" suffix="/mo" /></div>
-                        </div>
-                        <Badge variant="emi">0% EMI</Badge>
-                      </div>
-
-                      <div className="mt-5 grid grid-cols-3 gap-2 md:grid-cols-6">
-                        {TENURES.map((months) => (
-                          <button
-                            key={months}
-                            onClick={() => setTenure(months)}
-                            className={`rounded-2xl border px-3 py-3 text-sm font-bold transition-all ${
-                              tenure === months
-                                ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-primary-foreground)] shadow-md"
-                                : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-foreground)] hover:border-[var(--color-primary)]"
-                            }`}
-                          >
-                            {months} mo
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="mt-5 grid gap-3 rounded-2xl bg-[var(--color-surface)] p-4 text-sm">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[var(--color-secondary)]">Product total</span>
-                          <LedgerFigure paisa={orderTotal} size="sm" noLine />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[var(--color-secondary)]">Processing today</span>
-                          <LedgerFigure paisa={payableToday} size="sm" noLine tone="navy" />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[var(--color-secondary)]">Interest</span>
-                          <span className="font-bold text-[var(--color-success)]">No cost</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 flex gap-3">
-                      <Button onClick={() => setStep("details")} variant="outline" size="lg" className="rounded-full">Back</Button>
-                      <Button onClick={() => setStep("pay")} variant="accent" size="lg" className="flex-1 rounded-full font-bold">
-                        Approve plan <ChevronRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </div>
-                  </motion.div>
-                )}
-
-                {step === "pay" && (
-                  <motion.div key="pay" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={transitionConfig} className="p-5 md:p-7">
-                    <div className="mb-6 flex items-center gap-3">
-                      <div className="grid h-11 w-11 place-items-center rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
-                        <ShieldCheck className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold tracking-tight">Secure approval</h2>
-                        <p className="text-sm text-[var(--color-secondary)]">Demo passkey payment for a frictionless checkout moment.</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <button className="flex w-full items-center justify-between rounded-2xl border-2 border-[var(--color-accent)] bg-[var(--color-accent)]/10 p-4 text-left">
-                        <span className="flex items-center gap-3">
-                          <span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--color-accent)]/20 text-[var(--color-accent)]">
-                            <Smartphone className="h-5 w-5" />
-                          </span>
-                          <span>
-                            <span className="block font-bold">EMIVO Passkey</span>
-                            <span className="block text-xs text-[var(--color-secondary)]">Biometric verification + UPI Autopay mandate</span>
-                          </span>
-                        </span>
-                        <Check className="h-5 w-5 text-[var(--color-accent)]" />
-                      </button>
-
-                      <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4 opacity-60">
-                        <span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--color-surface)] text-[var(--color-secondary)]">
-                          <CreditCard className="h-5 w-5" />
-                        </span>
-                        <div>
-                          <div className="font-bold">Debit card ending in 4242</div>
-                          <div className="text-xs text-[var(--color-secondary)]">OTP fallback available after demo</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-4">
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-2 text-sm font-semibold text-[var(--color-secondary)]"><IndianRupee className="h-4 w-4" /> Pay today</span>
-                        <LedgerFigure paisa={payableToday} size="lg" tone="navy" />
-                      </div>
-                      <p className="mt-2 text-xs leading-5 text-[var(--color-secondary)]">Includes refundable EMI setup and first-month mandate verification. Product amount remains split across {tenure} months.</p>
-                    </div>
-
-                    <div className="mt-6 flex gap-3">
-                      <Button onClick={() => setStep("emi")} variant="outline" size="lg" className="rounded-full">Back</Button>
-                      <Button onClick={handleProcessPayment} variant="accent" size="lg" className="flex-1 rounded-full font-bold">
-                        Double click to approve
-                      </Button>
-                    </div>
-                  </motion.div>
-                )}
-
-                {step === "processing" && (
-                  <motion.div key="processing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid min-h-[420px] place-items-center p-8 text-center">
-                    <div>
-                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="mx-auto mb-6 h-14 w-14 rounded-full border-4 border-[var(--color-border)] border-t-[var(--color-accent)]" />
-                      <h2 className="text-2xl font-bold tracking-tight">Approving your EMI</h2>
-                      <p className="mt-2 text-sm text-[var(--color-secondary)]">Creating mandate, confirming stock, and locking retailer fulfillment.</p>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
+            <p className="flex items-center gap-2 text-xs text-neutral-500 mt-3">
+              <Lock className="w-3.5 h-3.5" /> 256-bit encrypted · Demo checkout — no real payment is processed
+            </p>
           </section>
-
-          <aside className="lg:sticky lg:top-24">
-            <div className="overflow-hidden rounded-[2rem] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-xl)]">
-              <div className="border-b border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h2 className="font-bold tracking-tight">Order summary</h2>
-                    <p className="text-sm text-[var(--color-secondary)]">{totalItems} item{totalItems === 1 ? "" : "s"} in your cart</p>
-                  </div>
-                  <Sparkles className="h-5 w-5 text-[var(--color-accent)]" />
-                </div>
-              </div>
-
-              <div className="max-h-[360px] space-y-3 overflow-y-auto p-5 scrollbar-hide">
-                {items.map((item) => (
-                  <div key={item.id} className="flex gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] p-3">
-                    <Link href={`/product/${item.product.id}`} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-[var(--color-border)] bg-white p-2">
-                      <Image src={item.product.gallery[0]?.url || "/placeholder.png"} alt={item.product.title} fill sizes="80px" className="object-contain p-2" />
-                    </Link>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-secondary)]">{item.product.brand}</div>
-                      <h3 className="mt-1 line-clamp-2 text-sm font-bold leading-snug">{item.product.title}</h3>
-                      <div className="mt-2 flex items-center justify-between gap-3">
-                        <span className="text-xs font-semibold text-[var(--color-secondary)]">Qty {item.quantity}</span>
-                        <LedgerFigure paisa={item.product.basePrice * item.quantity} size="sm" />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-3 border-t border-[var(--color-border)] p-5">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-[var(--color-secondary)]">Subtotal</span>
-                  <LedgerFigure paisa={subtotal} size="sm" noLine />
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-[var(--color-secondary)]">Shipping</span>
-                  <span className="font-bold text-[var(--color-success)]">FREE</span>
-                </div>
-                <div className="flex items-center justify-between border-t border-dashed border-[var(--color-border)] pt-3">
-                  <span className="font-bold">Total financed</span>
-                  <LedgerFigure paisa={orderTotal} size="lg" />
-                </div>
-                <div className="rounded-2xl border border-[var(--color-accent)]/25 bg-[var(--color-accent)]/10 p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold">EMI estimate</span>
-                    <LedgerFigure paisa={monthlyAmount} size="md" tone="accent" suffix="/mo" />
-                  </div>
-                  <p className="mt-2 text-xs text-[var(--color-secondary)]">Powered by EMIVO credit routing across partner lenders.</p>
-                </div>
-              </div>
-            </div>
-          </aside>
         </div>
+
+        {/* Order summary */}
+        <aside className="border border-neutral-200 rounded-3xl p-6 lg:sticky lg:top-24">
+          <h2 className="font-semibold text-lg mb-4">Order Summary</h2>
+
+          <div className="space-y-3 max-h-56 overflow-y-auto mb-4">
+            {items.map((i) => (
+              <div key={i.id} className="flex items-center gap-3">
+                <img src={i.img} alt={i.name} className="w-14 h-14 object-cover rounded-xl bg-neutral-50" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium line-clamp-1">{i.name}</p>
+                  <p className="text-xs text-neutral-500">
+                    Qty {i.qty} × {inr(i.price)}
+                  </p>
+                </div>
+                <span className="text-sm font-semibold shrink-0">{inr(i.price * i.qty)}</span>
+              </div>
+            ))}
+          </div>
+
+          {applied && (
+            <div className="flex items-center justify-between bg-green-50 border border-green-200 text-green-700 rounded-full pl-3 pr-1.5 py-1.5 mb-4">
+              <span className="text-sm font-medium inline-flex items-center gap-1.5">
+                <Tag className="w-4 h-4" /> {applied.code}
+              </span>
+              <button onClick={removeCoupon} className="p-1 hover:bg-green-100 rounded-full" aria-label="Remove coupon">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          <dl className="space-y-3 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-neutral-500">Subtotal</dt>
+              <dd className="font-medium">{inr(subtotal)}</dd>
+            </div>
+            {discount > 0 && (
+              <div className="flex justify-between text-green-600">
+                <dt>Discount</dt>
+                <dd className="font-medium">−{inr(discount)}</dd>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <dt className="text-neutral-500">Shipping</dt>
+              <dd className="font-medium">{shipping === 0 ? <span className="text-green-600">FREE</span> : inr(shipping)}</dd>
+            </div>
+            <div className="flex justify-between border-t border-neutral-200 pt-3 text-base">
+              <dt className="font-semibold">Total</dt>
+              <dd className="font-semibold">{inr(total)}</dd>
+            </div>
+          </dl>
+
+          <button
+            onClick={placeOrder}
+            className="mt-5 w-full h-12 grid place-items-center bg-neutral-950 text-white rounded-full text-sm font-medium hover:bg-neutral-800"
+          >
+            Place Order · {inr(total)}
+          </button>
+
+          <p className="flex items-center justify-center gap-1.5 text-xs text-neutral-500 mt-3">
+            <ShieldCheck className="w-3.5 h-3.5" /> Secure checkout · 10-day easy returns
+          </p>
+        </aside>
       </div>
-    </main>
+    </div>
   );
 }
