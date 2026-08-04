@@ -26,13 +26,15 @@ const RIGHT_ITEMS = [
   { href: "/account", label: "Profile", icon: User },
 ] as const;
 
+type NavItem = { href: string; label: string; icon: typeof Home };
+
 export default function MobileBottomNav() {
   const pathname = usePathname();
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 
-  const renderItem = (item: (typeof LEFT_ITEMS)[number]) => {
+  const renderItem = (item: NavItem) => {
     const active = isActive(item.href);
     return (
       <Link
