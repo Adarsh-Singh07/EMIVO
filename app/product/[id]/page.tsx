@@ -25,7 +25,7 @@ import { useCart } from "@/components/site/CartProvider";
 import { getProduct, getTrending } from "@/lib/products";
 import { toast } from "sonner";
 
-const inr = (n: number) => `â‚¹${n.toLocaleString("en-IN")}`;
+const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
 const TABS = [
   { id: "description", label: "Description" },
@@ -117,7 +117,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               className="w-full h-full object-cover"
             />
             {product.discount > 0 && (
-              <span className="absolute top-4 left-4 bg-neutral-950 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
+              <span className="absolute top-4 left-4 bg-green-600 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
                 {product.discount}% OFF
               </span>
             )}
@@ -130,9 +130,11 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mt-2">{product.name}</h1>
 
           <div className="flex items-center gap-3 mt-3">
-            <Stars rating={product.rating} />
-            <span className="text-sm font-medium">{product.rating}</span>
-            <span className="text-sm text-neutral-400">({product.reviews} reviews)</span>
+            <span className="inline-flex items-center gap-1 rounded-md bg-green-50 px-2 py-1 text-sm font-semibold text-green-600">
+              <Star className="w-4 h-4 fill-green-600 text-green-600" />
+              {product.rating}
+              <span className="text-green-500">({product.reviews})</span>
+            </span>
           </div>
 
           <p className="text-neutral-600 mt-3">{product.tagline}</p>
@@ -148,7 +150,26 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               </span>
             )}
           </div>
-          <p className="text-sm text-neutral-500 mt-1">Inclusive of all taxes</p>
+          <p className="text-sm text-neutral-500 mt-1">
+            Inclusive of all taxes &nbsp;·&nbsp; Dispatched in 24-48 hrs
+          </p>
+
+          {/* No Cost EMI */}
+          <div className="mt-6 border border-neutral-200 rounded-xl p-4">
+            <p className="text-sm font-semibold text-neutral-900 mb-3">No Cost EMI Available</p>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              {[
+                { months: 3, label: "3 mo" },
+                { months: 6, label: "6 mo" },
+                { months: 12, label: "12 mo" },
+              ].map((e) => (
+                <div key={e.months} className="bg-neutral-50 rounded-lg p-3">
+                  <p className="text-xs text-neutral-500">{e.label}</p>
+                  <p className="text-sm font-semibold mt-1">{inr(Math.ceil(product.price / e.months))}/mo</p>
+                </div>
+              ))}
+            </div>
+          </div>
 
           {/* Color picker */}
           {product.colors.length > 1 && (
@@ -242,13 +263,13 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           {/* Trust badges */}
           <div className="grid grid-cols-3 gap-3 mt-8">
             <div className="flex items-center gap-2 text-xs text-neutral-600">
-              <Truck className="w-5 h-5 text-neutral-400 shrink-0" /> Free delivery over â‚¹999
+              <Truck className="w-5 h-5 text-neutral-400 shrink-0" /> Free shipping over ₹1,499
             </div>
             <div className="flex items-center gap-2 text-xs text-neutral-600">
-              <ShieldCheck className="w-5 h-5 text-neutral-400 shrink-0" /> Brand warranty
+              <RotateCcw className="w-5 h-5 text-neutral-400 shrink-0" /> 7-day easy returns
             </div>
             <div className="flex items-center gap-2 text-xs text-neutral-600">
-              <RotateCcw className="w-5 h-5 text-neutral-400 shrink-0" /> 10-day returns
+              <ShieldCheck className="w-5 h-5 text-neutral-400 shrink-0" /> 1-year warranty
             </div>
           </div>
         </div>
@@ -279,6 +300,20 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                   <li key={h} className="flex items-start gap-2">
                     <Check className="w-4 h-4 mt-0.5 text-green-600 shrink-0" />
                     {h}
+                  </li>
+                ))}
+              </ul>
+              <ul className="space-y-2 mt-4 pt-4 border-t border-neutral-100">
+                {[
+                  "Genuine product with manufacturer warranty",
+                  "Free & fast shipping on prepaid orders",
+                  "No Cost EMI available on major banks",
+                  "7-day easy replacement policy",
+                  "Secure encrypted checkout",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <Check className="w-4 h-4 mt-0.5 text-green-600 shrink-0" />
+                    {item}
                   </li>
                 ))}
               </ul>
@@ -324,7 +359,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
         <div className="flex items-end justify-between mb-6">
           <h2 className="text-2xl font-semibold tracking-tight">You may also like</h2>
           <Link href="/shop" className="text-sm font-medium hover:text-neutral-500">
-            View all â†’
+            View all →
           </Link>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">

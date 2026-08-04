@@ -32,6 +32,13 @@ body {
   text-size-adjust: 100%;
 }
 
+/* Prevent iOS auto-zoom on input focus (requires font-size >= 16px) */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
 /* Hide scrollbar for horizontal category scrollers */
 .no-scrollbar::-webkit-scrollbar {
   display: none;

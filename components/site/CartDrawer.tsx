@@ -21,7 +21,7 @@ export default function CartDrawer() {
         className={`fixed top-0 right-0 h-full w-full sm:w-[420px] bg-white z-50 shadow-2xl transform transition-transform ${
           drawerOpen ? "translate-x-0" : "translate-x-full"
         }`}
-        aria-hidden={!drawerOpen}
+        inert={!drawerOpen}
       >
         <div className="h-full flex flex-col">
           <div className="flex items-center justify-between p-5 border-b border-neutral-100">
