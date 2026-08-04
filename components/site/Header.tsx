@@ -1,110 +1,194 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Search, Heart, User, ShoppingBag, Menu, X, ChevronDown, ArrowRight } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Search,
+  Heart,
+  User,
+  ShoppingBag,
+  Menu,
+  X,
+  MapPin,
+  ChevronDown,
+} from "lucide-react";
 import { useCart } from "./CartProvider";
 import CartDrawer from "./CartDrawer";
+import { toast } from "sonner";
+
+const DEFAULT_PINCODE = "400070";
+
+const NAV_LINKS = [
+  { href: "/", label: "Home" },
+  { href: "/shop", label: "Shop" },
+  { href: "/shop?category=mobiles", label: "Mobiles" },
+  { href: "/shop?category=laptops", label: "Laptops" },
+  { href: "/shop?category=audio", label: "Audio" },
+  { href: "/shop?category=appliances", label: "Appliances" },
+  { href: "/shop?category=wearables", label: "Wearables" },
+  { href: "/blog", label: "Blog" },
+  { href: "/contact", label: "Contact" },
+];
+
+/**
+ * Black announcement ribbon. Scrolls as a marquee on EVERY viewport —
+ * mobile included — instead of sitting still or being clipped away.
+ * The two identical copies make the translateX(-50%) loop seamless.
+ */
+function TopRibbon() {
+  const copy = (
+    <div className="flex items-center gap-6 pr-6 whitespace-nowrap">
+      <span>
+        Enjoy free shipping on all orders this week!{" "}
+        <Link href="/shop" className="underline underline-offset-2 font-medium">
+          Shop Now
+        </Link>
+      </span>
+      <span className="opacity-50">•</span>
+      <Link href="/order-tracking" className="opacity-80 hover:opacity-100">
+        Order Tracking
+      </Link>
+      <Link href="/about" className="opacity-80 hover:opacity-100">
+        About Us
+      </Link>
+      <Link href="/faq" className="opacity-80 hover:opacity-100">
+        FAQ
+      </Link>
+      <span className="opacity-50">•</span>
+      <span className="opacity-80">English · INR</span>
+    </div>
+  );
+
+  return (
+    <div className="bg-neutral-950 text-white text-xs overflow-hidden">
+      <div className="flex w-max animate-marquee">
+        {copy}
+        {copy}
+      </div>
+    </div>
+  );
+}
 
 export default function Header() {
   const { count, setDrawerOpen } = useCart();
+  const router = useRouter();
+
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [pincode, setPincode] = useState(DEFAULT_PINCODE);
+  const [pincodeDraft, setPincodeDraft] = useState(DEFAULT_PINCODE);
+  const [pinOpen, setPinOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  // Load the saved pincode only after mount to avoid SSR hydration mismatch.
+  useEffect(() => {
+    const saved = localStorage.getItem("emivo-pincode");
+    if (saved) {
+      setPincode(saved);
+      setPincodeDraft(saved);
+    }
+  }, []);
+
+  const submitSearch = (e: FormEvent) => {
+    e.preventDefault();
+    const q = search.trim();
+    router.push(q ? `/shop?q=${encodeURIComponent(q)}` : "/shop");
+  };
+
+  const applyPincode = () => {
+    const v = pincodeDraft.trim();
+    if (/^\d{6}$/.test(v)) {
+      setPincode(v);
+      localStorage.setItem("emivo-pincode", v);
+      setPinOpen(false);
+      toast.success(`Delivering to ${v}`);
+    } else {
+      toast.error("Enter a valid 6-digit pincode");
+    }
+  };
 
   return (
     <>
-      {/* Announcement bar */}
-      <div className="bg-neutral-950 text-white text-xs">
-        <div className="max-w-[1400px] mx-auto px-4 h-10 flex items-center justify-between">
-          <div className="hidden sm:flex items-center gap-5 opacity-80">
-            <Link href="/order-tracking" className="hover:opacity-100">
-              Order Tracking
-            </Link>
-            <Link href="/about" className="hover:opacity-100">
-              About Us
-            </Link>
-            <Link href="/faq" className="hover:opacity-100">
-              FAQ
-            </Link>
-          </div>
-          <div className="flex-1 text-center overflow-hidden">
-            <span className="inline-block whitespace-nowrap">
-              Enjoy free shipping on all orders this week!{" "}
-              <Link
-                href="/shop"
-                className="underline underline-offset-2 ml-1 inline-flex items-center gap-1"
-              >
-                Shop Now <ArrowRight className="w-3 h-3" />
-              </Link>
-            </span>
-          </div>
-          <div className="hidden sm:flex items-center gap-4 opacity-80">
-            <span>English</span>
-            <span>INR</span>
-          </div>
-        </div>
-      </div>
+      <TopRibbon />
 
-      {/* Main header */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-neutral-100">
-        <div className="max-w-[1400px] mx-auto px-4 h-[72px] flex items-center gap-6">
+        <div className="max-w-[1400px] mx-auto px-4 h-[72px] flex items-center gap-3 lg:gap-5">
+          {/* Mobile hamburger */}
           <button
-            className="lg:hidden"
+            className="lg:hidden p-2 -ml-2"
             onClick={() => setMobileOpen((v) => !v)}
             aria-label="Menu"
           >
             {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
 
-          <Link href="/" className="flex items-center gap-1.5 shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-neutral-950 text-white grid place-items-center font-bold">
-              E
+          {/* Logo + tagline */}
+          <Link href="/" className="flex flex-col items-start shrink-0 leading-none">
+            <div className="flex items-center gap-1.5">
+              <div className="w-8 h-8 rounded-lg bg-neutral-950 text-white grid place-items-center font-bold">
+                E
+              </div>
+              <span className="text-2xl font-bold tracking-tight">emivo</span>
             </div>
-            <span className="text-2xl font-bold tracking-tight">emivo</span>
+            <span className="hidden sm:block text-[10px] text-neutral-500 mt-0.5 ml-10">
+              India&apos;s EMI Electronics Store
+            </span>
           </Link>
 
-          <nav className="hidden lg:flex items-center gap-8 text-[15px] font-medium">
-            <Link href="/" className="flex items-center gap-1 hover:text-neutral-500">
-              Home <ChevronDown className="w-3.5 h-3.5" />
-            </Link>
-            <Link href="/shop" className="flex items-center gap-1 hover:text-neutral-500">
-              Shop <ChevronDown className="w-3.5 h-3.5" />
-            </Link>
-            <Link href="/shop?category=mobiles" className="hover:text-neutral-500">
-              Mobiles
-            </Link>
-            <Link href="/shop?category=laptops" className="hover:text-neutral-500">
-              Laptops
-            </Link>
-            <Link href="/shop?category=audio" className="hover:text-neutral-500">
-              Audio
-            </Link>
-            <Link href="/shop?category=appliances" className="hover:text-neutral-500">
-              Appliances
-            </Link>
-            <Link href="/blog" className="hover:text-neutral-500">
-              Blog
-            </Link>
-            <Link href="/contact" className="hover:text-neutral-500">
-              Contact
-            </Link>
-          </nav>
+          {/* Delivering-to widget (desktop) */}
+          <button
+            onClick={() => setPinOpen((v) => !v)}
+            className="hidden lg:flex flex-col items-start text-left shrink-0"
+            aria-label="Change delivery pincode"
+          >
+            <span className="text-[11px] text-neutral-500">Delivering to</span>
+            <span className="text-sm font-semibold flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5 text-neutral-500" /> {pincode}
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-neutral-400 transition-transform ${
+                  pinOpen ? "rotate-180" : ""
+                }`}
+              />
+            </span>
+          </button>
 
-          <div className="flex-1" />
-
-          <div className="flex items-center gap-2 sm:gap-4">
-            <Link
-              href="/shop"
-              className="p-2 hover:bg-neutral-100 rounded-full"
+          {/* Search bar (tablet + desktop) */}
+          <form onSubmit={submitSearch} className="hidden md:flex flex-1 items-stretch max-w-2xl mx-auto">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search for Mobiles, Laptops, Audio & more"
+              aria-label="Search products"
+              className="flex-1 min-w-0 h-11 rounded-l-full border border-neutral-300 border-r-0 px-5 text-sm outline-none focus:border-neutral-950 placeholder:text-neutral-400"
+            />
+            <button
+              type="submit"
               aria-label="Search"
+              className="h-11 px-5 rounded-r-full bg-neutral-950 text-white text-sm font-medium hover:bg-neutral-800 flex items-center gap-2"
             >
-              <Search className="w-5 h-5" />
-            </Link>
+              <Search className="w-4 h-4" />
+              <span className="hidden xl:inline">Search</span>
+            </button>
+          </form>
+
+          {/* Mobile search shortcut */}
+          <Link href="/shop" className="md:hidden p-2" aria-label="Search">
+            <Search className="w-5 h-5" />
+          </Link>
+
+          <div className="flex-1 lg:hidden" />
+
+          {/* Right icons */}
+          <div className="flex items-center gap-1 sm:gap-2">
             <Link
               href="/account"
-              className="hidden sm:flex items-center gap-2 p-2 hover:bg-neutral-100 rounded-full"
+              className="hidden lg:flex items-center gap-2 p-2 hover:bg-neutral-100 rounded-full"
             >
               <User className="w-5 h-5" />
-              <span className="text-sm hidden md:inline">Account</span>
+              <span className="text-sm flex flex-col leading-tight">
+                <span className="text-[11px] text-neutral-500">Hello,</span>
+                <span className="font-medium">Sign in</span>
+              </span>
             </Link>
             <button className="relative p-2 hover:bg-neutral-100 rounded-full" aria-label="Wishlist">
               <Heart className="w-5 h-5" />
@@ -125,27 +209,72 @@ export default function Header() {
           </div>
         </div>
 
+        {/* Mobile pincode strip */}
+        <button
+          onClick={() => setPinOpen((v) => !v)}
+          className="lg:hidden w-full flex items-center gap-2 border-t border-neutral-100 px-4 py-2 text-xs text-neutral-600"
+          aria-label="Change delivery pincode"
+        >
+          <MapPin className="w-4 h-4 text-neutral-400 shrink-0" />
+          Delivering to <span className="font-semibold text-neutral-900">{pincode}</span>
+          <ChevronDown
+            className={`w-4 h-4 ml-auto text-neutral-400 transition-transform ${
+              pinOpen ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+
+        {/* Desktop category nav */}
+        <nav className="hidden lg:block border-t border-neutral-100">
+          <div className="max-w-[1400px] mx-auto px-4 h-11 flex items-center gap-7 text-sm">
+            {NAV_LINKS.map((l) => (
+              <Link key={l.label} href={l.href} className="text-neutral-700 hover:text-neutral-950 font-medium">
+                {l.label}
+              </Link>
+            ))}
+          </div>
+        </nav>
+
+        {/* Pincode dropdown */}
+        {pinOpen && (
+          <>
+            <div className="fixed inset-0 z-30" onClick={() => setPinOpen(false)} />
+            <div className="absolute right-4 top-full mt-2 z-40 w-72 rounded-2xl border border-neutral-200 bg-white p-4 shadow-xl">
+              <p className="text-sm font-semibold">Deliver to</p>
+              <p className="text-xs text-neutral-500 mt-1">Currently delivering to {pincode}</p>
+              <div className="flex gap-2 mt-3">
+                <input
+                  value={pincodeDraft}
+                  onChange={(e) => setPincodeDraft(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="Enter 6-digit pincode"
+                  aria-label="Pincode"
+                  className="flex-1 min-w-0 h-10 rounded-lg border border-neutral-300 px-3 text-sm outline-none focus:border-neutral-950"
+                />
+                <button
+                  onClick={applyPincode}
+                  className="h-10 px-4 rounded-lg bg-neutral-950 text-white text-sm font-medium hover:bg-neutral-800"
+                >
+                  Apply
+                </button>
+              </div>
+              <p className="text-[11px] text-neutral-400 mt-2">
+                Enter pincode to check delivery options
+              </p>
+            </div>
+          </>
+        )}
+
+        {/* Mobile dropdown nav */}
         {mobileOpen && (
           <div className="lg:hidden border-t border-neutral-100 bg-white">
             <nav className="flex flex-col p-4 gap-3 text-[15px] font-medium">
-              <Link href="/" onClick={() => setMobileOpen(false)}>
-                Home
-              </Link>
-              <Link href="/shop" onClick={() => setMobileOpen(false)}>
-                Shop
-              </Link>
-              <Link href="/shop?category=mobiles" onClick={() => setMobileOpen(false)}>
-                Mobiles
-              </Link>
-              <Link href="/shop?category=laptops" onClick={() => setMobileOpen(false)}>
-                Laptops
-              </Link>
-              <Link href="/shop?category=audio" onClick={() => setMobileOpen(false)}>
-                Audio
-              </Link>
-              <Link href="/shop?category=appliances" onClick={() => setMobileOpen(false)}>
-                Appliances
-              </Link>
+              {NAV_LINKS.map((l) => (
+                <Link key={l.label} href={l.href} onClick={() => setMobileOpen(false)}>
+                  {l.label}
+                </Link>
+              ))}
             </nav>
           </div>
         )}

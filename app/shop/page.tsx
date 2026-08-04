@@ -17,6 +17,7 @@ const PRICE_OPTIONS = [
 function ShopContent() {
   const sp = useSearchParams();
   const cat = sp.get("category") ?? "all";
+  const query = (sp.get("q") ?? "").trim().toLowerCase();
 
   const [brands, setBrands] = useState<string[]>([]);
   const [price, setPrice] = useState("all");
@@ -24,6 +25,12 @@ function ShopContent() {
 
   const filtered = useMemo(() => {
     let list = PRODUCTS.filter((p) => (cat === "all" ? true : p.category === cat));
+
+    if (query) {
+      list = list.filter((p) =>
+        [p.name, p.brand, p.category, p.tagline].join(" ").toLowerCase().includes(query)
+      );
+    }
 
     if (brands.length) {
       list = list.filter((p) => brands.includes(p.brand));
@@ -56,7 +63,7 @@ function ShopContent() {
     }
 
     return list;
-  }, [cat, brands, price, sort]);
+  }, [cat, query, brands, price, sort]);
 
   const toggleBrand = (b: string) =>
     setBrands((prev) => (prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]));
@@ -73,7 +80,19 @@ function ShopContent() {
           <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight capitalize">
             {cat === "all" ? "All Products" : cat}
           </h1>
-          <p className="text-neutral-500 mt-2">{filtered.length} products</p>
+          <p className="text-neutral-500 mt-2">
+            {query ? (
+              <>
+                {filtered.length} results for{" "}
+                <span className="text-neutral-900 font-medium">“{query}”</span>{" "}
+                <Link href="/shop" className="text-neutral-950 underline underline-offset-2">
+                  Clear
+                </Link>
+              </>
+            ) : (
+              `${filtered.length} products`
+            )}
+          </p>
         </div>
       </div>
 

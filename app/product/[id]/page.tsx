@@ -26,6 +26,7 @@ import { getProduct, getTrending } from "@/lib/products";
 import { toast } from "sonner";
 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
+const fmtNum = (n: number) => n.toLocaleString("en-IN");
 
 const TABS = [
   { id: "description", label: "Description" },
@@ -126,14 +127,14 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
         {/* Details */}
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">{product.brand}</p>
+          <p className="text-[15px] uppercase tracking-[0.15em] text-neutral-500 font-medium">{product.brand}</p>
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mt-2">{product.name}</h1>
 
           <div className="flex items-center gap-3 mt-3">
             <span className="inline-flex items-center gap-1 rounded-md bg-green-50 px-2 py-1 text-sm font-semibold text-green-600">
               <Star className="w-4 h-4 fill-green-600 text-green-600" />
               {product.rating}
-              <span className="text-green-500">({product.reviews})</span>
+              <span className="text-green-500">({fmtNum(product.reviews)})</span>
             </span>
           </div>
 
@@ -343,7 +344,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 <span className="text-4xl font-semibold">{product.rating}</span>
                 <div>
                   <Stars rating={product.rating} />
-                  <p className="text-sm text-neutral-500 mt-1">{product.reviews} verified reviews</p>
+                  <p className="text-sm text-neutral-500 mt-1">{fmtNum(product.reviews)} verified reviews</p>
                 </div>
               </div>
               <p className="text-sm text-neutral-500">

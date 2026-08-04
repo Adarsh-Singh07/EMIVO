@@ -117,7 +117,25 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 5. New Arrivals */}
+      {/* 5. Brand marquee */}
+      <section className="py-12 border-y border-neutral-100 overflow-hidden">
+        <div className="flex w-max animate-marquee">
+          {[0, 1].map((copy) => (
+            <div key={copy} className="flex items-center gap-16 pr-16">
+              {BRANDS.map((brand) => (
+                <span
+                  key={`${copy}-${brand}`}
+                  className="text-2xl font-semibold text-neutral-300 whitespace-nowrap"
+                >
+                  {brand}
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 6. New Arrivals */}
       <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="flex items-end justify-between mb-8">
           <div>
@@ -134,17 +152,6 @@ export default function Home() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
           {getFeatured(8).map((p) => (
             <ProductCard key={p.id} product={p} />
-          ))}
-        </div>
-      </section>
-
-      {/* 6. Brand marquee */}
-      <section className="py-12 border-y border-neutral-100 overflow-hidden">
-        <div className="flex shrink-0 animate-marquee items-center gap-16 px-8">
-          {[...BRANDS, ...BRANDS].map((brand, i) => (
-            <span key={i} className="text-2xl font-semibold text-neutral-300 whitespace-nowrap">
-              {brand}
-            </span>
           ))}
         </div>
       </section>

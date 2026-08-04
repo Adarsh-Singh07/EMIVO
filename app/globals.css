@@ -30,6 +30,15 @@ body {
   /* Stop mobile browsers from auto-inflating text (can look like a zoomed-in page) */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  /*
+   * Clip any horizontal overflow (oversized marquees, absolute banners, etc.)
+   * instead of scrolling. This keeps the page exactly viewport-width on phones:
+   * the fixed bottom nav then shows all 5 tabs without zooming out, and there's
+   * no blank strip on the right edge.
+   */
+  overflow-x: clip;
+  width: 100%;
+  max-width: 100vw;
 }
 
 /* Prevent iOS auto-zoom on input focus (requires font-size >= 16px) */

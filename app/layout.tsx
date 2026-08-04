@@ -17,11 +17,23 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "EMIVO — Premium Electronics Store",
   description: "Shop the latest mobiles, laptops, appliances and accessories at EMIVO.",
+  // PWA — installable app with standalone display, icons and manifest.
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/icons/icon-192.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "EMIVO",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: "#0a0a0a",
   // Extends the layout viewport into the notch/home-indicator area so the
   // mobile bottom nav can add `env(safe-area-inset-bottom)` padding on iPhones.
   viewportFit: "cover",
