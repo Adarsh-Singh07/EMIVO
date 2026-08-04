@@ -61,6 +61,35 @@ export const CATEGORIES: Category[] = [
 
 export const BRANDS = ["Apple", "Samsung", "Sony", "JBL", "Bose", "LG", "Dell", "HP"];
 
+/** Maps the hex colour codes used in `Product.colors` to human-friendly names. */
+const COLOR_NAMES: Record<string, string> = {
+  "#1a1a1a": "Black",
+  "#222222": "Charcoal",
+  "#111111": "Black",
+  "#000000": "Black",
+  "#ffffff": "White",
+  "#e5e5e5": "Silver",
+  "#e0e0e0": "Silver",
+  "#c9c9c9": "Silver",
+  "#c0c0c0": "Silver",
+  "#8a8a8a": "Grey",
+  "#5c5c5c": "Grey",
+  "#e6dcc6": "Beige",
+  "#f5deb3": "Gold",
+  "#c9a066": "Gold",
+  "#d6ceb8": "Champagne",
+  "#8a5a2b": "Brown",
+  "#e07a2b": "Orange",
+  "#ee1111": "Red",
+  "#00aaff": "Blue",
+  "#0e2148": "Navy",
+};
+
+/** Returns a friendly colour name for a hex code, falling back to the raw code. */
+export function colorName(hex: string): string {
+  return COLOR_NAMES[hex.toLowerCase()] ?? hex;
+}
+
 export const PRODUCTS: Product[] = [
   {
     id: "iphone-16-pro",

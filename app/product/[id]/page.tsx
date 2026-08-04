@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import ProductCard from "@/components/site/ProductCard";
 import { useCart } from "@/components/site/CartProvider";
-import { getProduct, getTrending } from "@/lib/products";
+import { getProduct, getTrending, colorName } from "@/lib/products";
 import { toast } from "sonner";
 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
@@ -175,7 +175,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           {/* Color picker */}
           {product.colors.length > 1 && (
             <div className="mt-6">
-              <p className="text-sm font-medium mb-2">Colour: <span className="font-normal text-neutral-500">{product.colors[color]}</span></p>
+              <p className="text-sm font-medium mb-2">Colour: <span className="font-normal text-neutral-500">{colorName(product.colors[color])}</span></p>
               <div className="flex gap-2">
                 {product.colors.map((c, i) => (
                   <button
@@ -185,8 +185,8 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                       color === i ? "border-neutral-950 scale-105" : "border-neutral-200"
                     }`}
                     style={{ background: c }}
-                    aria-label={`Select colour ${c}`}
-                    title={c}
+                    aria-label={`Select colour ${colorName(c)}`}
+                    title={colorName(c)}
                   >
                     {color === i && <Check className="w-4 h-4 text-white drop-shadow" />}
                   </button>
@@ -326,7 +326,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               {[
                 ["Brand", product.brand],
                 ["Category", product.category],
-                ["Colour", product.colors.map((c) => c).join(", ")],
+                ["Colour", product.colors.map(colorName).join(", ")],
                 ["In Stock", product.inStock ? "Yes" : "No"],
                 ["Model", product.id],
               ].map(([k, v], i) => (

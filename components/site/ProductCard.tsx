@@ -14,7 +14,7 @@ export default function ProductCard({ product }: { product: Product }) {
   const [wish, setWish] = useState(false);
 
   return (
-    <div className="group bg-white rounded-2xl border border-neutral-100 p-2 sm:p-3">
+    <div className="group flex h-full flex-col bg-white rounded-2xl border border-neutral-100 p-2 sm:p-3">
       {/* Image */}
       <div className="relative overflow-hidden rounded-xl bg-neutral-50 hover-swap aspect-square">
         <Link href={`/product/${product.id}`}>
@@ -67,7 +67,7 @@ export default function ProductCard({ product }: { product: Product }) {
       </div>
 
       {/* Details */}
-      <div className="mt-3">
+      <div className="mt-3 flex flex-1 flex-col">
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm uppercase tracking-wider text-neutral-500 pt-0.5">
             {product.brand}
@@ -98,15 +98,17 @@ export default function ProductCard({ product }: { product: Product }) {
 
         <p className="text-[11px] text-neutral-500 mt-1">Dispatched in 24-48 hrs</p>
 
-        <button
-          onClick={() => {
-            add(product);
-            toast.success("Added to cart");
-          }}
-          className="mt-3 w-full h-10 inline-flex items-center justify-center gap-2 rounded-lg bg-neutral-950 text-white text-sm font-medium hover:bg-neutral-800 transition-colors"
-        >
-          <ShoppingBag className="w-4 h-4" /> Add to Cart
-        </button>
+        <div className="mt-auto pt-3">
+          <button
+            onClick={() => {
+              add(product);
+              toast.success("Added to cart");
+            }}
+            className="w-full h-10 inline-flex items-center justify-center gap-2 rounded-lg bg-neutral-950 text-white text-sm font-medium hover:bg-neutral-800 transition-colors"
+          >
+            <ShoppingBag className="w-4 h-4" /> Add to Cart
+          </button>
+        </div>
       </div>
     </div>
   );
