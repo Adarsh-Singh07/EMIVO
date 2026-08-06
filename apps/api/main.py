@@ -1,8 +1,10 @@
-from fastapi import FastAPI, Depends, Request
+from fastapi import FastAPI, Request
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
 from core.database import db
+from core.exceptions import DomainException, domain_exception_handler, unhandled_exception_handler
+from core.middleware import request_id_middleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -22,13 +24,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.middleware("http")(request_id_middleware)
+app.add_exception_handler(DomainException, domain_exception_handler)
+app.add_exception_handler(Exception, unhandled_exception_handler)
+
 @app.get("/health/live")
 async def health_live():
     return {"status": "ok"}
 
 @app.get("/health/ready")
-async def health_ready():
-    # Attempt a trivial DB query to verify readiness
+async def health_ready(request: Request):
     try:
         async with db.pool.acquire() as conn:
             await conn.fetchval("SELECT 1")
