@@ -5,3 +5,8 @@ asyncpg
 alembic
 redis
 structlog
+sqlalchemy
+greenlet
+pytest-asyncio
+httpx
+pydantic[email]

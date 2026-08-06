@@ -41,3 +41,5 @@ async def health_ready(request: Request):
         return {"status": "unhealthy", "database": str(e)}
         
     return {"status": "ok", "database": "connected"}
+from modules.businesses.router import router as businesses_router
+app.include_router(businesses_router, prefix="/api")
