@@ -1,0 +1,15 @@
+[importlinter]
+root_package = apps.api
+
+[importlinter:contract:modules-are-independent]
+name = Domain modules must not import each other
+type = independence
+modules =
+    apps.api.modules.businesses
+    apps.api.modules.users
+    apps.api.modules.auth
+    apps.api.modules.products
+    apps.api.modules.orders
+    apps.api.modules.inventory
+    apps.api.modules.payments
+    apps.api.modules.memory
