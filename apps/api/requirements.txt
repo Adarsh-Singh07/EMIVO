@@ -10,3 +10,6 @@ greenlet
 pytest-asyncio
 httpx
 pydantic[email]
+passlib[argon2]
+python-jose[cryptography] # JWT
+pyotp # MFA
