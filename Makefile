@@ -1,11 +1,21 @@
-.PHONY: test lint build up
+﻿.PHONY: dev test build db-migrate help
 
-up:
-	docker compose -f infra/docker/compose.yaml up -d --build
+# Default target
+help:
+	@echo "Available commands:"
+	@echo "  make dev         - Start development server"
+	@echo "  make test        - Run tests"
+	@echo "  make build       - Build for production"
+	@echo "  make db-migrate  - Run database migrations"
+
+dev:
+	npm run dev
 
 test:
-	pytest apps/api/tests/
+	npm run test
 
-lint:
-	ruff check .
-	import-linter --config apps/api/.importlinter
+build:
+	npm run build
+
+db-migrate:
+	npm run db:migrate

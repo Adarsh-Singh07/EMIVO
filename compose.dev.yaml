@@ -1,0 +1,52 @@
+﻿# Local dev overrides mapping local code into containers with hot-reload
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/api:/app/apps/api
+      - ./packages:/app/packages
+    environment:
+      - DB_URL=postgresql://postgres:password@db:5432/emivo
+      - REDIS_URL=redis://redis:6379
+    command: uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web:/app/apps/web
+      - ./packages:/app/packages
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    command: npm run dev --workspace=@emivo/web
+    depends_on:
+      - api
+
+  workers:
+    build:
+      context: .
+      dockerfile: apps/workers/Dockerfile
+    volumes:
+      - ./apps/workers:/app/apps/workers
+      - ./packages:/app/packages
+    environment:
+      - DB_URL=postgresql://postgres:password@db:5432/emivo
+      - REDIS_URL=redis://redis:6379
+    command: arq apps.workers.main.WorkerSettings
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
