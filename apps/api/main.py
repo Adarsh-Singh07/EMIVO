@@ -1,45 +1,49 @@
-from fastapi import FastAPI, Request
-from contextlib import asynccontextmanager
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+
 from core.config import settings
-from core.database import db
-from core.exceptions import DomainException, domain_exception_handler, unhandled_exception_handler
 from core.middleware import request_id_middleware
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    await db.connect()
-    yield
-    # Shutdown
-    await db.disconnect()
+from modules.products.router import router as products_router
+from modules.auth.router import router as auth_router
+from modules.businesses.router import router as businesses_router
+from modules.users.router import router as users_router
+from modules.payments.router import router as payments_router
+from modules.carts.router import router as carts_router
+from modules.coupons.router import router as coupons_router
+from modules.search.router import router as search_router
+from modules.ai_gateway.router import router as ai_gateway_router
+from modules.voice.routers.voice_router import router as voice_router
+from modules.recommendations.router import router as recommendations_router
 
-app = FastAPI(title="EMIVO API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="EMIVO API")
 
+app.add_middleware(BaseHTTPMiddleware, dispatch=request_id_middleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.middleware("http")(request_id_middleware)
-app.add_exception_handler(DomainException, domain_exception_handler)
-app.add_exception_handler(Exception, unhandled_exception_handler)
+app.include_router(products_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(businesses_router, prefix="/api/v1")
+app.include_router(users_router, prefix="/api/v1")
+app.include_router(payments_router, prefix="/api/v1")
+app.include_router(carts_router, prefix="/api/v1")
+app.include_router(coupons_router, prefix="/api/v1")
+app.include_router(search_router, prefix="/api/v1")
+app.include_router(ai_gateway_router, prefix="/api/v1")
+app.include_router(voice_router, prefix="/api/v1")
+app.include_router(recommendations_router, prefix="/api/v1")
 
 @app.get("/health/live")
-async def health_live():
+async def liveness():
     return {"status": "ok"}
 
 @app.get("/health/ready")
-async def health_ready(request: Request):
-    try:
-        async with db.pool.acquire() as conn:
-            await conn.fetchval("SELECT 1")
-    except Exception as e:
-        return {"status": "unhealthy", "database": str(e)}
-        
-    return {"status": "ok", "database": "connected"}
-from modules.businesses.router import router as businesses_router
-app.include_router(businesses_router, prefix="/api")
+async def readiness():
+    return {"status": "ready"}
