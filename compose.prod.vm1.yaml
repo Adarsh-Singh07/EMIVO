@@ -1,0 +1,90 @@
+﻿# Production configuration for VM1
+# Hosts the API (modular monolith), web assistant, workers, redis, nginx, observability
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - api
+      - web
+
+  api:
+    image: ghcr.io/emivo/api:${IMAGE_TAG:-latest}
+    expose:
+      - "8000"
+    environment:
+      - DB_URL=${DB_URL}
+      - REDIS_URL=redis://redis:6379
+    deploy:
+      replicas: 2
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 10s
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  web:
+    image: ghcr.io/emivo/web:${IMAGE_TAG:-latest}
+    expose:
+      - "3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=https://api.emivo.com
+    deploy:
+      replicas: 2
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 10s
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  workers:
+    image: ghcr.io/emivo/workers:${IMAGE_TAG:-latest}
+    environment:
+      - DB_URL=${DB_URL}
+      - REDIS_URL=redis://redis:6379
+    deploy:
+      mode: replicated
+      replicas: 1
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+volumes:
+  redis_data:
+  prometheus_data:
