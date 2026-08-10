@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import ProductCard from "@/components/site/ProductCard";
 import { useCart } from "@/components/site/CartProvider";
-import { getProduct, getTrending, colorName } from "@/lib/products";
+import { getApiProductById, getTrending, type Product, colorName } from "@/lib/products";
 import { toast } from "sonner";
 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
@@ -49,13 +49,23 @@ function Stars({ rating }: { rating: number }) {
 
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const product = getProduct(id);
   const { add, setDrawerOpen } = useCart();
 
+  const [product, setProduct] = useState<Product | null>(null);
+  const [productLoading, setProductLoading] = useState(true);
   const [activeImg, setActiveImg] = useState(0);
   const [color, setColor] = useState(0);
   const [qty, setQty] = useState(1);
   const [tab, setTab] = useState("description");
+
+  // Load product from API (fallback to static catalog inside getApiProductById).
+  useEffect(() => {
+    setProductLoading(true);
+    getApiProductById(id)
+      .then((p) => setProduct(p))
+      .catch(() => setProduct(null))
+      .finally(() => setProductLoading(false));
+  }, [id]);
 
   // Reset per-product state on client-side navigation between products.
   useEffect(() => {
@@ -65,10 +75,25 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
     setTab("description");
   }, [id]);
 
+  if (productLoading) {
+    return (
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="grid lg:grid-cols-2 gap-10 animate-pulse">
+          <div className="aspect-square rounded-2xl bg-neutral-100" />
+          <div className="space-y-4">
+            <div className="h-6 bg-neutral-100 rounded w-1/3" />
+            <div className="h-8 bg-neutral-100 rounded w-3/4" />
+            <div className="h-12 bg-neutral-100 rounded w-1/2" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!product) notFound();
 
-  const images = [product.img, product.imgHover];
-  const related = getTrending().filter((p) => p.id !== product.id).slice(0, 4);
+  const images = [product!.img, product!.imgHover];
+  const related = getTrending().filter((p) => p.id !== product!.id).slice(0, 4);
 
   const addToCart = () => {
     add(product, qty);
@@ -348,7 +373,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                 </div>
               </div>
               <p className="text-sm text-neutral-500">
-                Ratings are based on verified purchases from the EMIVO catalog.
+                Ratings are based on verified purchases from the ELEKTRIX catalog.
               </p>
             </div>
           )}

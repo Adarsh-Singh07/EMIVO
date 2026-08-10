@@ -22,7 +22,7 @@ const FAQS = [
   },
   {
     q: "How do coupon codes work?",
-    a: "Enter a valid code like EMIVO10 at cart. Coupons stack with sale prices but apply to product subtotal before shipping. Only one coupon can be active per order.",
+    a: "Enter a valid code like ELEKTRIX10 at cart. Coupons stack with sale prices but apply to product subtotal before shipping. Only one coupon can be active per order.",
   },
   {
     q: "Can I track my order?",

@@ -18,3 +18,4 @@ arq>=0.25.0
 redis>=5.0.0
 boto3
 aiobotocore
+pgvector

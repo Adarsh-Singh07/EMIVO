@@ -32,7 +32,7 @@ export const POSTS: BlogPost[] = [
     body: [
       "We tested nine pairs of over-ear ANC headphones across a month of commutes, flights and open-plan offices. Three stood out.",
       "The Sony WH-1000XM5 remains the class leader — its noise cancellation is the quietest we've measured, and the 30-hour battery plus speak-to-chat make it the most practical daily companion. The Bose range counters with better comfort for long sessions and a more neutral sound signature.",
-      "For budget buyers, the active noise-cancelling RW75 is a knockout at its price, cutting train and office hum with surprising effectiveness. Our full recommendation matrix is below — every one of these is in stock at EMIVO.",
+      "For budget buyers, the active noise-cancelling RW75 is a knockout at its price, cutting train and office hum with surprising effectiveness. Our full recommendation matrix is below — every one of these is in stock at ELEKTRIX.",
     ],
   },
   {

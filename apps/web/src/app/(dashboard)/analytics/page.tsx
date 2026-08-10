@@ -1,4 +1,4 @@
-﻿import { TrendingUp, Users, DollarSign, ShoppingBag, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, Users, DollarSign, ShoppingBag, ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 export default function AnalyticsPage() {
   return (
@@ -106,16 +106,16 @@ export default function AnalyticsPage() {
                 <div key={i} className="w-full relative group">
                   <div 
                     className="w-full bg-blue-100 dark:bg-blue-900/30 rounded-t-sm group-hover:bg-blue-200 dark:group-hover:bg-blue-800/50 transition-colors"
-                    style={{ height: \\%\ }}
+                    style={{ height: `${height}%` }}
                   >
                     <div 
                       className="absolute bottom-0 w-full bg-blue-500 dark:bg-blue-400 rounded-t-sm"
-                      style={{ height: \\%\ }}
+                      style={{ height: `${height}%` }}
                     ></div>
                   </div>
                   {/* Tooltip simulation */}
                   <div className="opacity-0 group-hover:opacity-100 absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs py-1 px-2 rounded pointer-events-none transition-opacity whitespace-nowrap z-10">
-                    \$\{(height * 125).toFixed(0)}
+                    `${(height * 125).toFixed(0)}`
                   </div>
                 </div>
               ))}
@@ -160,7 +160,7 @@ export default function AnalyticsPage() {
                     <span className="text-xs text-gray-500 dark:text-gray-400">{product.sales} sales</span>
                   </div>
                   <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-1.5">
-                    <div className="bg-indigo-500 h-1.5 rounded-full" style={{ width: \\%\ }}></div>
+                    <div className="bg-indigo-500 h-1.5 rounded-full" style={{ width: `${product.progress}%` }}></div>
                   </div>
                 </li>
               ))}
@@ -171,3 +171,6 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+
+
+

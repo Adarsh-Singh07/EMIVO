@@ -1,4 +1,4 @@
-from apps.api.database.core import Base
+from core.database import Base
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import JSON, Column, String
 

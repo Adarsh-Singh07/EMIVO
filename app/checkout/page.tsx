@@ -12,9 +12,13 @@ import {
   CheckCircle2,
   Tag,
   X,
+  Plus,
 } from "lucide-react";
 import { useCart, type Address } from "@/components/site/CartProvider";
+import { useAuth } from "@/lib/auth-context";
+import { apiClient } from "@/lib/api-client";
 import { toast } from "sonner";
+import { fetchApiProducts } from "@/lib/products";
 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
@@ -53,6 +57,8 @@ export default function CheckoutPage() {
   const [form, setForm] = useState<Address>(address ?? EMPTY);
   const [placed, setPlaced] = useState(false);
   const [orderId, setOrderId] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
 
   // Prefill from a saved address once CartProvider rehydrates from localStorage.
   useEffect(() => {
@@ -70,17 +76,114 @@ export default function CheckoutPage() {
     form.state.trim() &&
     form.pincode.trim().length === 6;
 
-  const placeOrder = () => {
+  const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<string>("");
+  const [saveAddressToProfile, setSaveAddressToProfile] = useState<boolean>(false);
+
+  // Prefill default saved address on mount if user is logged in
+  useEffect(() => {
+    if (user?.addresses && user.addresses.length > 0) {
+      const defaultAddr = (user.addresses as any[]).find((a: any) => a.isDefault) || user.addresses[0];
+      if (defaultAddr) {
+        setForm(defaultAddr);
+        setSelectedSavedAddressId(defaultAddr.id);
+      }
+    } else if (address) {
+      setForm(address);
+    }
+  }, [user, address]);
+
+  const selectSavedAddress = (id: string) => {
+    setSelectedSavedAddressId(id);
+    if (id === "new") {
+      setForm(EMPTY);
+      setSaveAddressToProfile(true);
+    } else {
+      const selected = (user?.addresses as any[] || []).find((a) => a.id === id);
+      if (selected) {
+        setForm(selected);
+        setSaveAddressToProfile(false);
+      }
+    }
+  };
+
+  const placeOrder = async () => {
     if (!formValid) {
       toast.error("Please fill all required fields");
       return;
     }
+    setIsSubmitting(true);
     setAddress(form);
-    setOrderId(`EMIVO${Date.now().toString().slice(-6)}`);
-    setPlaced(true);
-    clear();
-    toast.success("Order placed successfully");
+
+    try {
+      if (paymentMethod === "upi") {
+        toast.info("UPI payments are currently in test mode. Placing order...");
+      }
+
+      // If user is logged in, try to save address to profile first if checked
+      if (user && saveAddressToProfile && selectedSavedAddressId === "new") {
+        const newAddr = {
+          id: `addr_${Date.now()}`,
+          name: form.name,
+          phone: form.phone,
+          line1: form.line1,
+          line2: form.line2 || "",
+          city: form.city,
+          state: form.state,
+          pincode: form.pincode,
+          isDefault: (user.addresses || []).length === 0,
+        };
+        const updatedList = [...(user.addresses || []), newAddr];
+        await apiClient.put("/users/me", { addresses: updatedList });
+      }
+
+      // Resolve product slugs in cart to valid database UUIDs if possible
+      const dbProducts = await fetchApiProducts({ page_size: 100 });
+      const apiItems = [];
+
+      for (const cartItem of items) {
+        const matched = dbProducts.find(
+          (p: any) => p.id === cartItem.id || p.name.toLowerCase() === cartItem.name.toLowerCase()
+        );
+        if (matched && /^[0-9a-f-]{36}$/i.test(matched.id)) {
+          apiItems.push({
+            product_id: matched.id,
+            quantity: cartItem.qty,
+          });
+        }
+      }
+
+      // If we resolved valid UUID items and the user is authenticated, create a real order via API
+      if (user && apiItems.length === items.length) {
+        const orderPayload = {
+          shipping_address: {
+            name: form.name,
+            street: form.line1 + (form.line2 ? ` ${form.line2}` : ""),
+            city: form.city,
+            state: form.state,
+            postal_code: form.pincode,
+            country: "IN", // ISO alpha-2
+            phone: form.phone,
+          },
+          items: apiItems,
+          notes: `Storefront order via ${paymentMethod} (${paymentMethod === "upi" ? "simulated UPI" : "COD"})`,
+        };
+        const response = await apiClient.post<{ id: string }>("/orders/", orderPayload);
+        setOrderId(response.id);
+      } else {
+        // Guest or fallback flow — generate local reference number
+        setOrderId(`ELK${Date.now().toString().slice(-6)}`);
+      }
+
+      clear();
+      setPlaced(true);
+      toast.success(paymentMethod === "upi" ? "Order created. Payment pending." : "Order placed successfully!");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to place order. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
 
   /* --------------------------- Success screen --------------------------- */
   if (placed) {
@@ -148,7 +251,43 @@ export default function CheckoutPage() {
             <h2 className="flex items-center gap-2 font-semibold text-lg mb-4">
               <MapPin className="w-5 h-5" /> Shipping Address
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {user?.addresses && (user.addresses as any[]).length > 0 && (
+              <div className="mb-6 bg-neutral-50 p-5 rounded-2xl border border-neutral-200 col-span-1 sm:col-span-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-3 block">
+                  Select Saved Address
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {(user.addresses as any[]).map((addr) => (
+                    <button
+                      key={addr.id}
+                      type="button"
+                      onClick={() => selectSavedAddress(addr.id)}
+                      className={`text-left p-4 rounded-xl border text-sm transition-all ${
+                        selectedSavedAddressId === addr.id
+                          ? "border-neutral-950 bg-white ring-1 ring-neutral-950"
+                          : "border-neutral-200 bg-white hover:border-neutral-400"
+                      }`}
+                    >
+                      <p className="font-semibold mb-1 truncate">{addr.name}</p>
+                      <p className="text-xs text-neutral-500 line-clamp-1">{addr.line1}, {addr.city}</p>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => selectSavedAddress("new")}
+                    className={`text-left p-4 rounded-xl border text-sm transition-all flex items-center justify-center gap-2 ${
+                      selectedSavedAddressId === "new"
+                        ? "border-neutral-950 bg-white ring-1 ring-neutral-950"
+                        : "border-dashed border-neutral-300 bg-white hover:border-neutral-400"
+                    }`}
+                  >
+                    <Plus className="w-4 h-4" /> Add a new address
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 col-span-1 sm:col-span-2">
               <div>
                 <label className="text-sm font-medium block mb-1.5" htmlFor="addr-name">
                   Full name *
@@ -212,7 +351,23 @@ export default function CheckoutPage() {
                   className={inputCls}
                 />
               </div>
+
+              {user && selectedSavedAddressId === "new" && (
+                <div className="sm:col-span-2 flex items-center gap-2 mt-2">
+                  <input
+                    type="checkbox"
+                    id="save-profile"
+                    checked={saveAddressToProfile}
+                    onChange={(e) => setSaveAddressToProfile(e.target.checked)}
+                    className="rounded border-neutral-300 focus:ring-neutral-950 h-4 w-4 text-neutral-950"
+                  />
+                  <label htmlFor="save-profile" className="text-xs text-neutral-500 font-medium cursor-pointer">
+                    Save this address to my profile
+                  </label>
+                </div>
+              )}
             </div>
+
           </section>
 
           {/* Payment method */}
@@ -241,6 +396,13 @@ export default function CheckoutPage() {
             <p className="flex items-center gap-2 text-xs text-neutral-500 mt-3">
               <Lock className="w-3.5 h-3.5" /> 256-bit encrypted · Demo checkout — no real payment is processed
             </p>
+
+            {paymentMethod === "upi" && (
+              <div className="mt-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+                <span className="font-semibold block mb-1">⚠️ Test Mode: Simulated UPI Payment Flow</span>
+                This checkout runs in simulation/sandbox mode. UPI payment will be simulated, and the order will automatically transition to confirmed/pending state without requiring any banking credentials or real money transactions.
+              </div>
+            )}
           </section>
         </div>
 
@@ -297,9 +459,10 @@ export default function CheckoutPage() {
 
           <button
             onClick={placeOrder}
-            className="mt-5 w-full h-12 grid place-items-center bg-neutral-950 text-white rounded-full text-sm font-medium hover:bg-neutral-800"
+            disabled={isSubmitting || !formValid}
+            className="mt-5 w-full h-12 grid place-items-center bg-neutral-950 text-white rounded-full text-sm font-medium hover:bg-neutral-800 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Place Order · {inr(total)}
+            {isSubmitting ? "Placing Order…" : `Place Order · ${inr(total)}`}
           </button>
 
           <p className="flex items-center justify-center gap-1.5 text-xs text-neutral-500 mt-3">

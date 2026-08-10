@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from typing import Optional, Dict
 
 
 class TenantPlan(BaseModel):
@@ -7,7 +6,7 @@ class TenantPlan(BaseModel):
     plan_name: str
     requests_limit: int
     monthly_uploads_mb_limit: int
-    features: Dict[str, bool]
+    features: dict[str, bool]
 
 
 class UsageMetrics(BaseModel):

@@ -12,10 +12,13 @@ import {
   X,
   MapPin,
   ChevronDown,
+  LogOut,
+  LayoutDashboard,
 } from "lucide-react";
 import { useCart } from "./CartProvider";
 import CartDrawer from "./CartDrawer";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/auth-context";
 
 const DEFAULT_PINCODE = "400070";
 
@@ -72,6 +75,7 @@ function TopRibbon() {
 
 export default function Header() {
   const { count, setDrawerOpen } = useCart();
+  const { user, logout } = useAuth();
   const router = useRouter();
 
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -79,10 +83,11 @@ export default function Header() {
   const [pincodeDraft, setPincodeDraft] = useState(DEFAULT_PINCODE);
   const [pinOpen, setPinOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   // Load the saved pincode only after mount to avoid SSR hydration mismatch.
   useEffect(() => {
-    const saved = localStorage.getItem("emivo-pincode");
+    const saved = localStorage.getItem("elektrix-pincode");
     if (saved) {
       setPincode(saved);
       setPincodeDraft(saved);
@@ -99,13 +104,24 @@ export default function Header() {
     const v = pincodeDraft.trim();
     if (/^\d{6}$/.test(v)) {
       setPincode(v);
-      localStorage.setItem("emivo-pincode", v);
+      localStorage.setItem("elektrix-pincode", v);
       setPinOpen(false);
       toast.success(`Delivering to ${v}`);
     } else {
       toast.error("Enter a valid 6-digit pincode");
     }
   };
+
+  const handleLogout = async () => {
+    setUserMenuOpen(false);
+    await logout();
+    toast.success("Signed out successfully");
+    router.push("/");
+  };
+
+  const displayName = user
+    ? `${user.first_name || ""}`.trim() || user.email?.split("@")[0] || "Account"
+    : null;
 
   return (
     <>
@@ -125,13 +141,13 @@ export default function Header() {
           {/* Logo + tagline */}
           <Link href="/" className="flex flex-col items-start shrink-0 leading-none">
             <div className="flex items-center gap-1.5">
-              <div className="w-8 h-8 rounded-lg bg-neutral-950 text-white grid place-items-center font-bold">
-                E
+              <div className="w-8 h-8 rounded-lg bg-neutral-950 text-white grid place-items-center font-bold text-sm tracking-tighter">
+                EX
               </div>
-              <span className="text-2xl font-bold tracking-tight">emivo</span>
+              <span className="text-2xl font-bold tracking-tight">ELEKTRIX</span>
             </div>
             <span className="hidden sm:block text-[10px] text-neutral-500 mt-0.5 ml-10">
-              India&apos;s EMI Electronics Store
+              India&apos;s Premium Electronics Store
             </span>
           </Link>
 
@@ -180,16 +196,69 @@ export default function Header() {
 
           {/* Right icons */}
           <div className="flex items-center gap-1 sm:gap-2">
-            <Link
-              href="/account"
-              className="hidden lg:flex items-center gap-2 p-2 hover:bg-neutral-100 rounded-full"
-            >
-              <User className="w-5 h-5" />
-              <span className="text-sm flex flex-col leading-tight">
-                <span className="text-[11px] text-neutral-500">Hello,</span>
-                <span className="font-medium">Sign in</span>
-              </span>
-            </Link>
+            {/* Auth: Sign in or User menu */}
+            {user ? (
+              <div className="relative hidden lg:block">
+                <button
+                  onClick={() => setUserMenuOpen((v) => !v)}
+                  className="flex items-center gap-2 p-2 hover:bg-neutral-100 rounded-full"
+                  aria-label="Account menu"
+                >
+                  <div className="w-7 h-7 rounded-full bg-neutral-950 text-white grid place-items-center text-xs font-bold">
+                    {(displayName?.[0] || "U").toUpperCase()}
+                  </div>
+                  <span className="text-sm flex flex-col leading-tight">
+                    <span className="text-[11px] text-neutral-500">Hello,</span>
+                    <span className="font-medium max-w-[80px] truncate">{displayName}</span>
+                  </span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-neutral-400 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+                </button>
+                {userMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setUserMenuOpen(false)} />
+                    <div className="absolute right-0 top-full mt-2 z-40 w-52 rounded-2xl border border-neutral-200 bg-white shadow-xl overflow-hidden">
+                      <div className="px-4 py-3 border-b border-neutral-100">
+                        <p className="text-xs text-neutral-500">Signed in as</p>
+                        <p className="text-sm font-semibold truncate">{user.email}</p>
+                      </div>
+                      <nav className="p-2">
+                        <Link
+                          href="/account"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm hover:bg-neutral-50"
+                        >
+                          <User className="w-4 h-4" /> My Account
+                        </Link>
+                        <Link
+                          href="/order-tracking"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm hover:bg-neutral-50"
+                        >
+                          <LayoutDashboard className="w-4 h-4" /> My Orders
+                        </Link>
+                        <button
+                          onClick={handleLogout}
+                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm hover:bg-red-50 text-red-600"
+                        >
+                          <LogOut className="w-4 h-4" /> Sign Out
+                        </button>
+                      </nav>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="hidden lg:flex items-center gap-2 p-2 hover:bg-neutral-100 rounded-full"
+              >
+                <User className="w-5 h-5" />
+                <span className="text-sm flex flex-col leading-tight">
+                  <span className="text-[11px] text-neutral-500">Hello,</span>
+                  <span className="font-medium">Sign in</span>
+                </span>
+              </Link>
+            )}
             <button className="relative p-2 hover:bg-neutral-100 rounded-full" aria-label="Wishlist">
               <Heart className="w-5 h-5" />
               <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-neutral-950 text-white text-[10px] grid place-items-center">
@@ -275,6 +344,20 @@ export default function Header() {
                   {l.label}
                 </Link>
               ))}
+              <div className="border-t border-neutral-100 pt-3 mt-1">
+                {user ? (
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 text-red-600 text-sm"
+                  >
+                    <LogOut className="w-4 h-4" /> Sign Out
+                  </button>
+                ) : (
+                  <Link href="/login" className="flex items-center gap-2 text-sm font-semibold">
+                    <User className="w-4 h-4" /> Sign In
+                  </Link>
+                )}
+              </div>
             </nav>
           </div>
         )}

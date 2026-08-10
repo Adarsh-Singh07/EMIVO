@@ -11,12 +11,19 @@ search to Meilisearch/Qdrant without touching callers.
 class SearchProvider(Protocol):
     async def search(self, q, *, business_id, filters, sort, page) -> SearchResults: ...
 
-class PostgresSearch:      # tsvector + pg_trgm + pgvector (MVP)
+
+class PostgresSearch:  # tsvector + pg_trgm + pgvector (MVP)
     ...
-class MeilisearchSearch:   # Phase 2 — faceted keyword search
+
+
+class MeilisearchSearch:  # Phase 2 — faceted keyword search
     ...
-class HybridSearch:        # Phase 3 — keyword (Meili) + semantic (Qdrant) fused
+
+
+class HybridSearch:  # Phase 3 — keyword (Meili) + semantic (Qdrant) fused
     ...
+
+
 # provider = env SEARCH_PROVIDER=postgres
 ```
 
@@ -24,12 +31,19 @@ class HybridSearch:        # Phase 3 — keyword (Meili) + semantic (Qdrant) fus
 # modules/search/vector_store.py
 class VectorStore(Protocol):
     async def upsert(self, rows: list[VectorRow]): ...
-    async def query(self, embedding, *, business_id, filters, k, score_threshold) -> list[ScoredId]: ...
+    async def query(
+        self, embedding, *, business_id, filters, k, score_threshold
+    ) -> list[ScoredId]: ...
 
-class PostgresVectorStore:   # pgvector (MVP — approved)
+
+class PostgresVectorStore:  # pgvector (MVP — approved)
     ...
-class QdrantVectorStore:     # later — config swap
+
+
+class QdrantVectorStore:  # later — config swap
     ...
+
+
 # vector_store = env VECTOR_STORE=pgvector
 ```
 

@@ -37,6 +37,11 @@ class RedisManager:
 redis_manager = RedisManager(settings.redis_url)
 
 
+def get_redis_client() -> Redis:
+    """Returns the connected redis client."""
+    return redis_manager.client
+
+
 async def get_redis() -> AsyncGenerator[Redis, None]:
     """Dependency that yields the redis client."""
     if not redis_manager._redis:

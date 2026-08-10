@@ -1,51 +1,58 @@
+from typing import Optional, List
 from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from .models import Cart, CartItem
-from .schemas import CartCreate, CartItemCreate
+from modules.carts.models import Cart, CartItem
+from modules.carts.schemas import CartCreate, CartItemCreate
 
 
 class CartRepository:
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
 
-    def get_by_id(self, cart_id: str, tenant_id: str) -> Cart | None:
+    async def get_by_id(self, cart_id: str) -> Optional[Cart]:
         stmt = (
             select(Cart)
             .options(selectinload(Cart.items))
-            .where(Cart.id == cart_id, Cart.tenant_id == tenant_id)
+            .execution_options(populate_existing=True)
+            .where(Cart.id == str(cart_id))
         )
-        return self.db.execute(stmt).scalar_one_or_none()
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
-    def get_by_user(self, user_id: str, tenant_id: str) -> Cart | None:
+    async def get_by_user(self, user_id: str) -> Optional[Cart]:
         stmt = (
             select(Cart)
             .options(selectinload(Cart.items))
-            .where(Cart.user_id == user_id, Cart.tenant_id == tenant_id)
+            .execution_options(populate_existing=True)
+            .where(Cart.user_id == user_id)
         )
-        return self.db.execute(stmt).scalar_one_or_none()
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
-    def get_by_session(self, session_id: str, tenant_id: str) -> Cart | None:
+    async def get_by_session(self, session_id: str) -> Optional[Cart]:
         stmt = (
             select(Cart)
             .options(selectinload(Cart.items))
-            .where(Cart.session_id == session_id, Cart.tenant_id == tenant_id)
+            .execution_options(populate_existing=True)
+            .where(Cart.session_id == session_id)
         )
-        return self.db.execute(stmt).scalar_one_or_none()
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
-    def create(self, cart: CartCreate, tenant_id: str) -> Cart:
+    async def create(self, cart_data: CartCreate, business_id: str) -> Cart:
         db_cart = Cart(
-            tenant_id=tenant_id,
-            user_id=cart.user_id,
-            session_id=cart.session_id,
+            business_id=business_id,
+            user_id=cart_data.user_id,
+            session_id=cart_data.session_id,
             subtotal=0,
         )
         self.db.add(db_cart)
-        self.db.commit()
-        self.db.refresh(db_cart)
+        await self.db.flush()
         return db_cart
 
-    def add_item(self, cart_id: str, item: CartItemCreate) -> CartItem:
+    async def add_item(self, cart_id: str, item: CartItemCreate) -> CartItem:
         db_item = CartItem(
             cart_id=cart_id,
             product_id=item.product_id,
@@ -53,72 +60,68 @@ class CartRepository:
             quantity=item.quantity,
         )
         self.db.add(db_item)
-        self.db.commit()
-        self.db.refresh(db_item)
+        await self.db.flush()
         return db_item
 
-    def get_item(self, cart_id: str, item_id: str) -> CartItem | None:
+    async def get_item(self, cart_id: str, item_id: str) -> Optional[CartItem]:
         stmt = select(CartItem).where(
-            CartItem.cart_id == cart_id, CartItem.id == item_id
+            CartItem.cart_id == cart_id,
+            CartItem.id == item_id
         )
-        return self.db.execute(stmt).scalar_one_or_none()
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
-    def get_item_by_product(
-        self, cart_id: str, product_id: str, variant_id: str | None
-    ) -> CartItem | None:
+    async def get_item_by_product(
+        self, cart_id: str, product_id: str, variant_id: Optional[str]
+    ) -> Optional[CartItem]:
         stmt = select(CartItem).where(
             CartItem.cart_id == cart_id,
             CartItem.product_id == product_id,
             CartItem.variant_id == variant_id,
         )
-        return self.db.execute(stmt).scalar_one_or_none()
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
-    def update_item_quantity(self, item_id: str, quantity: int) -> CartItem | None:
+    async def update_item_quantity(self, item_id: str, quantity: int) -> Optional[CartItem]:
         stmt = select(CartItem).where(CartItem.id == item_id)
-        item = self.db.execute(stmt).scalar_one_or_none()
+        result = await self.db.execute(stmt)
+        item = result.scalar_one_or_none()
 
         if item:
             item.quantity = quantity
-            self.db.commit()
-            self.db.refresh(item)
+            await self.db.flush()
 
         return item
 
-    def remove_item(self, item_id: str):
+    async def remove_item(self, item_id: str) -> None:
         stmt = select(CartItem).where(CartItem.id == item_id)
-        item = self.db.execute(stmt).scalar_one_or_none()
+        result = await self.db.execute(stmt)
+        item = result.scalar_one_or_none()
 
         if item:
-            self.db.delete(item)
-            self.db.commit()
+            await self.db.delete(item)
+            await self.db.flush()
 
-    def update_subtotal(self, cart_id: str, subtotal: int):
+    async def update_subtotal(self, cart_id: str, subtotal: int) -> None:
         stmt = select(Cart).where(Cart.id == cart_id)
-        cart = self.db.execute(stmt).scalar_one_or_none()
+        result = await self.db.execute(stmt)
+        cart = result.scalar_one_or_none()
 
         if cart:
             cart.subtotal = subtotal
-            self.db.commit()
-            self.db.refresh(cart)
+            await self.db.flush()
 
-    def clear(self, cart_id: str):
+    async def clear(self, cart_id: str) -> None:
         stmt = select(CartItem).where(CartItem.cart_id == cart_id)
-        items = self.db.execute(stmt).scalars().all()
+        result = await self.db.execute(stmt)
+        items = result.scalars().all()
         for item in items:
-            self.db.delete(item)
+            await self.db.delete(item)
 
         stmt2 = select(Cart).where(Cart.id == cart_id)
-        cart = self.db.execute(stmt2).scalar_one_or_none()
+        result2 = await self.db.execute(stmt2)
+        cart = result2.scalar_one_or_none()
         if cart:
             cart.subtotal = 0
 
-        self.db.commit()
-
-    def delete(self, cart_id: str, tenant_id: str):
-        self.clear(cart_id)
-        stmt = select(Cart).where(Cart.id == cart_id, Cart.tenant_id == tenant_id)
-        cart = self.db.execute(stmt).scalar_one_or_none()
-
-        if cart:
-            self.db.delete(cart)
-            self.db.commit()
+        await self.db.flush()

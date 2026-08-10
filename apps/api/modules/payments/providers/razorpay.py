@@ -7,25 +7,23 @@ from .base import BasePaymentProvider
 
 
 class RazorpayMockProvider(BasePaymentProvider):
-    def __init__(self, api_key: str, api_secret: str):
+    def __init__(self, api_key: str = "mock_key", api_secret: str = "mock_secret"):
         self.api_key = api_key
         self.api_secret = api_secret
 
     async def create_order(
         self,
-        amount: float,
+        amount: int,
         currency: str,
         receipt: str,
         notes: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        # Amount in paise for INR
-        amount_in_smallest_unit = int(amount * 100) if currency == "INR" else amount
         return {
             "id": f"order_{uuid.uuid4().hex[:14]}",
             "entity": "order",
-            "amount": amount_in_smallest_unit,
+            "amount": amount,
             "amount_paid": 0,
-            "amount_due": amount_in_smallest_unit,
+            "amount_due": amount,
             "currency": currency,
             "receipt": receipt,
             "status": "created",
@@ -48,11 +46,10 @@ class RazorpayMockProvider(BasePaymentProvider):
         return {
             "id": payment_id,
             "entity": "payment",
-            "amount": 100000,
+            "amount": 1000,
             "currency": "INR",
             "status": "captured",
             "method": "card",
-            # Tokenized card data, no raw PAN
             "card": {
                 "id": "card_abcdef",
                 "entity": "card",

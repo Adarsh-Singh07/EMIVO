@@ -1,15 +1,14 @@
-from .models import Payment, PaymentEvent, PaymentProvider, PaymentStatus
+from .models import Payment, PaymentEvent, PaymentStatus, PaymentProvider
 from .router import router
-from .schemas import PaymentCreate, PaymentResponse
-from .service import PaymentService
+from .schemas import PaymentCreate, PaymentResponse, PaginatedPaymentsResponse
 
 __all__ = [
     "Payment",
-    "PaymentCreate",
     "PaymentEvent",
-    "PaymentProvider",
-    "PaymentResponse",
-    "PaymentService",
     "PaymentStatus",
+    "PaymentProvider",
+    "PaymentCreate",
+    "PaymentResponse",
+    "PaginatedPaymentsResponse",
     "router",
 ]

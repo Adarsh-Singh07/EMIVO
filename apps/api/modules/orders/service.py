@@ -1,147 +1,215 @@
 import uuid
+from datetime import datetime, timezone
+from typing import List, Optional
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.database import tenant_context
 from core.exceptions import DomainException
-from modules.orders.models import Order, OrderItem, OrderStatus, OutboxEvent
+from modules.customers.repository import CustomerRepository
+from modules.orders.models import Order, OrderItem, OrderStatus
 from modules.orders.repository import OrderRepository
-from modules.orders.schemas import OrderCreate, OrderStatusUpdate
+from modules.orders.schemas import (
+    OrderCreate,
+    OrderResponse,
+    OrderStatusUpdate,
+    PaginatedOrdersResponse,
+)
+from modules.products.repository import ProductRepository
+from modules.users.models import User
 
-# We would normally import product service to validate products and get prices
-# For now, we mock the product retrieval logic
+
+# Allowed Order Status Transitions
+VALID_TRANSITIONS = {
+    OrderStatus.PENDING: {OrderStatus.CONFIRMED, OrderStatus.CANCELLED},
+    OrderStatus.CONFIRMED: {OrderStatus.PROCESSING, OrderStatus.CANCELLED},
+    OrderStatus.PROCESSING: {OrderStatus.SHIPPED, OrderStatus.CANCELLED},
+    OrderStatus.SHIPPED: {OrderStatus.DELIVERED, OrderStatus.CANCELLED},
+    OrderStatus.DELIVERED: {OrderStatus.REFUNDED},
+    OrderStatus.CANCELLED: set(),
+    OrderStatus.REFUNDED: set(),
+}
 
 
 class OrderService:
-    def __init__(self, repo: OrderRepository):
-        self.repo = repo
+    def __init__(self, session: AsyncSession):
+        self.session = session
+        self.repository = OrderRepository(session)
+        self.product_repo = ProductRepository(session)
+        self.customer_repo = CustomerRepository(session)
 
-    async def _get_product_price_and_name(
-        self, product_id: str, variant_id: str | None = None
-    ) -> tuple[int, str, str | None]:
-        # MOCK IMPLEMENTATION: In reality, we'd call ProductService or DB
-        # Returns: (unit_price_in_minor_units, product_name, variant_name)
-        price_in_minor_units = 100000  # ?1000.00
-        product_name = f"Product {product_id[:8]}"
-        variant_name = f"Variant {variant_id[:8]}" if variant_id else None
-        return price_in_minor_units, product_name, variant_name
-
-    async def create_order(self, user_id: str, data: OrderCreate) -> Order:
-        business_id = tenant_context.get()
-        if not business_id:
+    async def _get_current_business_id(self) -> str:
+        res = await self.session.execute(
+            text("SELECT NULLIF(current_setting('app.business_id', true), '')")
+        )
+        current_b_id = res.scalar()
+        if not current_b_id:
             raise DomainException(
-                message="Business context required", code="MISSING_TENANT"
+                "Tenant context missing or invalid",
+                code="UNAUTHORIZED",
+                status_code=401
             )
+        return str(current_b_id)
 
-        # Idempotency check
-        existing_order = await self.repo.get_by_idempotency_key(data.idempotency_key)
-        if existing_order:
-            if existing_order.user_id != user_id:
+    async def create_order(self, data: OrderCreate, current_user: User) -> Order:
+        business_id = await self._get_current_business_id()
+
+        # Check idempotency key if provided
+        if data.idempotency_key:
+            existing = await self.repository.get_by_idempotency_key(data.idempotency_key)
+            if existing:
+                return existing
+
+        # Validate customer if provided
+        if data.customer_id:
+            customer = await self.customer_repo.get_by_id(data.customer_id)
+            if not customer:
                 raise DomainException(
-                    message="Idempotency key collision", code="IDEMPOTENCY_CONFLICT"
+                    f"Customer {data.customer_id} not found",
+                    code="NOT_FOUND",
+                    status_code=404
                 )
-            return existing_order
 
-        # Create Order Items and calculate totals
+        # Validate items and calculate totals
+        total_amount = 0
         order_items = []
-        subtotal = 0
 
-        for item_m in data.items:
-            unit_price, p_name, v_name = await self._get_product_price_and_name(
-                item_m.product_id, item_m.variant_id
-            )
-            item_total = unit_price * item_m.quantity
+        for item_req in data.items:
+            product = await self.product_repo.get_by_id(item_req.product_id)
+            if not product:
+                raise DomainException(
+                    f"Product {item_req.product_id} not found",
+                    code="NOT_FOUND",
+                    status_code=404
+                )
 
-            oi = OrderItem(
-                product_id=item_m.product_id,
-                variant_id=item_m.variant_id,
-                quantity=item_m.quantity,
+            unit_price = product.price
+            variant_name = None
+
+            if item_req.variant_id:
+                variant = next(
+                    (v for v in product.variants if v.id == item_req.variant_id),
+                    None
+                )
+                if not variant:
+                    raise DomainException(
+                        f"Variant {item_req.variant_id} not found for product {product.id}",
+                        code="NOT_FOUND",
+                        status_code=404
+                    )
+                unit_price = variant.price
+                variant_name = variant.name
+
+            subtotal = unit_price * item_req.quantity
+            total_amount += subtotal
+
+            order_item = OrderItem(
+                product_id=product.id,
+                variant_id=item_req.variant_id,
+                quantity=item_req.quantity,
                 unit_price=unit_price,
-                subtotal=item_total,
-                tax=0,  # Simplified
-                total=item_total,
-                product_name=p_name,
-                variant_name=v_name,
+                subtotal=subtotal,
+                tax=0,
+                total=subtotal,
+                product_name=product.name,
+                variant_name=variant_name
             )
-            order_items.append(oi)
-            subtotal += item_total
+            order_items.append(order_item)
 
-        # Build order
+        idempotency_key = data.idempotency_key or f"ord_{uuid.uuid4().hex}"
+
         order = Order(
-            user_id=user_id,
-            idempotency_key=data.idempotency_key,
-            subtotal=subtotal,
-            tax_total=0,
-            shipping_total=0,  # Simplified
-            discount_total=0,
-            total=subtotal,
-            currency="INR",
-            shipping_address=data.shipping_address.model_dump(),
-            billing_address=data.billing_address.model_dump()
-            if data.billing_address
-            else None,
-            metadata_info=data.metadata_info,
+            user_id=current_user.id,
+            customer_id=data.customer_id,
+            business_id=business_id,
             status=OrderStatus.PENDING,
-            items=order_items,
+            idempotency_key=idempotency_key,
+            subtotal=total_amount,
+            tax_total=0,
+            shipping_total=0,
+            discount_total=0,
+            total=total_amount,
+            currency="INR",
+            shipping_address=data.shipping_address.model_dump() if data.shipping_address else {},
+            billing_address=data.billing_address.model_dump() if data.billing_address else None,
+            notes=data.notes,
+            metadata_info=data.metadata_info,
+            items=order_items
         )
 
-        # We don't have the order_id until creation in a real DB without default uuid set
-        # But we use lambda: str(uuid.uuid4()) so generating it now is fine if it wasn't
-        order.id = str(uuid.uuid4())
-        for item in order_items:
-            item.order_id = order.id
+        await self.repository.create(order)
+        await self.session.commit()
+        
+        # Re-fetch order with items eager-loaded
+        fetched = await self.repository.get_by_id(order.id)
+        return fetched or order
 
-        # Prepare outbox event for OrderPlaced
-        event_payload = {
-            "order_id": order.id,
-            "user_id": user_id,
-            "business_id": business_id,
-            "total": order.total,
-            "currency": order.currency,
-            "items_count": len(order_items),
-        }
-
-        event = OutboxEvent(
-            aggregate_type="Order",
-            aggregate_id=order.id,
-            type="OrderPlaced",
-            payload=event_payload,
+    async def list_orders(
+        self,
+        status: Optional[OrderStatus] = None,
+        customer_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> PaginatedOrdersResponse:
+        orders, total = await self.repository.list_orders(
+            status=status,
+            customer_id=customer_id,
+            user_id=user_id,
+            page=page,
+            page_size=page_size
         )
 
-        return await self.repo.create(order, outbox_event=event)
+        items_resp = [OrderResponse.model_validate(o) for o in orders]
+        has_next = (page * page_size) < total
+        has_prev = page > 1
 
-    async def get_order(self, order_id: str, user_id: str) -> Order:
-        order = await self.repo.get_by_id(order_id)
-        if not order or order.user_id != user_id:
-            raise DomainException(
-                message="Order not found", code="NOT_FOUND", status_code=404
-            )
+        return PaginatedOrdersResponse(
+            items=items_resp,
+            total=total,
+            page=page,
+            page_size=page_size,
+            has_next=has_next,
+            has_prev=has_prev
+        )
+
+    async def get_order(self, order_id: str) -> Order:
+        order = await self.repository.get_by_id(order_id)
+        if not order:
+            raise DomainException("Order not found", code="NOT_FOUND", status_code=404)
         return order
 
-    async def get_user_orders(
-        self, user_id: str, limit: int = 20, offset: int = 0
-    ) -> list[Order]:
-        return await self.repo.list_by_user(user_id, limit, offset)
-
-    async def update_status(
-        self, order_id: str, user_id: str, update_data: OrderStatusUpdate
+    async def update_order_status(
+        self,
+        order_id: str,
+        status_update: OrderStatusUpdate
     ) -> Order:
-        order = await self.get_order(order_id, user_id)
+        order = await self.get_order(order_id)
+        target_status = status_update.status
 
-        # Valid state transitions checking omitted for brevity
-        old_status = order.status
-        order.status = update_data.status
+        if target_status != order.status:
+            allowed = VALID_TRANSITIONS.get(order.status, set())
+            if target_status not in allowed:
+                raise DomainException(
+                    f"Cannot transition order from {order.status.value} to {target_status.value}",
+                    code="INVALID_STATE_TRANSITION",
+                    status_code=400
+                )
+            order.status = target_status
 
-        event_payload = {
-            "order_id": order.id,
-            "old_status": old_status.value,
-            "new_status": order.status.value,
-            "reason": update_data.reason,
-        }
+        if status_update.reason:
+            meta = dict(order.metadata_info or {})
+            meta["status_reason"] = status_update.reason
+            meta["status_updated_at"] = datetime.now(timezone.utc).isoformat()
+            order.metadata_info = meta
 
-        event = OutboxEvent(
-            aggregate_type="Order",
-            aggregate_id=order.id,
-            type="OrderStatusChanged",
-            payload=event_payload,
-        )
+        await self.repository.update(order)
+        await self.session.commit()
+        return await self.get_order(order_id)
 
-        return await self.repo.update(order, outbox_event=event)
+    async def delete_order(self, order_id: str) -> None:
+        order = await self.get_order(order_id)
+        order.deleted_at = datetime.now(timezone.utc)
+        if order.status not in (OrderStatus.CANCELLED, OrderStatus.REFUNDED):
+            order.status = OrderStatus.CANCELLED
+        await self.repository.update(order)
+        await self.session.commit()

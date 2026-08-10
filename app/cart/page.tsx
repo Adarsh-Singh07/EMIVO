@@ -107,7 +107,7 @@ export default function CartPage() {
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && submitCoupon()}
-                    placeholder="Try EMIVO10"
+                    placeholder="Try ELEKTRIX10"
                     className="flex-1 h-11 border border-neutral-200 rounded-full px-4 text-sm focus:outline-none focus:border-neutral-950 uppercase"
                   />
                   <button

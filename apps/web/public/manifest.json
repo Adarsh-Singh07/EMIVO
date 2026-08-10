@@ -1,0 +1,22 @@
+{
+  "name": "ELEKTRIX Platform",
+  "short_name": "ELEKTRIX",
+  "description": "Autonomous B2B Commerce & Operating Infrastructure Platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#f59e0b",
+  "icons": [
+    {
+      "src": "/branding/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/branding/wordmark.svg",
+      "sizes": "800x200",
+      "type": "image/svg+xml"
+    }
+  ]
+}

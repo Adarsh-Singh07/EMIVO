@@ -1,8 +1,9 @@
 import enum
 import uuid
 from datetime import datetime
+from typing import Optional, List, Dict, Any
 
-from sqlalchemy import JSON, Enum, ForeignKey, Integer, String
+from sqlalchemy import JSON, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.models import Base, SoftDeleteMixin, TenantMixin, TimestampMixin
@@ -18,20 +19,6 @@ class OrderStatus(str, enum.Enum):
     REFUNDED = "REFUNDED"
 
 
-class OutboxEvent(Base, TimestampMixin):
-    __tablename__ = "outbox_events"
-
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
-    aggregate_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    aggregate_id: Mapped[str] = mapped_column(String(36), nullable=False)
-    type: Mapped[str] = mapped_column(String(100), nullable=False)
-    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
-    processed_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    error: Mapped[str | None] = mapped_column(String, nullable=True)
-
-
 class Order(Base, TimestampMixin, SoftDeleteMixin, TenantMixin):
     __tablename__ = "orders"
 
@@ -41,9 +28,12 @@ class Order(Base, TimestampMixin, SoftDeleteMixin, TenantMixin):
     user_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("users.id"), index=True, nullable=False
     )
+    customer_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("customers.id"), index=True, nullable=True
+    )
 
     status: Mapped[OrderStatus] = mapped_column(
-        Enum(OrderStatus), default=OrderStatus.PENDING, nullable=False
+        Enum(OrderStatus), default=OrderStatus.PENDING, nullable=False, index=True
     )
     idempotency_key: Mapped[str] = mapped_column(
         String(255), unique=True, index=True, nullable=False
@@ -58,13 +48,17 @@ class Order(Base, TimestampMixin, SoftDeleteMixin, TenantMixin):
 
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="INR")
 
-    shipping_address: Mapped[dict] = mapped_column(JSON, nullable=False)
-    billing_address: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    shipping_address: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    billing_address: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    metadata_info: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    metadata_info: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
 
-    items: Mapped[list["OrderItem"]] = relationship(
-        "OrderItem", back_populates="order", cascade="all, delete-orphan"
+    items: Mapped[List["OrderItem"]] = relationship(
+        "OrderItem",
+        back_populates="order",
+        cascade="all, delete-orphan",
+        lazy="selectin"
     )
 
 
@@ -75,12 +69,12 @@ class OrderItem(Base, TimestampMixin):
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
     order_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("orders.id"), nullable=False
+        String(36), ForeignKey("orders.id"), nullable=False, index=True
     )
     product_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("products.id"), nullable=False
     )
-    variant_id: Mapped[str | None] = mapped_column(
+    variant_id: Mapped[Optional[str]] = mapped_column(
         String(36), ForeignKey("product_variants.id"), nullable=True
     )
 
@@ -93,6 +87,6 @@ class OrderItem(Base, TimestampMixin):
     total: Mapped[int] = mapped_column(Integer, nullable=False)
 
     product_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    variant_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    variant_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     order: Mapped["Order"] = relationship("Order", back_populates="items")

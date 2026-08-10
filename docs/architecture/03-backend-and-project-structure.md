@@ -152,12 +152,13 @@ class ImageStore(Protocol):
     def put(self, key: str, data: bytes, content_type: str) -> str: ...
     def get_presigned(self, key: str) -> str: ...
 
+
 # in a module's dependencies.py
 def get_image_store(config: Settings = Depends(get_config)) -> ImageStore:
     if config.image_store == "r2":
         return R2ImageStore(config.r2_bucket, ...)
     if config.image_store == "oci":
-        return OCIObjectStore(config.oci_bucket, ...)   # same S3-compatible client
+        return OCIObjectStore(config.oci_bucket, ...)  # same S3-compatible client
     raise ValueError(config.image_store)
 ```
 

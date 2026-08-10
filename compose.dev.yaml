@@ -1,4 +1,4 @@
-﻿# Local dev overrides mapping local code into containers with hot-reload
+# Local development Docker stack for ELEKTRIX
 services:
   api:
     build:
@@ -9,13 +9,13 @@ services:
     volumes:
       - ./apps/api:/app/apps/api
       - ./packages:/app/packages
+    env_file:
+      - .env
     environment:
-      - DB_URL=postgresql://postgres:password@db:5432/emivo
-      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
     command: uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
-      db:
-        condition: service_healthy
       redis:
         condition: service_healthy
 
@@ -29,24 +29,17 @@ services:
       - ./apps/web:/app/apps/web
       - ./packages:/app/packages
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-    command: npm run dev --workspace=@emivo/web
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+    command: npm --prefix apps/web run dev
     depends_on:
       - api
 
-  workers:
-    build:
-      context: .
-      dockerfile: apps/workers/Dockerfile
-    volumes:
-      - ./apps/workers:/app/apps/workers
-      - ./packages:/app/packages
-    environment:
-      - DB_URL=postgresql://postgres:password@db:5432/emivo
-      - REDIS_URL=redis://redis:6379
-    command: arq apps.workers.main.WorkerSettings
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5

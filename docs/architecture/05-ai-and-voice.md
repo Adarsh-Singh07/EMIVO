@@ -43,19 +43,31 @@ illustration of the "module lifts out into a service" pattern.
 class LLMProvider(Protocol):
     async def chat(self, req: ChatRequest) -> ChatResponse: ...
 
+
 # aigw/providers/gemini.py / groq.py / openrouter.py
 class GeminiProvider: ...
+
+
 class GroqProvider: ...
+
 
 # aigw/routing.py  — config-driven
 CHAT_ROUTES = {
-    "assistant": { "provider": "gemini",  "model": "gemini-2.0-flash",  "fallback": ["groq"] },
-    "analytics": { "provider": "groq",    "model": "llama-3.3-70b",     "fallback": [] },
-    "expensive": { "provider": "gemini",  "model": "gemini-2.5-pro",    "fallback": ["openrouter"] },
+    "assistant": {
+        "provider": "gemini",
+        "model": "gemini-2.0-flash",
+        "fallback": ["groq"],
+    },
+    "analytics": {"provider": "groq", "model": "llama-3.3-70b", "fallback": []},
+    "expensive": {
+        "provider": "gemini",
+        "model": "gemini-2.5-pro",
+        "fallback": ["openrouter"],
+    },
 }
-EMBEDDINGS = { "provider": "gemini", "model": "text-embedding-004" }
-STT = { "provider": "deepgram", "model": "nova-2" }
-TTS = { "provider": "deepgram", "model": "aura-2" }
+EMBEDDINGS = {"provider": "gemini", "model": "text-embedding-004"}
+STT = {"provider": "deepgram", "model": "nova-2"}
+TTS = {"provider": "deepgram", "model": "aura-2"}
 ```
 
 Routing rules (in config, with sensible defaults):

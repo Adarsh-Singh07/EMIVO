@@ -1,219 +1,97 @@
-import uuid
+from typing import List
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 
-from fastapi import HTTPException
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from core.exceptions import DomainException
+from modules.products.models import Product, ProductVariant, ProductMedia
+from modules.products.repository import ProductRepository
+from modules.products.schemas import (
+    ProductCreate, ProductUpdate, 
+    ProductVariantCreate, ProductMediaCreate
+)
 
-from . import models, schemas
+class ProductService:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+        self.repository = ProductRepository(session)
 
+    async def _get_current_business_id(self) -> str:
+        bus_query = text("SELECT NULLIF(current_setting('app.business_id', true), '')::uuid as business_id")
+        bus_res = await self.session.execute(bus_query)
+        current_b_id = bus_res.scalar()
+        if not current_b_id:
+            raise DomainException("No business context found", code="FORBIDDEN", status_code=403)
+        return str(current_b_id)
 
-def get_products(db: Session, business_id: str, skip: int = 0, limit: int = 100):
-    return (
-        db.query(models.Product)
-        .filter(models.Product.business_id == business_id)
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
-
-
-def get_product(db: Session, business_id: str, product_id: str):
-    product = (
-        db.query(models.Product)
-        .filter(
-            models.Product.id == product_id, models.Product.business_id == business_id
-        )
-        .first()
-    )
-
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    return product
-
-
-def create_product(db: Session, business_id: str, product: schemas.ProductCreate):
-    try:
-        # Create product
-        db_product = models.Product(
-            id=str(uuid.uuid4()),
+    async def create_product(self, data: ProductCreate) -> Product:
+        business_id = await self._get_current_business_id()
+        
+        product = Product(
             business_id=business_id,
-            name=product.name,
-            description=product.description,
-            slug=product.slug,
-            category_id=product.category_id,
-            is_active=product.is_active,
+            name=data.name,
+            description=data.description,
+            price=data.price,
+            sku=data.sku
         )
-        db.add(db_product)
+        
+        await self.repository.create(product)
+        await self.session.commit()
+        
+        # Re-fetch with selectinload to eagerly load variants and media
+        fetched = await self.repository.get_by_id(product.id)
+        return fetched
 
-        # Add variants
-        for v in product.variants:
-            db_variant = models.ProductVariant(
-                id=str(uuid.uuid4()),
-                product_id=db_product.id,
-                business_id=business_id,
-                sku=v.sku,
-                name=v.name,
-                price=v.price,
-                compare_at_price=v.compare_at_price,
-                attributes=v.attributes,
-                is_active=v.is_active,
-                stock_quantity=0,
-                reserved_quantity=0,
-            )
-            db.add(db_variant)
+    async def list_products(self, limit: int = 50, offset: int = 0) -> List[Product]:
+        # RLS implicitly filters by current business context
+        return await self.repository.list_products(offset=offset, limit=limit)
 
-        # Add media
-        for m in product.media:
-            db_media = models.ProductMedia(
-                id=str(uuid.uuid4()),
-                product_id=db_product.id,
-                business_id=business_id,
-                media_ref=m.media_ref,
-                media_type=m.media_type,
-                position=m.position,
-            )
-            db.add(db_media)
+    async def get_product(self, product_id: str) -> Product:
+        product = await self.repository.get_by_id(product_id)
+        if not product:
+            raise DomainException("Product not found", code="NOT_FOUND", status_code=404)
+        return product
 
-        db.commit()
-        db.refresh(db_product)
-        return db_product
+    async def update_product(self, product_id: str, data: ProductUpdate) -> Product:
+        product = await self.get_product(product_id)
+        
+        if data.name is not None:
+            product.name = data.name
+        if data.description is not None:
+            product.description = data.description
+        if data.price is not None:
+            product.price = data.price
+        if data.sku is not None:
+            product.sku = data.sku
+            
+        await self.repository.update(product)
+        await self.session.commit()
+        
+        # Re-fetch with selectinload for clean serialization
+        return await self.repository.get_by_id(product.id)
 
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=400, detail="Slug or SKU already exists for this business"
+    async def delete_product(self, product_id: str) -> None:
+        product = await self.get_product(product_id)
+        await self.repository.delete(product)
+        await self.session.commit()
+
+    async def add_variant(self, product_id: str, data: ProductVariantCreate) -> ProductVariant:
+        product = await self.get_product(product_id)
+        variant = ProductVariant(
+            product_id=product.id,
+            name=data.name,
+            sku=data.sku,
+            price=data.price
         )
+        await self.repository.create_variant(variant)
+        await self.session.commit()
+        return variant
 
-
-def get_categories(db: Session, business_id: str, skip: int = 0, limit: int = 100):
-    return (
-        db.query(models.Category)
-        .filter(models.Category.business_id == business_id)
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
-
-
-def create_category(db: Session, business_id: str, category: schemas.CategoryCreate):
-    db_category = models.Category(
-        id=str(uuid.uuid4()),
-        business_id=business_id,
-        name=category.name,
-        slug=category.slug,
-        parent_id=category.parent_id,
-    )
-    db.add(db_category)
-    try:
-        db.commit()
-        db.refresh(db_category)
-        return db_category
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(status_code=400, detail="Category already exists")
-
-
-def update_inventory(
-    db: Session, business_id: str, variant_id: str, adjust: schemas.InventoryAdjust
-):
-    variant = (
-        db.query(models.ProductVariant)
-        .filter(
-            models.ProductVariant.id == variant_id,
-            models.ProductVariant.business_id == business_id,
+    async def add_media(self, product_id: str, data: ProductMediaCreate) -> ProductMedia:
+        product = await self.get_product(product_id)
+        media = ProductMedia(
+            product_id=product.id,
+            media_url=data.media_url
         )
-        .first()
-    )
-
-    if not variant:
-        raise HTTPException(status_code=404, detail="Variant not found")
-
-    # Check if stock goes negative
-    if variant.stock_quantity + adjust.quantity < 0:
-        raise HTTPException(status_code=400, detail="Insufficient stock")
-
-    variant.stock_quantity += adjust.quantity
-    db.commit()
-    db.refresh(variant)
-
-    # Ideally emit ProductUpdated event for workers/search sync here
-    return variant
-
-
-def reserve_inventory(
-    db: Session,
-    business_id: str,
-    variant_id: str,
-    reserve: schemas.InventoryReservation,
-):
-    variant = (
-        db.query(models.ProductVariant)
-        .filter(
-            models.ProductVariant.id == variant_id,
-            models.ProductVariant.business_id == business_id,
-        )
-        .first()
-    )
-
-    if not variant:
-        raise HTTPException(status_code=404, detail="Variant not found")
-
-    available_stock = variant.stock_quantity - variant.reserved_quantity
-    if available_stock < reserve.quantity:
-        raise HTTPException(
-            status_code=400, detail="Insufficient available stock for reservation"
-        )
-
-    variant.reserved_quantity += reserve.quantity
-    db.commit()
-    db.refresh(variant)
-    return variant
-
-
-def confirm_reservation(db: Session, business_id: str, variant_id: str, quantity: int):
-    variant = (
-        db.query(models.ProductVariant)
-        .filter(
-            models.ProductVariant.id == variant_id,
-            models.ProductVariant.business_id == business_id,
-        )
-        .first()
-    )
-
-    if not variant:
-        raise HTTPException(status_code=404, detail="Variant not found")
-
-    if variant.reserved_quantity < quantity:
-        raise HTTPException(
-            status_code=400, detail="Confirmation quantity exceeds reserved quantity"
-        )
-
-    variant.stock_quantity -= quantity
-    variant.reserved_quantity -= quantity
-    db.commit()
-    db.refresh(variant)
-    return variant
-
-
-def cancel_reservation(db: Session, business_id: str, variant_id: str, quantity: int):
-    variant = (
-        db.query(models.ProductVariant)
-        .filter(
-            models.ProductVariant.id == variant_id,
-            models.ProductVariant.business_id == business_id,
-        )
-        .first()
-    )
-
-    if not variant:
-        raise HTTPException(status_code=404, detail="Variant not found")
-
-    if variant.reserved_quantity < quantity:
-        raise HTTPException(
-            status_code=400, detail="Cancel quantity exceeds reserved quantity"
-        )
-
-    variant.reserved_quantity -= quantity
-    db.commit()
-    db.refresh(variant)
-    return variant
+        await self.repository.create_media(media)
+        await self.session.commit()
+        return media

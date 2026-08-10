@@ -1,7 +1,8 @@
 /**
- * EMIVO static product catalog — frontend-only data.
- * When the backend is ready, replace these helpers with calls to
- * /api/products while keeping the same shape.
+ * ELEKTRIX product catalog.
+ * Static PRODUCTS array serves as the seed fallback catalog.
+ * The async API adapter functions below fetch live data from the backend;
+ * when the backend has products seeded they take priority.
  */
 
 export interface Category {
@@ -472,3 +473,118 @@ export const PROMO_TILES: PromoTile[] = [
     link: "/shop?category=audio",
   },
 ];
+/* ------------------------------------------------------------------ */
+/* API shape (from FastAPI backend)                                     */
+/* ------------------------------------------------------------------ */
+
+interface ApiProduct {
+  id: string;
+  name: string;
+  slug?: string;
+  description?: string;
+  base_price: number; // integer minor units (paise)
+  compare_at_price?: number;
+  category?: string;
+  brand?: string;
+  status?: string;
+  images?: Array<{ url: string; position: number }>;
+  variants?: Array<{
+    id: string;
+    sku: string;
+    price: number;
+    attributes?: Record<string, string>;
+  }>;
+  tags?: string[];
+  rating?: number;
+  review_count?: number;
+}
+
+/** Map a backend API product to the storefront Product shape. */
+function mapApiProduct(p: ApiProduct): Product {
+  const imgs = p.images?.sort((a, b) => a.position - b.position) ?? [];
+  const imgUrl = imgs[0]?.url ?? "";
+  const imgHoverUrl = imgs[1]?.url ?? imgUrl;
+
+  const pricePaise = p.variants?.[0]?.price ?? p.base_price;
+  const priceRupees = Math.round(pricePaise / 100);
+  const compareRupees = p.compare_at_price ? Math.round(p.compare_at_price / 100) : Math.round(priceRupees * 1.1);
+  const discountPct = compareRupees > priceRupees
+    ? Math.round(((compareRupees - priceRupees) / compareRupees) * 100)
+    : 0;
+
+  return {
+    id: p.slug || p.id,
+    name: p.name,
+    category: p.category?.toLowerCase() ?? "accessories",
+    brand: p.brand ?? "ELEKTRIX",
+    price: priceRupees,
+    mrp: compareRupees,
+    discount: discountPct,
+    rating: p.rating ?? 4.5,
+    reviews: p.review_count ?? 0,
+    inStock: p.status === "active" || p.status == null,
+    colors: [],
+    img: imgUrl || `https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=900`,
+    imgHover: imgHoverUrl || `https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=900`,
+    tagline: p.description?.slice(0, 80) ?? p.name,
+    highlights: p.tags ?? [],
+  };
+}
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+
+/**
+ * Fetch products from the real backend.
+ * Falls back to the static PRODUCTS array if the API is unavailable or returns empty.
+ */
+export async function fetchApiProducts(params?: {
+  category?: string;
+  q?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<Product[]> {
+  try {
+    const sp = new URLSearchParams();
+    if (params?.category) sp.set("category", params.category);
+    if (params?.q) sp.set("search", params.q);
+    if (params?.page) sp.set("page", String(params.page));
+    sp.set("page_size", String(params?.page_size ?? 50));
+
+    const res = await fetch(`${API_BASE}/products/?${sp}`, {
+      next: { revalidate: 60 }, // ISR: revalidate every 60s
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!res.ok) throw new Error(`API ${res.status}`);
+
+    const data = await res.json();
+    const items: ApiProduct[] = data.items ?? data ?? [];
+
+    if (items.length === 0) return PRODUCTS;
+    return items.map(mapApiProduct);
+  } catch {
+    // Graceful degradation: use static catalog
+    return PRODUCTS;
+  }
+}
+
+/**
+ * Fetch a single product by slug or id.
+ * Falls back to static PRODUCTS.find if not found in API.
+ */
+export async function getApiProductById(id: string): Promise<Product | null> {
+  // First, try static catalog for fast lookup
+  const staticProduct = PRODUCTS.find((p) => p.id === id);
+
+  try {
+    const res = await fetch(`${API_BASE}/products/${id}`, {
+      next: { revalidate: 60 },
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!res.ok) return staticProduct ?? null;
+    const data: ApiProduct = await res.json();
+    return mapApiProduct(data);
+  } catch {
+    return staticProduct ?? null;
+  }
+}

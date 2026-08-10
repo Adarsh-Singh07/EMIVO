@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/components/site/CartProvider";
+import { AuthProvider } from "@/lib/auth-context";
 import Header from "@/components/site/Header";
 import Footer from "@/components/site/Footer";
 import MobileBottomNav from "@/components/site/MobileBottomNav";
@@ -15,8 +16,17 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "EMIVO — Premium Electronics Store",
-  description: "Shop the latest mobiles, laptops, appliances and accessories at EMIVO.",
+  title: "ELEKTRIX — Autonomous Commerce & Operating Infrastructure",
+  description: "Shop the latest electronics and manage your autonomous commerce operations at ELEKTRIX.",
+  keywords: ["electronics", "laptops", "mobiles", "audio", "elektrix", "autonomous commerce"],
+  openGraph: {
+    title: "ELEKTRIX",
+    description: "Shop the latest electronics and manage your autonomous commerce operations at ELEKTRIX.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ELEKTRIX",
+  },
   // PWA — installable app with standalone display, icons and manifest.
   manifest: "/manifest.webmanifest",
   icons: {
@@ -26,7 +36,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "EMIVO",
+    title: "ELEKTRIX",
   },
 };
 
@@ -47,15 +57,17 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body className="font-sans antialiased bg-white text-neutral-900" suppressHydrationWarning>
-        <CartProvider>
-          <Header />
-          <main className="min-h-screen pb-20 lg:pb-0">{children}</main>
-          <Footer />
-          <MobileBottomNav />
-          {/* Spacer on mobile so the fixed bottom nav never covers footer text */}
-          <div className="h-[calc(env(safe-area-inset-bottom)+3.5rem)] lg:hidden" aria-hidden />
-          <Toaster position="top-right" richColors />
-        </CartProvider>
+        <AuthProvider>
+          <CartProvider>
+            <Header />
+            <main className="min-h-screen pb-20 lg:pb-0">{children}</main>
+            <Footer />
+            <MobileBottomNav />
+            {/* Spacer on mobile so the fixed bottom nav never covers footer text */}
+            <div className="h-[calc(env(safe-area-inset-bottom)+3.5rem)] lg:hidden" aria-hidden />
+            <Toaster position="top-right" richColors />
+          </CartProvider>
+        </AuthProvider>
       </body>
     </html>
   );

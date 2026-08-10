@@ -1,4 +1,4 @@
-﻿import { CheckCircle2, AlertTriangle, XCircle, TrendingUp, TrendingDown, Search, Filter } from "lucide-react";
+import { CheckCircle2, AlertTriangle, XCircle, TrendingUp, TrendingDown, Search, Filter } from "lucide-react";
 
 export default function InventoryPage() {
   return (
@@ -103,8 +103,7 @@ export default function InventoryPage() {
                   </td>
                   <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{item.sku}</td>
                   <td className="px-6 py-4">
-                    <span className={inline-flex items-center px-2 py-0.5 rounded text-xs font-medium 
-                      }>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${item.status === "in_stock" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
                       {item.status}
                     </span>
                   </td>
@@ -112,8 +111,8 @@ export default function InventoryPage() {
                     <div className="flex items-center gap-2">
                       <div className="w-full max-w-[100px] h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div 
-                          className={h-full }
-                          style={{ width: ${Math.min((item.stock / 150) * 100, 100)}% }}
+                          className="h-full bg-indigo-600 dark:bg-indigo-500"
+                          style={{ width: `${Math.min((item.stock / 150) * 100, 100)}%` }}
                         ></div>
                       </div>
                       <span className="text-gray-700 dark:text-gray-300 font-medium">{item.stock}</span>
@@ -133,3 +132,6 @@ export default function InventoryPage() {
     </div>
   );
 }
+
+
+

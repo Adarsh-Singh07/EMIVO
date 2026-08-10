@@ -1,27 +1,56 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../lib/api/client';
-import { Business, BusinessCreate } from '../lib/api/types';
+import { useState, useCallback, useEffect } from 'react';
+import { apiClient } from '@/lib/api-client';
 
-export const useBusinesses = () => {
-  return useQuery({
-    queryKey: ['businesses'],
-    queryFn: async (): Promise<Business[]> => {
-      // In MVP, a user might only belong to one/few businesses
-      const { data } = await api.get('/v1/businesses');
-      return data;
-    },
-  });
-};
+export interface Business {
+  id: string;
+  name: string;
+  slug: string;
+  contact_email?: string;
+  is_active: boolean;
+  settings?: Record<string, any>;
+  created_at: string;
+  updated_at?: string;
+}
 
-export const useCreateBusiness = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (businessData: BusinessCreate): Promise<Business> => {
-      const { data } = await api.post('/v1/businesses', businessData);
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['businesses'] });
-    },
-  });
-};
+export interface BusinessCreate {
+  name: string;
+  slug: string;
+  contact_email?: string;
+  settings?: Record<string, any>;
+}
+
+export function useBusinesses() {
+  const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchBusinesses = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await apiClient.get<Business[]>('/businesses/');
+      setBusinesses(data || []);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load businesses');
+      setBusinesses([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const createBusiness = async (data: BusinessCreate): Promise<Business> => {
+    try {
+      const created = await apiClient.post<Business>('/businesses/', data);
+      await fetchBusinesses();
+      return created;
+    } catch (err: any) {
+      throw err;
+    }
+  };
+
+  useEffect(() => {
+    fetchBusinesses();
+  }, [fetchBusinesses]);
+
+  return { businesses, isLoading, error, refetch: fetchBusinesses, createBusiness };
+}

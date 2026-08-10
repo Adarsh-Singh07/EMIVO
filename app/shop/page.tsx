@@ -1,10 +1,10 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import ProductCard from "@/components/site/ProductCard";
-import { PRODUCTS, CATEGORIES, BRANDS } from "@/lib/products";
+import { CATEGORIES, BRANDS, type Product, fetchApiProducts } from "@/lib/products";
 import { SlidersHorizontal, ArrowUpDown, X, Check } from "lucide-react";
 
 const PRICE_OPTIONS = [
@@ -23,21 +23,44 @@ const SORT_OPTIONS = [
   { label: "Biggest Discount", value: "discount" },
 ];
 
+/** Skeleton card placeholder */
+function ProductSkeleton() {
+  return (
+    <div className="rounded-2xl border border-neutral-100 p-2 sm:p-3 animate-pulse">
+      <div className="aspect-square rounded-xl bg-neutral-100 mb-3" />
+      <div className="h-3 bg-neutral-100 rounded w-1/3 mb-2" />
+      <div className="h-4 bg-neutral-100 rounded w-3/4 mb-2" />
+      <div className="h-4 bg-neutral-100 rounded w-1/2" />
+    </div>
+  );
+}
+
 function ShopContent() {
   const sp = useSearchParams();
   const cat = sp.get("category") ?? "all";
   const query = (sp.get("q") ?? "").trim().toLowerCase();
 
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [brands, setBrands] = useState<string[]>([]);
   const [price, setPrice] = useState("all");
   const [sort, setSort] = useState("featured");
   const [sortOpen, setSortOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
 
+  // Fetch products from API (with static fallback inside fetchApiProducts)
+  useEffect(() => {
+    setLoading(true);
+    fetchApiProducts({ category: cat !== "all" ? cat : undefined })
+      .then((products) => setAllProducts(products))
+      .catch(() => setAllProducts([]))
+      .finally(() => setLoading(false));
+  }, [cat]);
+
   const activeFilterCount = brands.length + (price !== "all" ? 1 : 0);
 
   const filtered = useMemo(() => {
-    let list = PRODUCTS.filter((p) => (cat === "all" ? true : p.category === cat));
+    let list = allProducts.filter((p) => (cat === "all" ? true : p.category === cat));
 
     if (query) {
       list = list.filter((p) =>
@@ -76,7 +99,7 @@ function ShopContent() {
     }
 
     return list;
-  }, [cat, query, brands, price, sort]);
+  }, [allProducts, cat, query, brands, price, sort]);
 
   const toggleBrand = (b: string) =>
     setBrands((prev) => (prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]));
@@ -97,11 +120,13 @@ function ShopContent() {
             {query ? (
               <>
                 {filtered.length} results for{" "}
-                <span className="text-neutral-900 font-medium">“{query}”</span>{" "}
+                <span className="text-neutral-900 font-medium">"{query}"</span>{" "}
                 <Link href="/shop" className="text-neutral-950 underline underline-offset-2">
                   Clear
                 </Link>
               </>
+            ) : loading ? (
+              "Loading…"
             ) : (
               `${filtered.length} products`
             )}
@@ -188,7 +213,7 @@ function ShopContent() {
           {/* Mobile toolbar */}
           <div className="lg:hidden flex items-center justify-between mb-4">
             <p className="text-sm text-neutral-500">
-              Showing {filtered.length} of {PRODUCTS.length}
+              Showing {filtered.length} of {allProducts.length}
             </p>
             <div className="flex items-center gap-2">
               <button
@@ -214,7 +239,7 @@ function ShopContent() {
           {/* Desktop count + sort select */}
           <div className="hidden lg:flex items-center justify-between mb-6">
             <p className="text-sm text-neutral-500">
-              Showing {filtered.length} of {PRODUCTS.length}
+              Showing {filtered.length} of {allProducts.length}
             </p>
             <select
               value={sort}
@@ -229,7 +254,11 @@ function ShopContent() {
             </select>
           </div>
 
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {Array.from({ length: 8 }).map((_, i) => <ProductSkeleton key={i} />)}
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="text-center py-20 border border-dashed border-neutral-200 rounded-3xl text-neutral-500">
               No products match your filters.
             </div>

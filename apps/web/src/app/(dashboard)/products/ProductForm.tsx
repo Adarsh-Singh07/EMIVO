@@ -1,18 +1,30 @@
-﻿'use client';
+﻿"use client";
 
-import { useState } from 'react';
-import { Plus, Trash2, Image as ImageIcon, Check, ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
+import { useState } from "react";
+import {
+  Plus,
+  Trash2,
+  Image as ImageIcon,
+  Check,
+  ArrowLeft,
+} from "lucide-react";
+import Link from "next/link";
 
 export function ProductForm() {
-  const [variants, setVariants] = useState<Array<{ id: string; name: string; sku: string; price: string; stock: string }>>([
-    { id: '1', name: 'Default', sku: '', price: '', stock: '' },
-  ]);
+  const [variants, setVariants] = useState<
+    Array<{
+      id: string;
+      name: string;
+      sku: string;
+      price: string;
+      stock: string;
+    }>
+  >([{ id: "1", name: "Default", sku: "", price: "", stock: "" }]);
 
   const addVariant = () => {
     setVariants([
       ...variants,
-      { id: Date.now().toString(), name: '', sku: '', price: '', stock: '' },
+      { id: Date.now().toString(), name: "", sku: "", price: "", stock: "" },
     ]);
   };
 
@@ -24,7 +36,7 @@ export function ProductForm() {
 
   const updateVariant = (id: string, field: string, value: string) => {
     setVariants(
-      variants.map((v) => (v.id === id ? { ...v, [field]: value } : v))
+      variants.map((v) => (v.id === id ? { ...v, [field]: value } : v)),
     );
   };
 
@@ -66,10 +78,14 @@ export function ProductForm() {
 
       {/* General Details */}
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6 space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">General Information</h3>
-        
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          General Information
+        </h3>
+
         <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Product Title</label>
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            Product Title
+          </label>
           <input
             type="text"
             placeholder="e.g. Wireless Ergonomic Keyboard"
@@ -78,7 +94,9 @@ export function ProductForm() {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            Description
+          </label>
           <textarea
             rows={4}
             placeholder="Detailed description of the product..."
@@ -89,11 +107,17 @@ export function ProductForm() {
 
       {/* Media Upload Placeholder */}
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6 space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Product Images</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          Product Images
+        </h3>
         <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-8 text-center flex flex-col items-center justify-center cursor-pointer hover:border-gray-400 dark:hover:border-gray-600 transition-colors">
           <ImageIcon className="w-10 h-10 text-gray-400 mb-2" />
-          <p className="text-sm font-medium text-gray-900 dark:text-white">Click to upload images</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">SVG, PNG, JPG or GIF (max. 800x400px)</p>
+          <p className="text-sm font-medium text-gray-900 dark:text-white">
+            Click to upload images
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            SVG, PNG, JPG or GIF (max. 800x400px)
+          </p>
         </div>
       </div>
 
@@ -101,8 +125,12 @@ export function ProductForm() {
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Variants</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Add options like size, color, or material</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Variants
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Add options like size, color, or material
+            </p>
           </div>
           <button
             type="button"
@@ -116,13 +144,18 @@ export function ProductForm() {
 
         <div className="space-y-3">
           {variants.map((variant, index) => (
-            <div key={variant.id} className="flex flex-col sm:flex-row items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-800">
+            <div
+              key={variant.id}
+              className="flex flex-col sm:flex-row items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-800"
+            >
               <div className="flex-1 w-full sm:w-auto">
                 <input
                   type="text"
                   placeholder="Variant Name (e.g. Red / XL)"
                   value={variant.name}
-                  onChange={(e) => updateVariant(variant.id, 'name', e.target.value)}
+                  onChange={(e) =>
+                    updateVariant(variant.id, "name", e.target.value)
+                  }
                   className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                 />
               </div>
@@ -131,7 +164,9 @@ export function ProductForm() {
                   type="text"
                   placeholder="SKU"
                   value={variant.sku}
-                  onChange={(e) => updateVariant(variant.id, 'sku', e.target.value)}
+                  onChange={(e) =>
+                    updateVariant(variant.id, "sku", e.target.value)
+                  }
                   className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                 />
               </div>
@@ -140,7 +175,9 @@ export function ProductForm() {
                   type="number"
                   placeholder="Price"
                   value={variant.price}
-                  onChange={(e) => updateVariant(variant.id, 'price', e.target.value)}
+                  onChange={(e) =>
+                    updateVariant(variant.id, "price", e.target.value)
+                  }
                   className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                 />
               </div>
@@ -149,7 +186,9 @@ export function ProductForm() {
                   type="number"
                   placeholder="Stock"
                   value={variant.stock}
-                  onChange={(e) => updateVariant(variant.id, 'stock', e.target.value)}
+                  onChange={(e) =>
+                    updateVariant(variant.id, "stock", e.target.value)
+                  }
                   className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                 />
               </div>

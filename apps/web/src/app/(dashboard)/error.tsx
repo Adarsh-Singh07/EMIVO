@@ -25,7 +25,8 @@ export default function DashboardError({
           Something went wrong
         </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-          {error.message || "An unexpected error occurred while loading this page."}
+          {error.message ||
+            "An unexpected error occurred while loading this page."}
         </p>
         <button
           onClick={reset}

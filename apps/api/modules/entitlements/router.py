@@ -1,12 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
-from core.database import get_db_session
-from core.database import tenant_context
-from .schemas import TenantPlan, UsageMetrics
+from core.database import get_db_session, tenant_context
+
 from .repository import EntitlementsRepository
-from .models import SubscriptionPlan
+from .schemas import TenantPlan, UsageMetrics
 
 router = APIRouter(prefix="/entitlements", tags=["entitlements"])
 

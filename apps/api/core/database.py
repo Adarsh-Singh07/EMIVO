@@ -1,6 +1,4 @@
-from sqlalchemy.orm import declarative_base
-
-Base = declarative_base()
+from core.models import Base
 from collections.abc import AsyncGenerator
 from contextvars import ContextVar
 
@@ -29,6 +27,7 @@ else:
     kw["pool_recycle"] = 3600
     kw["connect_args"] = {
         "command_timeout": 60,
+        "statement_cache_size": 0,
         "server_settings": {
             "statement_timeout": "60000",
             "idle_in_transaction_session_timeout": "60000",
@@ -48,15 +47,20 @@ async_session_maker = async_sessionmaker(
 
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
-    """Dependency to get a connection from the pool and setup RLS."""
+    """
+    Dependency to get a connection from the pool and setup RLS.
+
+    Critical: We connect as 'postgres' (which has BYPASSRLS), then immediately
+    SET ROLE to 'emivo_app' (which has NOBYPASSRLS). All subsequent queries in
+    this session execute as emivo_app, so RLS policies are enforced.
+    """
     async with async_session_maker() as session:
-        business_id = tenant_context.get()
-        if business_id:
-            await session.execute(
-                text("SET LOCAL app.business_id = :biz_id"), {"biz_id": business_id}
-            )
-        else:
-            await session.execute(text("SET LOCAL app.business_id = ''"))
+        # Switch to restricted role — this makes RLS actually enforce
+        await session.execute(text("SET LOCAL ROLE emivo_app"))
+
+        # Initialize RLS context vars to empty (will be overridden by set_db_context per-request)
+        await session.execute(text("SELECT set_config('app.business_id', '', true)"))
+        await session.execute(text("SELECT set_config('app.user_id', '', true)"))
 
         try:
             yield session

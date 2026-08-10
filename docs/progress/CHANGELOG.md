@@ -1,0 +1,111 @@
+# Changelog
+
+## 2026-08-10
+- **Milestone: ELEKTRIX v0.1 — FINAL ACCEPTANCE PASSED**
+  - **Test UPI Mode Alert**: Added a sandbox warning callout inside `/checkout` for UPI options to clarify that no real money is processed.
+  - **Admin Theme Visual Alignment**: Polished all 11 routes, sidebar, top headers, statistics cards, and the homepage of `localhost:3001` to align with the light-themed ELEKTRIX storefront brand identity.
+  - **Address & Wishlist Persistence**: Added database columns (`addresses` and `wishlist` JSONB) to the `users` table via Alembic migration `40a4b12c8e1d` and wired `/account/addresses` and `/account/wishlist` UI with full CRUD backend synchronization.
+  - **Order Scoping & Tracking**: Updated the orders FastAPI module to allow customer roles to view their own orders scoped dynamically, and wired the `/order-tracking` input screen to live endpoints.
+  - **Production Builds**: Successfully built both storefront root and admin web application workspaces in production mode with zero errors.
+  - **Master Regression Suite**: Verified all 7 regression suites (196 database assertions) passed successfully.
+- **Feat: ELEKTRIX Frontend Integration & Quality Gate (Phases 1 - 8 COMPLETE)**
+  - **Phase 1 (Brand & Foundation):** ELEKTRIX brand applied everywhere. Built `lib/api-client.ts` (JWT client with cookie storage & refresh rotation), `lib/auth-context.tsx` (`AuthProvider` with login/register/logout/refreshUser), and wrapped root `app/layout.tsx`.
+  - **Phase 2 (Authentication):** Built backend-integrated `/login` and `/register` (with auto-login post registration). Updated `Header.tsx` to display real auth state (user avatar, dropdown, sign out). Fixed CORS bug (`ENV_NAME=local`, comma-separated `CORS_ORIGINS`), fixed user endpoint to `/users/me`, updated register response parsing (`UserResponse`), and sent `refresh_token` in logout body.
+  - **Phase 3 (Product Catalog):** Built `lib/products.ts` API adapter with static fallback; added skeleton loading to `/shop` and `/product/[id]`; updated backend RLS policies for public read access to allow anonymous storefront browsing across 42 products without auth.
+  - **Phase 5 (Checkout & Orders):** Built `/checkout/page.tsx` with `POST /api/v1/orders/` for UUID product items using `OrderCreate` schema (street, postal_code, country ISO-2); added submit button loading state and guest order fallback reference.
+  - **Phase 6 (Account Page):** Built `/account/page.tsx` displaying user profile from `useAuth()`; fetched order history from `/orders/?page=1&page_size=5` with status badges per order state and tracking links; auth-gated for guests.
+  - **Phase 7 (Admin Dashboard):** Running on port 3001 with `apps/web/.env.local` configured (`NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1`); confirmed 11 dashboard routes (`/dashboard`, `/analytics`, `/businesses`, `/customers`, `/inventory`, `/orders`, `/products`, `/settings`, `/users`, `/health`, `/preview`); login at `localhost:3001/login` returns HTTP 200.
+  - **Phase 8 (Quality Gate):** Achieved 0 TypeScript errors across root and `apps/web`; updated `tsconfig.json` to exclude `apps/`; backend regression suite 14/14 PASSED.
+- **Brand Migration:** Permanent repository-wide brand transition to **ELEKTRIX**
+  - Official Domain: **https://elektrix.in**
+  - Created central branding config file `apps/web/src/config/branding.ts` (`BRAND_CONFIG`)
+  - Created SVG logo assets `public/branding/icon.svg` and `public/branding/wordmark.svg`
+  - Created `<BrandLogo />` component (`apps/web/src/components/branding/BrandLogo.tsx`)
+  - Created PWA manifest `public/manifest.json`, `src/app/robots.ts`, and `src/app/sitemap.ts` pointing to `https://elektrix.in`
+  - Updated Navbar, Sidebar, Dashboard Layout, Login Page, Register Page, Developer Dashboard, System Health, package configs, and all documentation to reference ELEKTRIX branding
+- **Milestone:** **ELEKTRIX Internal Release v0.1 (Quality Gate PASSED — Fully Runnable Application)**
+  - Local dev stack verified running: Next.js frontend (`http://localhost:3000`), FastAPI backend (`http://127.0.0.1:8000`)
+  - Live system health `/health/diagnostics` verified returning `status: "healthy"` (Supabase PostgreSQL RLS enforced ping: 1.7s, Redis 7+ ping: 44ms, Cloudflare R2: healthy, ARQ workers: healthy)
+  - Full master regression suite run executed: 7/7 PASSED (100% Green)
+  - Next.js typecheck verified: 0 TypeScript errors
+  - Centralized branding configuration (`apps/web/src/config/branding.ts`) & SVG logo assets (`/branding/icon.svg`, `/branding/wordmark.svg`) active across all frontend pages and metadata referencing `https://elektrix.in`
+- **Feat:** Created root landing page `apps/web/src/app/page.tsx` with dark glassmorphic styling, ELEKTRIX branding, Lenis smooth scroll, Framer Motion animations, and official domain `https://elektrix.in`
+- **Fix:** Added `get_redis_client()` helper to `apps/api/core/redis.py` for `/health/diagnostics` live health check
+- **Fix:** Configured `SettingsConfigDict` in `apps/api/core/config.py` to search root `.env` (`("../../.env", "../.env", ".env")`)
+- **Feat:** Upgraded Developer Dashboard `/preview` into a real-time Control Center with live infrastructure diagnostics and endpoint directory
+- **Feat:** Upgraded System Health `/health` page with live database latency, Redis connection, and hardware telemetry
+- **Milestone:** Stabilization Phase COMPLETE — master regression suite 7/7 PASS (Auth: 16.9s, Products: 35.1s, Customers: 89.2s, Orders: 34.7s, Carts: 36.1s, Payments: 27.0s, Coupons: 30.0s)
+- **Fix:** `verify/payments/verify_payments.py` — KeyError on `order_a["total_amount"]` → corrected to `order_a["total"]` to match `OrderResponse` schema field name
+- **Docs:** Created `docs/HANDOVER.md` — comprehensive project handover covering architecture, module statuses, known bugs, tech debt, environment, deployment, and next priorities
+- **Docs:** Created `docs/DEVELOPER_GUIDE.md` — local setup, migration workflow, module addition pattern, debugging guide
+- **Docs:** Created `docs/NEXT_AGENT.md` — engineer brief covering project mission, frozen decisions, module pattern, RLS mechanics, money handling, common pitfalls already fixed, and current priorities
+- **Docs:** Overwrote `PROJECT_STATE.md` — updated to reflect Stabilization Phase COMPLETE, 22-module status table, 7/7 regression results, accurate frontend state
+- **Docs:** Overwrote `docs/MASTER_PROJECT_STATUS.md` — corrected from "In Progress" to Stabilization COMPLETE, updated to 10 complete modules, removed stale auth router stub claim, corrected frontend section
+- **Docs:** Overwrote `docs/INFRASTRUCTURE.md` — expanded with full Oracle VPS Docker topology, Supabase connection/RLS detail, Alembic migration table, R2 presigned upload flow, Redis token family mechanics, all env vars with descriptions, deployment flow steps, backup strategy
+- **Milestone:** v0.1 Backend Stabilization complete — all 10 core business modules Production Ready: Auth, Users, Businesses, Settings, Products, Customers, Orders, Carts, Payments, Coupons
+
+## 2026-08-09
+- **Feat:** Coupons module — full vertical slice implemented and verified against live Supabase (30/30 assertions passed, full regression suite green with 7/7 active suites passing: Auth, Products, Customers, Orders, Carts, Payments, Coupons)
+  - 7 API endpoints: `POST /api/v1/coupons/`, `GET /api/v1/coupons/`, `GET /api/v1/coupons/{id}`, `PATCH /api/v1/coupons/{id}`, `DELETE /api/v1/coupons/{id}`, `POST /api/v1/coupons/validate`, `POST /api/v1/coupons/apply`
+  - AsyncSession throughout; Repository pattern with `execution_options(populate_existing=True)` query cache refresh for eager `Coupon.usages` loading
+  - Percentage & Fixed-Amount discount calculation engine with minor currency units integer validation
+  - Subtotal threshold requirement (`min_order_amount`) and maximum discount capping (`max_discount_amount`)
+  - Global usage limit (`usage_limit`) and per-user limit (`per_user_limit`) enforcement using `coupon_usages` tracking table
+  - Usage recording in `coupon_usages` table and atomic `usage_count` counter increment
+  - Soft delete support (`deleted_at` timestamp set, `is_active = False`)
+  - Duplicate code prevention per business returning `409 Conflict`
+  - Automatic code normalization to uppercase (`code.upper()`)
+  - Database RLS policy `"tenant_isolation_coupons"` and `"tenant_isolation_coupon_usages"` applied to Supabase ([`db/rls/08_coupons.sql`](file:///d:/Projects/EMIVO/db/rls/08_coupons.sql)) with `FORCE ROW LEVEL SECURITY` and `emivo_app` role enforcement
+- **Feat:** Payments module — full vertical slice implemented and verified against live Supabase (22/22 assertions passed, full regression suite green with 6/6 active suites passing: Auth, Products, Customers, Orders, Carts, Payments)
+  - 6 API endpoints: `POST /api/v1/payments/initiate`, `POST /api/v1/payments/{id}/verify-success`, `POST /api/v1/payments/{id}/refund`, `GET /api/v1/payments/{id}`, `GET /api/v1/payments/`, `POST /api/v1/payments/webhook/razorpay`
+  - AsyncSession throughout; Repository pattern with `execution_options(populate_existing=True)` query cache refresh for eager `Payment.events` loading
+  - Razorpay Provider Adapter architecture (`BasePaymentProvider` & `RazorpayMockProvider`) with order creation & HMAC-SHA256 signature verification
+  - Integer minor currency units amount validation (`amount > 0`) avoiding floating-point rounding errors
+  - Idempotency key deduplication returning existing payment on key re-submission without duplicate DB/provider order creation
+  - Automatic order status synchronization: payment capture transitions associated `Order.status` to `CONFIRMED`; payment refund transitions `Order.status` to `REFUNDED`
+  - Full & partial payment refund processing with audit log event creation in `payment_events`
+  - Database RLS policy `"Tenant isolation for payments"` applied to Supabase ([`db/rls/09_payments.sql`](file:///d:/Projects/EMIVO/db/rls/09_payments.sql)) with `FORCE ROW LEVEL SECURITY` and `emivo_app` role enforcement
+  - Alembic migration applied: [`20260809_1910_39a4b12c8e1d_add_business_id_to_payments.py`](file:///d:/Projects/EMIVO/db/migrations/versions/20260809_1910_39a4b12c8e1d_add_business_id_to_payments.py)
+- **Feat:** Carts module — full vertical slice implemented and verified against live Supabase (30/30 assertions passed, full regression suite green with 5/5 active suites passing: Auth, Products, Customers, Orders, Carts)
+  - 6 API endpoints: `GET /api/v1/carts`, `GET /api/v1/carts/{id}`, `POST /api/v1/carts/{id}/items`, `PATCH /api/v1/carts/{id}/items/{item_id}`, `DELETE /api/v1/carts/{id}/items/{item_id}`, `POST /api/v1/carts/{id}/clear`
+  - AsyncSession throughout; Repository pattern with `populate_existing=True` query cache refresh to guarantee eager loading updates
+  - Cart identity resolution: Guest `session_id` and authenticated `user_id` support
+  - Dynamic line item unit price lookup from database `Product` and `ProductVariant` models
+  - Dynamic subtotal auto-calculation calculated on every mutation in integer minor units (cents/paise)
+  - Database RLS policy `"tenant_isolation_carts"` and `"tenant_isolation_cart_items"` applied to Supabase ([`db/rls/07_carts.sql`](file:///d:/Projects/EMIVO/db/rls/07_carts.sql)) with `FORCE ROW LEVEL SECURITY` and `emivo_app` role enforcement
+  - Alembic migration applied: `20260809_0500_ee32a76efdd4_add_carts_module_tables.py`
+  - Fixed AsyncSession identity cache bug during eager relationship re-fetches using `populate_existing=True`
+- **Feat:** Orders module — full vertical slice implemented and verified against live Supabase (40/40 assertions passed, full regression suite green with 4/4 suites passing: Auth, Products, Customers, Orders)
+  - 5 API endpoints: `POST /api/v1/orders/`, `GET /api/v1/orders/`, `GET /api/v1/orders/{id}`, `PATCH /api/v1/orders/{id}/status`, `DELETE /api/v1/orders/{id}`
+  - AsyncSession throughout; Repository pattern with pagination (`page`, `page_size`, `total`, `has_next`, `has_prev`) and filtering (`status`, `customer_id`)
+  - Automatic line item price resolution from `Product` and `ProductVariant` database models
+  - Idempotency key deduplication returning existing orders on key re-submission without duplicate creation
+  - Strict status transition matrix (`PENDING` -> `CONFIRMED` -> `PROCESSING` -> `SHIPPED` -> `DELIVERED` -> `REFUNDED` / `CANCELLED`) with 400 Bad Request validation
+  - Database RLS policy `"Tenant isolation for orders"` and `"Tenant isolation for order_items"` applied to Supabase ([`db/rls/03_orders.sql`](file:///d:/Projects/EMIVO/db/rls/03_orders.sql)) with `FORCE ROW LEVEL SECURITY` and `emivo_app` role enforcement
+  - Alembic migration applied: [`20260809_1842_266616b0d24c_add_customer_id_and_notes_to_orders.py`](file:///d:/Projects/EMIVO/db/migrations/versions/20260809_1842_266616b0d24c_add_customer_id_and_notes_to_orders.py)
+  - Soft delete support via `SoftDeleteMixin` (sets `deleted_at`, updates status to `CANCELLED`, excludes from active queries)
+- **Feat:** Customers module — full vertical slice implemented and verified against live Supabase (41/41 assertions passed)
+  - 5 API endpoints: `POST /customers/`, `GET /customers/`, `GET /customers/{id}`, `PUT /customers/{id}`, `DELETE /customers/{id}`
+  - AsyncSession throughout; Repository pattern with pagination (`page`, `page_size`, `total`, `has_next`, `has_prev`) and substring search filtering (`ilike` on name, email, phone)
+  - Database RLS policy `"Tenant isolation for customers"` applied to Supabase (`db/rls/04_customers.sql`) with `FORCE ROW LEVEL SECURITY`
+  - Alembic migration applied: `20260809_0449_bf1f48d88adb_upgrade_customers_module.py`
+  - Unique email validation per tenant (`uq_customers_business_email` constraint + application layer verification returning 409 Conflict)
+  - Soft delete support via `SoftDeleteMixin` (sets `deleted_at` timestamp; excludes soft-deleted records from lists and single fetches)
+- **Arch:** RLS `emivo_app` role architecture improvement
+  - Created `emivo_app` database role with `NOBYPASSRLS` (`db/rls/00_app_role.sql`)
+  - Integrated `SET LOCAL ROLE emivo_app` in `get_db_session()` (`apps/api/core/database.py`) to enforce RLS policies across postgres superuser connections on Supabase
+- **Feat:** Products module — full vertical slice implemented and verified against live Supabase
+  - 7 API endpoints: `POST /products/`, `GET /products/`, `GET /products/{id}`, `PUT /products/{id}`, `DELETE /products/{id}`, `POST /products/{id}/variants`, `POST /products/{id}/media`
+  - AsyncSession throughout; Repository pattern with `selectinload` for variants and media
+  - RLS policy `"Tenant isolation for products"` applied to Supabase (`app.business_id` session var)
+  - Alembic migration applied: `20260809_0421_24010752e38f_add_products_module_tables`
+  - `ON DELETE CASCADE` on `product_variants` and `product_media`
+  - `lazy='selectin'` on `Product.variants` and `Product.media` ORM relationships
+- **Fix:** RLS blocked `BusinessMember` query during `_issue_tokens` — resolved by setting `app.user_id` session var before querying memberships
+- **Fix:** Router used uppercase role name strings (`OWNER`, `ADMIN`) — corrected to match `RoleType` constants (`owner`, `staff`, `platform_admin`)
+- **Fix:** `MissingGreenlet` error during Pydantic response serialization of nested relationships — resolved by declaring `lazy='selectin'` on ORM relationship attributes
+
+## 2026-08-08
+- Feat: Completed Businesses vertical slice across backend and frontend (Service pattern, TS checks passed, React components wired)
+- Feat: Completed Customers vertical slice (CRUD, RLS tests, animated lists)
+- Started Authentication vertical slice (Phase 2) - backend setup and tests passing

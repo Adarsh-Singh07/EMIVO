@@ -34,8 +34,8 @@ class OpenRouterProvider(AIProvider):
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "HTTP-Referer": "https://emivo.vercel.app",  # Adjust for production
-            "X-Title": "EMIVO Platform",
+            "HTTP-Referer": "https://elektrix.in",
+            "X-Title": "ELEKTRIX Platform",
         }
 
         payload = {

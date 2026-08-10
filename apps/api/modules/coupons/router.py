@@ -1,95 +1,136 @@
-from fastapi import APIRouter, Depends, Header, status
-from sqlalchemy.orm import Session
+from typing import Optional
+from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.database import get_db
-
-from .schemas import (
-    Coupon,
+from core.database import get_db_session
+from core.dependencies import set_db_context, require_roles
+from modules.coupons.schemas import (
     CouponCreate,
     CouponUpdate,
+    CouponResponse,
+    PaginatedCouponsResponse,
     CouponValidateRequest,
     CouponValidateResponse,
+    CouponApplyRequest,
 )
-from .service import CouponService
+from modules.coupons.service import CouponService
 
 router = APIRouter(prefix="/coupons", tags=["coupons"])
 
 
-@router.post("", response_model=Coupon, status_code=status.HTTP_201_CREATED)
-def create_coupon(
-    coupon_data: CouponCreate,
-    x_tenant_id: str = Header(..., alias="X-Tenant-Id"),
-    db: Session = Depends(get_db),
+async def get_coupon_service(
+    db: AsyncSession = Depends(set_db_context)
+) -> CouponService:
+    return CouponService(db)
+
+
+@router.post(
+    "/",
+    response_model=CouponResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_roles(["owner", "staff", "platform_admin"]))]
+)
+async def create_coupon(
+    coupon_in: CouponCreate,
+    service: CouponService = Depends(get_coupon_service),
 ):
     """
-    Create a new coupon (Admin)
+    Create a new coupon.
     """
-    service = CouponService(db)
-    return service.create_coupon(coupon_data, x_tenant_id)
+    return await service.create_coupon(coupon_in)
 
 
-@router.get("", response_model=list[Coupon])
-def list_coupons(
-    skip: int = 0,
-    limit: int = 100,
-    x_tenant_id: str = Header(..., alias="X-Tenant-Id"),
-    db: Session = Depends(get_db),
+@router.get(
+    "/",
+    response_model=PaginatedCouponsResponse,
+    dependencies=[Depends(require_roles(["owner", "staff", "platform_admin"]))]
+)
+async def list_coupons(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    service: CouponService = Depends(get_coupon_service),
 ):
     """
-    List coupons for tenant
+    List coupons with pagination.
     """
-    service = CouponService(db)
-    return service.list_coupons(x_tenant_id, skip=skip, limit=limit)
+    return await service.list_coupons(page=page, page_size=page_size)
 
 
-@router.post("/validate", response_model=CouponValidateResponse)
-def validate_coupon(
-    req: CouponValidateRequest,
-    x_tenant_id: str = Header(..., alias="X-Tenant-Id"),
-    db: Session = Depends(get_db),
-):
-    """
-    Validate a coupon code and calculate discount
-    """
-    service = CouponService(db)
-    return service.validate_coupon(req, x_tenant_id)
-
-
-@router.get("/{coupon_id}", response_model=Coupon)
-def get_coupon(
+@router.get(
+    "/{coupon_id}",
+    response_model=CouponResponse,
+    dependencies=[Depends(require_roles(["owner", "staff", "platform_admin"]))]
+)
+async def get_coupon(
     coupon_id: str,
-    x_tenant_id: str = Header(..., alias="X-Tenant-Id"),
-    db: Session = Depends(get_db),
+    service: CouponService = Depends(get_coupon_service),
 ):
     """
-    Get coupon details
+    Get coupon details by ID.
     """
-    service = CouponService(db)
-    return service.get_coupon(coupon_id, x_tenant_id)
+    return await service.get_coupon(coupon_id=coupon_id)
 
 
-@router.patch("/{coupon_id}", response_model=Coupon)
-def update_coupon(
+@router.patch(
+    "/{coupon_id}",
+    response_model=CouponResponse,
+    dependencies=[Depends(require_roles(["owner", "staff", "platform_admin"]))]
+)
+async def update_coupon(
     coupon_id: str,
     update_data: CouponUpdate,
-    x_tenant_id: str = Header(..., alias="X-Tenant-Id"),
-    db: Session = Depends(get_db),
+    service: CouponService = Depends(get_coupon_service),
 ):
     """
-    Update a coupon
+    Update coupon fields.
     """
-    service = CouponService(db)
-    return service.update_coupon(coupon_id, update_data, x_tenant_id)
+    return await service.update_coupon(coupon_id=coupon_id, update_data=update_data)
 
 
-@router.delete("/{coupon_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_coupon(
+@router.delete(
+    "/{coupon_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_roles(["owner", "platform_admin"]))]
+)
+async def delete_coupon(
     coupon_id: str,
-    x_tenant_id: str = Header(..., alias="X-Tenant-Id"),
-    db: Session = Depends(get_db),
+    service: CouponService = Depends(get_coupon_service),
 ):
     """
-    Delete (soft-delete) a coupon
+    Soft-delete a coupon.
     """
-    service = CouponService(db)
-    service.delete_coupon(coupon_id, x_tenant_id)
+    await service.delete_coupon(coupon_id=coupon_id)
+
+
+@router.post(
+    "/validate",
+    response_model=CouponValidateResponse,
+    dependencies=[Depends(require_roles(["owner", "staff", "platform_admin"]))]
+)
+async def validate_coupon(
+    req: CouponValidateRequest,
+    service: CouponService = Depends(get_coupon_service),
+):
+    """
+    Validate a coupon code against a cart subtotal and user.
+    """
+    return await service.validate_coupon(req)
+
+
+@router.post(
+    "/apply",
+    dependencies=[Depends(require_roles(["owner", "staff", "platform_admin"]))]
+)
+async def apply_coupon(
+    req: CouponApplyRequest,
+    service: CouponService = Depends(get_coupon_service),
+):
+    """
+    Apply coupon and record usage.
+    """
+    coupon, discount_amount = await service.apply_coupon(req)
+    return {
+        "coupon": coupon,
+        "discount_amount": discount_amount,
+        "message": "Coupon applied and usage recorded successfully"
+    }
