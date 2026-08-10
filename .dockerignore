@@ -1,0 +1,6 @@
+﻿.git
+node_modules
+.vercel
+.next
+.venv
+__pycache__

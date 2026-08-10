@@ -1,84 +1,221 @@
-﻿import { Building2, Save } from "lucide-react";
+"use client";
 
-export const metadata = {
-  title: "Business Settings | Emivo Admin",
-};
+import { useState, useEffect } from "react";
+import { fetchApi } from "@/lib/api-client";
+import { Settings, Save, Loader2, RefreshCw, AlertCircle, Shield, Globe } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { BRAND_CONFIG } from "@/config/branding";
+
+interface BusinessSettings {
+  id: string;
+  business_id: string;
+  config: {
+    currency?: string;
+    locale?: string;
+    theme?: {
+      primaryColor?: string;
+    };
+    branding?: {
+      logoUrl?: string;
+      companyName?: string;
+    };
+  };
+}
 
 export default function SettingsPage() {
+  const [settings, setSettings] = useState<BusinessSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Form states
+  const [currency, setCurrency] = useState("INR");
+  const [companyName, setCompanyName] = useState(BRAND_CONFIG.company.name);
+  const [primaryColor, setPrimaryColor] = useState("#f59e0b");
+
+  const loadSettings = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchApi<BusinessSettings>("/settings");
+      if (data) {
+        setSettings(data);
+        if (data.config?.currency) setCurrency(data.config.currency);
+        if (data.config?.branding?.companyName) setCompanyName(data.config.branding.companyName);
+        if (data.config?.theme?.primaryColor) setPrimaryColor(data.config.theme.primaryColor);
+      }
+    } catch (err: any) {
+      console.error("Failed to load settings:", err);
+      setError(err?.message || "Could not fetch business settings from ELEKTRIX API");
+      toast.error("Failed to load settings");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      const updatedConfig = {
+        ...(settings?.config || {}),
+        currency,
+        theme: {
+          ...(settings?.config?.theme || {}),
+          primaryColor,
+        },
+        branding: {
+          ...(settings?.config?.branding || {}),
+          companyName,
+        },
+      };
+
+      const data = await fetchApi<BusinessSettings>("/settings", {
+        method: "PUT",
+        body: JSON.stringify({ config: updatedConfig }),
+      });
+
+      setSettings(data);
+      toast.success("Business settings saved successfully");
+    } catch (err: any) {
+      console.error("Failed to save settings:", err);
+      toast.error(err?.message || "Failed to update business settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Business Settings</h2>
+    <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
+            <Settings className="w-8 h-8 text-amber-500" />
+            Account Settings
+          </h1>
+          <p className="text-neutral-400 text-sm mt-1">
+            Manage your tenant configuration and store parameters for {BRAND_CONFIG.name}.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={loadSettings}
+          disabled={loading}
+          className="border-neutral-800 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 self-start sm:self-auto"
+        >
+          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+          Reload
+        </Button>
       </div>
 
-      <div className="grid gap-6">
-        {/* Business Profile */}
-        <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-6 border-b border-gray-100 dark:border-gray-800 pb-4">
-            <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-              <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Business Profile</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Manage your business information and logic.</p>
-            </div>
+      {/* Error state */}
+      {error && (
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-red-950/40 border border-red-800/60 text-red-300">
+          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+          <p className="text-sm">{error}</p>
+        </div>
+      )}
+
+      {/* Form Card */}
+      <div className="rounded-2xl border border-neutral-800 bg-neutral-900/60 backdrop-blur-xl p-6 sm:p-8 shadow-xl">
+        {loading ? (
+          <div className="space-y-6 animate-pulse">
+            <div className="h-6 w-1/3 bg-neutral-800 rounded-md" />
+            <div className="h-12 w-full bg-neutral-800/50 rounded-xl" />
+            <div className="h-12 w-full bg-neutral-800/50 rounded-xl" />
           </div>
-          
-          <form className="space-y-5">
-            <div className="grid gap-4 sm:grid-cols-2">
+        ) : (
+          <form onSubmit={handleSave} className="space-y-6">
+            {/* General Info */}
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Globe className="w-5 h-5 text-amber-500" />
+                Store Branding & Information
+              </h2>
               <div className="space-y-2">
-                <label htmlFor="businessName" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Business Name
+                <label className="block text-sm font-medium text-neutral-300">
+                  Company / Store Name
                 </label>
                 <input
-                  id="businessName"
                   type="text"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white sm:text-sm"
-                  placeholder="Acme Corp"
-                  defaultValue="Emivo Stores"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  className="w-full h-11 px-4 rounded-xl bg-neutral-950 border border-neutral-800 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  required
                 />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="industry" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Industry
-                </label>
-                <select
-                  id="industry"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white sm:text-sm"
-                  defaultValue="retail"
-                >
-                  <option value="retail">Retail</option>
-                  <option value="software">Software</option>
-                  <option value="services">Services</option>
-                  <option value="other">Other</option>
-                </select>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="description" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Business Description
-              </label>
-              <textarea
-                id="description"
-                rows={4}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white sm:text-sm"
-                placeholder="Describe your business operations..."
-                defaultValue="E-commerce electronics retailer."
-              />
+            <hr className="border-neutral-800" />
+
+            {/* Currency & Financials */}
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Shield className="w-5 h-5 text-amber-500" />
+                Financial Configuration
+              </h2>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-neutral-300">
+                  Default Store Currency
+                </label>
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="w-full h-11 px-4 rounded-xl bg-neutral-950 border border-neutral-800 text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value="INR">INR (₹) — Indian Rupee</option>
+                  <option value="USD">USD ($) — US Dollar</option>
+                  <option value="EUR">EUR (€) — Euro</option>
+                  <option value="GBP">GBP (£) — British Pound</option>
+                </select>
+                <p className="text-xs text-neutral-500">
+                  All monetary values are calculated in integer minor units (paise / cents).
+                </p>
+              </div>
+            </div>
+
+            <hr className="border-neutral-800" />
+
+            {/* Theme Customization */}
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-white">Theme Accent Color</h2>
+              <div className="flex items-center gap-4">
+                <input
+                  type="color"
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  className="h-10 w-16 rounded-lg bg-neutral-950 border border-neutral-800 cursor-pointer p-1"
+                />
+                <span className="font-mono text-sm text-neutral-400">{primaryColor}</span>
+              </div>
             </div>
 
             <div className="pt-4 flex justify-end">
-              <button 
-                type="button" 
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium text-sm transition-colors shadow-sm"
+              <Button
+                type="submit"
+                disabled={saving}
+                className="bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold hover:from-amber-600 hover:to-orange-700 shadow-lg shadow-amber-500/20"
               >
-                <Save className="w-4 h-4" />
-                Save Changes
-              </button>
+                {saving ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <Save className="w-4 h-4" /> Save Settings
+                  </span>
+                )}
+              </Button>
             </div>
           </form>
-        </div>
+        )}
       </div>
     </div>
   );

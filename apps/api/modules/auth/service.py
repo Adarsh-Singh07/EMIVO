@@ -1,21 +1,24 @@
-import uuid
+import secrets
+import json
 from datetime import datetime, timedelta, timezone
 
 from jose import jwt
 from passlib.hash import argon2
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
 from core.exceptions import DomainException
+from core.redis import redis_manager
 from modules.auth.schemas import TokenResponse, UserCreate, UserLogin
-from modules.users.models import User
+from modules.users.models import User, BusinessMember, RoleType
 
 
 class AuthService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.pwd_context = argon2
+        self.redis = redis_manager.client
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         return self.pwd_context.verify(plain_password, hashed_password)
@@ -33,18 +36,17 @@ class AuthService:
             "exp": expire,
             "sub": str(subject),
             "roles": roles,
-            "jti": str(uuid.uuid4()),
+            "jti": secrets.token_hex(16),
         }
         if business_id:
             to_encode["business_id"] = business_id
 
         encoded_jwt = jwt.encode(
-            to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm
+            to_encode, settings.jwt_secret.get_secret_value(), algorithm=settings.jwt_algorithm
         )
         return encoded_jwt
 
     async def register_user(self, data: UserCreate) -> dict:
-        # Check existing user
         stmt = select(User).where(User.email == data.email)
         result = await self.session.execute(stmt)
         if result.scalar_one_or_none():
@@ -55,6 +57,8 @@ class AuthService:
             password_hash=self.get_password_hash(data.password),
             first_name=data.first_name,
             last_name=data.last_name,
+            is_active=True,
+            is_email_verified=False
         )
         self.session.add(user)
         await self.session.commit()
@@ -67,28 +71,104 @@ class AuthService:
         user = result.scalar_one_or_none()
 
         if not user or not self.verify_password(data.password, user.password_hash):
-            raise DomainException(
-                "Invalid credentials", code="UNAUTHORIZED", status_code=401
-            )
+            # To prevent timing attacks, always hash a dummy password if user not found, though passlib often handles this.
+            raise DomainException("Invalid credentials", code="UNAUTHORIZED", status_code=401)
+            
+        if user.deleted_at is not None:
+            raise DomainException("Account no longer exists", code="UNAUTHORIZED", status_code=401)
 
         if not user.is_active:
-            raise DomainException(
-                "Account is disabled", code="FORBIDDEN", status_code=403
-            )
+            raise DomainException("Account is disabled", code="FORBIDDEN", status_code=401)
 
-        # P0 Requirement: Issue MFA challenge if mfa_enabled here instead of returning tokens directly.
-        # For simplicity in this step, assume standard login passes.
+        return await self._issue_tokens(user)
+        
+    async def _issue_tokens(self, user: User, family_id: str = None) -> TokenResponse:
+        # Set RLS context so the business_members query is allowed
+        await self.session.execute(
+            text(f"SELECT set_config('app.user_id', '{user.id}', true)")
+        )
+        
+        # Load user roles from database (BusinessMember)
+        stmt = select(BusinessMember).where(BusinessMember.user_id == user.id)
+        result = await self.session.execute(stmt)
+        memberships = result.scalars().all()
+        
+        # Collect roles
+        roles = [m.role for m in memberships]
+        if not roles:
+            roles = [RoleType.CUSTOMER]
 
-        # Hardcoding roles = ['customer'] for MVP login standard path
-        roles = []
+            
         access_token = self.create_access_token(subject=user.id, roles=roles)
-
-        # P0 Requirement: Opaque rolling refresh tokens in Redis.
-        # (Redis client logic is pending, simulated token return)
-        refresh_token = str(uuid.uuid4())
+        
+        # Generate Refresh Token
+        if not family_id:
+            family_id = secrets.token_hex(16)
+            
+        token_value = secrets.token_hex(32)
+        refresh_token = f"{family_id}:{token_value}"
+        
+        redis_key = f"auth:family:{family_id}"
+        ttl_seconds = settings.refresh_token_expiration_days * 24 * 60 * 60
+        
+        await self.redis.hset(redis_key, mapping={
+            "token": refresh_token,
+            "user_id": user.id
+        })
+        await self.redis.expire(redis_key, ttl_seconds)
+        
+        # Track family for user (to allow revoking all sessions)
+        user_families_key = f"auth:user:{user.id}:families"
+        await self.redis.sadd(user_families_key, family_id)
+        await self.redis.expire(user_families_key, ttl_seconds)
 
         return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,
             expires_in=settings.jwt_expiration_minutes * 60,
         )
+
+    async def refresh_token(self, refresh_token: str) -> TokenResponse:
+        try:
+            family_id, token_value = refresh_token.split(":")
+        except ValueError:
+            raise DomainException("Invalid refresh token format", code="UNAUTHORIZED", status_code=401)
+            
+        redis_key = f"auth:family:{family_id}"
+        family_data = await self.redis.hgetall(redis_key)
+        
+        if not family_data:
+            raise DomainException("Invalid or expired refresh token", code="UNAUTHORIZED", status_code=401)
+            
+        stored_token = family_data.get("token")
+        user_id = family_data.get("user_id")
+        
+        if stored_token != refresh_token:
+            # REPLAY DETECTED! Token was already used and rotated. Invalidate entire family.
+            await self.redis.delete(redis_key)
+            if user_id:
+                await self.redis.srem(f"auth:user:{user_id}:families", family_id)
+            raise DomainException("Token reuse detected. Session invalidated.", code="UNAUTHORIZED", status_code=401)
+            
+        # Token is valid. Issue new pair.
+        stmt = select(User).where(User.id == user_id)
+        result = await self.session.execute(stmt)
+        user = result.scalar_one_or_none()
+        
+        if not user or not user.is_active:
+            raise DomainException("User is inactive or deleted", code="UNAUTHORIZED", status_code=401)
+            
+        return await self._issue_tokens(user, family_id=family_id)
+
+    async def logout(self, refresh_token: str) -> None:
+        try:
+            family_id, _ = refresh_token.split(":")
+            redis_key = f"auth:family:{family_id}"
+            family_data = await self.redis.hgetall(redis_key)
+            if family_data:
+                user_id = family_data.get("user_id")
+                await self.redis.delete(redis_key)
+                if user_id:
+                    await self.redis.srem(f"auth:user:{user_id}:families", family_id)
+        except ValueError:
+            pass # Invalid format, nothing to revoke

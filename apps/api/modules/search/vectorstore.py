@@ -1,7 +1,7 @@
 from typing import Any
 
-from apps.api.modules.search.interfaces import SearchResult, VectorStore
-from apps.api.modules.search.models import ProductEmbedding
+from modules.search.interfaces import SearchResult, VectorStore
+from modules.search.models import ProductEmbedding
 from sqlalchemy import and_, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 

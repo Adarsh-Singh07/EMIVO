@@ -1,6 +1,5 @@
 from datetime import datetime
-from typing import Any
-
+from typing import Any, List, Optional
 from pydantic import BaseModel, Field
 
 from modules.orders.models import OrderStatus
@@ -13,37 +12,36 @@ class Address(BaseModel):
     state: str = Field(..., min_length=2, max_length=100)
     postal_code: str = Field(..., min_length=3, max_length=20)
     country: str = Field(..., min_length=2, max_length=2)
-    phone: str | None = Field(None, max_length=20)
+    phone: Optional[str] = Field(None, max_length=20)
 
 
 class OrderItemCreate(BaseModel):
     product_id: str = Field(..., min_length=36, max_length=36)
-    variant_id: str | None = Field(None, min_length=36, max_length=36)
+    variant_id: Optional[str] = Field(None, min_length=36, max_length=36)
     quantity: int = Field(..., gt=0)
-    # The client shouldn't send prices; the server calculates them from product data,
-    # but for this MVP API contract we might accept them or calculate them.
-    # Assuming server calculates.
 
 
 class OrderCreate(BaseModel):
-    idempotency_key: str = Field(..., min_length=5, max_length=255)
-    shipping_address: Address
-    billing_address: Address | None = None
-    items: list[OrderItemCreate] = Field(..., min_length=1)
-    metadata_info: dict[str, Any] | None = None
+    customer_id: Optional[str] = Field(None, min_length=36, max_length=36)
+    idempotency_key: Optional[str] = Field(None, max_length=255)
+    shipping_address: Optional[Address] = None
+    billing_address: Optional[Address] = None
+    items: List[OrderItemCreate] = Field(..., min_length=1)
+    notes: Optional[str] = Field(None, max_length=1000)
+    metadata_info: Optional[dict[str, Any]] = None
 
 
 class OrderItemResponse(BaseModel):
     id: str
     product_id: str
-    variant_id: str | None
+    variant_id: Optional[str] = None
     quantity: int
     unit_price: int
     subtotal: int
     tax: int
     total: int
     product_name: str
-    variant_name: str | None
+    variant_name: Optional[str] = None
     created_at: datetime
 
     class Config:
@@ -53,6 +51,7 @@ class OrderItemResponse(BaseModel):
 class OrderResponse(BaseModel):
     id: str
     user_id: str
+    customer_id: Optional[str] = None
     business_id: str
     status: OrderStatus
     idempotency_key: str
@@ -63,11 +62,12 @@ class OrderResponse(BaseModel):
     total: int
     currency: str
     shipping_address: dict
-    billing_address: dict | None
-    metadata_info: dict | None
+    billing_address: Optional[dict] = None
+    notes: Optional[str] = None
+    metadata_info: Optional[dict] = None
     created_at: datetime
     updated_at: datetime
-    items: list[OrderItemResponse]
+    items: List[OrderItemResponse]
 
     class Config:
         from_attributes = True
@@ -75,4 +75,13 @@ class OrderResponse(BaseModel):
 
 class OrderStatusUpdate(BaseModel):
     status: OrderStatus
-    reason: str | None = None
+    reason: Optional[str] = Field(None, max_length=500)
+
+
+class PaginatedOrdersResponse(BaseModel):
+    items: List[OrderResponse]
+    total: int
+    page: int
+    page_size: int
+    has_next: bool
+    has_prev: bool

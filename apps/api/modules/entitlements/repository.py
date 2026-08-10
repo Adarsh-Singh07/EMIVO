@@ -1,7 +1,7 @@
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+
 from .models import SubscriptionPlan, UsageMeter
-from .schemas import TenantPlan, UsageMetrics
 
 
 class EntitlementsRepository:

@@ -1,6 +1,5 @@
 from .models import Cart, CartItem
 from .router import router
-from .schemas import Cart as CartSchema
-from .schemas import CartCreate
+from .schemas import CartResponse as CartSchema, CartResponse, CartCreate
 
-__all__ = ["Cart", "CartCreate", "CartItem", "CartSchema", "router"]
+__all__ = ["Cart", "CartCreate", "CartItem", "CartSchema", "CartResponse", "router"]

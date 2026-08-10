@@ -1,9 +1,10 @@
-﻿import asyncio
+import asyncio
 import json
 import logging
 from redis.asyncio import Redis
 
 logger = logging.getLogger(__name__)
+
 
 class AnalyticsWorker:
     def __init__(self, redis_url: str):
@@ -12,17 +13,19 @@ class AnalyticsWorker:
         self.group_name = "analytics_group"
         self.consumer_name = "analytics_worker_1"
         self.running = False
-        
+
     async def connect(self):
         self.redis = Redis.from_url(self.redis_url, decode_responses=True)
-        
+
     async def disconnect(self):
         if self.redis:
             await self.redis.close()
 
     async def _ensure_group(self, stream_key: str):
         try:
-            await self.redis.xgroup_create(stream_key, self.group_name, id="0", mkstream=True)
+            await self.redis.xgroup_create(
+                stream_key, self.group_name, id="0", mkstream=True
+            )
         except Exception as e:
             if "BUSYGROUP" not in str(e):
                 logger.error(f"Error creating consumer group for {stream_key}: {e}")
@@ -32,7 +35,9 @@ class AnalyticsWorker:
         keys = []
         cursor = "0"
         while cursor != 0:
-            cursor, partial_keys = await self.redis.scan(cursor, match="tenant:*:analytics:events", count=100)
+            cursor, partial_keys = await self.redis.scan(
+                cursor, match="tenant:*:analytics:events", count=100
+            )
             keys.extend(partial_keys)
         return keys
 
@@ -41,7 +46,7 @@ class AnalyticsWorker:
         for message_id, payload in messages:
             event_type = payload.get("event_type")
             data_str = payload.get("data")
-            
+
             if data_str:
                 try:
                     data = json.loads(data_str)
@@ -51,18 +56,20 @@ class AnalyticsWorker:
                     aggregations.append({"event_type": event_type, "data": data})
                 except json.JSONDecodeError:
                     logger.error(f"Failed to decode message data: {data_str}")
-            
+
             # Acknowledge the message
             await self.redis.xack(stream_key, self.group_name, message_id)
-            
+
         if aggregations:
             # Pseudo DB flush via async batch
-            logger.info(f"Flushed {len(aggregations)} analytics events to DB for {stream_key}")
+            logger.info(
+                f"Flushed {len(aggregations)} analytics events to DB for {stream_key}"
+            )
 
     async def run_loop(self):
         self.running = True
         logger.info("Starting analytics worker loop")
-        
+
         while self.running:
             try:
                 stream_keys = await self.get_tenant_streams()
@@ -77,11 +84,7 @@ class AnalyticsWorker:
 
                 # Read from all streams
                 results = await self.redis.xreadgroup(
-                    self.group_name,
-                    self.consumer_name,
-                    streams,
-                    count=100,
-                    block=2000
+                    self.group_name, self.consumer_name, streams, count=100, block=2000
                 )
 
                 if not results:
@@ -90,8 +93,7 @@ class AnalyticsWorker:
                 for stream_key, messages in results:
                     if messages:
                         await self.process_messages(stream_key, messages)
-                        
+
             except Exception as e:
                 logger.error(f"Error in analytics worker loop: {e}")
                 await asyncio.sleep(5)
-

@@ -10,7 +10,7 @@ export default function Footer() {
             <div className="w-9 h-9 rounded-lg bg-white text-neutral-950 grid place-items-center font-bold">
               E
             </div>
-            <span className="text-2xl font-bold text-white">emivo</span>
+            <span className="text-2xl font-bold text-white">ELEKTRIX</span>
           </Link>
           <p className="mt-5 text-sm max-w-sm text-neutral-400">
             Premium electronics store bringing you the latest mobiles, laptops, appliances and audio
@@ -21,7 +21,7 @@ export default function Footer() {
               <Phone className="w-4 h-4" /> +91 98765 43210
             </div>
             <div className="flex items-center gap-2">
-              <Mail className="w-4 h-4" /> support@emivo.com
+              <Mail className="w-4 h-4" /> support@elektrix.in
             </div>
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4" /> Mumbai, India
@@ -98,7 +98,7 @@ export default function Footer() {
 
       <div className="border-t border-neutral-900">
         <div className="max-w-[1400px] mx-auto px-4 py-5 text-xs text-neutral-500 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <span>© {new Date().getFullYear()} EMIVO. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} ELEKTRIX. All rights reserved.</span>
           <span>Secured by VISA · MasterCard · UPI · Netbanking · COD</span>
         </div>
       </div>

@@ -1,168 +1,219 @@
-from fastapi import HTTPException
-from sqlalchemy.orm import Session
+from typing import Optional, Tuple
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..products.models import Product, ProductVariant
-from ..products.repository import ProductRepository
-from .models import Cart
-from .repository import CartRepository
-from .schemas import CartCreate, CartItemCreate, CartItemUpdate
+from core.exceptions import DomainException
+from modules.carts.models import Cart, CartItem
+from modules.carts.repository import CartRepository
+from modules.carts.schemas import CartCreate, CartItemCreate, CartItemUpdate, CartResponse, CartItemResponse
+from modules.products.models import Product, ProductVariant
+from modules.products.repository import ProductRepository
 
 
 class CartService:
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
+        self.db = db
         self.repository = CartRepository(db)
         self.product_repository = ProductRepository(db)
 
-    def _calculate_subtotal(self, cart: Cart) -> int:
-        """Calculate cart subtotal in minor integer units based on current product prices"""
-        total = 0
-
-        # We need to refresh items or query directly to get prices
-        for item in cart.items:
-            product, variant = self._get_product_and_variant(
-                item.product_id, item.variant_id
+    async def _get_current_business_id(self) -> str:
+        res = await self.db.execute(
+            text("SELECT NULLIF(current_setting('app.business_id', true), '')")
+        )
+        current_b_id = res.scalar()
+        if not current_b_id:
+            raise DomainException(
+                "Tenant context missing or invalid",
+                code="UNAUTHORIZED",
+                status_code=401
             )
-            if not product:
-                continue
+        return str(current_b_id)
 
-            price = variant.price if variant else product.price
-            # Applying discount pattern similar to products
-            discount = (
-                variant.discount
-                if variant and variant.discount
-                else (product.discount or 0)
-            )
-
-            final_price = price - discount
-            final_price = max(final_price, 0)
-
-            total += final_price * item.quantity
-
-        return total
-
-    def _get_product_and_variant(
-        self, product_id: str, variant_id: str | None
-    ) -> tuple[Product | None, ProductVariant | None]:
-        product = self.product_repository.get_by_id(product_id)
+    async def _get_product_and_variant(
+        self, product_id: str, variant_id: Optional[str]
+    ) -> Tuple[Optional[Product], Optional[ProductVariant]]:
+        product = await self.product_repository.get_by_id(product_id)
         if not product:
             return None, None
 
         variant = None
         if variant_id:
-            variant = self.product_repository.get_variant(variant_id)
+            variant = next(
+                (v for v in product.variants if v.id == variant_id),
+                None
+            )
 
         return product, variant
 
-    def get_or_create_cart(
-        self, tenant_id: str, user_id: str | None = None, session_id: str | None = None
-    ) -> Cart:
+    async def _calculate_subtotal(self, cart: Cart) -> int:
+        """Calculate cart subtotal in minor units based on current database prices."""
+        total = 0
+        for item in cart.items:
+            product, variant = await self._get_product_and_variant(
+                item.product_id, item.variant_id
+            )
+            if not product:
+                continue
+
+            unit_price = variant.price if variant else product.price
+            total += unit_price * item.quantity
+
+        return total
+
+    async def _build_cart_response(self, cart: Cart) -> CartResponse:
+        items_resp = []
+        for item in cart.items:
+            product, variant = await self._get_product_and_variant(
+                item.product_id, item.variant_id
+            )
+            unit_price = (variant.price if variant else product.price) if product else 0
+            subtotal = unit_price * item.quantity
+
+            items_resp.append(CartItemResponse(
+                id=item.id,
+                cart_id=item.cart_id,
+                product_id=item.product_id,
+                variant_id=item.variant_id,
+                quantity=item.quantity,
+                unit_price=unit_price,
+                subtotal=subtotal,
+                product_name=product.name if product else None,
+                variant_name=variant.name if variant else None,
+                created_at=item.created_at,
+                updated_at=item.updated_at
+            ))
+
+        return CartResponse(
+            id=cart.id,
+            business_id=cart.business_id,
+            user_id=cart.user_id,
+            session_id=cart.session_id,
+            subtotal=cart.subtotal,
+            expires_at=cart.expires_at,
+            items=items_resp,
+            created_at=cart.created_at,
+            updated_at=cart.updated_at
+        )
+
+    async def get_or_create_cart(
+        self, user_id: Optional[str] = None, session_id: Optional[str] = None
+    ) -> CartResponse:
+        business_id = await self._get_current_business_id()
+
         if not user_id and not session_id:
-            raise HTTPException(
-                status_code=400, detail="Either user_id or session_id must be provided"
+            raise DomainException(
+                "Either user_id or session_id must be provided",
+                code="BAD_REQUEST",
+                status_code=400
             )
 
         cart = None
         if user_id:
-            cart = self.repository.get_by_user(user_id, tenant_id)
+            cart = await self.repository.get_by_user(user_id)
 
         if not cart and session_id:
-            cart = self.repository.get_by_session(session_id, tenant_id)
+            cart = await self.repository.get_by_session(session_id)
 
         if not cart:
             cart_data = CartCreate(user_id=user_id, session_id=session_id)
-            cart = self.repository.create(cart_data, tenant_id)
+            created = await self.repository.create(cart_data, business_id)
+            cart_id = str(created.id)
+            await self.db.commit()
+            cart = await self.repository.get_by_id(cart_id)
 
-        return cart
+        return await self._build_cart_response(cart)
 
-    def get_cart(self, cart_id: str, tenant_id: str) -> Cart:
-        cart = self.repository.get_by_id(cart_id, tenant_id)
+    async def get_cart(self, cart_id: str) -> CartResponse:
+        cart = await self.repository.get_by_id(cart_id)
         if not cart:
-            raise HTTPException(status_code=404, detail="Cart not found")
-        return cart
+            raise DomainException("Cart not found", code="NOT_FOUND", status_code=404)
+        return await self._build_cart_response(cart)
 
-    def add_item(self, cart_id: str, tenant_id: str, item_data: CartItemCreate) -> Cart:
-        cart = self.get_cart(cart_id, tenant_id)
+    async def add_item(self, cart_id: str, item_data: CartItemCreate) -> CartResponse:
+        cart = await self.repository.get_by_id(cart_id)
+        if not cart:
+            raise DomainException("Cart not found", code="NOT_FOUND", status_code=404)
 
-        # Validate product and stock
-        product, variant = self._get_product_and_variant(
+        product, variant = await self._get_product_and_variant(
             item_data.product_id, item_data.variant_id
         )
 
         if not product:
-            raise HTTPException(status_code=404, detail="Product not found")
+            raise DomainException("Product not found", code="NOT_FOUND", status_code=404)
 
         if item_data.variant_id and not variant:
-            raise HTTPException(status_code=404, detail="Variant not found")
+            raise DomainException("Variant not found", code="NOT_FOUND", status_code=404)
 
-        # Check stock (simplified)
-        stock = variant.stock_quantity if variant else product.stock_quantity
-        if stock < item_data.quantity:
-            raise HTTPException(status_code=400, detail="Not enough stock")
-
-        # Check if item already exists
-        existing_item = self.repository.get_item_by_product(
+        existing_item = await self.repository.get_item_by_product(
             cart_id, item_data.product_id, item_data.variant_id
         )
 
         if existing_item:
             new_quantity = existing_item.quantity + item_data.quantity
-            if stock < new_quantity:
-                raise HTTPException(
-                    status_code=400, detail="Not enough stock for additional quantity"
-                )
-            self.repository.update_item_quantity(existing_item.id, new_quantity)
+            await self.repository.update_item_quantity(existing_item.id, new_quantity)
         else:
-            self.repository.add_item(cart_id, item_data)
+            await self.repository.add_item(cart_id, item_data)
 
-        # Recalculate subtotal
-        updated_cart = self.repository.get_by_id(cart_id, tenant_id)
-        subtotal = self._calculate_subtotal(updated_cart)
-        self.repository.update_subtotal(cart_id, subtotal)
+        await self.db.commit()
 
-        return self.repository.get_by_id(cart_id, tenant_id)
+        # Re-fetch cart with selectinload to update items & subtotal
+        updated_cart = await self.repository.get_by_id(cart_id)
+        subtotal = await self._calculate_subtotal(updated_cart)
+        await self.repository.update_subtotal(cart_id, subtotal)
+        await self.db.commit()
 
-    def update_item_quantity(
-        self, cart_id: str, item_id: str, tenant_id: str, update_data: CartItemUpdate
-    ) -> Cart:
-        cart = self.get_cart(cart_id, tenant_id)
+        refreshed = await self.repository.get_by_id(cart_id)
+        return await self._build_cart_response(refreshed)
 
-        item = self.repository.get_item(cart_id, item_id)
+    async def update_item_quantity(
+        self, cart_id: str, item_id: str, update_data: CartItemUpdate
+    ) -> CartResponse:
+        cart = await self.repository.get_by_id(cart_id)
+        if not cart:
+            raise DomainException("Cart not found", code="NOT_FOUND", status_code=404)
+
+        item = await self.repository.get_item(cart_id, item_id)
         if not item:
-            raise HTTPException(status_code=404, detail="Item not found in cart")
+            raise DomainException("Item not found in cart", code="NOT_FOUND", status_code=404)
 
-        # Validate stock
-        product, variant = self._get_product_and_variant(
-            item.product_id, item.variant_id
-        )
-        if product:
-            stock = variant.stock_quantity if variant else product.stock_quantity
-            if stock < update_data.quantity:
-                raise HTTPException(status_code=400, detail="Not enough stock")
+        await self.repository.update_item_quantity(item_id, update_data.quantity)
+        await self.db.commit()
 
-        self.repository.update_item_quantity(item_id, update_data.quantity)
+        updated_cart = await self.repository.get_by_id(cart_id)
+        subtotal = await self._calculate_subtotal(updated_cart)
+        await self.repository.update_subtotal(cart_id, subtotal)
+        await self.db.commit()
 
-        updated_cart = self.repository.get_by_id(cart_id, tenant_id)
-        subtotal = self._calculate_subtotal(updated_cart)
-        self.repository.update_subtotal(cart_id, subtotal)
+        refreshed = await self.repository.get_by_id(cart_id)
+        return await self._build_cart_response(refreshed)
 
-        return self.repository.get_by_id(cart_id, tenant_id)
+    async def remove_item(self, cart_id: str, item_id: str) -> CartResponse:
+        cart = await self.repository.get_by_id(cart_id)
+        if not cart:
+            raise DomainException("Cart not found", code="NOT_FOUND", status_code=404)
 
-    def remove_item(self, cart_id: str, item_id: str, tenant_id: str) -> Cart:
-        cart = self.get_cart(cart_id, tenant_id)
-
-        item = self.repository.get_item(cart_id, item_id)
+        item = await self.repository.get_item(cart_id, item_id)
         if not item:
-            raise HTTPException(status_code=404, detail="Item not found in cart")
+            raise DomainException("Item not found in cart", code="NOT_FOUND", status_code=404)
 
-        self.repository.remove_item(item_id)
+        await self.repository.remove_item(item_id)
+        await self.db.commit()
 
-        updated_cart = self.repository.get_by_id(cart_id, tenant_id)
-        subtotal = self._calculate_subtotal(updated_cart)
-        self.repository.update_subtotal(cart_id, subtotal)
+        updated_cart = await self.repository.get_by_id(cart_id)
+        subtotal = await self._calculate_subtotal(updated_cart)
+        await self.repository.update_subtotal(cart_id, subtotal)
+        await self.db.commit()
 
-        return self.repository.get_by_id(cart_id, tenant_id)
+        refreshed = await self.repository.get_by_id(cart_id)
+        return await self._build_cart_response(refreshed)
 
-    def clear_cart(self, cart_id: str, tenant_id: str) -> Cart:
-        cart = self.get_cart(cart_id, tenant_id)
-        self.repository.clear(cart_id)
-        return self.repository.get_by_id(cart_id, tenant_id)
+    async def clear_cart(self, cart_id: str) -> CartResponse:
+        cart = await self.repository.get_by_id(cart_id)
+        if not cart:
+            raise DomainException("Cart not found", code="NOT_FOUND", status_code=404)
+
+        await self.repository.clear(cart_id)
+        await self.db.commit()
+
+        refreshed = await self.repository.get_by_id(cart_id)
+        return await self._build_cart_response(refreshed)

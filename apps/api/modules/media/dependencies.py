@@ -8,7 +8,7 @@ r2_endpoint = os.getenv(
 )
 r2_access_key = os.getenv("R2_ACCESS_KEY_ID", "default_key")
 r2_secret_key = os.getenv("R2_SECRET_ACCESS_KEY", "default_secret")
-r2_bucket = os.getenv("R2_BUCKET_NAME", "emivo-media")
+r2_bucket = os.getenv("R2_BUCKET_NAME", "elektrix-media")
 
 media_adapter = S3CompatibleAdapter(
     endpoint_url=r2_endpoint, access_key=r2_access_key, secret_key=r2_secret_key

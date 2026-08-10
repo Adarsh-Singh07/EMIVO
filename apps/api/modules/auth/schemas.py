@@ -25,6 +25,10 @@ class TokenResponse(BaseModel):
     expires_in: int
 
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
 class UserResponse(UserBase):
     id: str
     is_active: bool

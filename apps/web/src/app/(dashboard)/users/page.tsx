@@ -1,14 +1,16 @@
-﻿import { Users, UserPlus, Search } from "lucide-react";
+import { Users, UserPlus, Search } from "lucide-react";
 
 export const metadata = {
-  title: "Tenant Users | Emivo Admin",
+  title: "Tenant Users | ELEKTRIX Admin",
 };
 
 export default function UsersPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Tenant Users</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+          Tenant Users
+        </h2>
         <button className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium text-sm transition-colors shadow-sm">
           <UserPlus className="w-4 h-4" />
           Add User
@@ -39,11 +41,21 @@ export default function UsersPage() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-gray-50 dark:bg-gray-800/50 text-gray-900 dark:text-gray-100 font-medium">
               <tr>
-                <th scope="col" className="px-6 py-3">Name</th>
-                <th scope="col" className="px-6 py-3">Email</th>
-                <th scope="col" className="px-6 py-3">Role</th>
-                <th scope="col" className="px-6 py-3">Status</th>
-                <th scope="col" className="px-6 py-3 text-right">Actions</th>
+                <th scope="col" className="px-6 py-3">
+                  Name
+                </th>
+                <th scope="col" className="px-6 py-3">
+                  Email
+                </th>
+                <th scope="col" className="px-6 py-3">
+                  Role
+                </th>
+                <th scope="col" className="px-6 py-3">
+                  Status
+                </th>
+                <th scope="col" className="px-6 py-3 text-right">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -54,10 +66,14 @@ export default function UsersPage() {
                     <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-700 dark:text-blue-300 font-semibold text-xs text-center leading-none pt-0.5">
                       AS
                     </div>
-                    <span className="font-medium text-gray-900 dark:text-gray-100">Adarsh Singh</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                      Adarsh Singh
+                    </span>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-gray-500 dark:text-gray-400">admin@emivo.com</td>
+                <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
+                  admin@elektrix.in
+                </td>
                 <td className="px-6 py-4">
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
                     Owner
@@ -69,7 +85,9 @@ export default function UsersPage() {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <button className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 font-medium">Edit</button>
+                  <button className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 font-medium">
+                    Edit
+                  </button>
                 </td>
               </tr>
               {/* Row 2 */}
@@ -79,10 +97,14 @@ export default function UsersPage() {
                     <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-700 dark:text-gray-300 font-semibold text-xs text-center leading-none pt-0.5">
                       JD
                     </div>
-                    <span className="font-medium text-gray-900 dark:text-gray-100">Jane Doe</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                      Jane Doe
+                    </span>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-gray-500 dark:text-gray-400">jane@emivo.com</td>
+                <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
+                  jane@elektrix.in
+                </td>
                 <td className="px-6 py-4">
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
                     Admin
@@ -94,7 +116,9 @@ export default function UsersPage() {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <button className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 font-medium">Edit</button>
+                  <button className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 font-medium">
+                    Edit
+                  </button>
                 </td>
               </tr>
               {/* Row 3 */}
@@ -104,10 +128,14 @@ export default function UsersPage() {
                     <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-700 dark:text-gray-300 font-semibold text-xs text-center leading-none pt-0.5">
                       BS
                     </div>
-                    <span className="font-medium text-gray-900 dark:text-gray-100">Bob Smith</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                      Bob Smith
+                    </span>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-gray-500 dark:text-gray-400">bob@emivo.com</td>
+                <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
+                  bob@elektrix.in
+                </td>
                 <td className="px-6 py-4">
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300">
                     Viewer
@@ -119,7 +147,9 @@ export default function UsersPage() {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <button className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 font-medium">Edit</button>
+                  <button className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 font-medium">
+                    Edit
+                  </button>
                 </td>
               </tr>
             </tbody>

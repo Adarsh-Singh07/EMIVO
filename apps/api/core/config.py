@@ -15,17 +15,26 @@ class Settings(BaseSettings):
     port: int = Field(default=8000, description="API port")
     log_level: str = Field(default="INFO", description="Logging level")
 
-    # CORS
-    cors_origins: list[str] = Field(
-        default=["http://localhost:3000"], description="Allowed CORS origins"
+    # CORS — stored as raw string, parsed at runtime via cors_origins_list property.
+    # Accepts comma-separated: "http://localhost:3000,http://localhost:3001"
+    # OR JSON array: '["http://localhost:3000"]'
+    cors_origins: str = Field(
+        default="http://localhost:3000",
+        description="Comma-separated (or JSON array) allowed CORS origins",
     )
 
-    @field_validator("cors_origins", mode="before")
-    @classmethod
-    def assemble_cors_origins(cls, v: str | list[str]) -> list[str]:
-        if isinstance(v, str):
-            return [i.strip() for i in v.split(",") if i.strip()]
-        return v
+    @property
+    def cors_origins_list(self) -> list[str]:
+        import json
+        v = self.cors_origins.strip()
+        if v.startswith("["):
+            try:
+                return json.loads(v)
+            except Exception:
+                pass
+        return [i.strip() for i in v.split(",") if i.strip()]
+
+
 
     @field_validator("env_name")
     @classmethod
@@ -64,7 +73,7 @@ class Settings(BaseSettings):
 
     # Model Config
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore", case_sensitive=False
+        env_file=("../../.env", "../.env", ".env"), env_file_encoding="utf-8", extra="ignore", case_sensitive=False
     )
 
     @property

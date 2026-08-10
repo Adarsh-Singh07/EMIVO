@@ -1,6 +1,7 @@
 import uuid
 
-from sqlalchemy import Boolean, ForeignKey, String
+import sqlalchemy as sa
+from sqlalchemy import Boolean, ForeignKey, String, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.models import Base, SoftDeleteMixin, TimestampMixin
@@ -27,6 +28,11 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     # Optional MFA
     mfa_secret: Mapped[str | None] = mapped_column(String(100), nullable=True)
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Saved addresses and wishlist stored as JSON arrays
+    addresses: Mapped[list | None] = mapped_column(sa.JSON, nullable=True, default=list)
+    wishlist: Mapped[list | None] = mapped_column(sa.JSON, nullable=True, default=list)
+
 
 
 class RoleType:

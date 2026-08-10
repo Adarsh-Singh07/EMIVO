@@ -22,7 +22,7 @@ export type Coupon = {
 };
 
 export const COUPONS: Record<string, Coupon> = {
-  EMIVO10: { type: "percent", value: 10, label: "10% off entire order" },
+  ELEKTRIX10: { type: "percent", value: 10, label: "10% off entire order" },
   SAVE500: { type: "flat", value: 500, label: "₹500 flat off (min ₹3,000)", min: 3000 },
   WELCOME: { type: "flat", value: 1000, label: "₹1,000 off (min ₹5,000)", min: 5000 },
   FREESHIP: { type: "ship", value: 0, label: "Free shipping on any order" },
@@ -109,11 +109,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // Rehydrate from localStorage on mount (avoid SSR mismatch).
   useEffect(() => {
     try {
-      const s = localStorage.getItem("emivo_cart");
+      const s = localStorage.getItem("elektrix_cart");
       if (s) setItems(JSON.parse(s));
-      const c = localStorage.getItem("emivo_coupon");
+      const c = localStorage.getItem("elektrix_coupon");
       if (c) setCouponCode(c);
-      const a = localStorage.getItem("emivo_address");
+      const a = localStorage.getItem("elektrix_address");
       if (a) setAddress(JSON.parse(a));
     } catch (e) {
       /* ignore corrupted storage */
@@ -122,15 +122,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (hydrated) localStorage.setItem("emivo_cart", JSON.stringify(items));
+    if (hydrated) localStorage.setItem("elektrix_cart", JSON.stringify(items));
   }, [items, hydrated]);
 
   useEffect(() => {
-    if (hydrated) localStorage.setItem("emivo_coupon", couponCode);
+    if (hydrated) localStorage.setItem("elektrix_coupon", couponCode);
   }, [couponCode, hydrated]);
 
   useEffect(() => {
-    if (hydrated && address) localStorage.setItem("emivo_address", JSON.stringify(address));
+    if (hydrated && address) localStorage.setItem("elektrix_address", JSON.stringify(address));
   }, [address, hydrated]);
 
   const add = useCallback((product: AddableProduct, qty = 1) => {

@@ -1,11 +1,11 @@
-﻿'use client';
+﻿"use client";
 
-import React, { useState } from 'react';
-import { Search } from 'lucide-react';
-import Link from 'next/link';
+import React, { useState } from "react";
+import { Search } from "lucide-react";
+import Link from "next/link";
 
 export function SearchBox() {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -16,13 +16,15 @@ export function SearchBox() {
     setIsSearching(true);
     try {
       // Mock search for now, to be integrated with API vector queries
-      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(
+        `/api/search?q=${encodeURIComponent(query)}`,
+      );
       if (response.ok) {
         const data = await response.json();
         setResults(data.products || []);
       }
     } catch (error) {
-      console.error('Search failed:', error);
+      console.error("Search failed:", error);
     } finally {
       setIsSearching(false);
     }
@@ -43,7 +45,7 @@ export function SearchBox() {
           className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-primary transition-colors"
           disabled={isSearching}
         >
-          <Search size={20} className={isSearching ? 'animate-pulse' : ''} />
+          <Search size={20} className={isSearching ? "animate-pulse" : ""} />
         </button>
       </form>
 
@@ -56,8 +58,12 @@ export function SearchBox() {
                   href={`/product/${product.id}`}
                   className="px-4 py-3 hover:bg-zinc-50 rounded-xl transition-colors flex justify-between items-center group"
                 >
-                  <span className="text-sm font-medium text-zinc-900 group-hover:text-primary transition-colors">{product.name}</span>
-                  <span className="text-sm font-bold text-zinc-900">${product.price?.toFixed(2)}</span>
+                  <span className="text-sm font-medium text-zinc-900 group-hover:text-primary transition-colors">
+                    {product.name}
+                  </span>
+                  <span className="text-sm font-bold text-zinc-900">
+                    ${product.price?.toFixed(2)}
+                  </span>
                 </Link>
               </li>
             ))}

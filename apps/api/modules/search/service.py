@@ -1,6 +1,6 @@
 from typing import Any
 
-from apps.api.modules.search.interfaces import SearchProvider, VectorStore
+from modules.search.interfaces import SearchProvider, VectorStore
 
 
 class SemanticSearchService(SearchProvider):

@@ -23,7 +23,7 @@ const SUGGESTIONS = [
 const WELCOME: Msg = {
   id: 0,
   role: "assistant",
-  text: "Hi! I'm Emi, EMIVO's AI shopping assistant. Ask me about products, EMI options or delivery — or tap a suggestion below to get started.",
+  text: "Hi! I'm Emi, ELEKTRIX's AI shopping assistant. Ask me about products, EMI options or delivery — or tap a suggestion below to get started.",
 };
 
 export default function AiPage() {
@@ -44,7 +44,7 @@ export default function AiPage() {
       return {
         id: idRef.current++,
         role: "assistant",
-        text: "Great news — every product at EMIVO is available on No Cost EMI across 3, 6 or 12 months. You'll see the exact monthly instalments on each product page. Want me to shortlist something specific?",
+        text: "Great news — every product at ELEKTRIX is available on No Cost EMI across 3, 6 or 12 months. You'll see the exact monthly instalments on each product page. Want me to shortlist something specific?",
         href: "/shop",
         hrefLabel: "Browse all products",
       };
@@ -69,7 +69,7 @@ export default function AiPage() {
       return {
         id: idRef.current++,
         role: "assistant",
-        text: `Here are the top ${cat.name.toLowerCase()} at EMIVO — hand-picked and available on No Cost EMI:`,
+        text: `Here are the top ${cat.name.toLowerCase()} at ELEKTRIX — hand-picked and available on No Cost EMI:`,
         href: `/shop?category=${cat.slug}`,
         hrefLabel: `Shop ${cat.name}`,
       };

@@ -66,7 +66,7 @@ export default function ContactPage() {
         <aside className="space-y-4">
           {[
             { icon: Phone, label: "Call us", value: "+91 98765 43210", note: "Mon–Sat, 9am–9pm IST" },
-            { icon: Mail, label: "Email", value: "support@emivo.com", note: "Replies within 24 hours" },
+            { icon: Mail, label: "Email", value: "support@elektrix.in", note: "Replies within 24 hours" },
             { icon: MapPin, label: "Store", value: "Andheri East, Mumbai, India", note: "Walk-ins welcome" },
             { icon: Clock, label: "Support hours", value: "9:00 – 21:00 IST", note: "7 days a week" },
           ].map((c) => (

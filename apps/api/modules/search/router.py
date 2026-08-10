@@ -1,16 +1,16 @@
 from typing import Any
 
 # Adjust depends based on your auth/db conventions
-# from apps.api.database.session import get_db
-# from apps.api.modules.auth.dependencies import get_current_business
-from apps.api.modules.search.schemas import (
+# from core.dependencies import get_db_session
+# from modules.auth.dependencies import get_current_business
+from modules.search.schemas import (
     IndexProductRequest,
     SearchQuery,
     SearchResponse,
     SearchResponseItem,
 )
-from apps.api.modules.search.service import SemanticSearchService
-from apps.api.modules.search.vectorstore import PostgresVectorStore
+from modules.search.service import SemanticSearchService
+from modules.search.vectorstore import PostgresVectorStore
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 

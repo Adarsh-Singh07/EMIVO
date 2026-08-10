@@ -11,11 +11,11 @@ const VALUES = [
 export default function AboutPage() {
   return (
     <div className="max-w-[1100px] mx-auto px-4 sm:px-6 lg:px-8 py-16">
-      <p className="text-xs uppercase tracking-[0.2em] text-neutral-500 mb-3">About EMIVO</p>
-      <h1 className="text-4xl font-semibold tracking-tight mb-6">Premium electronics, without the premium markup.</h1>
-      <div className="prose max-w-none text-neutral-600 space-y-4">
+      <p className="text-xs uppercase tracking-[0.2em] text-neutral-500 mb-3">About ELEKTRIX</p>
+      <h1 className="text-4xl font-semibold tracking-tight mb-8">Hardware Built for Performance</h1>
+      <div className="prose prose-neutral max-w-none text-neutral-600 dark:text-neutral-400 space-y-4">
         <p>
-          EMIVO is an electronics store for people who care about what they carry, wear and plug in. We curate
+          ELEKTRIX is an electronics store for people who care about what they carry, wear and plug in. We curate
           mobiles, laptops, appliances, audio and wearables from the brands you trust — Apple, Samsung, Sony, JBL,
           Bose and more — and price them honestly.
         </p>

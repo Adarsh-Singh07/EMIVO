@@ -1,57 +1,92 @@
 from datetime import datetime, timezone
+from typing import Optional, Tuple, List
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from fastapi import HTTPException
-from sqlalchemy.orm import Session
-
-from .models import Coupon, DiscountType
-from .repository import CouponRepository
-from .schemas import (
+from core.exceptions import DomainException
+from modules.coupons.models import Coupon, DiscountType
+from modules.coupons.repository import CouponRepository
+from modules.coupons.schemas import (
     CouponCreate,
     CouponUpdate,
+    CouponResponse,
+    PaginatedCouponsResponse,
     CouponValidateRequest,
     CouponValidateResponse,
+    CouponApplyRequest,
 )
 
 
 class CouponService:
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
+        self.db = db
         self.repository = CouponRepository(db)
 
-    def create_coupon(self, coupon_data: CouponCreate, tenant_id: str) -> Coupon:
-        existing = self.repository.get_by_code(coupon_data.code, tenant_id)
+    async def _get_current_business_id(self) -> str:
+        res = await self.db.execute(
+            text("SELECT NULLIF(current_setting('app.business_id', true), '')")
+        )
+        current_b_id = res.scalar()
+        if not current_b_id:
+            raise DomainException(
+                "Tenant context missing or invalid",
+                code="UNAUTHORIZED",
+                status_code=401
+            )
+        return str(current_b_id)
+
+    async def create_coupon(self, coupon_data: CouponCreate) -> Coupon:
+        business_id = await self._get_current_business_id()
+
+        existing = await self.repository.get_by_code(coupon_data.code)
         if existing:
-            raise HTTPException(
-                status_code=400, detail="Coupon code already exists for this tenant"
+            raise DomainException(
+                f"Coupon with code '{coupon_data.code.upper()}' already exists in this business",
+                code="DUPLICATE_RESOURCE",
+                status_code=409
             )
 
-        return self.repository.create(coupon_data, tenant_id)
+        coupon = await self.repository.create(coupon_data, business_id)
+        await self.db.commit()
+        return await self.repository.get_by_id(coupon.id)
 
-    def get_coupon(self, coupon_id: str, tenant_id: str) -> Coupon:
-        coupon = self.repository.get_by_id(coupon_id, tenant_id)
+    async def get_coupon(self, coupon_id: str) -> Coupon:
+        coupon = await self.repository.get_by_id(coupon_id)
         if not coupon:
-            raise HTTPException(status_code=404, detail="Coupon not found")
+            raise DomainException("Coupon not found", code="NOT_FOUND", status_code=404)
         return coupon
 
-    def list_coupons(
-        self, tenant_id: str, skip: int = 0, limit: int = 100
-    ) -> list[Coupon]:
-        return self.repository.get_all(tenant_id, skip=skip, limit=limit)
+    async def list_coupons(
+        self, page: int = 1, page_size: int = 20
+    ) -> PaginatedCouponsResponse:
+        items, total = await self.repository.list_coupons(page=page, page_size=page_size)
+        has_next = (page * page_size) < total
+        has_prev = page > 1
 
-    def update_coupon(
-        self, coupon_id: str, update_data: CouponUpdate, tenant_id: str
-    ) -> Coupon:
-        coupon = self.get_coupon(coupon_id, tenant_id)
-        updates = update_data.model_dump(exclude_unset=True)
-        return self.repository.update(coupon, updates)
+        return PaginatedCouponsResponse(
+            items=items,
+            total=total,
+            page=page,
+            page_size=page_size,
+            has_next=has_next,
+            has_prev=has_prev
+        )
 
-    def delete_coupon(self, coupon_id: str, tenant_id: str):
-        coupon = self.get_coupon(coupon_id, tenant_id)
-        self.repository.delete(coupon)
+    async def update_coupon(self, coupon_id: str, update_data: CouponUpdate) -> Coupon:
+        coupon = await self.get_coupon(coupon_id)
+        updated = await self.repository.update(coupon, update_data)
+        await self.db.commit()
+        return await self.repository.get_by_id(updated.id)
 
-    def validate_coupon(
-        self, req: CouponValidateRequest, tenant_id: str
+    async def delete_coupon(self, coupon_id: str) -> None:
+        coupon = await self.get_coupon(coupon_id)
+        await self.repository.soft_delete(coupon)
+        await self.db.commit()
+
+    async def validate_coupon(
+        self, req: CouponValidateRequest
     ) -> CouponValidateResponse:
-        coupon = self.repository.get_by_code(req.code, tenant_id)
+        coupon = await self.repository.get_by_code(req.code)
 
         if not coupon:
             return CouponValidateResponse(is_valid=False, message="Invalid coupon code")
@@ -74,8 +109,8 @@ class CouponService:
             )
 
         if req.user_id and coupon.per_user_limit:
-            user_count = self.repository.get_user_usage_count(
-                coupon.id, req.user_id, tenant_id
+            user_count = await self.repository.get_user_usage_count(
+                coupon.id, req.user_id
             )
             if user_count >= coupon.per_user_limit:
                 return CouponValidateResponse(
@@ -102,35 +137,35 @@ class CouponService:
         # Cannot exceed subtotal
         discount = min(discount, req.cart_subtotal)
 
+        coupon_resp = CouponResponse.model_validate(coupon)
+
         return CouponValidateResponse(
             is_valid=True,
-            coupon=coupon,
+            coupon=coupon_resp,
             discount_amount=discount,
             message="Coupon applied successfully",
         )
 
-    def apply_coupon(
-        self,
-        code: str,
-        user_id: str,
-        order_id: str | None,
-        cart_subtotal: int,
-        tenant_id: str,
-    ) -> tuple[Coupon, int]:
-        req = CouponValidateRequest(
-            code=code, cart_subtotal=cart_subtotal, user_id=user_id
+    async def apply_coupon(
+        self, req: CouponApplyRequest
+    ) -> Tuple[CouponResponse, int]:
+        business_id = await self._get_current_business_id()
+        val_req = CouponValidateRequest(
+            code=req.code, cart_subtotal=req.cart_subtotal, user_id=req.user_id
         )
-        res = self.validate_coupon(req, tenant_id)
+        res = await self.validate_coupon(val_req)
 
         if not res.is_valid or not res.coupon:
-            raise HTTPException(status_code=400, detail=res.message)
+            raise DomainException(res.message, code="BAD_REQUEST", status_code=400)
 
-        self.repository.record_usage(
+        await self.repository.record_usage(
             coupon_id=res.coupon.id,
-            user_id=user_id,
-            order_id=order_id,
+            user_id=req.user_id,
+            business_id=business_id,
+            order_id=req.order_id,
             discount_applied=res.discount_amount,
-            tenant_id=tenant_id,
         )
 
-        return res.coupon, res.discount_amount
+        await self.db.commit()
+        coupon = await self.repository.get_by_id(res.coupon.id)
+        return CouponResponse.model_validate(coupon), res.discount_amount

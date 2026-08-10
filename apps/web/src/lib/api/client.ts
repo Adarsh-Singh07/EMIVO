@@ -8,7 +8,7 @@ const api = axios.create({
   withCredentials: true,
 });
 
-api.interceptors.request.use((config) => {
+api.interceptors.request.use((config: any) => {
   // In a real app we attach the JWT Bearer here
   // config.headers.Authorization = Bearer 
   return config;

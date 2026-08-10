@@ -1,4 +1,5 @@
-from sqlalchemy import Column, String, Integer, Float, JSON, PrimaryKeyConstraint
+from sqlalchemy import JSON, Column, Float, Integer, PrimaryKeyConstraint, String
+
 from core.database import Base
 
 

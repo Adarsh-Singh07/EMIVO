@@ -1,5 +1,4 @@
-﻿# Production configuration for VM1
-# Hosts the API (modular monolith), web assistant, workers, redis, nginx, observability
+# Production Docker stack for ELEKTRIX (Oracle ARM VPS)
 services:
   nginx:
     image: nginx:alpine
@@ -12,14 +11,20 @@ services:
     depends_on:
       - api
       - web
+    restart: always
 
   api:
-    image: ghcr.io/emivo/api:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: ghcr.io/elektrix/api:${IMAGE_TAG:-latest}
     expose:
       - "8000"
+    env_file:
+      - .env
     environment:
-      - DB_URL=${DB_URL}
-      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
     deploy:
       replicas: 2
       update_config:
@@ -27,20 +32,24 @@ services:
         failure_action: rollback
         delay: 10s
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')"]
       interval: 10s
       timeout: 5s
       retries: 3
     depends_on:
       redis:
         condition: service_healthy
+    restart: always
 
   web:
-    image: ghcr.io/emivo/web:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: ghcr.io/elektrix/web:${IMAGE_TAG:-latest}
     expose:
       - "3000"
     environment:
-      - NEXT_PUBLIC_API_URL=https://api.emivo.com
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
     deploy:
       replicas: 2
       update_config:
@@ -48,22 +57,30 @@ services:
         failure_action: rollback
         delay: 10s
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/').then(r => r.ok ? process.exit(0) : process.exit(1))"]
       interval: 10s
       timeout: 5s
       retries: 3
+    restart: always
 
   workers:
-    image: ghcr.io/emivo/workers:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: apps/workers/Dockerfile
+    image: ghcr.io/elektrix/workers:${IMAGE_TAG:-latest}
+    env_file:
+      - .env
     environment:
-      - DB_URL=${DB_URL}
-      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - PYTHONPATH=/app/apps/api:/app/apps/workers
     deploy:
       mode: replicated
       replicas: 1
     depends_on:
       redis:
         condition: service_healthy
+    restart: always
 
   redis:
     image: redis:7-alpine
@@ -76,15 +93,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-
-  prometheus:
-    image: prom/prometheus:latest
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
+    restart: always
 
 volumes:
   redis_data:
-  prometheus_data:

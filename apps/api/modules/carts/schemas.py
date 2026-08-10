@@ -1,11 +1,11 @@
 from datetime import datetime
-
+from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
 class CartItemBase(BaseModel):
-    product_id: str
-    variant_id: str | None = None
+    product_id: str = Field(..., min_length=36, max_length=36)
+    variant_id: Optional[str] = Field(None, min_length=36, max_length=36)
     quantity: int = Field(default=1, ge=1)
 
 
@@ -17,9 +17,13 @@ class CartItemUpdate(BaseModel):
     quantity: int = Field(..., ge=1)
 
 
-class CartItem(CartItemBase):
+class CartItemResponse(CartItemBase):
     id: str
     cart_id: str
+    unit_price: Optional[int] = None
+    subtotal: Optional[int] = None
+    product_name: Optional[str] = None
+    variant_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -28,20 +32,20 @@ class CartItem(CartItemBase):
 
 
 class CartBase(BaseModel):
-    user_id: str | None = None
-    session_id: str | None = None
+    user_id: Optional[str] = None
+    session_id: Optional[str] = None
 
 
 class CartCreate(CartBase):
     pass
 
 
-class Cart(CartBase):
+class CartResponse(CartBase):
     id: str
-    tenant_id: str
-    subtotal: int = Field(default=0, description="Total in minor integer format")
-    expires_at: datetime | None = None
-    items: list[CartItem] = []
+    business_id: str
+    subtotal: int = Field(default=0, description="Subtotal in minor units")
+    expires_at: Optional[datetime] = None
+    items: List[CartItemResponse] = []
     created_at: datetime
     updated_at: datetime
 
