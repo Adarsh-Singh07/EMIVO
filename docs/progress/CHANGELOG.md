@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-08-11
+- **Milestone: ELEKTRIX v0.1 — PRODUCTION DEPLOYMENT & PIPELINE WIRING COMPLETE**
+  - **Docker Compose Production Topology**: Configured and deployed `compose.prod.vm1.yaml` on Oracle VPS (`161.118.254.169`) with double FastAPI replicas, Next.js storefront/admin portal web frontends, Nginx SSL proxying, and background workers.
+  - **Supabase regional connection poolers**: Changed database connections from Direct (IPv6 only) to Supavisor regional poolers (`aws-0-ap-south-1.pooler.supabase.com`) over IPv4 on port 6543 (transaction pooling) and 5432 (session pooling).
+  - **PgBouncer Transaction-Mode prepared statement fixes**: Added `statement_cache_size: 0` to client connection arguments in `database.py` and `env.py` to prevent duplicate prepared statement crashes on transaction poolers.
+  - **Healthchecks compatibility**: Replaced host-level binary health check logic with native python urllib (`urllib.request.urlopen`) for API and node fetch for Web in compose configuration.
+  - **Worker Import Fixes**: Added apps/api context copy to worker images build environment and set correct python search paths (`PYTHONPATH`) in workers service environment.
+  - **SSL Setup Automation**: Created `infra/scripts/setup_ssl.sh` script to automate Certbot Let's Encrypt certificates registration and Nginx hot-reloading when public DNS resolves. Generated bootstrap self-signed certificates.
+  - **Firewall Hardening**: Locked down VPS ports using OS-level `iptables` to restrict access solely to public ports `80`, `443`, and `22` (SSH), keeping port `8000` (FastAPI), `3000` (Next.js), `6379` (Redis), and `6543`/`5432` (Supabase poolers) internal and safe.
+
 ## 2026-08-10
 - **Milestone: ELEKTRIX v0.1 — FINAL ACCEPTANCE PASSED**
   - **Test UPI Mode Alert**: Added a sandbox warning callout inside `/checkout` for UPI options to clarify that no real money is processed.

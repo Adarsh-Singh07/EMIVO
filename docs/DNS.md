@@ -24,7 +24,7 @@ Below is the canonical list of DNS records to be created in the Cloudflare dashb
 | **CNAME** | `www` | `cname.vercel-dns.com` | **Proxied (Orange)** | Main customer storefront domain. |
 | **CNAME** | `admin` | `cname.vercel-dns.com` | **Proxied (Orange)** | Platform operator administrative portal. |
 | **CNAME** | `sell` | `cname.vercel-dns.com` | **Proxied (Orange)** | Business/seller management portal. |
-| **A** | `api` | `<Oracle_VPS_Public_IP>` | **Proxied (Orange)** | API Backend routed to the Oracle VPS. |
+| **A** | `api` | `161.118.254.169` | **Proxied (Orange)** | API Backend routed to the Oracle VPS. |
 | **TXT** | `_vercel` | `vc-domain-verify=...` | **DNS Only (Grey)** | Verification record issued by Vercel for domain ownership. |
 
 ---

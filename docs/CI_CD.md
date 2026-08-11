@@ -63,14 +63,9 @@ Vercel is linked directly to the GitHub repository for hosting the static Next.j
    - **Production Domain:** `elektrix.in` (and alias `www.elektrix.in`)
    - **Production Branch:** `main`
 
-2. **Project 2: Operator Admin Dashboard**
+2. **Project 2: Admin & Seller Portals**
    - **Repository Root:** `apps/web`
-   - **Production Domain:** `admin.elektrix.in`
-   - **Production Branch:** `main`
-
-3. **Project 3: Business/Seller Portal**
-   - **Repository Root:** `apps/web` *(Configured with conditional routing or scoped sub-pages until seller-specific interfaces are developed)*
-   - **Production Domain:** `sell.elektrix.in`
+   - **Production Domains:** `admin.elektrix.in`, `sell.elektrix.in` (mapped to the same Vercel project deployment in v0.1 as domain aliases)
    - **Production Branch:** `main`
 
 ### Environment Variable Scope

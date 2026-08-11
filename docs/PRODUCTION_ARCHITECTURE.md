@@ -50,9 +50,9 @@ All traffic destined for `elektrix.in` (and its subdomains) passes through Cloud
 
 ### B. Frontend Tier (Vercel)
 All three user-facing frontends are hosted on Vercel:
-1. **Customer Storefront (`elektrix.in` / `www.elektrix.in`):** Public-facing e-commerce UI built on Next.js 15. Responsive design based on the approved premium DEMO storefront aesthetic.
-2. **Platform Admin Portal (`admin.elektrix.in`):** Internal administrative panel for platform owners and operations staff. Polished using the ELEKTRIX light theme design language.
-3. **Business/Seller Portal (`sell.elektrix.in`):** Future dedicated workspace for sellers to manage inventory, fulfill orders, and inspect earnings. *Note: Core seller logic is mapped in the architecture; mock screens are strictly forbidden.*
+1. **Customer Storefront (`elektrix.in` / `www.elektrix.in`):** Public-facing e-commerce UI built on Next.js 15, deployed from the root directory `.`.
+2. **Platform Admin Portal (`admin.elektrix.in`):** Internal administrative panel for platform owners and operations staff, deployed from `apps/web`.
+3. **Business/Seller Portal (`sell.elektrix.in`):** Dedicated workspace for sellers. In v0.1, both `admin.elektrix.in` and `sell.elektrix.in` share the same Vercel deployment of the `apps/web` codebase. The application dynamically handles tenant scopes and permissions internally using role-based routing (e.g. platform admin, owner, staff).
 
 ### C. Backend Tier (Oracle ARM VPS)
 The Oracle ARM VPS runs Linux (Ubuntu Server) and orchestrates containerized services via `compose.prod.vm1.yaml`:

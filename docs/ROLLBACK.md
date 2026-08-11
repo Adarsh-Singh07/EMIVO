@@ -15,7 +15,7 @@ If a critical runtime error is discovered after deployment verification, execute
 
 1. **Revert Git Repository to Last Stable Commit:**
    ```bash
-   cd /app/elektrix
+   cd /opt/elektrix
    # Revert head
    git reset --hard HEAD~1
    ```

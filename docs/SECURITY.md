@@ -19,12 +19,12 @@ The FastAPI server is configured via root `.env` environment variables to only r
 
 ---
 
-## 2. Cookie Security Configuration
+## 2. Token Storage & Authentication Transport
 
-ELEKTRIX handles session authentication utilizing cookie-based JWT transport:
-- **`HttpOnly`**: Access and refresh token cookies must be marked `HttpOnly` to block client-side scripts from reading the payload.
-- **`Secure`**: Enforces SSL usage. Cookies are never transmitted over unencrypted HTTP.
-- **`SameSite`**: Set to **`Lax`** or **`Strict`**. Prevents CSRF attacks during navigation from third-party links.
+ELEKTRIX handles session authentication using header-based JWT transport with client-side cookie persistence:
+- **Authorization Header**: Client applications manually read tokens from local storage/cookies and attach them as `Authorization: Bearer <access_token>` headers. This prevents standard cross-site request forgery (CSRF) vulnerabilities as the browser does not automatically send authentication state with requests.
+- **Cookie Persistence**: Tokens are stored in browser cookies on the client side with `SameSite=Lax` and path restrictions, allowing session sharing across the domain.
+- **Token Rotation**: Refresh tokens are checked against a Redis token family blacklist to detect and block token replay attacks.
 
 ---
 

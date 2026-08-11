@@ -3,18 +3,18 @@
 ## Executive Summary
 This document provides a factual, evidence-backed status report of the ELEKTRIX platform. All architecture decisions (Modular Monolith) and tech stack components (Next.js 15, FastAPI, Supabase, Redis, Cloudflare R2) are frozen.
 
-**Last Updated:** 2026-08-10  
+**Last Updated:** 2026-08-11  
 **Official Product Name:** ELEKTRIX  
 **Official Domain:** https://elektrix.in  
 **Historical Note:** Formerly named EMIVO during initial scaffold phase  
-**Current Phase:** ELEKTRIX v0.1 — DEPLOYMENT ARCHITECTURE & CI/CD CONFIGURATION COMPLETE  
+**Current Phase:** ELEKTRIX v0.1 — PRODUCTION DEPLOYMENT & PIPELINE WIRING COMPLETE  
 **Master Regression Suite Status:** ✅ PASS (7/7 Suites Green — 100%) & Backend Regression (14/14 PASSED)  
 
 ---
 
 ## Infrastructure & Deployments
-- **Vercel Deployments**: Stores the three user-facing frontends: Customer Storefront (`elektrix.in`), Operator Portal (`admin.elektrix.in`), and Business Portal (`sell.elektrix.in`).
-- **Oracle ARM VPS:** Hosts backend services via Docker stack in `compose.prod.vm1.yaml` (verified valid via `docker compose config`).
+- **Vercel Deployments**: Stores the three user-facing frontends: Customer Storefront (`elektrix.in` from root `.`) and Admin/Seller Portal (`admin.elektrix.in` / `sell.elektrix.in` from `apps/web`).
+- **Oracle ARM VPS:** Hosts backend services (`161.118.254.169`) via Docker stack in `compose.prod.vm1.yaml` (verified valid via `docker compose config`).
 - **Nginx Reverse Proxy:** Upgraded in `infra/nginx/nginx.conf` (TLS 1.2/1.3, rate limiting, security headers, reverse proxy to the backend API `api.elektrix.in`).
 - **Zero-Downtime Deployment & Rollback:** Script in `infra/scripts/deploy_vps.sh` upgraded to verify live endpoints and execute fallback commands automatically.
 - **Supabase PostgreSQL:** Live production database with Row Level Security (RLS) policies applied (`db/rls/*.sql`).
@@ -56,7 +56,7 @@ This document provides a factual, evidence-backed status report of the ELEKTRIX 
 
 ## Frontend Integration & Verification Results
 
-### ✅ Complete & Production Ready (Phases 1 - 8)
+### ✅ Complete & Production Ready (Phases 1 - 9)
 
 1. **Phase 1 — Brand & Foundation:** Total brand transition to ELEKTRIX across UI, logos, and metadata. Implemented `lib/api-client.ts` (JWT client with cookie storage and automatic refresh token rotation), `lib/auth-context.tsx` (`AuthProvider` with login/register/logout/refreshUser), and wrapped `app/layout.tsx`.
 2. **Phase 2 — Authentication:** Integrated real login (`app/login/page.tsx`) and registration (`app/register/page.tsx` with auto-login following register). Updated `Header.tsx` to render live user avatar, dropdown menu, and sign-out action. Fixed environment CORS handling (`ENV_NAME=local`, comma-separated `CORS_ORIGINS`), `/users/me` endpoint mapping, register response handling (`UserResponse`), and refresh token logout body payload.
@@ -66,3 +66,4 @@ This document provides a factual, evidence-backed status report of the ELEKTRIX 
 6. **Phase 6 — Order Tracking**: Connected the order tracking input on `/order-tracking` directly to the FastAPI orders status endpoint to query the real order state.
 7. **Phase 7 — Admin Dashboard Visual Uniformity:** Redesigned all 11 dashboard routes of the admin app (`localhost:3001`), side navigation bar, headers, metrics cards, and Quick Operations control panel to conform to the shared light-themed ELEKTRIX brand identity.
 8. **Phase 8 — Quality Gate:** Verified 0 TypeScript errors across root and `apps/web`. Fixed `tsconfig.json` to exclude `apps/` from root compilation. Master regression suite 7/7 suites (196 assertions) 100% green.
+9. **Phase 9 — Production VPS Deployment & CD:** Configured multi-container Docker stack on Oracle VPS with double FastAPI replicas. Automated CD via SSH GitHub Action. Resolved transaction-mode connection pooler errors by disabling prepared statements cache (`statement_cache_size=0`). Restructured compose healthchecks using native interpreter calls. Provisioned bootstrap SSL and hardened the host firewall to only expose ports 80, 443, and 22. Verified all endpoints and database connections are fully healthy and live.
