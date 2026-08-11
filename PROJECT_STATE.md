@@ -1,15 +1,16 @@
 # ELEKTRIX - Project State
 
-## Current Phase: Production Deployment Architecture & CI/CD Configured (Frozen & Ready for Release)
+## Current Phase: Production Deployment & Pipeline Wiring Completed (Ready for Public Release)
 
-**Last Updated:** 2026-08-10  
-**Current Milestone:** ELEKTRIX v0.1 — DEPLOYMENT ARCHITECTURE & CI/CD COMPLETE  
-**Current Focus:** Verification of GitHub workflows, DNS planning, and VPS CD triggers  
+**Last Updated:** 2026-08-11  
+**Current Milestone:** ELEKTRIX v0.1 — PRODUCTION DEPLOYMENT & PIPELINE WIRING COMPLETE  
+**Current Focus:** DNS propagation, automated SSL certificate configuration, and final storefront wiring  
 **Product & Brand Name:** ELEKTRIX  
 **Official Domain:** https://elektrix.in  
 **Historical Note:** Formerly named EMIVO during initial scaffold phase  
 **Master Regression Suite Status:** ✅ 7/7 PASSED (100% Green, 196 assertions) & Backend Regression 14/14 PASSED  
-**Frontend Quality Status:** ✅ Next.js 15 App Router + React 19 + TypeCheck 0 errors (Storefront :3000 & Admin :3001) & Production Build PASS  
+**Frontend Quality Status:** ✅ Next.js 15 App Router + React 19 + TypeCheck 0 errors (Storefront & Admin) & Production Build PASS  
+**Production Stack Status:** ✅ ALL RUNNING & HEALTHY on VPS (FastAPI, Web, Workers, Redis, Nginx)
 
 
 ---
@@ -82,10 +83,11 @@
 - **Developer Control Center:** Upgraded `/preview` displaying dynamic Git commit hash (`#7baef7c`), Alembic schema (`39a4b12c8e1d`), CPU cores, disk space, and module matrix.
 - **System Health Diagnostics:** Upgraded `/health` & `/health/diagnostics` with live Supabase PostgreSQL RLS latency (1.7s), Redis ping (41ms), Alembic version, Git commit hash, and disk/CPU telemetry.
 - **Production Infrastructure & Docker:**
-  - `compose.dev.yaml` & `compose.prod.vm1.yaml` verified valid (`docker compose config`)
+  - `compose.dev.yaml` & `compose.prod.vm1.yaml` verified valid.
   - Nginx configuration: `infra/nginx/nginx.conf` updated to act as a reverse proxy for `api.elektrix.in` to the FastAPI backend with security headers and rate limits.
-  - VPS Deployment Script: `infra/scripts/deploy_vps.sh` upgraded to perform zero-downtime container pulls, migrations, health checks, and automated rollbacks on failure.
+  - SSL Setup Automation: `infra/scripts/setup_ssl.sh` created to automate Certbot Let's Encrypt certificate generation on DNS propagation.
+  - VPS Deployment Script: `infra/scripts/deploy_vps.sh` upgraded to perform zero-downtime local image building, migrations, Nginx health checks via hostname routing, and automated rollbacks on failure.
 - **GitHub Actions Workflows:**
   - `ci.yml` running validation of compilation, typechecks, tests, and compose configurations.
-  - `deploy-vps.yml` running automated SSH-based deployment triggers to the Oracle ARM VPS.
+  - `deploy-vps.yml` running automated SSH-based deployment triggers to the Oracle ARM VPS on push/merge to `main`.
 
