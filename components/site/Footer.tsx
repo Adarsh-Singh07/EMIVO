@@ -16,15 +16,25 @@ export default function Footer() {
             Premium electronics store bringing you the latest mobiles, laptops, appliances and audio
             gear with unbeatable prices and fast delivery.
           </p>
-          <div className="mt-6 space-y-2 text-sm">
+          <div className="mt-6 space-y-2.5 text-sm text-neutral-400">
             <div className="flex items-center gap-2">
-              <Phone className="w-4 h-4" /> +91 98765 43210
+              <Phone className="w-4 h-4 text-neutral-500" /> +91 98765 43210
             </div>
             <div className="flex items-center gap-2">
-              <Mail className="w-4 h-4" /> support@elektrix.in
+              <Mail className="w-4 h-4 text-neutral-500" /> support@elektrix.in
             </div>
-            <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4" /> Mumbai, India
+            <div className="flex items-start gap-2">
+              <MapPin className="w-4 h-4 text-neutral-500 mt-1 shrink-0" />
+              <div>
+                <span className="font-semibold text-white">APANA ENTERPRISES</span>
+                <br />
+                DS1, 109, Near Indian Petrol Pump,
+                <br />
+                Vijayipur, Gopalganj, Bihar - 841508
+              </div>
+            </div>
+            <div className="text-xs pt-1.5 text-neutral-500 font-mono">
+              GSTIN: 10COMPG4070G1ZB
             </div>
           </div>
         </div>
