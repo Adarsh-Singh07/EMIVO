@@ -18,7 +18,7 @@ export default function Footer() {
           </p>
           <div className="mt-6 space-y-2.5 text-sm text-neutral-400">
             <div className="flex items-center gap-2">
-              <Phone className="w-4 h-4 text-neutral-500" /> +91 98765 43210
+              <Phone className="w-4 h-4 text-neutral-500" /> +91 79059 35908
             </div>
             <div className="flex items-center gap-2">
               <Mail className="w-4 h-4 text-neutral-500" /> support@elektrix.in

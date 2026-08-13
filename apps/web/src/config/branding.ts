@@ -17,6 +17,7 @@ export const BRAND_CONFIG = {
     contactEmail: "hello@elektrix.in",
     address: "DS1, 109, Near Indian Petrol Pump, Vijayipur, Gopalganj, Bihar - 841508",
     gstNumber: "10COMPG4070G1ZB",
+    contactPhone: "+91 79059 35908",
   },
   assets: {
     iconLogo: "/branding/icon.svg",
