@@ -20,7 +20,7 @@ export default function AboutPage() {
           Bose and more — and price them honestly.
         </p>
         <p>
-          Founded in Mumbai, we started with a simple idea: buying great technology should feel as good as using it.
+          Founded in Gopalganj, Bihar, we started with a simple idea: buying great technology should feel as good as using it.
           No confusing price games, no pushy upsells. Just a tight catalog of products we would buy ourselves, backed
           by real warranties and support that actually picks up the phone.
         </p>

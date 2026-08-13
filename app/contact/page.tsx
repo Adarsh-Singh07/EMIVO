@@ -67,7 +67,7 @@ export default function ContactPage() {
           {[
             { icon: Phone, label: "Call us", value: "+91 98765 43210", note: "Mon–Sat, 9am–9pm IST" },
             { icon: Mail, label: "Email", value: "support@elektrix.in", note: "Replies within 24 hours" },
-            { icon: MapPin, label: "Store", value: "Andheri East, Mumbai, India", note: "Walk-ins welcome" },
+            { icon: MapPin, label: "Store Address", value: "DS1, 109, Near Indian Petrol Pump, Vijayipur, Gopalganj, Bihar - 841508", note: "APANA ENTERPRISES" },
             { icon: Clock, label: "Support hours", value: "9:00 – 21:00 IST", note: "7 days a week" },
           ].map((c) => (
             <div key={c.label} className="flex gap-4 rounded-2xl border border-neutral-100 bg-white p-5">

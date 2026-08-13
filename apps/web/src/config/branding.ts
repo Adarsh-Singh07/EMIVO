@@ -12,9 +12,11 @@ export const BRAND_CONFIG = {
   appUrl: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   apiUrl: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1",
   company: {
-    name: "ELEKTRIX Inc.",
+    name: "APANA ENTERPRISES",
     supportEmail: "support@elektrix.in",
     contactEmail: "hello@elektrix.in",
+    address: "DS1, 109, Near Indian Petrol Pump, Vijayipur, Gopalganj, Bihar - 841508",
+    gstNumber: "10COMPG4070G1ZB",
   },
   assets: {
     iconLogo: "/branding/icon.svg",
