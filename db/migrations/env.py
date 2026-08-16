@@ -21,6 +21,11 @@ from modules.coupons.models import Coupon, CouponUsage
 from modules.payments.models import Payment, PaymentEvent
 from modules.search.models import ProductEmbedding
 from modules.settings.models import BusinessSettings
+from modules.inventory.models import Inventory, InventoryMovement
+from modules.addresses.models import Address
+from modules.wishlist.models import WishlistItem
+from modules.notifications.models import Notification
+from modules.marketing.models import NewsletterSubscriber
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
