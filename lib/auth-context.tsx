@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { apiClient, setTokens, removeTokens, getAccessToken, getRefreshToken } from "./api-client";
+import { getCartSessionId, storeApi } from "./store-api";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -21,8 +22,6 @@ export interface User {
   last_name: string;
   role: "customer" | "staff" | "owner" | "platform_admin";
   is_active: boolean;
-  addresses?: any[];
-  wishlist?: string[];
 }
 
 interface LoginPayload {
@@ -96,6 +95,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refresh_token: string;
     }>("/auth/login", { email, password }, true);
     setTokens(data.access_token, data.refresh_token);
+
+    // Best-effort: merge any guest (session) cart into the account right after
+    // login. Failure is non-fatal — the user's cart simply stays as-is.
+    try {
+      const sessionId = getCartSessionId();
+      if (sessionId) await storeApi.mergeCart(sessionId);
+    } catch {
+      /* best-effort */
+    }
+
     // Fetch user profile after login
     const me = await apiClient.get<User>("/users/me");
     setUser(me);
@@ -112,6 +121,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refresh_token: string;
       }>("/auth/login", { email, password }, true);
       setTokens(tokenData.access_token, tokenData.refresh_token);
+
+      // Best-effort guest-cart merge (same as login).
+      try {
+        const sessionId = getCartSessionId();
+        if (sessionId) await storeApi.mergeCart(sessionId);
+      } catch {
+        /* best-effort */
+      }
+
       const me = await apiClient.get<User>("/users/me");
       setUser(me);
     },

@@ -58,6 +58,44 @@ const processQueue = (error: Error | null, token: string | null = null) => {
 };
 
 /* ------------------------------------------------------------------ */
+/* Errors                                                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Error thrown for non-2xx API responses. Carries the v0.2 error envelope
+ * (`{error, code, request_id}`) when present and falls back to the legacy
+ * `detail` field so older endpoints keep working.
+ */
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  requestId?: string;
+
+  constructor(message: string, status: number, code?: string, requestId?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+    this.requestId = requestId;
+  }
+}
+
+/** Parse an error response body into an ApiError (envelope-aware). */
+async function toApiError(response: Response): Promise<ApiError> {
+  const data = await response.json().catch(() => ({}) as Record<string, unknown>);
+  const message =
+    (typeof data.error === "string" && data.error) ||
+    (typeof data.detail === "string" && data.detail) ||
+    `Request failed: ${response.status}`;
+  return new ApiError(
+    message,
+    response.status,
+    typeof data.code === "string" ? data.code : undefined,
+    typeof data.request_id === "string" ? data.request_id : undefined
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Core fetch wrapper                                                  */
 /* ------------------------------------------------------------------ */
 
@@ -120,8 +158,7 @@ export async function fetchApi<T>(
               headers: retryHeaders,
             });
             if (!retryRes.ok) {
-              const err = await retryRes.json().catch(() => ({}));
-              throw new Error(err.detail || `Request failed: ${retryRes.status}`);
+              throw await toApiError(retryRes);
             }
             return retryRes.json();
           }
@@ -143,8 +180,7 @@ export async function fetchApi<T>(
   }
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || `Request failed: ${response.status}`);
+    throw await toApiError(response);
   }
 
   // Handle 204 No Content

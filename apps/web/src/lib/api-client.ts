@@ -27,6 +27,53 @@ const Cookies = {
   }
 };
 
+/** Error thrown for non-2xx API responses. Carries the v0.2 error envelope. */
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  requestId?: string;
+
+  constructor(message: string, status: number, code?: string, requestId?: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+    this.requestId = requestId;
+  }
+}
+
+async function parseError(response: Response): Promise<ApiError> {
+  const data = await response.json().catch(() => ({} as Record<string, unknown>));
+  // v0.2 envelope: {error, code, request_id}; fall back to FastAPI {detail} / field errors
+  let message =
+    (typeof data.error === 'string' && data.error) ||
+    (typeof data.detail === 'string' && data.detail) ||
+    '';
+  if (!message && Array.isArray(data.detail)) {
+    message = (data.detail as Array<Record<string, unknown>>)
+      .map((d) => {
+        const loc = Array.isArray(d.loc) ? d.loc.filter((p) => p !== 'body').join('.') : '';
+        return [loc, typeof d.msg === 'string' ? d.msg : ''].filter(Boolean).join(': ');
+      })
+      .filter(Boolean)
+      .join('; ');
+  }
+  if (!message) message = `Request failed with status ${response.status}`;
+  return new ApiError(
+    message,
+    response.status,
+    typeof data.code === 'string' ? data.code : undefined,
+    typeof data.request_id === 'string' ? data.request_id : undefined
+  );
+}
+
+async function parseBody<T>(response: Response): Promise<T> {
+  if (response.status === 204) return undefined as T;
+  const text = await response.text();
+  if (!text) return undefined as T;
+  return JSON.parse(text) as T;
+}
+
 let isRefreshing = false;
 let failedRequestsQueue: Array<{
   resolve: (token: string) => void;
@@ -79,10 +126,9 @@ export async function fetchApi<T>(
         newHeaders.set('Authorization', 'Bearer ' + newToken);
         return fetch(API_URL + endpoint, { ...options, headers: newHeaders }).then(async res => {
           if (!res.ok) {
-            const errorData = await res.json().catch(() => ({}));
-            throw new Error(errorData.detail || ('Request failed with status ' + res.status));
+            throw await parseError(res);
           }
-          return res.json();
+          return parseBody<T>(res);
         });
       });
     }
@@ -111,10 +157,9 @@ export async function fetchApi<T>(
             const retryResponse = await fetch(API_URL + endpoint, { ...options, headers: newHeaders });
 
             if (!retryResponse.ok) {
-              const errorData = await retryResponse.json().catch(() => ({}));
-              throw new Error(errorData.detail || ('Request failed with status ' + retryResponse.status));
+              throw await parseError(retryResponse);
             }
-            return retryResponse.json();
+            return parseBody<T>(retryResponse);
           }
         }
       } catch (refreshError) {
@@ -138,21 +183,21 @@ export async function fetchApi<T>(
     if (typeof window !== 'undefined') {
       window.location.href = '/login';
     }
-    throw new Error('Session expired. Please log in again.');
+    throw new ApiError('Session expired. Please log in again.', 401, 'SESSION_EXPIRED');
   }
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || ('Request failed with status ' + response.status));
+    throw await parseError(response);
   }
 
-  return response.json();
+  return parseBody<T>(response);
 }
 
 export const apiClient = {
   get: <T = any>(url: string, skipAuth = false) => fetchApi<T>(url, { method: 'GET' }, skipAuth),
   post: <T = any>(url: string, data: any, skipAuth = false) => fetchApi<T>(url, { method: 'POST', body: JSON.stringify(data) }, skipAuth),
   put: <T = any>(url: string, data: any, skipAuth = false) => fetchApi<T>(url, { method: 'PUT', body: JSON.stringify(data) }, skipAuth),
+  patch: <T = any>(url: string, data: any, skipAuth = false) => fetchApi<T>(url, { method: 'PATCH', body: JSON.stringify(data) }, skipAuth),
   delete: <T = any>(url: string, skipAuth = false) => fetchApi<T>(url, { method: 'DELETE' }, skipAuth),
 };
 

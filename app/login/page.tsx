@@ -18,7 +18,8 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const callbackUrl = searchParams.get("callbackUrl") || "/";
+  // v0.2 guards use ?next=…; the legacy ?callbackUrl=… keeps working.
+  const callbackUrl = searchParams.get("next") || searchParams.get("callbackUrl") || "/";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

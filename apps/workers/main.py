@@ -17,6 +17,13 @@ from typing import Any, Dict
 
 logger = structlog.get_logger()
 
+# Register all ORM models with Base.metadata (the notification service writes
+# rows whose FKs span modules; in the API process main.py does this import).
+import modules.users.models  # noqa: F401,E402
+import modules.notifications.models  # noqa: F401,E402
+import modules.orders.models  # noqa: F401,E402
+import modules.payments.models  # noqa: F401,E402
+
 OUTBOX_BATCH = 20
 
 

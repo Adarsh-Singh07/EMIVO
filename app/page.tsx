@@ -6,6 +6,7 @@ import {
   Headphones,
   Watch,
   Cable,
+  Package,
   ArrowRight,
   Truck,
   BadgePercent,
@@ -16,7 +17,15 @@ import type { LucideIcon } from "lucide-react";
 import HeroSlider from "@/components/site/HeroSlider";
 import ProductCard from "@/components/site/ProductCard";
 import NewsletterForm from "@/components/site/NewsletterForm";
-import { CATEGORIES, BRANDS, getFeatured, getTrending, PROMO_TILES } from "@/lib/products";
+import RecentlyViewedStrip from "@/components/site/RecentlyViewedStrip";
+import {
+  CATEGORIES,
+  BRANDS,
+  getCategories,
+  getNewArrivals,
+  getTrending,
+  PROMO_TILES,
+} from "@/lib/products";
 
 const CAT_ICONS: Record<string, LucideIcon> = {
   Smartphone,
@@ -25,6 +34,7 @@ const CAT_ICONS: Record<string, LucideIcon> = {
   Headphones,
   Watch,
   Cable,
+  Package,
 };
 
 const FEATURES = [
@@ -34,7 +44,16 @@ const FEATURES = [
   { icon: RotateCcw, title: "Easy Returns", desc: "10-day no-questions returns" },
 ];
 
-export default function Home() {
+// ISR: the marketing frame is static; product sections revalidate frequently.
+export const revalidate = 300;
+
+export default async function Home() {
+  const [categories, newArrivals, trending] = await Promise.all([
+    getCategories(),
+    getNewArrivals(8),
+    getTrending(4),
+  ]);
+
   return (
     <div>
       {/* 1. Hero slider with auto-rotation */}
@@ -75,8 +94,8 @@ export default function Home() {
           </Link>
         </div>
         <div className="grid grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
-          {CATEGORIES.map((cat) => {
-            const Icon = CAT_ICONS[cat.icon];
+          {categories.slice(0, 6).map((cat) => {
+            const Icon = CAT_ICONS[cat.icon] || Package;
             return (
               <Link
                 key={cat.slug}
@@ -102,6 +121,7 @@ export default function Home() {
               href={tile.link}
               className="group relative h-56 md:h-64 rounded-2xl overflow-hidden block"
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={tile.img}
                 alt={tile.title}
@@ -135,7 +155,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 6. New Arrivals */}
+      {/* 6. New Arrivals (live catalog, static fallback) */}
       <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="flex items-end justify-between mb-8">
           <div>
@@ -143,14 +163,14 @@ export default function Home() {
             <h2 className="text-3xl font-semibold tracking-tight">New Arrivals</h2>
           </div>
           <Link
-            href="/shop"
+            href="/shop?sort=newest"
             className="hidden md:inline-flex items-center gap-2 text-sm font-medium hover:text-neutral-500"
           >
             View All <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-          {getFeatured(8).map((p) => (
+          {newArrivals.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
         </div>
@@ -174,19 +194,22 @@ export default function Home() {
             </Link>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-            {getTrending().map((p) => (
+            {trending.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
           </div>
         </div>
       </section>
 
-      {/* 8. Newsletter CTA */}
+      {/* 8. Recently viewed (client, localStorage) */}
+      <RecentlyViewedStrip />
+
+      {/* 9. Newsletter CTA */}
       <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="rounded-3xl bg-neutral-950 px-8 py-14 text-center">
           <h2 className="text-3xl font-semibold text-white tracking-tight">Stay in the loop</h2>
           <p className="text-neutral-400 mt-3 max-w-md mx-auto">
-            Get 10% off your first order and be first to know about drops, deals and restocks.
+            Be first to know about drops, deals and restocks.
           </p>
           <NewsletterForm />
         </div>

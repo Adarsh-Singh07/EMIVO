@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Search,
   Heart,
   User,
   ShoppingBag,
@@ -13,10 +12,16 @@ import {
   MapPin,
   ChevronDown,
   LogOut,
-  LayoutDashboard,
+  Scale,
+  Bell,
+  Search,
 } from "lucide-react";
 import { useCart } from "./CartProvider";
 import CartDrawer from "./CartDrawer";
+import SearchBox from "./SearchBox";
+import NotificationsBell from "./NotificationsBell";
+import { useWishlist } from "@/lib/wishlist-context";
+import { useCompareIds } from "@/lib/compare";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 
@@ -43,7 +48,7 @@ function TopRibbon() {
   const copy = (
     <div className="flex items-center gap-6 pr-6 whitespace-nowrap">
       <span>
-        Enjoy free shipping on all orders this week!{" "}
+        Enjoy free shipping on orders over ₹999!{" "}
         <Link href="/shop" className="underline underline-offset-2 font-medium">
           Shop Now
         </Link>
@@ -76,13 +81,15 @@ function TopRibbon() {
 export default function Header() {
   const { count, setDrawerOpen } = useCart();
   const { user, logout } = useAuth();
+  const wishlist = useWishlist();
+  const compareIds = useCompareIds();
   const router = useRouter();
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [pincode, setPincode] = useState(DEFAULT_PINCODE);
   const [pincodeDraft, setPincodeDraft] = useState(DEFAULT_PINCODE);
   const [pinOpen, setPinOpen] = useState(false);
-  const [search, setSearch] = useState("");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   // Load the saved pincode only after mount to avoid SSR hydration mismatch.
@@ -93,12 +100,6 @@ export default function Header() {
       setPincodeDraft(saved);
     }
   }, []);
-
-  const submitSearch = (e: FormEvent) => {
-    e.preventDefault();
-    const q = search.trim();
-    router.push(q ? `/shop?q=${encodeURIComponent(q)}` : "/shop");
-  };
 
   const applyPincode = () => {
     const v = pincodeDraft.trim();
@@ -169,28 +170,18 @@ export default function Header() {
           </button>
 
           {/* Search bar (tablet + desktop) */}
-          <form onSubmit={submitSearch} className="hidden md:flex flex-1 items-stretch max-w-2xl mx-auto">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search for Mobiles, Laptops, Audio & more"
-              aria-label="Search products"
-              className="flex-1 min-w-0 h-11 rounded-l-full border border-neutral-300 border-r-0 px-5 text-sm outline-none focus:border-neutral-950 placeholder:text-neutral-400"
-            />
-            <button
-              type="submit"
-              aria-label="Search"
-              className="h-11 px-5 rounded-r-full bg-neutral-950 text-white text-sm font-medium hover:bg-neutral-800 flex items-center gap-2"
-            >
-              <Search className="w-4 h-4" />
-              <span className="hidden xl:inline">Search</span>
-            </button>
-          </form>
+          <div className="hidden md:flex flex-1 items-stretch max-w-2xl mx-auto">
+            <SearchBox />
+          </div>
 
           {/* Mobile search shortcut */}
-          <Link href="/shop" className="md:hidden p-2" aria-label="Search">
+          <button
+            className="md:hidden p-2"
+            aria-label="Search"
+            onClick={() => setSearchOpen(true)}
+          >
             <Search className="w-5 h-5" />
-          </Link>
+          </button>
 
           <div className="flex-1 lg:hidden" />
 
@@ -211,7 +202,11 @@ export default function Header() {
                     <span className="text-[11px] text-neutral-500">Hello,</span>
                     <span className="font-medium max-w-[80px] truncate">{displayName}</span>
                   </span>
-                  <ChevronDown className={`w-3.5 h-3.5 text-neutral-400 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 text-neutral-400 transition-transform ${
+                      userMenuOpen ? "rotate-180" : ""
+                    }`}
+                  />
                 </button>
                 {userMenuOpen && (
                   <>
@@ -230,11 +225,11 @@ export default function Header() {
                           <User className="w-4 h-4" /> My Account
                         </Link>
                         <Link
-                          href="/order-tracking"
+                          href="/account/orders"
                           onClick={() => setUserMenuOpen(false)}
                           className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm hover:bg-neutral-50"
                         >
-                          <LayoutDashboard className="w-4 h-4" /> My Orders
+                          <ShoppingBag className="w-4 h-4" /> My Orders
                         </Link>
                         <button
                           onClick={handleLogout}
@@ -259,12 +254,37 @@ export default function Header() {
                 </span>
               </Link>
             )}
-            <button className="relative p-2 hover:bg-neutral-100 rounded-full" aria-label="Wishlist">
+
+            {/* Notifications (logged in only) */}
+            <NotificationsBell />
+
+            {/* Compare */}
+            <Link
+              href="/compare"
+              className="relative p-2 hover:bg-neutral-100 rounded-full hidden sm:block"
+              aria-label={`Compare (${compareIds.length} products)`}
+            >
+              <Scale className="w-5 h-5" />
+              {compareIds.length > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-neutral-950 text-white text-[10px] grid place-items-center">
+                  {compareIds.length}
+                </span>
+              )}
+            </Link>
+
+            {/* Wishlist */}
+            <Link
+              href="/account/wishlist"
+              className="relative p-2 hover:bg-neutral-100 rounded-full"
+              aria-label={`Wishlist (${wishlist.count} items)`}
+            >
               <Heart className="w-5 h-5" />
               <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-neutral-950 text-white text-[10px] grid place-items-center">
-                0
+                {wishlist.count}
               </span>
-            </button>
+            </Link>
+
+            {/* Cart */}
             <button
               onClick={() => setDrawerOpen(true)}
               className="relative p-2 hover:bg-neutral-100 rounded-full"
@@ -297,7 +317,11 @@ export default function Header() {
         <nav className="hidden lg:block border-t border-neutral-100">
           <div className="max-w-[1400px] mx-auto px-4 h-11 flex items-center gap-7 text-sm">
             {NAV_LINKS.map((l) => (
-              <Link key={l.label} href={l.href} className="text-neutral-700 hover:text-neutral-950 font-medium">
+              <Link
+                key={l.label}
+                href={l.href}
+                className="text-neutral-700 hover:text-neutral-950 font-medium"
+              >
                 {l.label}
               </Link>
             ))}
@@ -344,6 +368,16 @@ export default function Header() {
                   {l.label}
                 </Link>
               ))}
+              <Link href="/compare" onClick={() => setMobileOpen(false)} className="flex items-center gap-2">
+                Compare{compareIds.length > 0 ? ` (${compareIds.length})` : ""}
+              </Link>
+              <Link
+                href="/notifications"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-2"
+              >
+                <Bell className="w-4 h-4" /> Notifications
+              </Link>
               <div className="border-t border-neutral-100 pt-3 mt-1">
                 {user ? (
                   <button
@@ -362,6 +396,22 @@ export default function Header() {
           </div>
         )}
       </header>
+
+      {/* Mobile search sheet — same suggestions as the desktop bar */}
+      {searchOpen && (
+        <div className="fixed inset-0 z-50 md:hidden bg-white">
+          <div className="flex items-center gap-2 p-4 border-b border-neutral-100">
+            <SearchBox autoFocus onNavigate={() => setSearchOpen(false)} />
+            <button
+              onClick={() => setSearchOpen(false)}
+              aria-label="Close search"
+              className="p-2 shrink-0"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+      )}
 
       <CartDrawer />
     </>
