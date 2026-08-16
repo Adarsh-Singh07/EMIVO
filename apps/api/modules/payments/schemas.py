@@ -7,7 +7,10 @@ from .models import PaymentProvider, PaymentStatus
 
 class PaymentCreate(BaseModel):
     order_id: str
-    amount: int = Field(..., gt=0, description="Amount in minor currency units (e.g. cents/paise)")
+    amount: Optional[int] = Field(
+        default=None, gt=0,
+        description="Optional client-side amount for integrity check; the server always uses the order total.",
+    )
     currency: str = Field("INR", max_length=3)
     provider: PaymentProvider = PaymentProvider.MOCK
     idempotency_key: str
@@ -63,3 +66,13 @@ class PaymentSuccessVerification(BaseModel):
 class PaymentRefundRequest(BaseModel):
     amount: Optional[int] = Field(None, gt=0, description="Optional partial refund amount in minor units. If omitted, full refund is issued.")
     reason: Optional[str] = None
+
+
+class PaymentInitiationResponse(BaseModel):
+    """Everything the storefront needs to open the provider checkout widget."""
+    payment: PaymentResponse
+    provider: str
+    checkout: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Provider checkout parameters (e.g. Razorpay key_id, order_id, amount)",
+    )

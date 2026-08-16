@@ -8,9 +8,13 @@ from jose import jwt, JWTError
 from core.database import get_db_session
 from core.config import settings
 from core.exceptions import DomainException
-from modules.users.models import User, BusinessMember
+from core.store import get_store_business_id
+from modules.users.models import User, BusinessMember, RoleType
 
 security = HTTPBearer()
+
+STAFF_ROLES = (RoleType.PLATFORM_ADMIN, RoleType.OWNER, RoleType.STAFF)
+
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -31,19 +35,25 @@ async def get_current_user(
 
     if user is None:
         raise DomainException("User not found", code="UNAUTHORIZED", status_code=401)
-    
+
     if not user.is_active:
         raise DomainException("Inactive user", code="FORBIDDEN", status_code=403)
-        
+
     # Bind the decoded payload to the user for role checks downstream
     user._token_payload = payload
-        
+
     return user
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
     if not current_user.is_active:
         raise DomainException("Inactive user", code="FORBIDDEN", status_code=403)
     return current_user
+
+
+def _is_staff_payload(payload: dict) -> bool:
+    roles = payload.get("roles", []) or []
+    return any(r in STAFF_ROLES for r in roles)
+
 
 def require_roles(allowed_roles: List[str]) -> Callable:
     async def role_checker(current_user: User = Depends(get_current_user)) -> User:
@@ -53,6 +63,14 @@ def require_roles(allowed_roles: List[str]) -> Callable:
         return current_user
     return role_checker
 
+
+async def require_staff(current_user: User = Depends(get_current_user)) -> User:
+    """Admin-portal guard: server-side role enforcement for staff-level APIs."""
+    if not _is_staff_payload(current_user._token_payload):
+        raise DomainException("Staff access required", code="FORBIDDEN", status_code=403)
+    return current_user
+
+
 async def set_db_context(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session)
@@ -61,20 +79,29 @@ async def set_db_context(
     Set PostgreSQL session variables for RLS enforcement.
     Must be called before any query that is governed by RLS policies.
 
-    Always sets app.user_id first so business_members RLS is satisfied,
-    then sets app.business_id for tenant isolation.
+    Sets, in order:
+      - app.user_id  (always; satisfies business_members RLS)
+      - app.role     (highest role from the JWT — feeds elektrix_is_staff() in RLS)
+      - app.business_id (JWT claim → first membership → canonical STORE business)
+
+    The store fallback is what lets plain customers (no business membership)
+    operate on storefront carts/orders within the store tenant.
     """
-    # Always set user_id first — required for business_members RLS SELECT
     await session.execute(
-        text(f"SELECT set_config('app.user_id', '{current_user.id}', true)")
+        text("SELECT set_config('app.user_id', :uid, true)"), {"uid": str(current_user.id)}
+    )
+
+    roles = current_user._token_payload.get("roles", []) or []
+    top_role = next((r for r in STAFF_ROLES if r in roles), RoleType.CUSTOMER)
+    await session.execute(
+        text("SELECT set_config('app.role', :role, true)"), {"role": top_role}
     )
 
     # Prefer business_id from JWT payload (set during login if user selects a business)
     business_id = current_user._token_payload.get("business_id")
 
     if not business_id:
-        # Fall back to the user's first active membership
-        # app.user_id is now set, so RLS allows this query
+        # Fall back to the user's first active membership (staff/owners)
         stmt = (
             select(BusinessMember.business_id)
             .where(BusinessMember.user_id == current_user.id)
@@ -84,10 +111,13 @@ async def set_db_context(
         res = await session.execute(stmt)
         business_id = res.scalar()
 
-    if business_id:
-        await session.execute(
-            text(f"SELECT set_config('app.business_id', '{business_id}', true)")
-        )
+    if not business_id:
+        # Storefront customers: scope to the canonical store tenant
+        business_id = await get_store_business_id(session)
+
+    await session.execute(
+        text("SELECT set_config('app.business_id', :bid, true)"), {"bid": str(business_id)}
+    )
 
     return session
 
@@ -129,23 +159,15 @@ async def optional_db_context(
     session: AsyncSession = Depends(get_db_session),
 ) -> AsyncSession:
     """Like set_db_context but does not require authentication.
-    Sets RLS session vars when user is present; skips when anonymous."""
+
+    Anonymous sessions are scoped to the canonical store tenant so that public
+    catalog reads and guest carts work under RLS.
+    """
     if current_user is not None:
-        await session.execute(
-            text(f"SELECT set_config('app.user_id', '{current_user.id}', true)")
-        )
-        business_id = current_user._token_payload.get("business_id")
-        if not business_id:
-            stmt = (
-                select(BusinessMember.business_id)
-                .where(BusinessMember.user_id == current_user.id)
-                .order_by(BusinessMember.created_at)
-                .limit(1)
-            )
-            res = await session.execute(stmt)
-            business_id = res.scalar()
-        if business_id:
-            await session.execute(
-                text(f"SELECT set_config('app.business_id', '{business_id}', true)")
-            )
+        return await set_db_context(current_user, session)
+
+    store_id = await get_store_business_id(session)
+    await session.execute(
+        text("SELECT set_config('app.business_id', :bid, true)"), {"bid": store_id}
+    )
     return session

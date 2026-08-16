@@ -85,7 +85,7 @@ class AuthService:
     async def _issue_tokens(self, user: User, family_id: str = None) -> TokenResponse:
         # Set RLS context so the business_members query is allowed
         await self.session.execute(
-            text(f"SELECT set_config('app.user_id', '{user.id}', true)")
+            text("SELECT set_config('app.user_id', :uid, true)"), {"uid": str(user.id)}
         )
         
         # Load user roles from database (BusinessMember)
@@ -172,3 +172,77 @@ class AuthService:
                     await self.redis.srem(f"auth:user:{user_id}:families", family_id)
         except ValueError:
             pass # Invalid format, nothing to revoke
+
+    # ------------------------------------------------------------------ #
+    # Password reset (token in Redis, emailed via outbox)                   #
+    # ------------------------------------------------------------------ #
+
+    async def forgot_password(self, email: str) -> None:
+        """Always succeeds silently (no user enumeration). When the account
+        exists, a single-use 30-minute reset token is stored in Redis and a
+        reset email is enqueued through the outbox."""
+        from core.models import OutboxEvent
+
+        await self.session.execute(
+            text("SELECT set_config('app.user_id', '', true)")
+        )
+        stmt = select(User).where(User.email == email.lower())
+        result = await self.session.execute(stmt)
+        user = result.scalar_one_or_none()
+        if not user:
+            return
+
+        token = secrets.token_urlsafe(32)
+        await self.redis.set(f"auth:reset:{token}", str(user.id), ex=30 * 60)
+
+        self.session.add(OutboxEvent(
+            tenant_id=None,
+            type="auth.password_reset",
+            payload={
+                "user_id": str(user.id),
+                "email": user.email,
+                "first_name": user.first_name,
+                "token": token,
+            },
+        ))
+        await self.session.commit()
+
+    async def reset_password(self, token: str, new_password: str) -> None:
+        user_id = await self.redis.get(f"auth:reset:{token}")
+        if not user_id:
+            raise DomainException(
+                "Invalid or expired reset token", code="BAD_REQUEST", status_code=400
+            )
+
+        await self.session.execute(
+            text("SELECT set_config('app.user_id', :uid, true)"), {"uid": str(user_id)}
+        )
+        result = await self.session.execute(select(User).where(User.id == str(user_id)))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise DomainException("Account not found", code="NOT_FOUND", status_code=404)
+
+        user.password_hash = self.get_password_hash(new_password)
+        await self.session.commit()
+
+        # Single use + revoke every active session
+        await self.redis.delete(f"auth:reset:{token}")
+        await self._revoke_all_sessions(str(user_id))
+
+    async def _revoke_all_sessions(self, user_id: str) -> None:
+        families = await self.redis.smembers(f"auth:user:{user_id}:families")
+        for family_id in families or []:
+            await self.redis.delete(f"auth:family:{family_id}")
+        await self.redis.delete(f"auth:user:{user_id}:families")
+
+    async def change_password(self, user: User, current_password: str, new_password: str) -> None:
+        if not self.verify_password(current_password, user.password_hash):
+            raise DomainException(
+                "Current password is incorrect", code="BAD_REQUEST", status_code=400
+            )
+        await self.session.execute(
+            text("SELECT set_config('app.user_id', :uid, true)"), {"uid": str(user.id)}
+        )
+        user.password_hash = self.get_password_hash(new_password)
+        await self.session.commit()
+        await self._revoke_all_sessions(str(user.id))

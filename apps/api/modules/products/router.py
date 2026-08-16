@@ -6,12 +6,15 @@ from core.dependencies import get_db_session, set_db_context, require_roles, opt
 from modules.users.models import User
 from modules.products.schemas import (
     ProductCreate, ProductResponse, ProductUpdate,
-    ProductVariantCreate, ProductVariantResponse,
-    ProductMediaCreate, ProductMediaResponse
+    ProductVariantCreate, ProductVariantResponse, ProductVariantUpdate,
+    ProductMediaCreate, ProductMediaResponse,
+    CategoryCreate, CategoryResponse,
 )
 from modules.products.service import ProductService
 
 router = APIRouter(prefix="/api/v1/products", tags=["Products"])
+
+STAFF = ["platform_admin", "owner", "staff"]
 
 
 async def get_product_service(
@@ -27,11 +30,15 @@ async def get_public_product_service(
     return ProductService(session)
 
 
+# --------------------------------------------------------------------------
+# Admin CRUD (staff) — storefront catalog endpoints live in modules/storefront
+# --------------------------------------------------------------------------
+
 @router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 async def create_product(
     payload: ProductCreate,
     service: ProductService = Depends(get_product_service),
-    current_user: User = Depends(require_roles(["platform_admin", "owner", "staff"]))
+    current_user: User = Depends(require_roles(STAFF))
 ) -> Any:
     return await service.create_product(payload)
 
@@ -62,7 +69,7 @@ async def update_product(
     product_id: str,
     payload: ProductUpdate,
     service: ProductService = Depends(get_product_service),
-    current_user: User = Depends(require_roles(["platform_admin", "owner", "staff"]))
+    current_user: User = Depends(require_roles(STAFF))
 ) -> Any:
     return await service.update_product(product_id, payload)
 
@@ -71,8 +78,9 @@ async def update_product(
 async def delete_product(
     product_id: str,
     service: ProductService = Depends(get_product_service),
-    current_user: User = Depends(require_roles(["platform_admin", "owner"]))
+    current_user: User = Depends(require_roles(STAFF))
 ) -> None:
+    """Archive (soft-delete) a product."""
     await service.delete_product(product_id)
 
 
@@ -81,9 +89,28 @@ async def add_variant(
     product_id: str,
     payload: ProductVariantCreate,
     service: ProductService = Depends(get_product_service),
-    current_user: User = Depends(require_roles(["platform_admin", "owner", "staff"]))
+    current_user: User = Depends(require_roles(STAFF))
 ) -> Any:
     return await service.add_variant(product_id, payload)
+
+
+@router.put("/variants/{variant_id}", response_model=ProductVariantResponse)
+async def update_variant(
+    variant_id: str,
+    payload: ProductVariantUpdate,
+    service: ProductService = Depends(get_product_service),
+    current_user: User = Depends(require_roles(STAFF))
+) -> Any:
+    return await service.update_variant(variant_id, payload)
+
+
+@router.delete("/variants/{variant_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_variant(
+    variant_id: str,
+    service: ProductService = Depends(get_product_service),
+    current_user: User = Depends(require_roles(STAFF))
+) -> None:
+    await service.delete_variant(variant_id)
 
 
 @router.post("/{product_id}/media", response_model=ProductMediaResponse, status_code=status.HTTP_201_CREATED)
@@ -91,6 +118,38 @@ async def add_media(
     product_id: str,
     payload: ProductMediaCreate,
     service: ProductService = Depends(get_product_service),
-    current_user: User = Depends(require_roles(["platform_admin", "owner", "staff"]))
+    current_user: User = Depends(require_roles(STAFF))
 ) -> Any:
     return await service.add_media(product_id, payload)
+
+
+@router.delete("/media/{media_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_media(
+    media_id: str,
+    service: ProductService = Depends(get_product_service),
+    current_user: User = Depends(require_roles(STAFF))
+) -> None:
+    await service.delete_media(media_id)
+
+
+@router.post("/{product_id}/media/reorder", response_model=ProductResponse)
+async def reorder_media(
+    product_id: str,
+    media_ids: List[str],
+    service: ProductService = Depends(get_product_service),
+    current_user: User = Depends(require_roles(STAFF))
+) -> Any:
+    return await service.reorder_media(product_id, media_ids)
+
+
+# --------------------------------------------------------------------------
+# Categories (admin CRUD)
+# --------------------------------------------------------------------------
+
+@router.post("/categories", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
+async def create_category(
+    payload: CategoryCreate,
+    service: ProductService = Depends(get_product_service),
+    current_user: User = Depends(require_roles(STAFF))
+) -> Any:
+    return await service.create_category(payload)
