@@ -20,7 +20,7 @@ async def get_business_service(
     return BusinessService(repo)
 
 
-@router.get("/", response_model=list[BusinessResponse], dependencies=[Depends(require_staff)])
+@router.get("", response_model=list[BusinessResponse], dependencies=[Depends(require_staff)])
 async def list_businesses(db: AsyncSession = Depends(set_db_context)):
     stmt = select(Business).where(Business.deleted_at.is_(None))
     result = await db.execute(stmt)
@@ -28,7 +28,7 @@ async def list_businesses(db: AsyncSession = Depends(set_db_context)):
 
 
 @router.post(
-    "/",
+    "",
     response_model=BusinessResponse,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_staff)],

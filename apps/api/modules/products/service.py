@@ -99,22 +99,18 @@ class ProductService:
             product.price = data.price
         if data.sku is not None:
             product.sku = data.sku
-        if data.mrp is not None:
-            product.mrp = data.mrp
-        if data.sale_price is not None:
-            product.sale_price = data.sale_price
-        if data.offer_starts_at is not None:
-            product.offer_starts_at = data.offer_starts_at
-        if data.offer_ends_at is not None:
-            product.offer_ends_at = data.offer_ends_at
+        # Optional-clearable fields: explicit null in the payload clears them
+        provided = data.model_fields_set
+        for field in ("mrp", "sale_price", "offer_starts_at", "offer_ends_at",
+                      "category_id"):
+            if field in provided:
+                setattr(product, field, getattr(data, field))
         if data.brand is not None:
             product.brand = data.brand
         if data.status is not None:
             product.status = ProductStatus(data.status)
         if data.featured is not None:
             product.featured = data.featured
-        if data.category_id is not None:
-            product.category_id = data.category_id
         if data.specs is not None:
             product.specs = [s.model_dump() for s in data.specs]
         if data.tags is not None:

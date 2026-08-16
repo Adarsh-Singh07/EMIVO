@@ -181,9 +181,9 @@ class AdminService:
 
         await self.session.execute(text("""
             INSERT INTO business_settings (id, business_id, config)
-            VALUES (gen_random_uuid()::text, :bid, jsonb_build_object('store', :cfg::jsonb))
+            VALUES (gen_random_uuid()::text, :bid, jsonb_build_object('store', CAST(:cfg AS jsonb)))
             ON CONFLICT (business_id)
-            DO UPDATE SET config = business_settings.config || jsonb_build_object('store', :cfg::jsonb),
+            DO UPDATE SET config = business_settings.config || jsonb_build_object('store', CAST(:cfg AS jsonb)),
                           updated_at = now()
         """), {"bid": bid, "cfg": json.dumps(store_cfg)})
         await self.session.commit()

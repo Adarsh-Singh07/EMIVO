@@ -24,6 +24,7 @@ RLS_FILES = [
     "db/rls/07_carts.sql",
     "db/rls/08_coupons.sql",
     "db/rls/09_payments.sql",
+    "db/rls/10_v02_commerce.sql",
 ]
 
 ROOT = Path(__file__).parent.parent

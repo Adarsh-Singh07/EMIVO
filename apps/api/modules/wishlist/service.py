@@ -77,20 +77,25 @@ class WishlistService:
         if row["status"] != ProductStatus.ACTIVE:
             raise DomainException("Product is not available", code="PRODUCT_UNAVAILABLE", status_code=409)
 
-        item = WishlistItem(user_id=str(user.id), product_id=product_id)
-        self.session.add(item)
-        try:
-            await self.session.commit()
-        except IntegrityError:
-            await self.session.rollback()  # already wishlisted — idempotent add
-        res = await self.session.execute(
-            select(WishlistItem)
-            .where(WishlistItem.user_id == str(user.id), WishlistItem.product_id == product_id)
+        await self.session.execute(
+            text("""
+                INSERT INTO wishlist_items (id, user_id, product_id)
+                VALUES (gen_random_uuid()::text, :uid, :pid)
+                ON CONFLICT (user_id, product_id) DO NOTHING
+            """),
+            {"uid": str(user.id), "pid": product_id},
         )
-        item = res.scalar_one()
+        await self.session.commit()
+
+        res = await self.session.execute(
+            text("SELECT id, created_at FROM wishlist_items WHERE user_id = :uid AND product_id = :pid"),
+            {"uid": str(user.id), "pid": product_id},
+        )
+        item = res.mappings().one()
         product = (await self.catalog.products_by_ids([product_id]) or [None])[0]
         return WishlistItemResponse(
-            id=item.id, product_id=product_id, created_at=item.created_at, product=product
+            id=item["id"], product_id=product_id,
+            created_at=item["created_at"], product=product,
         )
 
     async def remove(self, user: User, product_id: str) -> None:

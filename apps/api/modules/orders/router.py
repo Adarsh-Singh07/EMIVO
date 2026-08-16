@@ -71,7 +71,7 @@ async def checkout(
     )
 
 
-@router.get("/", response_model=PaginatedOrdersResponseV2)
+@router.get("", response_model=PaginatedOrdersResponseV2)
 async def list_orders(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),

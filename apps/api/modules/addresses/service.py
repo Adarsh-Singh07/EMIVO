@@ -30,7 +30,9 @@ class AddressService:
             await self.session.execute(
                 update(Address).where(Address.user_id == user_id).values(is_default=False)
             )
-        address = Address(user_id=user_id, **data.model_dump(), is_default=make_default)
+        fields = data.model_dump()
+        fields["is_default"] = make_default
+        address = Address(user_id=user_id, **fields)
         self.session.add(address)
         await self.session.commit()
         await self.session.refresh(address)

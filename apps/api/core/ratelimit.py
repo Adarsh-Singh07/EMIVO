@@ -13,6 +13,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+from core.config import settings
 from core.redis import redis_manager
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,8 @@ RETRY_AFTER_HEADER = "Retry-After"
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        if settings.is_test:
+            return await call_next(request)
         path = request.url.path
         rule = next((r for r in RATE_RULES if path.startswith(r[0])), None)
         if rule is None:
