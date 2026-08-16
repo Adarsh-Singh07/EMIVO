@@ -1,146 +1,124 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { MapPin, Plus, Trash2, Edit2, CheckCircle2, ChevronRight, LogIn, ShieldAlert } from "lucide-react";
+import { MapPin, Plus, Trash2, CheckCircle2, ChevronRight, LogIn, ShieldAlert, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { apiClient } from "@/lib/api-client";
+import { storeApi, type Address } from "@/lib/store-api";
 import { toast } from "sonner";
 
-interface AddressItem {
-  id: string;
-  name: string;
-  phone: string;
-  line1: string;
-  line2?: string;
-  city: string;
-  state: string;
-  pincode: string;
-  isDefault?: boolean;
-}
+const EMPTY = {
+  full_name: "",
+  phone: "",
+  line1: "",
+  line2: "",
+  city: "",
+  state: "",
+  pincode: "",
+  label: "",
+};
 
 export default function AddressesPage() {
-  const { user, loading, refreshUser } = useAuth();
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const { user, loading } = useAuth();
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [fetching, setFetching] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [form, setForm] = useState({ ...EMPTY });
 
-  // Form states
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [line1, setLine1] = useState("");
-  const [line2, setLine2] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
-  const [pincode, setPincode] = useState("");
+  const load = useCallback(async () => {
+    setFetching(true);
+    try {
+      const data = await storeApi.listAddresses();
+      setAddresses(data.items || []);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not load addresses");
+    } finally {
+      setFetching(false);
+    }
+  }, []);
 
-  const savedAddresses: AddressItem[] = (user?.addresses || []) as AddressItem[];
+  useEffect(() => {
+    if (user) load();
+    else setFetching(false);
+  }, [user, load]);
+
+  const update = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const resetForm = () => {
-    setName("");
-    setPhone("");
-    setLine1("");
-    setLine2("");
-    setCity("");
-    setState("");
-    setPincode("");
-    setEditingId(null);
+    setForm({ ...EMPTY });
     setIsAdding(false);
-  };
-
-  const handleEdit = (addr: AddressItem) => {
-    setEditingId(addr.id);
-    setName(addr.name);
-    setPhone(addr.phone);
-    setLine1(addr.line1);
-    setLine2(addr.line2 || "");
-    setCity(addr.city);
-    setState(addr.state);
-    setPincode(addr.pincode);
-    setIsAdding(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !phone.trim() || !line1.trim() || !city.trim() || !state.trim() || !pincode.trim()) {
+    if (
+      !form.full_name.trim() ||
+      !form.phone.trim() ||
+      !form.line1.trim() ||
+      !form.city.trim() ||
+      !form.state.trim() ||
+      !form.pincode.trim()
+    ) {
       toast.error("Please fill all required fields");
       return;
     }
-    if (pincode.trim().length !== 6) {
+    if (!/^\d{10}$/.test(form.phone.trim())) {
+      toast.error("Phone number must be exactly 10 digits");
+      return;
+    }
+    if (!/^\d{6}$/.test(form.pincode.trim())) {
       toast.error("Pincode must be exactly 6 digits");
       return;
     }
 
     setIsSaving(true);
     try {
-      let updatedList: AddressItem[] = [];
-      if (editingId) {
-        // Edit existing
-        updatedList = savedAddresses.map((addr) =>
-          addr.id === editingId
-            ? { ...addr, name, phone, line1, line2, city, state, pincode }
-            : addr
-        );
-      } else {
-        // Add new
-        const newAddr: AddressItem = {
-          id: `addr_${Date.now()}`,
-          name,
-          phone,
-          line1,
-          line2,
-          city,
-          state,
-          pincode,
-          isDefault: savedAddresses.length === 0, // Make default if it's the first
-        };
-        updatedList = [...savedAddresses, newAddr];
-      }
-
-      await apiClient.put("/users/me", { addresses: updatedList });
-      await refreshUser();
-      toast.success(editingId ? "Address updated successfully" : "Address added successfully");
+      await storeApi.createAddress({
+        full_name: form.full_name.trim(),
+        phone: form.phone.trim(),
+        line1: form.line1.trim(),
+        line2: form.line2.trim() || undefined,
+        city: form.city.trim(),
+        state: form.state.trim(),
+        pincode: form.pincode.trim(),
+        country: "IN",
+        label: form.label.trim() || undefined,
+        is_default: addresses.length === 0,
+      });
+      toast.success("Address added successfully");
       resetForm();
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to save address");
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save address");
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    const confirm = window.confirm("Are you sure you want to delete this address?");
-    if (!confirm) return;
-
+    if (!window.confirm("Are you sure you want to delete this address?")) return;
     try {
-      const updatedList = savedAddresses.filter((addr) => addr.id !== id);
-      // If we deleted the default, set first remaining as default
-      if (savedAddresses.find((addr) => addr.id === id)?.isDefault && updatedList.length > 0) {
-        updatedList[0].isDefault = true;
-      }
-      await apiClient.put("/users/me", { addresses: updatedList });
-      await refreshUser();
+      await storeApi.deleteAddress(id);
+      setAddresses((prev) => prev.filter((a) => a.id !== id));
       toast.success("Address deleted successfully");
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to delete address");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete address");
     }
   };
 
   const handleSetDefault = async (id: string) => {
     try {
-      const updatedList = savedAddresses.map((addr) => ({
-        ...addr,
-        isDefault: addr.id === id,
-      }));
-      await apiClient.put("/users/me", { addresses: updatedList });
-      await refreshUser();
+      await storeApi.setDefaultAddress(id);
+      setAddresses((prev) => prev.map((a) => ({ ...a, is_default: a.id === id })));
       toast.success("Default address set successfully");
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to set default address");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to set default");
     }
   };
 
-  if (loading) {
+  if (loading || (user && fetching)) {
     return (
       <div className="max-w-[800px] mx-auto px-4 py-20 text-center animate-pulse">
         <div className="h-6 bg-neutral-100 rounded w-1/4 mx-auto mb-4" />
@@ -156,7 +134,7 @@ export default function AddressesPage() {
         <h1 className="text-3xl font-semibold tracking-tight mb-3">Authentication Required</h1>
         <p className="text-neutral-500 mb-6">Please log in to manage your addresses.</p>
         <Link
-          href="/login"
+          href="/login?next=/account/addresses"
           className="inline-flex items-center gap-2 h-12 px-8 bg-neutral-950 text-white rounded-full text-sm font-medium hover:bg-neutral-800"
         >
           <LogIn className="w-4 h-4" /> Log In
@@ -191,23 +169,23 @@ export default function AddressesPage() {
 
       {isAdding ? (
         <div className="border border-neutral-200 rounded-3xl p-6 bg-neutral-50/30">
-          <h2 className="font-semibold text-lg mb-6">{editingId ? "Edit Address" : "New Address"}</h2>
+          <h2 className="font-semibold text-lg mb-6">New Address</h2>
           <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5 block">
                 Receiver Name *
               </label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Rahul Sharma" className={inputCls} required />
+              <input value={form.full_name} onChange={update("full_name")} placeholder="Rahul Sharma" className={inputCls} required />
             </div>
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5 block">
                 Phone Number *
               </label>
               <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="98765 43210"
-                inputMode="tel"
+                value={form.phone}
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
+                placeholder="9876543210"
+                inputMode="numeric"
                 className={inputCls}
                 required
               />
@@ -216,45 +194,45 @@ export default function AddressesPage() {
               <label className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5 block">
                 Street / Area *
               </label>
-              <input
-                value={line1}
-                onChange={(e) => setLine1(e.target.value)}
-                placeholder="Flat/House no., Street, Area"
-                className={inputCls}
-                required
-              />
+              <input value={form.line1} onChange={update("line1")} placeholder="Flat/House no., Street, Area" className={inputCls} required />
             </div>
             <div className="sm:col-span-2">
               <label className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5 block">
                 Landmark (Optional)
               </label>
-              <input value={line2} onChange={(e) => setLine2(e.target.value)} placeholder="Near Metro Station" className={inputCls} />
+              <input value={form.line2} onChange={update("line2")} placeholder="Near Metro Station" className={inputCls} />
             </div>
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5 block">
                 City *
               </label>
-              <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Mumbai" className={inputCls} required />
+              <input value={form.city} onChange={update("city")} placeholder="Mumbai" className={inputCls} required />
             </div>
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5 block">
                 State *
               </label>
-              <input value={state} onChange={(e) => setState(e.target.value)} placeholder="Maharashtra" className={inputCls} required />
+              <input value={form.state} onChange={update("state")} placeholder="Maharashtra" className={inputCls} required />
             </div>
-            <div className="sm:col-span-2">
+            <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5 block">
                 PIN code *
               </label>
               <input
-                value={pincode}
-                onChange={(e) => setPincode(e.target.value)}
+                value={form.pincode}
+                onChange={(e) => setForm((f) => ({ ...f, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
                 placeholder="400001"
                 inputMode="numeric"
                 maxLength={6}
                 className={inputCls}
                 required
               />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5 block">
+                Label (Optional)
+              </label>
+              <input value={form.label} onChange={update("label")} placeholder="Home, Work…" className={inputCls} />
             </div>
 
             <div className="sm:col-span-2 flex items-center justify-end gap-3 mt-4">
@@ -268,14 +246,15 @@ export default function AddressesPage() {
               <button
                 type="submit"
                 disabled={isSaving}
-                className="h-12 px-8 bg-neutral-950 text-white rounded-full text-sm font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50"
+                className="h-12 px-8 bg-neutral-950 text-white rounded-full text-sm font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
               >
-                {isSaving ? "Saving..." : "Save Address"}
+                {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                Save Address
               </button>
             </div>
           </form>
         </div>
-      ) : savedAddresses.length === 0 ? (
+      ) : addresses.length === 0 ? (
         <div className="border border-dashed border-neutral-200 rounded-3xl p-16 text-center text-neutral-400">
           <MapPin className="w-12 h-12 mx-auto mb-4 text-neutral-300" />
           <p className="text-sm">No saved addresses found.</p>
@@ -288,18 +267,23 @@ export default function AddressesPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {savedAddresses.map((addr) => (
+          {addresses.map((addr) => (
             <div
               key={addr.id}
               className={`border rounded-3xl p-6 bg-white transition-all ${
-                addr.isDefault ? "border-neutral-950 ring-1 ring-neutral-950" : "border-neutral-200"
+                addr.is_default ? "border-neutral-950 ring-1 ring-neutral-950" : "border-neutral-200"
               }`}
             >
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                 <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <p className="font-semibold text-lg">{addr.name}</p>
-                    {addr.isDefault && (
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <p className="font-semibold text-lg">{addr.full_name}</p>
+                    {addr.label && (
+                      <span className="text-[10px] font-bold uppercase tracking-wider bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full">
+                        {addr.label}
+                      </span>
+                    )}
+                    {addr.is_default && (
                       <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-green-700 bg-green-50 border border-green-200 px-2.5 py-0.5 rounded-full">
                         <CheckCircle2 className="w-3 h-3" /> Default
                       </span>
@@ -307,7 +291,8 @@ export default function AddressesPage() {
                   </div>
                   <p className="text-sm text-neutral-600">
                     {addr.line1}
-                    {addr.line2 ? `, ${addr.line2}` : ""}, {addr.city}, {addr.state} — <span className="font-medium text-neutral-900">{addr.pincode}</span>
+                    {addr.line2 ? `, ${addr.line2}` : ""}, {addr.city}, {addr.state} —{" "}
+                    <span className="font-medium text-neutral-900">{addr.pincode}</span>
                   </p>
                   <p className="text-sm text-neutral-500">
                     Phone: <span className="font-medium text-neutral-800">{addr.phone}</span>
@@ -316,23 +301,17 @@ export default function AddressesPage() {
 
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
-                    onClick={() => handleEdit(addr)}
-                    className="w-9 h-9 rounded-full grid place-items-center hover:bg-neutral-50 border border-neutral-100 text-neutral-600 hover:text-neutral-900 transition-colors"
-                    title="Edit address"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
                     onClick={() => handleDelete(addr.id)}
                     className="w-9 h-9 rounded-full grid place-items-center hover:bg-red-50 border border-neutral-100 text-neutral-600 hover:text-red-600 transition-colors"
                     title="Delete address"
+                    aria-label={`Delete address for ${addr.full_name}`}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
-              {!addr.isDefault && (
+              {!addr.is_default && (
                 <div className="mt-4 pt-4 border-t border-neutral-100 flex justify-end">
                   <button
                     onClick={() => handleSetDefault(addr.id)}

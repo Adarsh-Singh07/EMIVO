@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { fetchApi } from "@/lib/api-client";
-import { Settings, Save, Loader2, RefreshCw, AlertCircle, Shield, Globe } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect, useCallback } from "react";
+import { Settings, Save, Loader2, RefreshCw, AlertCircle, Shield, Globe, Truck, Banknote, Megaphone } from "lucide-react";
 import { toast } from "sonner";
+import { apiClient, ApiError } from "@/lib/api-client";
+import { formatINR, rupeesToPaise, paiseToRupeeInput } from "@/lib/money";
 import { BRAND_CONFIG } from "@/config/branding";
 
 interface BusinessSettings {
@@ -12,211 +12,405 @@ interface BusinessSettings {
   business_id: string;
   config: {
     currency?: string;
-    locale?: string;
-    theme?: {
-      primaryColor?: string;
-    };
-    branding?: {
-      logoUrl?: string;
-      companyName?: string;
-    };
+    theme?: { primaryColor?: string };
+    branding?: { companyName?: string };
   };
 }
 
-export default function SettingsPage() {
-  const [settings, setSettings] = useState<BusinessSettings | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+interface StoreBanner {
+  title?: string | null;
+  subtitle?: string | null;
+  image_url?: string | null;
+  link?: string | null;
+  active?: boolean;
+}
 
-  // Form states
+interface StoreSettings {
+  cod_enabled: boolean;
+  cod_fee_paise: number;
+  cod_max_order_paise: number;
+  free_shipping_threshold_paise: number;
+  flat_shipping_paise: number;
+  banner: StoreBanner | null;
+  announcement: string | null;
+}
+
+const inputClass =
+  "w-full h-11 px-4 rounded-xl bg-white border border-neutral-200 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-amber-500";
+const labelClass = "block text-sm font-semibold text-neutral-700 mb-1.5";
+
+function RupeeField({
+  label,
+  value,
+  onChange,
+  hint,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  hint?: string;
+  placeholder?: string;
+}) {
+  const paise = rupeesToPaise(value);
+  return (
+    <div>
+      <label className={labelClass}>{label}</label>
+      <div className="relative">
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-400">₹</span>
+        <input
+          className={`${inputClass} pl-8`}
+          type="number"
+          min="0"
+          step="0.01"
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+      <p className="mt-1 text-xs text-neutral-400">
+        {hint || (paise != null ? `${formatINR(paise)} · ${paise} paise` : "0 — stored as 0 paise")}
+      </p>
+    </div>
+  );
+}
+
+export default function SettingsPage() {
+  // Business settings (existing)
+  const [businessSettings, setBusinessSettings] = useState<BusinessSettings | null>(null);
+  const [businessLoading, setBusinessLoading] = useState(true);
+  const [businessSaving, setBusinessSaving] = useState(false);
+  const [businessError, setBusinessError] = useState<string | null>(null);
   const [currency, setCurrency] = useState("INR");
   const [companyName, setCompanyName] = useState(BRAND_CONFIG.company.name);
   const [primaryColor, setPrimaryColor] = useState("#f59e0b");
 
-  const loadSettings = async () => {
-    setLoading(true);
-    setError(null);
+  // Store commerce settings (new)
+  const [store, setStore] = useState<StoreSettings | null>(null);
+  const [storeLoading, setStoreLoading] = useState(true);
+  const [storeSaving, setStoreSaving] = useState(false);
+  const [storeError, setStoreError] = useState<string | null>(null);
+
+  const [codEnabled, setCodEnabled] = useState(false);
+  const [codFee, setCodFee] = useState("");
+  const [codMaxOrder, setCodMaxOrder] = useState("");
+  const [freeShippingThreshold, setFreeShippingThreshold] = useState("");
+  const [flatShipping, setFlatShipping] = useState("");
+  const [bannerTitle, setBannerTitle] = useState("");
+  const [bannerSubtitle, setBannerSubtitle] = useState("");
+  const [bannerImage, setBannerImage] = useState("");
+  const [bannerLink, setBannerLink] = useState("");
+  const [bannerActive, setBannerActive] = useState(false);
+  const [announcement, setAnnouncement] = useState("");
+
+  const loadBusiness = useCallback(async () => {
     try {
-      const data = await fetchApi<BusinessSettings>("/settings");
+      setBusinessLoading(true);
+      setBusinessError(null);
+      const data = await apiClient.get<BusinessSettings>("/settings");
       if (data) {
-        setSettings(data);
+        setBusinessSettings(data);
         if (data.config?.currency) setCurrency(data.config.currency);
         if (data.config?.branding?.companyName) setCompanyName(data.config.branding.companyName);
         if (data.config?.theme?.primaryColor) setPrimaryColor(data.config.theme.primaryColor);
       }
-    } catch (err: any) {
-      console.error("Failed to load settings:", err);
-      setError(err?.message || "Could not fetch business settings from ELEKTRIX API");
-      toast.error("Failed to load settings");
+    } catch (err) {
+      setBusinessError(err instanceof ApiError ? `${err.message}${err.code ? ` (${err.code})` : ""}` : "Could not load business settings");
     } finally {
-      setLoading(false);
+      setBusinessLoading(false);
+    }
+  }, []);
+
+  const loadStore = useCallback(async () => {
+    try {
+      setStoreLoading(true);
+      setStoreError(null);
+      const data = await apiClient.get<StoreSettings>("/admin/store-settings");
+      setStore(data);
+      setCodEnabled(!!data.cod_enabled);
+      setCodFee(paiseToRupeeInput(data.cod_fee_paise));
+      setCodMaxOrder(paiseToRupeeInput(data.cod_max_order_paise));
+      setFreeShippingThreshold(paiseToRupeeInput(data.free_shipping_threshold_paise));
+      setFlatShipping(paiseToRupeeInput(data.flat_shipping_paise));
+      setBannerTitle(data.banner?.title || "");
+      setBannerSubtitle(data.banner?.subtitle || "");
+      setBannerImage(data.banner?.image_url || "");
+      setBannerLink(data.banner?.link || "");
+      setBannerActive(!!data.banner?.active);
+      setAnnouncement(data.announcement || "");
+    } catch (err) {
+      setStoreError(err instanceof ApiError ? `${err.message}${err.code ? ` (${err.code})` : ""}` : "Could not load store settings");
+    } finally {
+      setStoreLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBusiness();
+    loadStore();
+  }, [loadBusiness, loadStore]);
+
+  const saveBusiness = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusinessSaving(true);
+    try {
+      const updatedConfig = {
+        ...(businessSettings?.config || {}),
+        currency,
+        theme: { ...(businessSettings?.config?.theme || {}), primaryColor },
+        branding: { ...(businessSettings?.config?.branding || {}), companyName },
+      };
+      const data = await apiClient.put<BusinessSettings>("/settings", { config: updatedConfig });
+      setBusinessSettings(data);
+      toast.success("Business settings saved");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to save business settings");
+    } finally {
+      setBusinessSaving(false);
     }
   };
 
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const handleSave = async (e: React.FormEvent) => {
+  const saveStore = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
-
+    setStoreSaving(true);
     try {
-      const updatedConfig = {
-        ...(settings?.config || {}),
-        currency,
-        theme: {
-          ...(settings?.config?.theme || {}),
-          primaryColor,
-        },
-        branding: {
-          ...(settings?.config?.branding || {}),
-          companyName,
-        },
+      const payload: Record<string, unknown> = {
+        cod_enabled: codEnabled,
+        cod_fee_paise: rupeesToPaise(codFee) ?? 0,
+        cod_max_order_paise: rupeesToPaise(codMaxOrder) ?? 0,
+        free_shipping_threshold_paise: rupeesToPaise(freeShippingThreshold) ?? 0,
+        flat_shipping_paise: rupeesToPaise(flatShipping) ?? 0,
+        banner_title: bannerTitle.trim() || null,
+        banner_subtitle: bannerSubtitle.trim() || null,
+        banner_image_url: bannerImage.trim() || null,
+        banner_link: bannerLink.trim() || null,
+        banner_active: bannerActive,
+        announcement: announcement.trim() || null,
       };
-
-      const data = await fetchApi<BusinessSettings>("/settings", {
-        method: "PUT",
-        body: JSON.stringify({ config: updatedConfig }),
-      });
-
-      setSettings(data);
-      toast.success("Business settings saved successfully");
-    } catch (err: any) {
-      console.error("Failed to save settings:", err);
-      toast.error(err?.message || "Failed to update business settings");
+      const data = await apiClient.put<StoreSettings>("/admin/store-settings", payload);
+      setStore(data);
+      toast.success("Store commerce settings saved");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? `${err.message}${err.code ? ` (${err.code})` : ""}` : "Failed to save store settings");
     } finally {
-      setSaving(false);
+      setStoreSaving(false);
     }
+  };
+
+  const reloadAll = () => {
+    loadBusiness();
+    loadStore();
   };
 
   return (
-    <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full">
+    <div className="flex flex-col gap-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
+          <h1 className="text-3xl font-bold tracking-tight text-neutral-900 flex items-center gap-3">
             <Settings className="w-8 h-8 text-amber-500" />
-            Account Settings
+            Settings
           </h1>
-          <p className="text-neutral-400 text-sm mt-1">
-            Manage your tenant configuration and store parameters for {BRAND_CONFIG.name}.
-          </p>
+          <p className="text-neutral-500 text-sm mt-1">Business profile and storefront commerce configuration.</p>
         </div>
-        <Button
-          variant="outline"
-          onClick={loadSettings}
-          disabled={loading}
-          className="border-neutral-800 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 self-start sm:self-auto"
+        <button
+          onClick={reloadAll}
+          disabled={businessLoading || storeLoading}
+          className="inline-flex items-center gap-2 self-start rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-700 transition-all hover:bg-neutral-50 disabled:opacity-50"
         >
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`w-4 h-4 ${businessLoading || storeLoading ? "animate-spin" : ""}`} />
           Reload
-        </Button>
+        </button>
       </div>
 
-      {/* Error state */}
-      {error && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-red-950/40 border border-red-800/60 text-red-300">
-          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-          <p className="text-sm">{error}</p>
+      {(businessError || storeError) && (
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
+          <div>
+            {businessError && <p>{businessError}</p>}
+            {storeError && <p>{storeError}</p>}
+          </div>
         </div>
       )}
 
-      {/* Form Card */}
-      <div className="rounded-2xl border border-neutral-800 bg-neutral-900/60 backdrop-blur-xl p-6 sm:p-8 shadow-xl">
-        {loading ? (
+      {/* Store commerce settings (new) */}
+      <form onSubmit={saveStore} className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
+        {storeLoading ? (
           <div className="space-y-6 animate-pulse">
-            <div className="h-6 w-1/3 bg-neutral-800 rounded-md" />
-            <div className="h-12 w-full bg-neutral-800/50 rounded-xl" />
-            <div className="h-12 w-full bg-neutral-800/50 rounded-xl" />
+            <div className="h-6 w-1/3 rounded-md bg-neutral-100" />
+            <div className="h-12 w-full rounded-xl bg-neutral-100" />
+            <div className="h-12 w-full rounded-xl bg-neutral-100" />
           </div>
         ) : (
-          <form onSubmit={handleSave} className="space-y-6">
-            {/* General Info */}
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Globe className="w-5 h-5 text-amber-500" />
-                Store Branding & Information
-              </h2>
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-neutral-300">
-                  Company / Store Name
-                </label>
-                <input
-                  type="text"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  className="w-full h-11 px-4 rounded-xl bg-neutral-950 border border-neutral-800 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  required
+          <div className="space-y-6">
+            <div className="flex items-center gap-2">
+              <Banknote className="h-5 w-5 text-amber-500" />
+              <h2 className="text-lg font-bold text-neutral-900">Store Commerce</h2>
+            </div>
+            <p className="-mt-3 text-xs text-neutral-400">
+              Cash on delivery and shipping rules applied at checkout. All ₹ inputs are stored as integer paise.
+            </p>
+
+            {/* COD */}
+            <div className="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/50 p-4">
+              <label className="flex cursor-pointer items-center justify-between">
+                <span className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-700">
+                  <Banknote className="h-4 w-4 text-amber-500" /> Enable Cash on Delivery
+                </span>
+                <input type="checkbox" checked={codEnabled} onChange={(e) => setCodEnabled(e.target.checked)} className="h-5 w-5 accent-amber-500" />
+              </label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <RupeeField label="COD fee" value={codFee} onChange={setCodFee} placeholder="0" />
+                <RupeeField label="COD max order value" value={codMaxOrder} onChange={setCodMaxOrder} placeholder="e.g. 10000" hint="Orders above this must pay online." />
+              </div>
+            </div>
+
+            {/* Shipping */}
+            <div className="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/50 p-4">
+              <span className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-700">
+                <Truck className="h-4 w-4 text-amber-500" /> Shipping
+              </span>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <RupeeField label="Flat shipping fee" value={flatShipping} onChange={setFlatShipping} placeholder="e.g. 49" />
+                <RupeeField
+                  label="Free shipping threshold"
+                  value={freeShippingThreshold}
+                  onChange={setFreeShippingThreshold}
+                  placeholder="e.g. 999"
+                  hint="Orders at or above this subtotal ship free (0 disables)."
                 />
               </div>
             </div>
 
-            <hr className="border-neutral-800" />
-
-            {/* Currency & Financials */}
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Shield className="w-5 h-5 text-amber-500" />
-                Financial Configuration
-              </h2>
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-neutral-300">
-                  Default Store Currency
+            {/* Festival banner */}
+            <div className="space-y-4 rounded-xl border border-amber-200 bg-amber-50/40 p-4">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-700">
+                  <Megaphone className="h-4 w-4 text-amber-500" /> Festival Banner
+                </span>
+                <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-neutral-600">
+                  Active
+                  <input type="checkbox" checked={bannerActive} onChange={(e) => setBannerActive(e.target.checked)} className="h-4 w-4 accent-amber-500" />
                 </label>
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="w-full h-11 px-4 rounded-xl bg-neutral-950 border border-neutral-800 text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                >
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className={labelClass}>Title</label>
+                  <input className={inputClass} value={bannerTitle} onChange={(e) => setBannerTitle(e.target.value)} placeholder="e.g. Diwali Dhamaka" />
+                </div>
+                <div>
+                  <label className={labelClass}>Subtitle</label>
+                  <input className={inputClass} value={bannerSubtitle} onChange={(e) => setBannerSubtitle(e.target.value)} placeholder="e.g. Up to 40% off" />
+                </div>
+                <div>
+                  <label className={labelClass}>Image URL</label>
+                  <input className={inputClass} value={bannerImage} onChange={(e) => setBannerImage(e.target.value)} placeholder="https://..." />
+                </div>
+                <div>
+                  <label className={labelClass}>Link</label>
+                  <input className={inputClass} value={bannerLink} onChange={(e) => setBannerLink(e.target.value)} placeholder="/shop or https://..." />
+                </div>
+              </div>
+              {bannerImage && (
+                <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={bannerImage} alt="Banner preview" className="h-24 w-full object-cover" />
+                </div>
+              )}
+            </div>
+
+            {/* Announcement */}
+            <div>
+              <label className={labelClass}>Announcement bar text</label>
+              <input
+                className={inputClass}
+                value={announcement}
+                onChange={(e) => setAnnouncement(e.target.value)}
+                placeholder="e.g. Free shipping on orders above ₹999"
+              />
+              <p className="mt-1 text-xs text-neutral-400">Shown as a slim bar on the storefront. Empty clears it.</p>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={storeSaving}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 transition-all hover:from-amber-600 hover:to-orange-700 disabled:opacity-50"
+              >
+                {storeSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                {storeSaving ? "Saving..." : "Save Store Settings"}
+              </button>
+            </div>
+          </div>
+        )}
+      </form>
+
+      {/* Business settings (existing) */}
+      <form onSubmit={saveBusiness} className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
+        {businessLoading ? (
+          <div className="space-y-6 animate-pulse">
+            <div className="h-6 w-1/3 rounded-md bg-neutral-100" />
+            <div className="h-12 w-full rounded-xl bg-neutral-100" />
+            <div className="h-12 w-full rounded-xl bg-neutral-100" />
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="flex items-center gap-2">
+              <Globe className="h-5 w-5 text-amber-500" />
+              <h2 className="text-lg font-bold text-neutral-900">Business Profile</h2>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className={labelClass}>Company / Store Name</label>
+                <input className={inputClass} value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-amber-500" />
+                <h3 className="text-sm font-bold text-neutral-900">Financial Configuration</h3>
+              </div>
+              <div>
+                <label className={labelClass}>Default Store Currency</label>
+                <select className={inputClass} value={currency} onChange={(e) => setCurrency(e.target.value)}>
                   <option value="INR">INR (₹) — Indian Rupee</option>
                   <option value="USD">USD ($) — US Dollar</option>
                   <option value="EUR">EUR (€) — Euro</option>
                   <option value="GBP">GBP (£) — British Pound</option>
                 </select>
-                <p className="text-xs text-neutral-500">
+                <p className="mt-1 text-xs text-neutral-400">
                   All monetary values are calculated in integer minor units (paise / cents).
                 </p>
               </div>
             </div>
 
-            <hr className="border-neutral-800" />
-
-            {/* Theme Customization */}
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-white">Theme Accent Color</h2>
+              <h3 className="text-sm font-bold text-neutral-900">Theme Accent Color</h3>
               <div className="flex items-center gap-4">
                 <input
                   type="color"
                   value={primaryColor}
                   onChange={(e) => setPrimaryColor(e.target.value)}
-                  className="h-10 w-16 rounded-lg bg-neutral-950 border border-neutral-800 cursor-pointer p-1"
+                  className="h-10 w-16 cursor-pointer rounded-lg border border-neutral-200 bg-white p-1"
                 />
-                <span className="font-mono text-sm text-neutral-400">{primaryColor}</span>
+                <span className="font-mono text-sm text-neutral-500">{primaryColor}</span>
               </div>
             </div>
 
-            <div className="pt-4 flex justify-end">
-              <Button
+            <div className="flex justify-end">
+              <button
                 type="submit"
-                disabled={saving}
-                className="bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold hover:from-amber-600 hover:to-orange-700 shadow-lg shadow-amber-500/20"
+                disabled={businessSaving}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 transition-all hover:from-amber-600 hover:to-orange-700 disabled:opacity-50"
               >
-                {saving ? (
-                  <span className="flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Saving...
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-2">
-                    <Save className="w-4 h-4" /> Save Settings
-                  </span>
-                )}
-              </Button>
+                {businessSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                {businessSaving ? "Saving..." : "Save Business Settings"}
+              </button>
             </div>
-          </form>
+          </div>
         )}
-      </div>
+      </form>
     </div>
   );
 }

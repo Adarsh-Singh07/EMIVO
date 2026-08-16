@@ -13,8 +13,34 @@ export interface User {
   is_active: boolean;
   is_email_verified?: boolean;
   mfa_enabled?: boolean;
+  roles?: string[];
   created_at: string;
   updated_at?: string;
+}
+
+/** Staff roles recognized by the v0.2 admin API (backend enforces 403 otherwise). */
+export const ADMIN_ROLES = ["owner", "staff", "platform_admin"] as const;
+
+/** Decode the `roles` claim from the JWT access token (base64url payload). */
+export function getRolesFromToken(): string[] {
+  const token = getAccessToken();
+  if (!token) return [];
+  try {
+    const payloadPart = token.split(".")[1];
+    if (!payloadPart) return [];
+    const base64 = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    const payload = JSON.parse(json) as { roles?: unknown };
+    if (Array.isArray(payload.roles)) return payload.roles.filter((r): r is string => typeof r === "string");
+    return [];
+  } catch {
+    return [];
+  }
 }
 
 export interface AuthTokens {
@@ -41,6 +67,10 @@ interface AuthContextType {
   tokens: AuthTokens | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  /** Roles from the current access token JWT (e.g. owner/staff/platform_admin/customer). */
+  roles: string[];
+  /** True when the user holds any admin role (owner/staff/platform_admin). */
+  isAdmin: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   forgotPassword: (data: { phone?: string; email?: string }) => Promise<void>;
@@ -54,6 +84,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [tokens, setTokensState] = useState<AuthTokens | null>(null);
+  const [roles, setRoles] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
@@ -62,12 +93,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const accessToken = getAccessToken();
       if (!accessToken) {
         setUser(null);
+        setRoles([]);
         return;
       }
+      setRoles(getRolesFromToken());
       const data = await apiClient.get<User>("/users/me");
       setUser(data);
     } catch (error) {
       setUser(null);
+      setRoles([]);
     }
   }, []);
 
@@ -112,6 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+
   const register = async (data: RegisterData): Promise<void> => {
     try {
       await fetchApi<User>("/auth/register", {
@@ -143,6 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     removeTokens();
     setTokensState(null);
     setUser(null);
+    setRoles([]);
     router.push("/login");
     toast.success("Logged out successfully");
   };
@@ -161,11 +197,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initAuth();
   }, [loadUser]);
 
+  const isAdmin = roles.some((r) => (ADMIN_ROLES as readonly string[]).includes(r));
+
   const value: AuthContextType = {
     user,
     tokens,
     isLoading,
     isAuthenticated: !!user,
+    roles,
+    isAdmin,
     login,
     register,
     forgotPassword,

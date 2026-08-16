@@ -1,9 +1,21 @@
 /**
- * ELEKTRIX product catalog.
- * Static PRODUCTS array serves as the seed fallback catalog.
- * The async API adapter functions below fetch live data from the backend;
- * when the backend has products seeded they take priority.
+ * ELEKTRIX product catalog adapter.
+ *
+ * The live backend (`/store/products`, see docs/API_V02_CONTRACT.md) is the
+ * primary source of truth. The static PRODUCTS array below is ONLY an offline
+ * fallback used when the API is unreachable (e.g. local dev without the
+ * backend running) so the storefront still renders.
+ *
+ * IMPORTANT: every price in this module is integer PAISE — both for API
+ * products and for the static fallback (converted on mapping). Use
+ * lib/format.ts `inr()` to render.
  */
+
+import type { StoreProduct, ProductListParams, ProductPage } from "./store-api";
+
+/* ------------------------------------------------------------------ */
+/* UI types                                                            */
+/* ------------------------------------------------------------------ */
 
 export interface Category {
   slug: string;
@@ -11,22 +23,49 @@ export interface Category {
   icon: string;
 }
 
-export interface Product {
+export interface ProductSpec {
+  name: string;
+  value: string;
+}
+
+export interface ProductVariant {
   id: string;
   name: string;
+  price: number; // paise
+}
+
+export interface Product {
+  /** Database UUID — used for cart/wishlist/compare API calls. */
+  id: string;
+  /** slug (preferred) or id — used in /product/[id] URLs. */
+  slug: string;
+  name: string;
+  /** category_slug */
   category: string;
+  categoryName?: string;
   brand: string;
+  /** Effective selling price in paise (authoritative). */
   price: number;
+  /** MRP in paise. */
   mrp: number;
+  /** Discount percent (0 when no MRP premium). */
   discount: number;
-  rating: number;
-  reviews: number;
+  rating?: number;
+  reviews?: number;
   inStock: boolean;
+  stockAvailable?: number | null;
   colors: string[];
+  images: string[];
   img: string;
   imgHover: string;
   tagline: string;
   highlights: string[];
+  description?: string;
+  specs?: ProductSpec[];
+  variants?: ProductVariant[];
+  sku?: string;
+  onOffer?: boolean;
+  createdAt?: string;
 }
 
 export interface HeroSlide {
@@ -47,6 +86,32 @@ export interface PromoTile {
   subtitle: string;
   img: string;
   link: string;
+}
+
+/** Canonical href for a product (slug preferred, id fallback). */
+export const productHref = (p: Pick<Product, "id" | "slug">): string =>
+  `/product/${p.slug || p.id}`;
+
+/* ------------------------------------------------------------------ */
+/* Static fallback catalog (offline only)                              */
+/* ------------------------------------------------------------------ */
+
+interface StaticProduct {
+  id: string;
+  name: string;
+  category: string;
+  brand: string;
+  price: number; // rupees in the seed data — converted to paise on mapping
+  mrp: number;
+  discount: number;
+  rating: number;
+  reviews: number;
+  inStock: boolean;
+  colors: string[];
+  img: string;
+  imgHover: string;
+  tagline: string;
+  highlights: string[];
 }
 
 const GH = "https://raw.githubusercontent.com/Adarsh-Singh07/EMIVO/demo/public/images/fynode";
@@ -91,7 +156,7 @@ export function colorName(hex: string): string {
   return COLOR_NAMES[hex.toLowerCase()] ?? hex;
 }
 
-export const PRODUCTS: Product[] = [
+const STATIC_PRODUCTS: StaticProduct[] = [
   {
     id: "iphone-16-pro",
     name: "iPhone 16 Pro 256GB",
@@ -402,17 +467,100 @@ export const PRODUCTS: Product[] = [
   },
 ];
 
-export function getProduct(id: string): Product | undefined {
-  return PRODUCTS.find((p) => p.id === id);
+/** Stable pick from the static image pool, used when API images are missing. */
+function fallbackImage(seed: string, index: number): string {
+  const pool = [
+    "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?crop=entropy&cs=srgb&fm=jpg&q=85&w=900",
+    "https://images.unsplash.com/photo-1541807084-5c52b6b3adef?crop=entropy&cs=srgb&fm=jpg&q=85&w=900",
+    "https://images.unsplash.com/photo-1498049794561-7780e7231661?crop=entropy&cs=srgb&fm=jpg&q=85&w=900",
+    "https://images.unsplash.com/photo-1583394838336-acdf977e91f3?crop=entropy&cs=srgb&fm=jpg&q=85&w=900",
+    `${GH}/01-2.jpg`,
+    `${GH}/03-1.jpg`,
+    `${GH}/04-1.jpg`,
+    `${GH}/03-26.jpg`,
+  ];
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return pool[(h + index) % pool.length];
 }
 
-export function getFeatured(n = 8): Product[] {
-  return PRODUCTS.slice(3, 3 + n);
+/* ------------------------------------------------------------------ */
+/* Mappers                                                             */
+/* ------------------------------------------------------------------ */
+
+/** Map a v0.2 StoreProduct (paise) to the UI Product shape (paise). */
+export function mapStoreProduct(p: StoreProduct): Product {
+  const images =
+    p.images && p.images.length > 0
+      ? p.images
+      : [fallbackImage(p.id, 0), fallbackImage(p.id, 1)];
+
+  const price = p.effective_price ?? p.price;
+  const mrp = p.mrp && p.mrp > price ? p.mrp : price;
+  const discount =
+    p.discount_percent != null
+      ? Math.round(p.discount_percent)
+      : mrp > price
+        ? Math.round(((mrp - price) / mrp) * 100)
+        : 0;
+
+  return {
+    id: p.id,
+    slug: p.slug || p.id,
+    name: p.name,
+    category: p.category_slug || "accessories",
+    categoryName: p.category_name,
+    brand: p.brand || "ELEKTRIX",
+    price,
+    mrp,
+    discount,
+    inStock: p.stock ? p.stock.in_stock : true,
+    stockAvailable: p.stock ? p.stock.available : null,
+    colors: [],
+    images,
+    img: images[0],
+    imgHover: images[1] || images[0],
+    tagline: p.description?.split(/[.\n]/)[0]?.slice(0, 90) || p.name,
+    highlights: p.tags || [],
+    description: p.description,
+    specs: p.specs || [],
+    variants: (p.variants || []).map((v) => ({ id: v.id, name: v.name, price: v.price })),
+    sku: p.sku,
+    onOffer: p.on_offer,
+    createdAt: p.created_at,
+  };
 }
 
-export function getTrending(): Product[] {
-  return [PRODUCTS[3], PRODUCTS[6], PRODUCTS[7], PRODUCTS[9]];
+/** Map a static seed product (rupees) to the UI Product shape (paise). */
+function mapStaticProduct(p: StaticProduct): Product {
+  return {
+    id: p.id,
+    slug: p.id,
+    name: p.name,
+    category: p.category,
+    brand: p.brand,
+    price: p.price * 100,
+    mrp: p.mrp * 100,
+    discount: p.discount,
+    rating: p.rating,
+    reviews: p.reviews,
+    inStock: p.inStock,
+    stockAvailable: p.inStock ? 25 : 0,
+    colors: p.colors,
+    images: [p.img, p.imgHover],
+    img: p.img,
+    imgHover: p.imgHover,
+    tagline: p.tagline,
+    highlights: p.highlights,
+  };
 }
+
+/** The static catalog mapped to the UI shape — OFFLINE FALLBACK ONLY. */
+export const PRODUCTS: Product[] = STATIC_PRODUCTS.map(mapStaticProduct);
+
+/* ------------------------------------------------------------------ */
+/* Static marketing content                                            */
+/* ------------------------------------------------------------------ */
 
 export const HERO_SLIDES: HeroSlide[] = [
   {
@@ -473,118 +621,131 @@ export const PROMO_TILES: PromoTile[] = [
     link: "/shop?category=audio",
   },
 ];
+
 /* ------------------------------------------------------------------ */
-/* API shape (from FastAPI backend)                                     */
+/* Data helpers — live API first, static fallback on failure           */
 /* ------------------------------------------------------------------ */
-
-interface ApiProduct {
-  id: string;
-  name: string;
-  slug?: string;
-  description?: string;
-  base_price: number; // integer minor units (paise)
-  compare_at_price?: number;
-  category?: string;
-  brand?: string;
-  status?: string;
-  images?: Array<{ url: string; position: number }>;
-  variants?: Array<{
-    id: string;
-    sku: string;
-    price: number;
-    attributes?: Record<string, string>;
-  }>;
-  tags?: string[];
-  rating?: number;
-  review_count?: number;
-}
-
-/** Map a backend API product to the storefront Product shape. */
-function mapApiProduct(p: ApiProduct): Product {
-  const imgs = p.images?.sort((a, b) => a.position - b.position) ?? [];
-  const imgUrl = imgs[0]?.url ?? "";
-  const imgHoverUrl = imgs[1]?.url ?? imgUrl;
-
-  const pricePaise = p.variants?.[0]?.price ?? p.base_price;
-  const priceRupees = Math.round(pricePaise / 100);
-  const compareRupees = p.compare_at_price ? Math.round(p.compare_at_price / 100) : Math.round(priceRupees * 1.1);
-  const discountPct = compareRupees > priceRupees
-    ? Math.round(((compareRupees - priceRupees) / compareRupees) * 100)
-    : 0;
-
-  return {
-    id: p.slug || p.id,
-    name: p.name,
-    category: p.category?.toLowerCase() ?? "accessories",
-    brand: p.brand ?? "ELEKTRIX",
-    price: priceRupees,
-    mrp: compareRupees,
-    discount: discountPct,
-    rating: p.rating ?? 4.5,
-    reviews: p.review_count ?? 0,
-    inStock: p.status === "active" || p.status == null,
-    colors: [],
-    img: imgUrl || `https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=900`,
-    imgHover: imgHoverUrl || `https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=900`,
-    tagline: p.description?.slice(0, 80) ?? p.name,
-    highlights: p.tags ?? [],
-  };
-}
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 /**
- * Fetch products from the real backend.
- * Falls back to the static PRODUCTS array if the API is unavailable or returns empty.
+ * Server-side fetch of a product page from /store/products with ISR caching.
+ * Returns null when the API is unreachable (caller falls back to static).
  */
-export async function fetchApiProducts(params?: {
-  category?: string;
-  q?: string;
-  page?: number;
-  page_size?: number;
-}): Promise<Product[]> {
-  try {
-    const sp = new URLSearchParams();
-    if (params?.category) sp.set("category", params.category);
-    if (params?.q) sp.set("search", params.q);
-    if (params?.page) sp.set("page", String(params.page));
-    sp.set("page_size", String(params?.page_size ?? 50));
+export async function fetchStoreProductsServer(
+  params: ProductListParams = {}
+): Promise<ProductPage | null> {
+  const sp = new URLSearchParams();
+  if (params.q) sp.set("q", params.q);
+  if (params.category) sp.set("category", params.category);
+  if (params.brand) sp.set("brand", params.brand);
+  if (params.min_price != null) sp.set("min_price", String(params.min_price));
+  if (params.max_price != null) sp.set("max_price", String(params.max_price));
+  if (params.featured) sp.set("featured", "true");
+  if (params.in_stock) sp.set("in_stock", "true");
+  if (params.sort) sp.set("sort", params.sort);
+  if (params.page) sp.set("page", String(params.page));
+  if (params.page_size) sp.set("page_size", String(params.page_size));
+  const qs = sp.toString();
 
-    const res = await fetch(`${API_BASE}/products/?${sp}`, {
-      next: { revalidate: 60 }, // ISR: revalidate every 60s
+  try {
+    const res = await fetch(`${API_BASE}/store/products${qs ? `?${qs}` : ""}`, {
+      next: { revalidate: 60 },
       headers: { "Content-Type": "application/json" },
     });
-
-    if (!res.ok) throw new Error(`API ${res.status}`);
-
-    const data = await res.json();
-    const items: ApiProduct[] = data.items ?? data ?? [];
-
-    if (items.length === 0) return PRODUCTS;
-    return items.map(mapApiProduct);
+    if (!res.ok) return null;
+    return (await res.json()) as ProductPage;
   } catch {
-    // Graceful degradation: use static catalog
-    return PRODUCTS;
+    return null;
   }
 }
 
 /**
- * Fetch a single product by slug or id.
- * Falls back to static PRODUCTS.find if not found in API.
+ * Fetch a page of products mapped to the UI shape.
+ * Falls back to a synthetic page built from the static catalog when the API
+ * is unreachable or returns no items.
  */
-export async function getApiProductById(id: string): Promise<Product | null> {
-  // First, try static catalog for fast lookup
-  const staticProduct = PRODUCTS.find((p) => p.id === id);
+export async function fetchApiProducts(
+  params: ProductListParams = {}
+): Promise<{ products: Product[]; page: ProductPage | null }> {
+  const page = await fetchStoreProductsServer({ page_size: 24, ...params });
+  if (page && page.items.length > 0) {
+    return { products: page.items.map(mapStoreProduct), page };
+  }
+  return { products: PRODUCTS, page: null };
+}
 
+/** Single product by slug or id. Static fallback keeps old links working. */
+export async function getApiProductById(idOrSlug: string): Promise<Product | null> {
   try {
-    const res = await fetch(`${API_BASE}/products/${id}`, {
+    const res = await fetch(`${API_BASE}/store/products/${encodeURIComponent(idOrSlug)}`, {
       next: { revalidate: 60 },
       headers: { "Content-Type": "application/json" },
     });
-    if (!res.ok) return staticProduct ?? null;
-    const data: ApiProduct = await res.json();
-    return mapApiProduct(data);
+    if (res.ok) {
+      const data = (await res.json()) as StoreProduct;
+      return mapStoreProduct(data);
+    }
   } catch {
-    return staticProduct ?? null;
+    /* fall through to static */
+  }
+  return PRODUCTS.find((p) => p.id === idOrSlug || p.slug === idOrSlug) ?? null;
+}
+
+/** Related products for a slug/id; falls back to a static slice. */
+export async function getRelatedProducts(idOrSlug: string, limit = 8): Promise<Product[]> {
+  try {
+    const res = await fetch(
+      `${API_BASE}/store/products/${encodeURIComponent(idOrSlug)}/related?limit=${limit}`,
+      { next: { revalidate: 300 } }
+    );
+    if (res.ok) {
+      const data = (await res.json()) as StoreProduct[];
+      if (Array.isArray(data) && data.length > 0) return data.map(mapStoreProduct);
+    }
+  } catch {
+    /* fall through to static */
+  }
+  return PRODUCTS.filter((p) => p.id !== idOrSlug && p.slug !== idOrSlug).slice(0, limit);
+}
+
+/** Featured products (API first, static fallback). */
+export async function getFeatured(n = 8): Promise<Product[]> {
+  const { products } = await fetchApiProducts({ featured: true, page_size: n, sort: "newest" });
+  return products.slice(0, n);
+}
+
+/** Trending products (API first, static fallback). */
+export async function getTrending(n = 4): Promise<Product[]> {
+  const { products } = await fetchApiProducts({
+    category: "audio",
+    page_size: n,
+    sort: "discount",
+  });
+  return products.slice(0, n);
+}
+
+/** Newest arrivals (API first, static fallback). */
+export async function getNewArrivals(n = 8): Promise<Product[]> {
+  const { products } = await fetchApiProducts({ page_size: n, sort: "newest" });
+  return products.slice(0, n);
+}
+
+/** Category list for navigation (API first, static fallback). */
+export async function getCategories(): Promise<Category[]> {
+  try {
+    const res = await fetch(`${API_BASE}/store/categories`, { next: { revalidate: 300 } });
+    if (!res.ok) return CATEGORIES;
+    const data = (await res.json()) as Array<{ slug: string; name: string }>;
+    if (!Array.isArray(data) || data.length === 0) return CATEGORIES;
+    return data
+      .filter((c) => c && c.slug && c.name)
+      .map((c) => ({
+        slug: c.slug,
+        name: c.name,
+        icon: CATEGORIES.find((s) => s.slug === c.slug)?.icon || "Package",
+      }));
+  } catch {
+    return CATEGORIES;
   }
 }

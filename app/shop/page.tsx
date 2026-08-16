@@ -1,26 +1,24 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import ProductCard from "@/components/site/ProductCard";
-import { CATEGORIES, BRANDS, type Product, fetchApiProducts } from "@/lib/products";
-import { SlidersHorizontal, ArrowUpDown, X, Check } from "lucide-react";
+import { CATEGORIES, PRODUCTS, mapStoreProduct, type Product } from "@/lib/products";
+import { storeApi, type ProductListParams, type StoreCategory } from "@/lib/store-api";
+import { SlidersHorizontal, ArrowUpDown, X, Search, ChevronLeft, ChevronRight, WifiOff } from "lucide-react";
 
-const PRICE_OPTIONS = [
-  { label: "All Prices", value: "all" },
-  { label: "Under ₹10,000", value: "under-10k" },
-  { label: "₹10,000 – ₹25,000", value: "10-25k" },
-  { label: "₹25,000 – ₹50,000", value: "25-50k" },
-  { label: "Above ₹50,000", value: "over-50k" },
-];
+const PAGE_SIZE = 12;
 
-const SORT_OPTIONS = [
-  { label: "Featured", value: "featured" },
-  { label: "Price: Low to High", value: "price-asc" },
-  { label: "Price: High to Low", value: "price-desc" },
-  { label: "Top Rated", value: "rating" },
-  { label: "Biggest Discount", value: "discount" },
+const SORT_VALUES = ["relevance", "price_asc", "price_desc", "newest", "discount"] as const;
+type SortValue = (typeof SORT_VALUES)[number];
+
+const SORT_OPTIONS: Array<{ label: string; value: SortValue }> = [
+  { label: "Relevance", value: "relevance" },
+  { label: "Price: Low to High", value: "price_asc" },
+  { label: "Price: High to Low", value: "price_desc" },
+  { label: "Newest first", value: "newest" },
+  { label: "Biggest discount", value: "discount" },
 ];
 
 /** Skeleton card placeholder */
@@ -36,91 +34,175 @@ function ProductSkeleton() {
 }
 
 function ShopContent() {
+  const router = useRouter();
   const sp = useSearchParams();
-  const cat = sp.get("category") ?? "all";
-  const query = (sp.get("q") ?? "").trim().toLowerCase();
 
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [brands, setBrands] = useState<string[]>([]);
-  const [price, setPrice] = useState("all");
-  const [sort, setSort] = useState("featured");
-  const [sortOpen, setSortOpen] = useState(false);
-  const [filterOpen, setFilterOpen] = useState(false);
+  // Single source of truth: the URL. Local state mirrors it for inputs.
+  const q = sp.get("q") ?? "";
+  const category = sp.get("category") ?? "";
+  const rawSort = sp.get("sort") ?? "relevance";
+  const sort: SortValue = (SORT_VALUES as readonly string[]).includes(rawSort)
+    ? (rawSort as SortValue)
+    : "relevance";
+  const minPrice = sp.get("min_price") ?? "";
+  const maxPrice = sp.get("max_price") ?? "";
+  const inStockOnly = sp.get("in_stock") === "1";
+  const page = Math.max(1, parseInt(sp.get("page") || "1", 10) || 1);
 
-  // Fetch products from API (with static fallback inside fetchApiProducts)
+  const [minDraft, setMinDraft] = useState(minPrice);
+  const [maxDraft, setMaxDraft] = useState(maxPrice);
+
   useEffect(() => {
-    setLoading(true);
-    fetchApiProducts({ category: cat !== "all" ? cat : undefined })
-      .then((products) => setAllProducts(products))
-      .catch(() => setAllProducts([]))
-      .finally(() => setLoading(false));
-  }, [cat]);
+    setMinDraft(minPrice);
+    setMaxDraft(maxPrice);
+  }, [minPrice, maxPrice]);
 
-  const activeFilterCount = brands.length + (price !== "all" ? 1 : 0);
-
-  const filtered = useMemo(() => {
-    let list = allProducts.filter((p) => (cat === "all" ? true : p.category === cat));
-
-    if (query) {
-      list = list.filter((p) =>
-        [p.name, p.brand, p.category, p.tagline].join(" ").toLowerCase().includes(query)
-      );
-    }
-
-    if (brands.length) {
-      list = list.filter((p) => brands.includes(p.brand));
-    }
-
-    if (price !== "all") {
-      list = list.filter((p) => {
-        if (price === "under-10k") return p.price < 10_000;
-        if (price === "10-25k") return p.price >= 10_000 && p.price < 25_000;
-        if (price === "25-50k") return p.price >= 25_000 && p.price < 50_000;
-        return p.price >= 50_000;
+  const setParam = useCallback(
+    (updates: Record<string, string | null>, keepPage = false) => {
+      const next = new URLSearchParams(sp.toString());
+      Object.entries(updates).forEach(([k, v]) => {
+        if (v === null || v === "") next.delete(k);
+        else next.set(k, v);
       });
+      // Any filter change restarts pagination unless explicitly kept.
+      if (!keepPage) next.delete("page");
+      router.push(`/shop${next.toString() ? `?${next.toString()}` : ""}`, { scroll: true });
+    },
+    [router, sp]
+  );
+
+  /* ------------------------- Data fetching ------------------------- */
+  const [products, setProducts] = useState<Product[]>([]);
+  const [total, setTotal] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
+  const [hasPrev, setHasPrev] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [offline, setOffline] = useState(false);
+  const [error, setError] = useState("");
+
+  const fetchKey = `${q}|${category}|${sort}|${minPrice}|${maxPrice}|${inStockOnly}|${page}`;
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError("");
+    storeApi
+      .listProducts({
+        q: q || undefined,
+        category: category || undefined,
+        sort,
+        min_price: minPrice ? Number(minPrice) * 100 : undefined,
+        max_price: maxPrice ? Number(maxPrice) * 100 : undefined,
+        in_stock: inStockOnly || undefined,
+        page,
+        page_size: PAGE_SIZE,
+      } satisfies ProductListParams)
+      .then((data) => {
+        if (cancelled) return;
+        setProducts(data.items.map(mapStoreProduct));
+        setTotal(data.total);
+        setHasNext(data.has_next);
+        setHasPrev(data.has_prev);
+        setOffline(false);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        // Offline fallback: filter the static catalog client-side.
+        const list = PRODUCTS.filter((p) => {
+          if (category && p.category !== category) return false;
+          if (q) {
+            const hay = `${p.name} ${p.brand} ${p.category} ${p.tagline}`.toLowerCase();
+            if (!hay.includes(q.toLowerCase())) return false;
+          }
+          if (minPrice && p.price < Number(minPrice) * 100) return false;
+          if (maxPrice && p.price > Number(maxPrice) * 100) return false;
+          if (inStockOnly && !p.inStock) return false;
+          return true;
+        });
+        if (sort === "price_asc") list.sort((a, b) => a.price - b.price);
+        if (sort === "price_desc") list.sort((a, b) => b.price - a.price);
+        if (sort === "discount") list.sort((a, b) => b.discount - a.discount);
+        setProducts(list);
+        setTotal(list.length);
+        setHasNext(false);
+        setHasPrev(false);
+        setOffline(true);
+        setError(err instanceof Error ? err.message : "");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchKey]);
+
+  /* ------------------------- Categories ------------------------- */
+  const [categories, setCategories] = useState<StoreCategory[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    storeApi
+      .getCategories()
+      .then((cats) => {
+        if (!cancelled && Array.isArray(cats) && cats.length > 0) setCategories(cats);
+      })
+      .catch(() => {
+        /* keep static CATEGORIES */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const categoryChips = useMemo(() => {
+    if (categories.length > 0) {
+      return [
+        { slug: "", name: "All" },
+        ...categories.map((c) => ({ slug: c.slug, name: c.name })),
+      ];
     }
+    return [{ slug: "", name: "All" }, ...CATEGORIES.map((c) => ({ slug: c.slug, name: c.name }))];
+  }, [categories]);
 
-    switch (sort) {
-      case "price-asc":
-        list = [...list].sort((a, b) => a.price - b.price);
-        break;
-      case "price-desc":
-        list = [...list].sort((a, b) => b.price - a.price);
-        break;
-      case "rating":
-        list = [...list].sort((a, b) => b.rating - a.rating);
-        break;
-      case "discount":
-        list = [...list].sort((a, b) => b.discount - a.discount);
-        break;
-      default:
-        break;
+  const activeFilterCount =
+    (category ? 1 : 0) + (minPrice || maxPrice ? 1 : 0) + (inStockOnly ? 1 : 0) + (sort !== "relevance" ? 1 : 0);
+
+  const applyPrice = () => {
+    const min = minDraft.trim() && /^\d+$/.test(minDraft.trim()) ? minDraft.trim() : "";
+    const max = maxDraft.trim() && /^\d+$/.test(maxDraft.trim()) ? maxDraft.trim() : "";
+    if (min && max && Number(min) > Number(max)) {
+      setParam({ min_price: max, max_price: min });
+      return;
     }
+    setParam({ min_price: min || null, max_price: max || null });
+  };
 
-    return list;
-  }, [allProducts, cat, query, brands, price, sort]);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const toggleBrand = (b: string) =>
-    setBrands((prev) => (prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]));
+  const [searchDraft, setSearchDraft] = useState(q);
+  useEffect(() => setSearchDraft(q), [q]);
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <nav className="text-sm text-neutral-500 mb-6">
         <Link href="/">Home</Link> /{" "}
-        <span className="text-neutral-900 capitalize">{cat === "all" ? "Shop" : cat}</span>
+        <span className="text-neutral-900 capitalize">
+          {category ? categoryChips.find((c) => c.slug === category)?.name || category : "Shop"}
+        </span>
       </nav>
 
-      <div className="flex items-end justify-between mb-8">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-6">
         <div>
           <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight capitalize">
-            {cat === "all" ? "All Products" : cat}
+            {category ? categoryChips.find((c) => c.slug === category)?.name || category : "All Products"}
           </h1>
           <p className="text-neutral-500 mt-2">
-            {query ? (
+            {q ? (
               <>
-                {filtered.length} results for{" "}
-                <span className="text-neutral-900 font-medium">"{query}"</span>{" "}
+                {loading ? "Searching…" : `${total} result${total === 1 ? "" : "s"}`} for{" "}
+                <span className="text-neutral-900 font-medium">&quot;{q}&quot;</span>{" "}
                 <Link href="/shop" className="text-neutral-950 underline underline-offset-2">
                   Clear
                 </Link>
@@ -128,294 +210,228 @@ function ShopContent() {
             ) : loading ? (
               "Loading…"
             ) : (
-              `${filtered.length} products`
+              `${total} product${total === 1 ? "" : "s"}`
             )}
           </p>
         </div>
+
+        {/* Search box */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            setParam({ q: searchDraft.trim() || null });
+          }}
+          className="flex items-stretch w-full max-w-md"
+        >
+          <input
+            value={searchDraft}
+            onChange={(e) => setSearchDraft(e.target.value)}
+            placeholder="Search in store"
+            aria-label="Search products"
+            className="flex-1 min-w-0 h-11 rounded-l-full border border-neutral-300 border-r-0 px-5 text-sm outline-none focus:border-neutral-950"
+          />
+          <button
+            type="submit"
+            aria-label="Search"
+            className="h-11 px-5 rounded-r-full bg-neutral-950 text-white text-sm font-medium hover:bg-neutral-800"
+          >
+            <Search className="w-4 h-4" />
+          </button>
+        </form>
+      </div>
+
+      {offline && !loading && (
+        <div className="mb-6 flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 text-amber-800 px-4 py-3 text-sm">
+          <WifiOff className="w-4 h-4 shrink-0" />
+          Live catalog is unreachable{error ? ` (${error})` : ""} — showing the offline catalog.
+        </div>
+      )}
+
+      {/* Category chips */}
+      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-6">
+        {categoryChips.map((c) => (
+          <Link
+            key={c.slug || "all"}
+            href={c.slug ? `/shop?category=${c.slug}` : "/shop"}
+            className={`shrink-0 px-4 h-9 inline-flex items-center rounded-full border text-sm font-medium transition-colors ${
+              category === c.slug
+                ? "border-neutral-950 bg-neutral-950 text-white"
+                : "border-neutral-200 text-neutral-600 hover:border-neutral-400"
+            }`}
+          >
+            {c.name}
+          </Link>
+        ))}
       </div>
 
       <div className="grid lg:grid-cols-[240px_1fr] gap-8">
-        {/* Sidebar filters (desktop only — mobile uses the Filter sheet) */}
+        {/* Sidebar filters (desktop) */}
         <aside className="hidden lg:block space-y-8">
           <div>
-            <h3 className="font-semibold mb-3">Categories</h3>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <Link
-                  href="/shop"
-                  className={
-                    cat === "all" ? "font-medium text-neutral-950" : "text-neutral-500 hover:text-neutral-950"
-                  }
-                >
-                  All
-                </Link>
-              </li>
-              {CATEGORIES.map((c) => (
-                <li key={c.slug}>
-                  <Link
-                    href={`/shop?category=${c.slug}`}
-                    className={`capitalize ${
-                      cat === c.slug
-                        ? "font-medium text-neutral-950"
-                        : "text-neutral-500 hover:text-neutral-950"
-                    }`}
-                  >
-                    {c.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <h3 className="font-semibold mb-3">Price (₹)</h3>
+            <div className="flex items-center gap-2">
+              <input
+                value={minDraft}
+                onChange={(e) => setMinDraft(e.target.value.replace(/\D/g, ""))}
+                onBlur={applyPrice}
+                onKeyDown={(e) => e.key === "Enter" && applyPrice()}
+                placeholder="Min"
+                inputMode="numeric"
+                aria-label="Minimum price"
+                className="w-full h-10 border border-neutral-200 rounded-xl px-3 text-sm focus:outline-none focus:border-neutral-950"
+              />
+              <span className="text-neutral-300">—</span>
+              <input
+                value={maxDraft}
+                onChange={(e) => setMaxDraft(e.target.value.replace(/\D/g, ""))}
+                onBlur={applyPrice}
+                onKeyDown={(e) => e.key === "Enter" && applyPrice()}
+                placeholder="Max"
+                inputMode="numeric"
+                aria-label="Maximum price"
+                className="w-full h-10 border border-neutral-200 rounded-xl px-3 text-sm focus:outline-none focus:border-neutral-950"
+              />
+            </div>
+            <button
+              onClick={applyPrice}
+              className="mt-3 h-9 px-4 rounded-full bg-neutral-950 text-white text-xs font-semibold hover:bg-neutral-800"
+            >
+              Apply
+            </button>
           </div>
 
           <div>
-            <h3 className="font-semibold mb-3">Brands</h3>
-            <ul className="space-y-2 text-sm">
-              {BRANDS.map((b) => (
-                <li key={b} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id={`b-${b}`}
-                    checked={brands.includes(b)}
-                    onChange={() => toggleBrand(b)}
-                    className="accent-neutral-950"
-                  />
-                  <label htmlFor={`b-${b}`} className="text-neutral-600">
-                    {b}
-                  </label>
-                </li>
-              ))}
-            </ul>
+            <h3 className="font-semibold mb-3">Availability</h3>
+            <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={inStockOnly}
+                onChange={(e) => setParam({ in_stock: e.target.checked ? "1" : null })}
+                className="accent-neutral-950 w-4 h-4"
+              />
+              In stock only
+            </label>
           </div>
 
-          <div>
-            <h3 className="font-semibold mb-3">Price</h3>
-            <ul className="space-y-2 text-sm">
-              {PRICE_OPTIONS.map((o) => (
-                <li key={o.value}>
-                  <button
-                    onClick={() => setPrice(o.value)}
-                    className={
-                      price === o.value
-                        ? "font-medium text-neutral-950"
-                        : "text-neutral-500 hover:text-neutral-950"
-                    }
-                  >
-                    {o.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {activeFilterCount > 0 && (
+            <button
+              onClick={() => router.push("/shop")}
+              className="text-xs font-medium text-neutral-500 underline underline-offset-2"
+            >
+              Clear all filters
+            </button>
+          )}
         </aside>
 
         {/* Product grid */}
-        <div>
+        <div className="min-w-0">
           {/* Mobile toolbar */}
           <div className="lg:hidden flex items-center justify-between mb-4">
-            <p className="text-sm text-neutral-500">
-              Showing {filtered.length} of {allProducts.length}
-            </p>
+            <p className="text-sm text-neutral-500">{loading ? "Loading…" : `${total} products`}</p>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setSortOpen(true)}
-                className="h-9 px-3.5 inline-flex items-center gap-1.5 rounded-full border border-neutral-200 text-sm font-medium text-neutral-800"
-              >
-                <ArrowUpDown className="w-4 h-4" /> Sort
-              </button>
-              <button
-                onClick={() => setFilterOpen(true)}
-                className="relative h-9 px-3.5 inline-flex items-center gap-1.5 rounded-full border border-neutral-200 text-sm font-medium text-neutral-800"
-              >
-                <SlidersHorizontal className="w-4 h-4" /> Filter
-                {activeFilterCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-neutral-950 text-white text-[10px] font-semibold grid place-items-center">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </button>
+              <label className="h-9 px-3.5 inline-flex items-center gap-1.5 rounded-full border border-neutral-200 text-sm font-medium text-neutral-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={inStockOnly}
+                  onChange={(e) => setParam({ in_stock: e.target.checked ? "1" : null })}
+                  className="accent-neutral-950 w-3.5 h-3.5"
+                />
+                In stock
+              </label>
             </div>
           </div>
 
-          {/* Desktop count + sort select */}
+          {/* Desktop sort select */}
           <div className="hidden lg:flex items-center justify-between mb-6">
             <p className="text-sm text-neutral-500">
-              Showing {filtered.length} of {allProducts.length}
+              {hasNext || hasPrev
+                ? `Page ${page} of ${totalPages}`
+                : `${total} product${total === 1 ? "" : "s"}`}
             </p>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-              className="h-10 border border-neutral-200 rounded-full px-4 text-sm focus:outline-none focus:border-neutral-950"
-            >
-              <option value="featured">Featured</option>
-              <option value="price-asc">Price: Low to High</option>
-              <option value="price-desc">Price: High to Low</option>
-              <option value="rating">Top Rated</option>
-              <option value="discount">Biggest Discount</option>
-            </select>
+            <label className="flex items-center gap-2 text-sm text-neutral-500">
+              <ArrowUpDown className="w-4 h-4" />
+              <select
+                value={sort}
+                onChange={(e) => setParam({ sort: e.target.value === "relevance" ? null : e.target.value })}
+                className="h-10 border border-neutral-200 rounded-full px-4 text-sm focus:outline-none focus:border-neutral-950"
+              >
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {/* Mobile sort chips */}
+          <div className="lg:hidden flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-4">
+            {SORT_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                onClick={() => setParam({ sort: o.value === "relevance" ? null : o.value })}
+                className={`shrink-0 px-3.5 h-9 rounded-full border text-sm font-medium ${
+                  sort === o.value
+                    ? "border-neutral-950 bg-neutral-950 text-white"
+                    : "border-neutral-200 text-neutral-600"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
           </div>
 
           {loading ? (
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {Array.from({ length: 8 }).map((_, i) => <ProductSkeleton key={i} />)}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center py-20 border border-dashed border-neutral-200 rounded-3xl text-neutral-500">
-              No products match your filters.
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {filtered.map((p) => (
-                <ProductCard key={p.id} product={p} />
+              {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+                <ProductSkeleton key={i} />
               ))}
             </div>
+          ) : products.length === 0 ? (
+            <div className="text-center py-20 border border-dashed border-neutral-200 rounded-3xl text-neutral-500">
+              <SlidersHorizontal className="w-10 h-10 mx-auto mb-4 text-neutral-300" />
+              <p>No products match your filters.</p>
+              <button
+                onClick={() => router.push("/shop")}
+                className="mt-6 h-10 px-6 inline-flex items-center gap-2 bg-neutral-950 text-white rounded-full text-xs font-semibold hover:bg-neutral-800"
+              >
+                <X className="w-3.5 h-3.5" /> Clear filters
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {products.map((p) => (
+                  <ProductCard key={p.id} product={p} />
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {(hasPrev || hasNext) && (
+                <div className="mt-10 flex items-center justify-center gap-3">
+                  <button
+                    onClick={() => setParam({ page: String(page - 1) }, true)}
+                    disabled={!hasPrev}
+                    className="h-11 px-5 inline-flex items-center gap-1.5 rounded-full border border-neutral-200 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:border-neutral-400"
+                  >
+                    <ChevronLeft className="w-4 h-4" /> Previous
+                  </button>
+                  <span className="text-sm text-neutral-500">
+                    Page {page} of {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setParam({ page: String(page + 1) }, true)}
+                    disabled={!hasNext}
+                    className="h-11 px-5 inline-flex items-center gap-1.5 rounded-full border border-neutral-200 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:border-neutral-400"
+                  >
+                    Next <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
-
-      {/* Sort bottom sheet (mobile only) */}
-      {sortOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setSortOpen(false)} />
-          <div className="absolute bottom-0 inset-x-0 bg-white rounded-t-3xl px-5 pt-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="font-semibold text-base">Sort by</h3>
-              <button
-                onClick={() => setSortOpen(false)}
-                aria-label="Close"
-                className="p-1.5 -mr-1.5 rounded-full hover:bg-neutral-100"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="divide-y divide-neutral-100">
-              {SORT_OPTIONS.map((o) => (
-                <button
-                  key={o.value}
-                  onClick={() => {
-                    setSort(o.value);
-                    setSortOpen(false);
-                  }}
-                  className="w-full flex items-center justify-between py-3.5 text-sm text-left"
-                >
-                  <span className={sort === o.value ? "font-semibold text-neutral-950" : "text-neutral-600"}>
-                    {o.label}
-                  </span>
-                  {sort === o.value && <Check className="w-4 h-4 text-neutral-950" />}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Filter bottom sheet (mobile only) */}
-      {filterOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setFilterOpen(false)} />
-          <div className="absolute bottom-0 inset-x-0 bg-white rounded-t-3xl px-5 pt-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-base">Filters</h3>
-              <div className="flex items-center gap-3">
-                {activeFilterCount > 0 && (
-                  <button
-                    onClick={() => {
-                      setBrands([]);
-                      setPrice("all");
-                    }}
-                    className="text-xs font-medium text-neutral-500 underline underline-offset-2"
-                  >
-                    Clear all
-                  </button>
-                )}
-                <button
-                  onClick={() => setFilterOpen(false)}
-                  aria-label="Close"
-                  className="p-1.5 -mr-1.5 rounded-full hover:bg-neutral-100"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="mb-6">
-              <h4 className="text-sm font-semibold mb-3">Category</h4>
-              <div className="flex flex-wrap gap-2">
-                <Link
-                  href="/shop"
-                  onClick={() => setFilterOpen(false)}
-                  className={`px-3 py-1.5 rounded-full border text-sm ${
-                    cat === "all"
-                      ? "border-neutral-950 bg-neutral-950 text-white"
-                      : "border-neutral-200 text-neutral-600"
-                  }`}
-                >
-                  All
-                </Link>
-                {CATEGORIES.map((c) => (
-                  <Link
-                    key={c.slug}
-                    href={`/shop?category=${c.slug}`}
-                    onClick={() => setFilterOpen(false)}
-                    className={`capitalize px-3 py-1.5 rounded-full border text-sm ${
-                      cat === c.slug
-                        ? "border-neutral-950 bg-neutral-950 text-white"
-                        : "border-neutral-200 text-neutral-600"
-                    }`}
-                  >
-                    {c.name}
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            <div className="mb-6">
-              <h4 className="text-sm font-semibold mb-3">Brands</h4>
-              <div className="grid grid-cols-2 gap-2">
-                {BRANDS.map((b) => {
-                  const on = brands.includes(b);
-                  return (
-                    <button
-                      key={b}
-                      onClick={() => toggleBrand(b)}
-                      className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-sm ${
-                        on ? "border-neutral-950 bg-neutral-950 text-white" : "border-neutral-200 text-neutral-600"
-                      }`}
-                    >
-                      {b}
-                      {on && <Check className="w-3.5 h-3.5" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="mb-6">
-              <h4 className="text-sm font-semibold mb-3">Price</h4>
-              <div className="space-y-1">
-                {PRICE_OPTIONS.map((o) => (
-                  <button
-                    key={o.value}
-                    onClick={() => setPrice(o.value)}
-                    className="w-full flex items-center justify-between py-3 text-sm text-left"
-                  >
-                    <span className={price === o.value ? "font-semibold text-neutral-950" : "text-neutral-600"}>
-                      {o.label}
-                    </span>
-                    {price === o.value && <Check className="w-4 h-4 text-neutral-950" />}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <button
-              onClick={() => setFilterOpen(false)}
-              className="w-full h-11 rounded-xl bg-neutral-950 text-white text-sm font-medium mb-2"
-            >
-              Show {filtered.length} products
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

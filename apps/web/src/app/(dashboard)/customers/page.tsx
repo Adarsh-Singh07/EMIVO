@@ -1,12 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { fetchApi } from "@/lib/api-client";
-import { Users, Search, RefreshCw, AlertCircle, Mail, Phone } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import { UserCheck, Search, RefreshCw, AlertCircle, Mail, Phone } from "lucide-react";
+import { apiClient, ApiError } from "@/lib/api-client";
 import { BRAND_CONFIG } from "@/config/branding";
 
 interface Customer {
@@ -17,7 +14,7 @@ interface Customer {
   created_at: string;
 }
 
-interface PaginatedCustomersResponse {
+interface CustomersPageData {
   items: Customer[];
   total: number;
   page: number;
@@ -25,166 +22,159 @@ interface PaginatedCustomersResponse {
 }
 
 export default function CustomersPage() {
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [data, setData] = useState<CustomersPageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
-  const loadCustomers = async () => {
-    setLoading(true);
-    setError(null);
+  const load = useCallback(async () => {
     try {
-      const response = await fetchApi<PaginatedCustomersResponse | Customer[]>("/customers/");
-      if (Array.isArray(response)) {
-        setCustomers(response);
-      } else if (response && Array.isArray(response.items)) {
-        setCustomers(response.items);
-      } else {
-        setCustomers([]);
-      }
-    } catch (err: any) {
-      console.error("Failed to load customers:", err);
-      setError(err?.message || "Could not fetch customers from ELEKTRIX API");
-      toast.error("Failed to load customer directory");
+      setLoading(true);
+      setError(null);
+      const params = new URLSearchParams({ page: String(page), page_size: "15" });
+      if (search.trim()) params.set("search", search.trim());
+      const res = await apiClient.get<CustomersPageData>(`/customers/?${params.toString()}`);
+      setData(res);
+    } catch (err) {
+      setError(err instanceof ApiError ? `${err.message}${err.code ? ` (${err.code})` : ""}` : "Failed to load customers");
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, search]);
 
   useEffect(() => {
-    loadCustomers();
-  }, []);
+    const t = setTimeout(load, search ? 300 : 0);
+    return () => clearTimeout(t);
+  }, [load, search]);
 
-  const filteredCustomers = customers.filter(
-    (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.email.toLowerCase().includes(search.toLowerCase()) ||
-      (c.phone && c.phone.includes(search))
-  );
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  const items = data?.items || [];
+  const total = data?.total || 0;
+  const pageCount = Math.max(Math.ceil(total / 15), 1);
 
   return (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
+    <div className="flex flex-col gap-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
-            <Users className="w-8 h-8 text-amber-500" />
-            Customer CRM
+          <h1 className="text-3xl font-bold tracking-tight text-neutral-900 flex items-center gap-3">
+            <UserCheck className="w-8 h-8 text-amber-500" />
+            Customers
           </h1>
-          <p className="text-neutral-400 text-sm mt-1">
-            View and manage customer profiles in your {BRAND_CONFIG.name} business account.
+          <p className="text-neutral-500 text-sm mt-1">
+            Customer directory for your {BRAND_CONFIG.name} store.
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={loadCustomers}
+        <button
+          onClick={load}
           disabled={loading}
-          className="border-neutral-800 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 self-start sm:self-auto"
+          className="inline-flex items-center gap-2 self-start rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-700 transition-all hover:bg-neutral-50 disabled:opacity-50"
         >
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           Refresh
-        </Button>
+        </button>
       </div>
 
-      {/* Search Filter Bar */}
+      {/* Search */}
       <div className="relative max-w-md">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by customer name, email, or phone..."
-          className="w-full h-10 pl-10 pr-4 rounded-xl bg-neutral-900/80 border border-neutral-800 text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          placeholder="Search by name, email or phone..."
+          className="w-full h-10 pl-10 pr-4 rounded-xl bg-white border border-neutral-200 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
         />
       </div>
 
-      {/* Error state */}
       {error && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-red-950/40 border border-red-800/60 text-red-300">
-          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-          <p className="text-sm">{error}</p>
+        <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-500" />
+          <p>{error}</p>
         </div>
       )}
 
-      {/* Main Content State */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div
-              key={i}
-              className="h-36 rounded-2xl bg-neutral-900/50 border border-neutral-800/50 p-5 flex flex-col justify-between animate-pulse"
-            >
-              <div className="space-y-2">
-                <div className="h-5 w-2/3 bg-neutral-800 rounded-md" />
-                <div className="h-4 w-1/2 bg-neutral-800/60 rounded-md" />
-              </div>
-              <div className="h-4 w-1/3 bg-neutral-800/40 rounded-md" />
-            </div>
+      {/* Table */}
+      {loading && !data ? (
+        <div className="space-y-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-14 animate-pulse rounded-xl border border-neutral-200 bg-white" />
           ))}
         </div>
-      ) : filteredCustomers.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-neutral-800 bg-neutral-900/40 p-12 text-center"
-        >
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-neutral-800/80 text-amber-500">
-            <Users className="h-8 w-8" />
+      ) : items.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-neutral-300 bg-white/60 p-12 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-500/20 bg-amber-500/10 text-amber-500">
+            <UserCheck className="h-8 w-8" />
           </div>
-          <div className="flex flex-col gap-1 max-w-sm">
-            <h3 className="text-lg font-bold text-white">No customers found</h3>
-            <p className="text-sm text-neutral-400">
-              {search
-                ? `No customers matched "${search}"`
-                : `Customers who place orders or sign up will automatically appear here.`}
+          <div>
+            <h3 className="text-lg font-bold text-neutral-900">No customers found</h3>
+            <p className="text-sm text-neutral-500">
+              {search ? `No customers matched "${search}".` : "Customers who place orders or sign up will appear here."}
             </p>
           </div>
-        </motion.div>
+        </div>
       ) : (
-        <div className="rounded-2xl border border-neutral-800 bg-neutral-900/60 backdrop-blur-xl overflow-hidden shadow-xl">
+        <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-neutral-300">
-              <thead className="bg-neutral-950/80 border-b border-neutral-800 text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-neutral-50/60 border-b border-neutral-200 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
                 <tr>
-                  <th className="py-3.5 px-6">Customer Name</th>
-                  <th className="py-3.5 px-6">Email Address</th>
-                  <th className="py-3.5 px-6">Phone Number</th>
-                  <th className="py-3.5 px-6 text-right">Registered</th>
+                  <th className="px-5 py-3.5">Name</th>
+                  <th className="px-5 py-3.5">Email</th>
+                  <th className="px-5 py-3.5">Phone</th>
+                  <th className="px-5 py-3.5 text-right">Registered</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-neutral-800/60">
-                {filteredCustomers.map((customer) => (
-                  <tr
-                    key={customer.id}
-                    className="hover:bg-neutral-800/30 transition-colors"
-                  >
-                    <td className="py-4 px-6 font-medium text-white">
-                      <Link
-                        href={`/customers/${customer.id}`}
-                        className="hover:text-amber-400 transition-colors font-semibold"
-                      >
+              <tbody className="divide-y divide-neutral-100">
+                {items.map((customer) => (
+                  <tr key={customer.id} className="transition-colors hover:bg-neutral-50/60">
+                    <td className="px-5 py-3.5">
+                      <Link href={`/customers/${customer.id}`} className="font-semibold text-neutral-900 hover:text-amber-600 transition-colors">
                         {customer.name}
                       </Link>
                     </td>
-                    <td className="py-4 px-6 text-neutral-400">
+                    <td className="px-5 py-3.5 text-neutral-600">
                       <div className="flex items-center gap-2">
-                        <Mail className="w-3.5 h-3.5 text-neutral-500" />
+                        <Mail className="w-3.5 h-3.5 text-neutral-400" />
                         {customer.email}
                       </div>
                     </td>
-                    <td className="py-4 px-6 text-neutral-400">
+                    <td className="px-5 py-3.5 text-neutral-600">
                       <div className="flex items-center gap-2">
-                        <Phone className="w-3.5 h-3.5 text-neutral-500" />
+                        <Phone className="w-3.5 h-3.5 text-neutral-400" />
                         {customer.phone || "—"}
                       </div>
                     </td>
-                    <td className="py-4 px-6 text-right font-mono text-xs text-neutral-500">
-                      {new Date(customer.created_at).toLocaleDateString()}
+                    <td className="px-5 py-3.5 text-right font-mono text-xs text-neutral-400">
+                      {new Date(customer.created_at).toLocaleDateString("en-IN")}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="flex items-center justify-between border-t border-neutral-200 px-5 py-3">
+            <p className="text-xs text-neutral-500">{total.toLocaleString("en-IN")} total · Page {page}</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                disabled={page <= 1}
+                className="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-40"
+              >
+                Prev
+              </button>
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page >= pageCount}
+                className="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
       )}
