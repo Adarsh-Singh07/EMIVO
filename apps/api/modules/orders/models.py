@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
-from sqlalchemy import JSON, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.models import Base, SoftDeleteMixin, TenantMixin, TimestampMixin
@@ -17,6 +17,11 @@ class OrderStatus(str, enum.Enum):
     DELIVERED = "DELIVERED"
     CANCELLED = "CANCELLED"
     REFUNDED = "REFUNDED"
+
+
+class PaymentMethodType(str, enum.Enum):
+    COD = "COD"
+    ONLINE = "ONLINE"
 
 
 class Order(Base, TimestampMixin, SoftDeleteMixin, TenantMixin):
@@ -38,6 +43,15 @@ class Order(Base, TimestampMixin, SoftDeleteMixin, TenantMixin):
     idempotency_key: Mapped[str] = mapped_column(
         String(255), unique=True, index=True, nullable=False
     )
+    # v0.2 commerce fields
+    order_number: Mapped[Optional[str]] = mapped_column(String(30), unique=True, index=True, nullable=True)
+    payment_method: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # COD | ONLINE
+    coupon_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    tracking_number: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    tracking_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    shipped_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    delivered_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    stock_committed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
 
     # Store money fields as integers (minor units / cents / paise)
     subtotal: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
