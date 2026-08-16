@@ -1,68 +1,58 @@
-# ELEKTRIX — Rollback Procedures
+# ELEKTRIX — Rollback Procedures (v0.2)
 
-This document details the contingency rollback playbooks in the event of production deployment failures.
+## Deployment rollback (code)
 
-**Official Domain:** https://elektrix.in  
+`infra/scripts/deploy_vps.sh` automatically rolls back on smoke-test failure:
+it resets to the previous commit and re-creates containers. Manual equivalent:
 
----
+```bash
+cd /opt/elektrix
+git reset --hard <known-good-sha>
+SKIP_PULL=1 bash infra/scripts/deploy_vps.sh
+```
 
-## 1. Application & Docker Rollback (Oracle VPS)
+The database is NOT auto-reverted: v0.2 migrations are additive-only (new
+tables + nullable/defaulted columns), so the previous API version keeps
+working on the new schema.
 
-If the FastAPI service fails its container health checks during deployment, the automated script `deploy_vps.sh` initiates a rollback immediately.
+## Database rollback
 
-### Manual VPS Container Rollback
-If a critical runtime error is discovered after deployment verification, execute the following manual rollback steps:
+Backups (pg_dump custom format) are written before every deploy to
+`backups/pre_deploy_<ts>.dump`, plus manual snapshots.
 
-1. **Revert Git Repository to Last Stable Commit:**
-   ```bash
-   cd /opt/elektrix
-   # Revert head
-   git reset --hard HEAD~1
-   ```
-2. **Rebuild / Re-run Previous Containers:**
-   ```bash
-   docker compose -f compose.prod.vm1.yaml up -d --build --remove-orphans
-   ```
-3. **Reload Nginx Configuration:**
-   ```bash
-   docker compose -f compose.prod.vm1.yaml exec -T nginx nginx -s reload
-   ```
+```bash
+# Restore a full backup (destructive — replaces current DB state)
+export PGPASSWORD='<password from .env SYNC_DATABASE_URL>'
+docker run --rm -e PGPASSWORD -v /opt/elektrix/backups:/backups postgres:17-alpine \
+    pg_restore --no-owner --no-privileges -h <host> -U postgres -d postgres \
+    --clean --if-exists /backups/<file>.dump
+```
 
----
+Schema-only step-back (additive changes are safe to drop while old code runs):
 
-## 2. Database Migration Rollback Limitations
+```bash
+docker compose -f compose.prod.vm1.yaml run --rm api alembic downgrade 40a4b12c8e1d
+```
 
-> [!CAUTION]  
-> Database migrations must **never** be rolled back automatically in production. Reverting database tables schemas can result in irreversible data loss.
+Rehearsal evidence: the v0.2 migration was upgrade+downgrade+re-upgrade tested
+against a restored copy of production data before first deployment.
 
-### Alembic Rollback Playbook
-1. Check the active revision:
-   ```bash
-   docker compose -f compose.prod.vm1.yaml run --rm api alembic current
-   ```
-2. Revert the database schema to the previous revision manually (if data integrity is verified):
-   ```bash
-   # Upgrade down to target revision
-   docker compose -f compose.prod.vm1.yaml run --rm api alembic downgrade <previous_revision_id>
-   ```
+## Application-level rollback (single service)
 
----
+```bash
+docker compose -f compose.prod.vm1.yaml up -d --no-deps --force-recreate api
+docker compose -f compose.prod.vm1.yaml restart workers
+```
 
-## 3. Frontend Vercel Rollback
+## Emergency: take the storefront offline
 
-Vercel provides instant static rollback capabilities through its dashboard and CLI.
+```bash
+docker compose -f compose.prod.vm1.yaml stop storefront   # nginx returns 502 for elektrix.in
+docker compose -f compose.prod.vm1.yaml stop storefront admin
+```
 
-### Dashboard Rollback
-1. Navigate to the **Vercel Project Dashboard** (Storefront, Admin, or Seller).
-2. Go to the **Deployments** tab.
-3. Locate the last verified stable build.
-4. Click the options menu (three dots) and select **Instant Rollback**.
-5. Confirm the rollback. The deployment will point back to the selected Git SHA immediately.
+## Known-good states
 
----
-
-## 4. DNS Rollback (Cloudflare)
-
-In the event of network outages or routing failures:
-- **Proxy Status Toggle:** Switch the API DNS record (`api.elektrix.in`) to **DNS Only (Grey)** to bypass Cloudflare caching/routing layers and check host accessibility directly.
-- **Apex CNAME Pointing:** To redirect customer storefront traffic to a static maintenance page during major downtime, point the CNAME `@` record to a pre-configured backup S3 bucket or Cloudflare Pages static fallback.
+| Date | Commit | Migration | Notes |
+|---|---|---|---|
+| 2026-08-11 | bb157254 | 40a4b12c8e1d | v0.1 production baseline (backup `pre_v02_20260816_173759.dump`) |

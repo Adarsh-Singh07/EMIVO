@@ -15,6 +15,6 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /app /app
 
-ENV PYTHONPATH=/app:/app/apps/workers
+ENV PYTHONPATH=/app/apps/api:/app/apps/workers
 
 CMD ["arq", "apps.workers.main.WorkerSettings"]

@@ -7,6 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt uvicorn
 COPY apps/api ./apps/api
 COPY db ./db
 COPY db/alembic.ini ./alembic.ini
+COPY scripts ./scripts
 
 FROM python:3.12-slim
 

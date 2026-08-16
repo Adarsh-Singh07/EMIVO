@@ -1,51 +1,48 @@
-# ELEKTRIX — DNS & Cloudflare Configuration
+# ELEKTRIX — DNS & Edge Configuration (v0.2)
 
-This document specifies the authoritative DNS record setup and Cloudflare security variables required for the production deployment of **ELEKTRIX**.
+Managed in Cloudflare (zone: elektrix.in). **No Cloudflare credentials exist on
+the VPS** — DNS changes must be made in the Cloudflare dashboard.
 
-**Official Domain:** https://elektrix.in  
+## Current state (2026-08-16)
 
----
+| Record | Type | Target | Status |
+|---|---|---|---|
+| api.elektrix.in | A | 161.118.254.169 (direct, not proxied) | ✅ LIVE — API on VPS |
+| elektrix.in | A | 64.29.17.65 / 216.198.79.65 (Vercel) | ⚠️ stale v0.1 storefront |
+| www.elektrix.in | A (proxied) | Cloudflare → redirect to elektrix.in | ✅ |
+| admin.elektrix.in | — | **NO RECORD** | ❌ |
+| media.elektrix.in | CNAME | Cloudflare R2 public bucket | ✅ (product images) |
+| sell.elektrix.in | — | none | future v1.1 |
 
-## 1. Cloudflare DNS Settings
+## REQUIRED CHANGE for v0.2 launch (owner action, ~2 minutes)
 
-Cloudflare is the authoritative DNS manager for the zone `elektrix.in`. DNS management must **not** be migrated to Vercel. 
+In Cloudflare → DNS:
 
-### A. SSL/TLS Encryption Mode
-- **SSL Mode:** **Full (Strict)**.  
-- **Rationale:** Guarantees end-to-end encryption. Cloudflare enforces HTTPS at the edge, and Nginx on the Oracle VPS terminates with verified Let's Encrypt SSL certificates (for `api.elektrix.in`). Self-signed or unencrypted origin connections are rejected.
+1. **elektrix.in**: change the A record to `161.118.254.169` (DNS only / grey
+   cloud recommended initially so Let's Encrypt webroot works; orange-cloud
+   proxying can be enabled afterwards).
+2. **admin.elektrix.in**: create A record → `161.118.254.169` (DNS only).
+3. On the VPS: `bash /opt/elektrix/infra/scripts/setup_ssl.sh` — replaces the
+   self-signed placeholders with real Let's Encrypt certificates for both
+   domains (nginx reloads automatically).
+4. Verify: `curl -sI https://elektrix.in` (expect 200 from ELEKTRIX nginx) and
+   open `https://admin.elektrix.in` (admin login page).
 
-### B. Required DNS Records Table
+Until steps 1-2, Vercel keeps serving the OLD static storefront; the new
+storefront and admin console run on the VPS and become reachable the moment
+DNS flips.
 
-Below is the canonical list of DNS records to be created in the Cloudflare dashboard.
+## SSL
 
-| Type | Name | Content / Target | Proxy Status | Rationale |
-|---|---|---|---|---|
-| **CNAME** | `@` (Apex) | `cname.vercel-dns.com` | **DNS Only (Grey)** | Storefront apex routing to Vercel. (Must be DNS Only or use CNAME flattening). |
-| **CNAME** | `www` | `cname.vercel-dns.com` | **Proxied (Orange)** | Main customer storefront domain. |
-| **CNAME** | `admin` | `cname.vercel-dns.com` | **Proxied (Orange)** | Platform operator administrative portal. |
-| **CNAME** | `sell` | `cname.vercel-dns.com` | **Proxied (Orange)** | Business/seller management portal. |
-| **A** | `api` | `161.118.254.169` | **Proxied (Orange)** | API Backend routed to the Oracle VPS. |
-| **TXT** | `_vercel` | `vc-domain-verify=...` | **DNS Only (Grey)** | Verification record issued by Vercel for domain ownership. |
+- Let's Encrypt via certbot webroot (`/.well-known/acme-challenge/` served by
+  the nginx container for every host).
+- `setup_ssl.sh` issues/renews for api, elektrix.in, www, admin; installs
+  self-signed placeholders when a domain's DNS has not moved yet.
+- Renewal: `certbot.timer` (systemd). The legacy renewal config for
+  `api.elektrix.in` was corrupt (0-byte conf + dangling `-0001` lineage);
+  verify health with `sudo certbot renew --dry-run` after launch.
 
----
+## Vercel cleanup (after DNS switch + verification)
 
-## 2. API Traffic Caching Rules
-
-Authenticated e-commerce transactions and administrative actions must never be cached at the Cloudflare Edge.
-
-- **Cloudflare Cache Bypass Rule:**
-  - **Match:** `https://api.elektrix.in/*`
-  - **Settings:** Cache Level: **Bypass**, Edge Cache TTL: `0`.
-- **Browser Headers:** The FastAPI backend sends explicit HTTP response headers to prevent intermediate caches from saving state:
-  ```http
-  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
-  ```
-
----
-
-## 3. WAF & Rate Limiting Strategy
-
-Cloudflare WAF is configured to protect the stateful Oracle VPS backend:
-- **Rate Limit Rule:** Blocks client IPs exceeding **100 requests per minute** on API endpoints (`api.elektrix.in/api/v1/*`), except for checkout and webhook callbacks (where lower bursts are permitted with strict IP validity).
-- **SSL Minimum Version:** Restricted to **TLS 1.2** and **TLS 1.3** to maintain modern cryptographical standards.
-- **DNSSEC:** Enabled in the Cloudflare registrar settings to prevent DNS cache poisoning.
+The Vercel project serving the old storefront can be paused/deleted once
+elektrix.in points at the VPS.

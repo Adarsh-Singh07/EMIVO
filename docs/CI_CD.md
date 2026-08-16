@@ -74,3 +74,18 @@ Each Vercel project has the following environment variables configured inside th
   - Production Value: `https://api.elektrix.in/api/v1`
   - Preview/Branch Value: `https://api.elektrix.in/api/v1`
   - Development Value: `http://localhost:8000/api/v1`
+
+---
+
+# v0.2 CI/CD (2026-08-16)
+
+- **ci.yml** (push/PR → main): compose config validation · **backend
+  integration suite** (`scripts/run_backend_tests.sh` — builds the API image,
+  boots scratch Postgres+Redis, migrates, applies RLS, seeds, runs pytest) ·
+  storefront typecheck+build · admin typecheck+build.
+- **deploy-vps.yml**: triggered by SUCCESSFUL CI completion (`workflow_run`),
+  SSHes to the VPS and runs `infra/scripts/deploy_vps.sh` (which owns backup,
+  migrate, RLS, rollout, smoke, rollback).
+- Rollback: automatic on smoke failure (code+containers); DB is additive-only
+  (docs/ROLLBACK.md).
+- Images are built on the VPS from git (no registry dependency).

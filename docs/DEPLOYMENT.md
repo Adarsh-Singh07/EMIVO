@@ -107,3 +107,43 @@ docker compose -f compose.prod.vm1.yaml run --rm api alembic upgrade head
   - Workspace: `/opt/elektrix`
   - Nginx Config: `/opt/elektrix/infra/nginx/nginx.conf`
   - Docker Compose: `/opt/elektrix/compose.prod.vm1.yaml`
+
+---
+
+# v0.2 Deployment (2026-08-16)
+
+## Stack
+
+| Service | Image | Replicas | Internal |
+|---|---|---|---|
+| nginx | nginx:alpine (TLS edge, 4 vhosts) | 1 | 80/443 host |
+| api | built from `apps/api/Dockerfile` | 2 | :8000 |
+| storefront | built from `Dockerfile.storefront` | 2 | :3000 |
+| admin | built from `apps/web/Dockerfile` | 2 | :3100 |
+| workers | ARQ (outbox→notifications cron) | 1 | — |
+| redis | redis:7-alpine | 1 | :6379 |
+| Postgres | Supabase (external, pooler) | — | — |
+
+## Deploy
+
+```bash
+cd /opt/elektrix && bash infra/scripts/deploy_vps.sh          # git-pull mode (CI)
+SKIP_PULL=1 bash infra/scripts/deploy_vps.sh                  # working-tree mode
+```
+
+Pipeline: build → pg_dump backup → `alembic upgrade head` → RLS apply →
+certs (`setup_ssl.sh`) → `up -d` → idempotent store seed → smoke tests
+(api/storefront/admin via Host headers) → nginx reload, or automatic
+git+container rollback on failure.
+
+## Frontend build-time config
+
+Both frontends bake `NEXT_PUBLIC_API_URL` at BUILD time via compose build arg
+(default `https://api.elektrix.in/api/v1`).
+
+## One-time setup on a fresh VPS
+
+1. `git clone` to /opt/elektrix, create `.env` (see `.env.example`).
+2. `bash infra/scripts/deploy_vps.sh` (migrates, seeds, starts).
+3. `bash infra/scripts/setup_ssl.sh` after DNS points at the VPS.
+4. Capture the admin credentials printed once by the seed script.

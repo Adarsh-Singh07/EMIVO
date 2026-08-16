@@ -1,12 +1,15 @@
 name: ELEKTRIX VPS Deployment
 
 on:
-  push:
+  workflow_run:
+    workflows: ["ELEKTRIX CI Pipeline"]
+    types: [completed]
     branches: [ "main" ]
 
 jobs:
   deploy:
-    name: Deploy API Backend & Infrastructure to Oracle VPS
+    name: Deploy Backend & Frontends to Oracle VPS
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
