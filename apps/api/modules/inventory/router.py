@@ -14,7 +14,7 @@ from modules.inventory.schemas import (
 )
 from modules.inventory.service import InventoryService
 
-router = APIRouter(prefix="/v1/inventory", tags=["inventory"])
+router = APIRouter(prefix="/api/v1/inventory", tags=["inventory"])
 
 
 async def _staff_session(

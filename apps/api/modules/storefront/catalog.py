@@ -79,7 +79,7 @@ class CatalogService:
         res = await self.session.execute(
             text("""
                 SELECT product_id, media_url FROM product_media
-                WHERE product_id = ANY(:ids) ORDER BY position ASC, created_at ASC
+                WHERE product_id = ANY(:ids) ORDER BY position ASC
             """),
             {"ids": product_ids},
         )
@@ -150,8 +150,11 @@ class CatalogService:
         params: dict = {"bid": store_id, "lim": page_size, "off": (page - 1) * page_size}
 
         if category:
+            # match the category itself or any of its children (parents are
+            # navigation nodes; products attach to leaf categories)
             filters.append(
-                "(c.slug = :cat OR c.id::text = :cat OR c.parent_id::text = :cat)"
+                """(c.slug = :cat OR c.id::text = :cat OR c.parent_id IN (
+                    SELECT id FROM categories WHERE slug = :cat))"""
             )
             params["cat"] = category
         if brand:

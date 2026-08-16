@@ -212,6 +212,7 @@ class OrderService:
             cod_fee = store_cfg["cod_fee_paise"] or 0
 
         # ---- Create the order (flush allocates id + order number) -----------
+        total = subtotal + shipping_total + cod_fee
         idempotency_key = data.idempotency_key or f"checkout_{uuid.uuid4().hex}"
         order_number = await self._generate_order_number()
         shipping_address = await self._resolve_checkout_address(data, current_user)
@@ -220,7 +221,9 @@ class OrderService:
             user_id=str(current_user.id),
             customer_id=None,
             business_id=business_id,
-            status=OrderStatus.PENDING,
+            # ONLINE orders await payment in PENDING; COD orders are accepted
+            # immediately (stock reserved, committed at DELIVERED).
+            status=OrderStatus.CONFIRMED if data.payment_method == "COD" else OrderStatus.PENDING,
             idempotency_key=idempotency_key,
             order_number=order_number,
             payment_method=data.payment_method,
@@ -229,7 +232,7 @@ class OrderService:
             tax_total=0,  # GST-inclusive pricing
             shipping_total=shipping_total + cod_fee,
             discount_total=0,
-            total=subtotal + shipping_total + cod_fee,
+            total=total,
             currency="INR",
             shipping_address=shipping_address,
             billing_address=None,
@@ -252,9 +255,10 @@ class OrderService:
                 order_id=str(order.id),
             )
             coupon_code = coupon["code"]
+            total = max(subtotal - discount_total + shipping_total + cod_fee, 0)
             order.coupon_code = coupon_code
             order.discount_total = discount_total
-            order.total = max(subtotal - discount_total + shipping_total + cod_fee, 0)
+            order.total = total
             await self.repository.update(order)
 
         # ---- Reserve stock (atomic; raises OUT_OF_STOCK → full rollback) ----

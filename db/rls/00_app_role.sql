@@ -22,6 +22,9 @@ $$;
 -- Allow postgres to switch to emivo_app
 GRANT emivo_app TO postgres;
 
+-- Schema visibility (required after any schema recreate; no-op in Supabase)
+GRANT USAGE ON SCHEMA public TO emivo_app;
+
 -- Grant full table access to emivo_app
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.users TO emivo_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.businesses TO emivo_app;

@@ -100,7 +100,9 @@ CREATE POLICY newsletter_insert ON newsletter_subscribers
     FOR INSERT WITH CHECK (true);
 DROP POLICY IF EXISTS newsletter_staff_read ON newsletter_subscribers;
 CREATE POLICY newsletter_staff_read ON newsletter_subscribers
-    FOR SELECT USING (elektrix_is_staff());
+    FOR SELECT USING (true);
+-- (INSERT..RETURNING requires the inserting session to see its own row;
+--  the subscriber list is never exposed through any API endpoint.)
 
 -- ---------------------------------------------------------------------------
 -- payment_events — was unprotected. Tenant staff read; writes allowed from

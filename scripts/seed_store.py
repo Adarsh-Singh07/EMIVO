@@ -170,7 +170,8 @@ async def main() -> None:
             business_id = secrets.token_hex(16)
             business_id = str(uuidlib.uuid4())
             await s.execute(text("""
-                INSERT INTO businesses (id, name, slug) VALUES (:id, :name, :slug)
+                INSERT INTO businesses (id, name, slug, is_active, settings, contact_email)
+                VALUES (:id, :name, :slug, true, '{}'::jsonb, 'support@elektrix.in')
             """), {"id": business_id, "name": STORE_NAME, "slug": "elektrix-store"})
             print(f"[seed] created store business: {business_id}")
         await s.execute(text("SELECT set_config('app.business_id', :bid, false)"), {"bid": business_id})
@@ -188,8 +189,9 @@ async def main() -> None:
                 admin_pw = secrets.token_urlsafe(12)
                 generated = admin_pw
             await s.execute(text("""
-                INSERT INTO users (id, email, password_hash, first_name, last_name, is_active)
-                VALUES (:id, :e, :h, 'Store', 'Admin', true)
+                INSERT INTO users (id, email, password_hash, first_name, last_name,
+                                   is_active, is_email_verified, mfa_enabled)
+                VALUES (:id, :e, :h, 'Store', 'Admin', true, true, false)
             """), {
                 "id": secrets.uuid4().hex if False else __import__("uuid").uuid4().__str__(),
                 "e": admin_email, "h": argon2.hash(admin_pw),
@@ -228,6 +230,18 @@ async def main() -> None:
                 text("SELECT id FROM categories WHERE business_id = :b AND slug = :s"),
                 {"b": business_id, "s": slug},
             )).scalar())
+            # children (leaf categories the products attach to)
+            for child_name, child_slug in children:
+                await s.execute(text("""
+                    INSERT INTO categories (id, business_id, name, slug, parent_id)
+                    VALUES (:i, :b, :n, :s, :p)
+                    ON CONFLICT DO NOTHING
+                """), {"i": str(uuidlib.uuid4()), "b": business_id,
+                       "n": child_name, "s": child_slug, "p": cat_ids[slug]})
+                cat_ids[child_slug] = str((await s.execute(
+                    text("SELECT id FROM categories WHERE business_id = :b AND slug = :s"),
+                    {"b": business_id, "s": child_slug},
+                )).scalar())
         await s.commit()
         print(f"[seed] categories ready ({len(cat_ids)})")
 
@@ -301,8 +315,8 @@ async def main() -> None:
             await s.execute(text("""
                 INSERT INTO coupons (id, business_id, code, description, discount_type,
                     discount_value, min_order_amount, max_discount_amount, usage_limit,
-                    per_user_limit, start_date, end_date, is_active)
-                VALUES (:i, :b, :c, :d, :t, :v, :m, :md, :ul, :pu, :sd, :ed, true)
+                    usage_count, per_user_limit, start_date, end_date, is_active)
+                VALUES (:i, :b, :c, :d, :t, :v, :m, :md, :ul, 0, :pu, :sd, :ed, true)
             """), {
                 "i": str(uuidlib.uuid4()), "b": business_id, "c": code,
                 "d": f"{code} — festival campaign coupon",

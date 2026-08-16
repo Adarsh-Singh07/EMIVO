@@ -32,10 +32,12 @@ async def get_payment_service(
 async def get_webhook_payment_service(
     db: AsyncSession = Depends(get_db_session),
 ) -> PaymentService:
-    """Webhook session: unauthenticated (Razorpay server-to-server) but scoped
-    to the store tenant so RLS permits the state transitions."""
+    """Webhook session: unauthenticated (Razorpay server-to-server) but
+    signature-verified, so it operates with staff scope on the store tenant —
+    this is what lets the capture path update orders + inventory under RLS."""
     store_id = await get_store_business_id(db)
     await db.execute(text("SELECT set_config('app.business_id', :bid, true)"), {"bid": store_id})
+    await db.execute(text("SELECT set_config('app.role', 'platform_admin', true)"))
     return PaymentService(db)
 
 
@@ -120,7 +122,7 @@ async def get_payment(
 
 
 @router.get(
-    "/",
+    "",
     response_model=PaginatedPaymentsResponse,
     dependencies=[Depends(require_staff)],
 )

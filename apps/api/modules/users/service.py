@@ -1,3 +1,4 @@
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.exceptions import DomainException
@@ -10,6 +11,12 @@ class UserService:
         self.session = session
         self.repository = UserRepository(session)
 
+    async def _bind_rls_owner(self, user_id: str) -> None:
+        """users UPDATE RLS requires the owner GUC before flushing changes."""
+        await self.session.execute(
+            text("SELECT set_config('app.user_id', :uid, true)"), {"uid": str(user_id)}
+        )
+
     async def get_user_by_id(self, user_id: str) -> User:
         user = await self.repository.get_by_id(user_id)
         if not user:
@@ -18,6 +25,7 @@ class UserService:
 
     async def update_user(self, user_id: str, data: UserUpdate) -> User:
         user = await self.get_user_by_id(user_id)
+        await self._bind_rls_owner(user_id)
         if data.first_name is not None:
             user.first_name = data.first_name
         if data.last_name is not None:
@@ -28,5 +36,5 @@ class UserService:
             user.addresses = data.addresses
         if data.wishlist is not None:
             user.wishlist = data.wishlist
-        
+
         return await self.repository.update(user)
