@@ -169,3 +169,97 @@ class CouponService:
         await self.db.commit()
         coupon = await self.repository.get_by_id(res.coupon.id)
         return CouponResponse.model_validate(coupon), res.discount_amount
+
+    # ------------------------------------------------------------------ #
+    # Transactional redemption — called by checkout inside its transaction #
+    # ------------------------------------------------------------------ #
+
+    def _compute_discount(self, coupon, subtotal: int) -> int:
+        discount = 0
+        if coupon.discount_type == DiscountType.FIXED_AMOUNT:
+            discount = coupon.discount_value
+        else:
+            discount = int((subtotal * coupon.discount_value) / 100)
+        if coupon.max_discount_amount and discount > coupon.max_discount_amount:
+            discount = coupon.max_discount_amount
+        return min(discount, subtotal)
+
+    async def redeem_for_order(
+        self,
+        code: str,
+        user_id: str,
+        cart_subtotal: int,
+        order_id: str,
+    ) -> Tuple[Coupon, int]:
+        """Atomically redeem a coupon for an order. MUST run inside the
+        checkout transaction: takes a row lock on the coupon, validates,
+        increments usage_count with a guarded UPDATE (concurrent redemptions
+        cannot exceed the limit), checks the per-user count, and records the
+        usage row. Raises DomainException on any validation failure; the
+        caller's transaction rolls back entirely."""
+        from modules.coupons.models import CouponUsage
+
+        res = await self.db.execute(
+            text("""
+                SELECT * FROM coupons
+                WHERE upper(code) = upper(:code) AND deleted_at IS NULL
+                FOR UPDATE
+            """),
+            {"code": code},
+        )
+        coupon = res.mappings().first()
+        if not coupon:
+            raise DomainException("Invalid coupon code", code="COUPON_INVALID", status_code=400)
+        if not coupon["is_active"]:
+            raise DomainException("Coupon is inactive", code="COUPON_INVALID", status_code=400)
+
+        now = datetime.now(timezone.utc)
+        if coupon["start_date"] and coupon["start_date"] > now:
+            raise DomainException("Coupon is not active yet", code="COUPON_INVALID", status_code=400)
+        if coupon["end_date"] and coupon["end_date"] < now:
+            raise DomainException("Coupon has expired", code="COUPON_INVALID", status_code=400)
+        if coupon["min_order_amount"] and cart_subtotal < coupon["min_order_amount"]:
+            raise DomainException(
+                f"Minimum order subtotal for this coupon is ₹{coupon['min_order_amount'] / 100:.0f}",
+                code="COUPON_MIN_ORDER", status_code=400,
+            )
+
+        # Atomic global-limit increment; no row returned = lost the race
+        updated = await self.db.execute(
+            text("""
+                UPDATE coupons SET usage_count = usage_count + 1
+                WHERE id = :cid AND (usage_limit IS NULL OR usage_count < usage_limit)
+                RETURNING usage_count
+            """),
+            {"cid": coupon["id"]},
+        )
+        if updated.scalar() is None:
+            raise DomainException(
+                "Coupon usage limit reached", code="COUPON_LIMIT_REACHED", status_code=400
+            )
+
+        # Per-user limit (serialized by the coupon row lock held above)
+        if coupon["per_user_limit"]:
+            cnt = await self.db.execute(
+                text("""
+                    SELECT count(*) FROM coupon_usages
+                    WHERE coupon_id = :cid AND user_id = :uid
+                """),
+                {"cid": coupon["id"], "uid": user_id},
+            )
+            if cnt.scalar() >= coupon["per_user_limit"]:
+                raise DomainException(
+                    "You have already used this coupon",
+                    code="COUPON_USER_LIMIT", status_code=400,
+                )
+
+        discount = self._compute_discount(coupon, cart_subtotal)
+
+        self.db.add(CouponUsage(
+            coupon_id=coupon["id"],
+            user_id=user_id,
+            business_id=coupon["business_id"],
+            order_id=order_id,
+            discount_applied=discount,
+        ))
+        return coupon, discount

@@ -1,19 +1,52 @@
+"""Payment service — provider-agnostic money handling.
+
+Guarantees:
+  - amount is ALWAYS taken from the local order (client-supplied amounts are
+    rejected if they mismatch); totals are computed by checkout, never trusted.
+  - provider selection via PAYMENT_PROVIDER env (razorpay | mock); mock is
+    only usable outside prod.
+  - webhook is the source of truth; the client verify endpoint applies the
+    same idempotent transition.
+  - captures commit reserved inventory and enqueue notifications; failures
+    release reservations.
+"""
 import json
 import logging
-import os
-from typing import Optional, Tuple, List
+from datetime import datetime, timezone
+from typing import Any, Optional
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.config import settings
 from core.exceptions import DomainException
-from modules.orders.models import OrderStatus
+from core.models import OutboxEvent
+from modules.inventory.service import InventoryService
+from modules.orders.models import Order, OrderStatus
 from modules.orders.repository import OrderRepository
 from modules.payments.models import Payment, PaymentStatus, PaymentProvider
-from modules.payments.providers.razorpay import RazorpayMockProvider
+from modules.payments.providers.base import BasePaymentProvider
+from modules.payments.providers.razorpay import RazorpayProvider, RazorpayMockProvider
 from modules.payments.repository import PaymentRepository
 from modules.payments.schemas import PaymentCreate, PaymentResponse, PaginatedPaymentsResponse
 
 logger = logging.getLogger(__name__)
+
+
+def get_provider() -> BasePaymentProvider:
+    """Select the payment provider from configuration. Production must be
+    explicit: 'mock' is refused when ENV_NAME=prod."""
+    chosen = (settings.payment_provider or "mock").lower()
+    if chosen == "razorpay":
+        return RazorpayProvider(
+            api_key=settings.razorpay_key_id,
+            api_secret=settings.razorpay_key_secret.get_secret_value(),
+        )
+    if chosen == "mock":
+        if settings.is_prod:
+            raise RuntimeError("PAYMENT_PROVIDER=mock is not allowed in production")
+        return RazorpayMockProvider()
+    raise RuntimeError(f"Unknown PAYMENT_PROVIDER: {chosen}")
 
 
 class PaymentService:
@@ -21,10 +54,8 @@ class PaymentService:
         self.db = db
         self.repository = PaymentRepository(db)
         self.order_repository = OrderRepository(db)
-        self.provider = RazorpayMockProvider(
-            api_key=os.getenv("RAZORPAY_KEY_ID", "mock_key"),
-            api_secret=os.getenv("RAZORPAY_KEY_SECRET", "mock_secret"),
-        )
+        self.inventory = InventoryService(db)
+        self.provider = get_provider()
 
     async def _get_current_business_id(self) -> str:
         res = await self.db.execute(
@@ -46,59 +77,79 @@ class PaymentService:
         user_id = res.scalar()
         return str(user_id) if user_id else None
 
-    async def initiate_payment(self, payment_in: PaymentCreate) -> Payment:
-        business_id = await self._get_current_business_id()
-        user_id = await self._get_current_user_id() or "system"
+    # ------------------------------------------------------------------ #
+    # Initiation                                                          #
+    # ------------------------------------------------------------------ #
 
-        # 1. Idempotency Check
+    async def initiate_payment(self, payment_in: PaymentCreate, current_user_id: Optional[str] = None) -> Payment:
+        business_id = await self._get_current_business_id()
+        user_id = current_user_id or await self._get_current_user_id() or "system"
+
+        # 1. Idempotency
         existing = await self.repository.get_by_idempotency_key(payment_in.idempotency_key)
         if existing:
             return existing
 
-        # 2. Verify Order Exists & Check Amount
+        # 2. Order must exist, belong to this tenant, be awaiting payment,
+        #    and belong to the requesting customer.
         order = await self.order_repository.get_by_id(payment_in.order_id)
         if not order:
+            raise DomainException("Order not found", code="NOT_FOUND", status_code=404)
+        if order.status != OrderStatus.PENDING:
             raise DomainException(
-                "Order not found",
-                code="NOT_FOUND",
-                status_code=404
+                f"Order is not awaiting payment (status={order.status.value})",
+                code="BAD_REQUEST", status_code=400,
             )
+        if user_id != "system" and str(order.user_id) != str(user_id):
+            raise DomainException("Not your order", code="FORBIDDEN", status_code=403)
 
-        # 3. Call Provider Adapter
-        notes = payment_in.metadata or {}
-        notes["order_id"] = str(payment_in.order_id)
-        notes["business_id"] = business_id
+        # 3. Amount integrity: server-side total wins, always.
+        if payment_in.amount is not None and payment_in.amount != order.total:
+            raise DomainException(
+                f"Payment amount mismatch: order total is {order.total} paise",
+                code="AMOUNT_MISMATCH", status_code=400,
+            )
+        if payment_in.amount is None:
+            payment_in = payment_in.model_copy(update={"amount": order.total})
+        if payment_in.provider == PaymentProvider.MOCK and self.provider.name == "razorpay":
+            payment_in = payment_in.model_copy(update={"provider": PaymentProvider.RAZORPAY})
 
+        # 4. Provider order (external call — runs on its own, no DB locks held)
+        notes = (payment_in.metadata or {}) | {
+            "order_id": str(payment_in.order_id),
+            "order_number": order.order_number or "",
+            "business_id": business_id,
+        }
         provider_order = await self.provider.create_order(
-            amount=payment_in.amount,
-            currency=payment_in.currency,
+            amount=order.total,
+            currency=payment_in.currency or order.currency,
             receipt=str(payment_in.order_id),
             notes=notes,
         )
-
         if not provider_order or "id" not in provider_order:
             raise DomainException(
                 "Failed to create order with payment provider",
-                code="PAYMENT_FAILED",
-                status_code=500
+                code="PAYMENT_FAILED", status_code=502,
             )
 
-        # 4. Create Local Payment Record
+        # 5. Local payment record
         payment = await self.repository.create(
             payment_in=payment_in,
             business_id=business_id,
-            user_id=user_id,
+            user_id=str(order.user_id),
             provider_order_id=provider_order["id"],
         )
-
         await self.repository.log_event(
             payment_id=payment.id,
             event_type="payment_initiated",
-            payload={"provider_order_id": provider_order["id"]}
+            payload={"provider_order_id": provider_order["id"], "amount": order.total},
         )
-
         await self.db.commit()
         return await self.repository.get_by_id(payment.id)
+
+    # ------------------------------------------------------------------ #
+    # Capture (client verify) — idempotent, same logic as the webhook      #
+    # ------------------------------------------------------------------ #
 
     async def verify_and_capture(
         self,
@@ -108,102 +159,184 @@ class PaymentService:
     ) -> Payment:
         payment = await self.repository.get_by_id(payment_id)
         if not payment:
-            raise DomainException(
-                "Payment not found",
-                code="NOT_FOUND",
-                status_code=404
-            )
-
+            raise DomainException("Payment not found", code="NOT_FOUND", status_code=404)
         if payment.status == PaymentStatus.CAPTURED:
             return payment
+        if payment.status != PaymentStatus.PENDING:
+            raise DomainException(
+                f"Payment already {payment.status.value}", code="BAD_REQUEST", status_code=400
+            )
 
-        # Signature verification
+        # Ownership: customers may only verify their own payments
+        current_user = await self._get_current_user_id()
+        if current_user and str(payment.user_id) != current_user:
+            is_staff = await self._is_staff()
+            if not is_staff:
+                raise DomainException("Not your payment", code="FORBIDDEN", status_code=403)
+
         payload = f"{payment.provider_order_id}|{provider_payment_id}"
         is_valid = await self.provider.verify_signature(payload, provider_signature)
-
         if not is_valid:
             await self.repository.update_status(payment_id, PaymentStatus.FAILED, provider_payment_id)
             await self.repository.log_event(
-                payment_id,
-                "signature_verification_failed",
-                {"provider_payment_id": provider_payment_id}
+                payment_id, "signature_verification_failed",
+                {"provider_payment_id": provider_payment_id},
             )
+            order = await self.order_repository.get_by_id(payment.order_id)
+            if order:
+                await self.inventory.release_for_order(order)
             await self.db.commit()
             raise DomainException(
-                "Payment signature verification failed",
-                code="BAD_REQUEST",
-                status_code=400
+                "Payment signature verification failed", code="BAD_REQUEST", status_code=400
             )
 
-        # Mark captured
+        return await self._capture(payment, provider_payment_id, source="client_verify")
+
+    async def _is_staff(self) -> bool:
+        res = await self.db.execute(
+            text("SELECT NULLIF(current_setting('app.role', true), '')")
+        )
+        return res.scalar() in ("staff", "owner", "platform_admin")
+
+    async def _capture(self, payment: Payment, provider_payment_id: str, source: str) -> Payment:
+        """Idempotent capture transition: payment CAPTURED, order CONFIRMED,
+        reserved stock committed, notification enqueued."""
+        fresh = await self.repository.get_by_id(payment.id)
+        if fresh.status == PaymentStatus.CAPTURED:
+            return fresh
+
         await self.repository.update_status(
-            payment_id=payment_id,
+            payment_id=payment.id,
             status=PaymentStatus.CAPTURED,
             provider_payment_id=provider_payment_id,
         )
         await self.repository.log_event(
-            payment_id=payment_id,
+            payment_id=payment.id,
             event_type="payment_captured",
-            payload={"provider_payment_id": provider_payment_id}
+            payload={"provider_payment_id": provider_payment_id, "source": source},
         )
 
-        # Transition associated Order status to CONFIRMED
         order = await self.order_repository.get_by_id(payment.order_id)
         if order and order.status == OrderStatus.PENDING:
             order.status = OrderStatus.CONFIRMED
             await self.order_repository.update(order)
+            await self.inventory.commit_for_order(order)
+            self.db.add(OutboxEvent(
+                tenant_id=order.business_id,
+                type="payment.captured",
+                payload={
+                    "order_id": str(order.id),
+                    "order_number": order.order_number,
+                    "user_id": str(order.user_id),
+                    "payment_id": str(payment.id),
+                    "amount": payment.amount,
+                },
+            ))
 
         await self.db.commit()
-        return await self.repository.get_by_id(payment_id)
+        return await self.repository.get_by_id(payment.id)
+
+    async def _fail(self, payment: Payment, reason: str, provider_payment_id: Optional[str] = None) -> Payment:
+        fresh = await self.repository.get_by_id(payment.id)
+        if fresh.status != PaymentStatus.PENDING:
+            return fresh
+
+        await self.repository.update_status(payment.id, PaymentStatus.FAILED, provider_payment_id)
+        await self.repository.log_event(
+            payment.id, "payment_failed", {"reason": reason},
+        )
+        order = await self.order_repository.get_by_id(payment.order_id)
+        if order and order.status == OrderStatus.PENDING:
+            order.status = OrderStatus.CANCELLED
+            order.notes = (order.notes or "") + f"\n[payment failed: {reason}]".strip()
+            await self.order_repository.update(order)
+            await self.inventory.release_for_order(order)
+            self.db.add(OutboxEvent(
+                tenant_id=order.business_id,
+                type="payment.failed",
+                payload={
+                    "order_id": str(order.id),
+                    "order_number": order.order_number,
+                    "user_id": str(order.user_id),
+                    "reason": reason,
+                },
+            ))
+        await self.db.commit()
+        return await self.repository.get_by_id(payment.id)
+
+    # ------------------------------------------------------------------ #
+    # Refunds (staff)                                                     #
+    # ------------------------------------------------------------------ #
 
     async def refund_payment(
         self,
         payment_id: str,
         refund_amount: Optional[int] = None,
-        reason: Optional[str] = None
+        reason: Optional[str] = None,
     ) -> Payment:
         payment = await self.repository.get_by_id(payment_id)
         if not payment:
-            raise DomainException(
-                "Payment not found",
-                code="NOT_FOUND",
-                status_code=404
-            )
-
+            raise DomainException("Payment not found", code="NOT_FOUND", status_code=404)
         if payment.status != PaymentStatus.CAPTURED:
             raise DomainException(
-                f"Cannot refund payment in status {payment.status}. Only CAPTURED payments can be refunded.",
-                code="BAD_REQUEST",
-                status_code=400
+                f"Cannot refund payment in status {payment.status.value}. Only CAPTURED payments can be refunded.",
+                code="BAD_REQUEST", status_code=400,
             )
+        if refund_amount and refund_amount > payment.amount:
+            raise DomainException("Refund exceeds payment amount", code="BAD_REQUEST", status_code=400)
 
-        amount_to_refund = refund_amount or payment.amount
+        order = await self.order_repository.get_by_id(payment.order_id)
 
-        # Update status
+        # Provider-side refund first; only then mutate local state
+        if payment.provider_payment_id:
+            provider_refund = await self.provider.refund(
+                payment.provider_payment_id,
+                amount=refund_amount,
+            )
+            refund_id = provider_refund.get("id")
+        else:
+            refund_id = None
+
         await self.repository.update_status(payment_id, PaymentStatus.REFUNDED)
         await self.repository.log_event(
             payment_id=payment_id,
             event_type="payment_refunded",
-            payload={"refund_amount": amount_to_refund, "reason": reason}
+            payload={
+                "refund_amount": refund_amount or payment.amount,
+                "reason": reason,
+                "provider_refund_id": refund_id,
+            },
         )
 
-        # Transition Order status to REFUNDED
-        order = await self.order_repository.get_by_id(payment.order_id)
         if order:
             order.status = OrderStatus.REFUNDED
             await self.order_repository.update(order)
+            # Full refunds restock committed units
+            if order.stock_committed:
+                await self.inventory.restock_for_order(order)
+            self.db.add(OutboxEvent(
+                tenant_id=order.business_id,
+                type="order.refunded",
+                payload={
+                    "order_id": str(order.id),
+                    "order_number": order.order_number,
+                    "user_id": str(order.user_id),
+                    "refund_amount": refund_amount or payment.amount,
+                    "reason": reason,
+                },
+            ))
 
         await self.db.commit()
         return await self.repository.get_by_id(payment_id)
 
+    # ------------------------------------------------------------------ #
+    # Reads                                                               #
+    # ------------------------------------------------------------------ #
+
     async def get_payment(self, payment_id: str) -> Payment:
         payment = await self.repository.get_by_id(payment_id)
         if not payment:
-            raise DomainException(
-                "Payment not found",
-                code="NOT_FOUND",
-                status_code=404
-            )
+            raise DomainException("Payment not found", code="NOT_FOUND", status_code=404)
         return payment
 
     async def list_payments(
@@ -218,25 +351,110 @@ class PaymentService:
         )
         has_next = (page * page_size) < total
         has_prev = page > 1
-
         return PaginatedPaymentsResponse(
-            items=items,
-            total=total,
-            page=page,
-            page_size=page_size,
-            has_next=has_next,
-            has_prev=has_prev
+            items=items, total=total, page=page, page_size=page_size,
+            has_next=has_next, has_prev=has_prev,
         )
 
-    async def handle_webhook(self, signature: str, raw_payload: bytes) -> dict:
-        payload_str = raw_payload.decode("utf-8")
-        webhook_secret = os.getenv("RAZORPAY_WEBHOOK_SECRET", "mock_secret")
+    # ------------------------------------------------------------------ #
+    # Webhook (source of truth)                                           #
+    # ------------------------------------------------------------------ #
+
+    async def handle_webhook(
+        self,
+        signature: str,
+        raw_payload: bytes,
+        event_id: Optional[str] = None,
+    ) -> dict:
+        payload_str = raw_payload.decode("utf-8", errors="replace")
+        webhook_secret = settings.razorpay_webhook_secret.get_secret_value()
+        if not webhook_secret:
+            raise DomainException("Webhook secret not configured", code="BAD_REQUEST", status_code=400)
 
         is_valid = await self.provider.verify_signature(payload_str, signature, webhook_secret)
         if not is_valid:
             raise DomainException("Invalid webhook signature", code="BAD_REQUEST", status_code=400)
 
         payload = json.loads(payload_str)
-        event_name = payload.get("event")
+        event_name = payload.get("event", "")
+        entity = (payload.get("payload") or {})
 
-        return {"status": "success", "event": event_name}
+        # Idempotency: same provider event delivered twice must no-op.
+        # Redis SETNX dedup key (7-day TTL) — survives the race where the
+        # duplicate arrives before the first delivery's transaction commits.
+        if event_id:
+            from core.redis import redis_manager
+
+            dedup_key = f"webhook:seen:{event_id}"
+            first_time = await redis_manager.client.set(dedup_key, event_name, nx=True, ex=7 * 24 * 3600)
+            if not first_time:
+                return {"status": "duplicate_ignored", "event": event_name}
+
+        handled = None
+        try:
+            if event_name == "payment.captured":
+                handled = await self._webhook_payment_captured(entity)
+            elif event_name == "payment.failed":
+                handled = await self._webhook_payment_failed(entity)
+            elif event_name in ("refund.processed", "refund.speed_changed"):
+                handled = {"refund": True}
+            else:
+                handled = {"ignored": True}
+        except DomainException as exc:
+            # Log but 200 — Razorpay retries on non-2xx and we may just not
+            # have the payment locally yet (race with initiate).
+            logger.warning("webhook %s handling issue: %s", event_name, exc.message)
+
+        return {"status": "success", "event": event_name, "handled": handled}
+
+    async def _find_payment_by_entity(self, entity: dict) -> Optional[Payment]:
+        pay_entity = (entity.get("payment") or {}).get("entity") or {}
+        order_entity = (entity.get("order") or {}).get("entity") or {}
+        provider_order_id = order_entity.get("id")
+        provider_payment_id = pay_entity.get("id")
+
+        if provider_payment_id:
+            res = await self.db.execute(
+                text("SELECT * FROM payments WHERE provider_payment_id = :ppid LIMIT 1"),
+                {"ppid": provider_payment_id},
+            )
+            row = res.mappings().first()
+            if row:
+                return await self.repository.get_by_id(row["id"])
+        if provider_order_id:
+            res = await self.db.execute(
+                text("SELECT * FROM payments WHERE provider_order_id = :poid ORDER BY created_at DESC LIMIT 1"),
+                {"poid": provider_order_id},
+            )
+            row = res.mappings().first()
+            if row:
+                return await self.repository.get_by_id(row["id"])
+        return None
+
+    async def _webhook_payment_captured(self, entity: dict) -> dict:
+        payment = await self._find_payment_by_entity(entity)
+        if not payment:
+            return {"payment_not_found": True}
+        pay_entity = (entity.get("payment") or {}).get("entity") or {}
+
+        # Amount integrity from the provider itself
+        if pay_entity.get("amount") is not None and int(pay_entity["amount"]) != payment.amount:
+            await self.repository.log_event(
+                payment.id, "webhook_amount_mismatch",
+                {"provider_amount": pay_entity.get("amount"), "local_amount": payment.amount},
+            )
+            await self.db.commit()
+            logger.error("webhook amount mismatch payment=%s", payment.id)
+            return {"amount_mismatch": True}
+
+        await self._capture(payment, pay_entity.get("id", ""), source="webhook")
+        return {"captured": True}
+
+    async def _webhook_payment_failed(self, entity: dict) -> dict:
+        payment = await self._find_payment_by_entity(entity)
+        if not payment:
+            return {"payment_not_found": True}
+        pay_entity = (entity.get("payment") or {}).get("entity") or {}
+        reason = pay_entity.get("error_description") or pay_entity.get("error_code") or "payment.failed"
+        await self._fail(payment, reason, pay_entity.get("id"))
+        return {"failed": True}

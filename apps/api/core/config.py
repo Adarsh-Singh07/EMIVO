@@ -76,6 +76,37 @@ class Settings(BaseSettings):
         env_file=("../../.env", "../.env", ".env"), env_file_encoding="utf-8", extra="ignore", case_sensitive=False
     )
 
+    # ------------------------------------------------------------------ #
+    # v0.2 — Storefront commerce settings                                 #
+    # ------------------------------------------------------------------ #
+    # Canonical ELEKTRIX store tenant. If unset, resolved at runtime by
+    # business name 'ELEKTRIX' (see core/store.py). Set explicitly in prod.
+    store_business_id: str | None = Field(default=None)
+
+    # Payment provider selection: "razorpay" | "mock"
+    payment_provider: str = Field(default="mock")
+    razorpay_key_id: str = Field(default="")
+    razorpay_key_secret: SecretStr = Field(default=SecretStr(""))
+    razorpay_webhook_secret: SecretStr = Field(default=SecretStr(""))
+
+    # Transactional email (Resend). EMAIL_FROM must be a verified sender.
+    resend_api_key: SecretStr = Field(default=SecretStr(""))
+    email_from: str = Field(default="ELEKTRIX <onboarding@resend.dev>")
+
+    # Storefront URL (links inside emails)
+    storefront_url: str = Field(default="https://elektrix.in")
+
+    # R2 public base for media URLs
+    r2_public_url: str = Field(default="")
+
+    # Shipping / COD defaults (paise); overridable at runtime via admin
+    # store settings persisted in business_settings.
+    free_shipping_threshold: int = Field(default=99900)
+    flat_shipping_paise: int = Field(default=9900)
+    cod_enabled: bool = Field(default=True)
+    cod_fee_paise: int = Field(default=0)
+    cod_max_order_paise: int = Field(default=5000000)
+
     @property
     def is_prod(self) -> bool:
         return self.env_name == "prod"

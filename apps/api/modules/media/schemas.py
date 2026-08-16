@@ -1,30 +1,16 @@
-import uuid
-
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class PresignedUploadRequest(BaseModel):
-    filename: str
-    content_type: str
-    size_bytes: int
+    filename: str = Field(..., max_length=255)
+    content_type: str = Field(..., pattern=r"^image/(png|jpe?g|webp|avif|gif)$")
+    size_bytes: int = Field(..., gt=0, le=10 * 1024 * 1024)  # 10 MB cap
 
 
 class PresignedUploadResponse(BaseModel):
-    media_id: uuid.UUID
+    """Upload with `upload_url` (PUT, content-type must match), then use
+    `public_url` as the product media URL."""
     upload_url: str
+    public_url: str
     key: str
-    provider: str
-
-
-class MediaRefResponse(BaseModel):
-    id: uuid.UUID
-    provider: str
-    bucket: str
-    key: str
-    content_type: str | None = None
-    size_bytes: int | None = None
-    filename: str | None = None
-    url: str | None = None
-
-    class Config:
-        from_attributes = True
+    provider: str = "r2"

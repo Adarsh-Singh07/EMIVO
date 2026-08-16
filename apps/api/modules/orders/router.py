@@ -1,14 +1,21 @@
 from typing import Any, Optional
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.dependencies import require_roles, set_db_context
+from core.dependencies import (
+    STAFF_ROLES,
+    get_current_user,
+    require_staff,
+    set_db_context,
+)
 from modules.orders.models import OrderStatus
 from modules.orders.schemas import (
-    OrderCreate,
-    OrderResponse,
+    CheckoutRequest,
+    CheckoutResponse,
+    OrderResponseV2,
     OrderStatusUpdate,
-    PaginatedOrdersResponse,
+    PaginatedOrdersResponseV2,
 )
 from modules.orders.service import OrderService
 from modules.users.models import User
@@ -25,90 +32,108 @@ async def get_order_service(
     return OrderService(session)
 
 
+def _is_staff(user: User) -> bool:
+    roles = user._token_payload.get("roles", []) or []
+    return any(r in STAFF_ROLES for r in roles)
+
+
 @router.post(
-    "/",
-    response_model=OrderResponse,
-    status_code=status.HTTP_201_CREATED
+    "/checkout",
+    response_model=CheckoutResponse,
+    status_code=status.HTTP_201_CREATED,
 )
-async def create_order(
-    payload: OrderCreate,
+async def checkout(
+    payload: CheckoutRequest,
     service: OrderService = Depends(get_order_service),
-    current_user: User = Depends(require_roles(["platform_admin", "owner", "staff", "customer"]))
+    current_user: User = Depends(get_current_user),
 ) -> Any:
-    """Create a new order. Customers can create orders too."""
-    return await service.create_order(payload, current_user)
+    """Server-authoritative checkout: resolves cart/items, recomputes prices,
+    applies coupon atomically, reserves stock, creates the order. For ONLINE
+    payments the response marks payment_required — the client then calls
+    POST /api/v1/payments/initiate with the order id."""
+    order, payment_required = await service.checkout(payload, current_user)
+
+    payment_id = None
+    if payment_required:
+        from sqlalchemy import select as _select
+        from modules.payments.models import Payment
+
+        res = await service.session.execute(
+            _select(Payment.id).where(Payment.order_id == str(order.id))
+            .order_by(Payment.created_at.desc()).limit(1)
+        )
+        payment_id = res.scalar()
+
+    return CheckoutResponse(
+        order=OrderResponseV2.model_validate(order),
+        payment_required=payment_required,
+        payment_id=payment_id,
+    )
 
 
-@router.get(
-    "/",
-    response_model=PaginatedOrdersResponse
-)
+@router.get("/", response_model=PaginatedOrdersResponseV2)
 async def list_orders(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     order_status: Optional[OrderStatus] = Query(None, alias="status"),
-    customer_id: Optional[str] = Query(None),
+    q: Optional[str] = Query(None, description="Search by order number (staff)"),
     service: OrderService = Depends(get_order_service),
-    current_user: User = Depends(require_roles(["platform_admin", "owner", "staff", "customer"]))
+    current_user: User = Depends(get_current_user),
 ) -> Any:
-    """List orders with pagination. Customers are scoped to their own orders only."""
-    roles = current_user._token_payload.get("roles", [])
-    user_id_filter = None
-    if "customer" in roles and not any(r in ["platform_admin", "owner", "staff"] for r in roles):
-        user_id_filter = current_user.id
-        customer_id = None
-
+    """List orders. Customers see only their own orders; staff see all."""
+    user_id_filter = None if _is_staff(current_user) else str(current_user.id)
     return await service.list_orders(
         status=order_status,
-        customer_id=customer_id,
+        customer_id=None,
         user_id=user_id_filter,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
 
-@router.get(
-    "/{order_id}",
-    response_model=OrderResponse
-)
+@router.get("/track/{order_number}", response_model=OrderResponseV2)
+async def track_order_by_number(
+    order_number: str,
+    service: OrderService = Depends(get_order_service),
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    """Order tracking by human order number (ownership enforced)."""
+    return await service.get_order_by_number(order_number, current_user, _is_staff(current_user))
+
+
+@router.get("/{order_id}", response_model=OrderResponseV2)
 async def get_order(
     order_id: str,
     service: OrderService = Depends(get_order_service),
-    current_user: User = Depends(require_roles(["platform_admin", "owner", "staff", "customer"]))
+    current_user: User = Depends(get_current_user),
 ) -> Any:
-    """Retrieve a single order by ID. Customers can only view their own orders."""
-    order = await service.get_order(order_id)
-    roles = current_user._token_payload.get("roles", [])
-    if "customer" in roles and not any(r in ["platform_admin", "owner", "staff"] for r in roles):
-        if order.user_id != current_user.id:
-            from core.exceptions import DomainException
-            raise DomainException("Order not found", code="NOT_FOUND", status_code=404)
-    return order
-
+    """Retrieve a single order by ID. Customers can only view their own."""
+    return await service.get_order_for_user(order_id, current_user, _is_staff(current_user))
 
 
 @router.patch(
     "/{order_id}/status",
-    response_model=OrderResponse
+    response_model=OrderResponseV2,
+    dependencies=[Depends(require_staff)],
 )
 async def update_order_status(
     order_id: str,
     payload: OrderStatusUpdate,
     service: OrderService = Depends(get_order_service),
-    current_user: User = Depends(require_roles(["platform_admin", "owner", "staff"]))
 ) -> Any:
-    """Update order status with state transition validation."""
+    """Update order status with state transition validation, inventory
+    side effects and customer notifications (staff only)."""
     return await service.update_order_status(order_id, payload)
 
 
 @router.delete(
     "/{order_id}",
-    status_code=status.HTTP_204_NO_CONTENT
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_staff)],
 )
 async def delete_order(
     order_id: str,
     service: OrderService = Depends(get_order_service),
-    current_user: User = Depends(require_roles(["platform_admin", "owner"]))
 ) -> None:
-    """Soft delete / cancel an order."""
+    """Soft delete / cancel an order (staff)."""
     await service.delete_order(order_id)

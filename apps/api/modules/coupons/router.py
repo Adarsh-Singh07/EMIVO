@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db_session
-from core.dependencies import set_db_context, require_roles
+from core.dependencies import set_db_context, require_roles, get_current_user
+from modules.users.models import User
 from modules.coupons.schemas import (
     CouponCreate,
     CouponUpdate,
@@ -105,15 +106,18 @@ async def delete_coupon(
 @router.post(
     "/validate",
     response_model=CouponValidateResponse,
-    dependencies=[Depends(require_roles(["owner", "staff", "platform_admin"]))]
 )
 async def validate_coupon(
     req: CouponValidateRequest,
     service: CouponService = Depends(get_coupon_service),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Validate a coupon code against a cart subtotal and user.
+    Customer-facing coupon validation for checkout preview. The user identity
+    comes from the auth token (never the client payload). Rate limited.
+    Actual redemption happens atomically inside checkout.
     """
+    req.user_id = str(current_user.id)
     return await service.validate_coupon(req)
 
 

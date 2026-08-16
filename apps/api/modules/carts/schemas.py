@@ -24,6 +24,7 @@ class CartItemResponse(CartItemBase):
     subtotal: Optional[int] = None
     product_name: Optional[str] = None
     variant_name: Optional[str] = None
+    stock_available: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
