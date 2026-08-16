@@ -25,6 +25,13 @@ depends_on = None
 
 
 def upgrade():
+    # --- Outbox: worker processing state (at-least-once dispatch) ----------
+    op.add_column('outbox_events', sa.Column('status', sa.String(length=20), nullable=False, server_default='pending'))
+    op.add_column('outbox_events', sa.Column('attempts', sa.Integer(), nullable=False, server_default='0'))
+    op.add_column('outbox_events', sa.Column('processed_at', sa.DateTime(timezone=True), nullable=True))
+    op.add_column('outbox_events', sa.Column('last_error', sa.Text(), nullable=True))
+    op.execute("CREATE INDEX ix_outbox_pending ON outbox_events (status, created_at) WHERE status = 'pending'")
+
     # --- Full-text / trigram search support -------------------------------
     op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
 
@@ -224,6 +231,11 @@ def upgrade():
 
 
 def downgrade():
+    op.execute("DROP INDEX IF EXISTS ix_outbox_pending")
+    op.drop_column('outbox_events', 'last_error')
+    op.drop_column('outbox_events', 'processed_at')
+    op.drop_column('outbox_events', 'attempts')
+    op.drop_column('outbox_events', 'status')
     op.drop_table('newsletter_subscribers')
     op.drop_table('notifications')
     op.drop_table('wishlist_items')
