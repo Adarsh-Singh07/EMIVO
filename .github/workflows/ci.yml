@@ -45,6 +45,20 @@ jobs:
           # Install testing dependencies
           pip install pytest pytest-asyncio httpx
 
+  backend-tests:
+    name: Backend Integration Tests (Postgres + Redis)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run ELEKTRIX backend integration suite
+        run: bash scripts/run_backend_tests.sh
+        env:
+          API_IMAGE: elektrix-api:cibuild
+      # The script builds the API image, boots scratch Postgres+Redis,
+      # migrates, applies RLS, seeds the store and runs the full pytest suite.
+
   verify-storefront:
     name: Customer Storefront Lint & Compilation
     runs-on: ubuntu-latest

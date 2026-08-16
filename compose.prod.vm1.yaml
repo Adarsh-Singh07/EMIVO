@@ -1,4 +1,11 @@
-# Production Docker stack for ELEKTRIX (Oracle ARM VPS)
+# Production Docker stack for ELEKTRIX v0.2 (Oracle ARM VPS)
+#
+# Services: nginx (TLS edge) → storefront (elektrix.in) + admin (admin.elektrix.in)
+#           → api (api.elektrix.in) + workers → Supabase PostgreSQL + Redis
+x-default-env: &default-env
+  DATABASE_URL: ${DATABASE_URL}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+
 services:
   nginx:
     image: nginx:alpine
@@ -11,7 +18,8 @@ services:
       - /var/www/certbot:/var/www/certbot:ro
     depends_on:
       - api
-      - web
+      - storefront
+      - admin
     restart: always
 
   api:
@@ -24,8 +32,7 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      <<: *default-env
     deploy:
       replicas: 2
       update_config:
@@ -42,15 +49,15 @@ services:
         condition: service_healthy
     restart: always
 
-  web:
+  storefront:
     build:
       context: .
-      dockerfile: apps/web/Dockerfile
-    image: ghcr.io/elektrix/web:${IMAGE_TAG:-latest}
+      dockerfile: Dockerfile.storefront
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.elektrix.in/api/v1}
+    image: ghcr.io/elektrix/storefront:${IMAGE_TAG:-latest}
     expose:
       - "3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
     deploy:
       replicas: 2
       update_config:
@@ -64,6 +71,30 @@ services:
       retries: 3
     restart: always
 
+  admin:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.elektrix.in/api/v1}
+    image: ghcr.io/elektrix/web:${IMAGE_TAG:-latest}
+    expose:
+      - "3100"
+    environment:
+      - PORT=3100
+    deploy:
+      replicas: 2
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 10s
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3100/').then(r => r.ok ? process.exit(0) : process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: always
+
   workers:
     build:
       context: .
@@ -72,9 +103,8 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
-      - PYTHONPATH=/app/apps/api:/app/apps/workers
+      <<: *default-env
+      PYTHONPATH: /app/apps/api:/app/apps/workers
     deploy:
       mode: replicated
       replicas: 1
