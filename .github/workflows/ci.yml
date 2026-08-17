@@ -62,6 +62,9 @@ jobs:
   verify-storefront:
     name: Customer Storefront Lint & Compilation
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: storefront
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -71,19 +74,25 @@ jobs:
         with:
           node-version: "20"
           cache: 'npm'
+          cache-dependency-path: storefront/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
       - name: Run TypeScript check
-        run: npx tsc --noEmit
+        run: npm run typecheck
 
       - name: Compile production Next.js build
         run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: https://api.elektrix.in/api/v1
 
   verify-admin-dashboard:
     name: Admin Dashboard Typecheck & Build
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -93,12 +102,15 @@ jobs:
         with:
           node-version: "20"
           cache: 'npm'
+          cache-dependency-path: admin/package-lock.json
 
-      - name: Install workspaces root dependencies
+      - name: Install dependencies
         run: npm ci
 
       - name: Run TypeScript check
-        run: npm --prefix apps/web run typecheck
+        run: npm run typecheck
 
       - name: Compile production Next.js build
-        run: npm --prefix apps/web run build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: https://api.elektrix.in/api/v1

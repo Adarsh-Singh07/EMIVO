@@ -1,6 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
+from core.dependencies import require_staff
 from core.middleware import RequestIdMiddleware
 from core.ratelimit import RateLimitMiddleware
 from routers import businesses, settings as routers_settings
@@ -66,7 +67,9 @@ async def health_ready():
 
 @app.get("/health/diagnostics")
 @app.get("/api/v1/system/status")
-async def health_diagnostics():
+async def health_diagnostics(
+    _staff=Depends(require_staff),
+):
     import time
     import os
     import sys
