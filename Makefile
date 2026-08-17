@@ -1,28 +1,33 @@
-.PHONY: dev test build typecheck db-migrate db-shell deploy seed help
+.PHONY: dev dev-admin test typecheck build db-migrate db-shell deploy seed help
 
 help:
 	@echo "Available commands:"
-	@echo "  make dev         - Start storefront dev server"
+	@echo "  make dev         - Start storefront dev server (storefront/)"
+	@echo "  make dev-admin   - Start admin dev server (admin/)"
 	@echo "  make test        - Run backend integration suite (Docker)"
 	@echo "  make typecheck   - TypeScript check (storefront + admin)"
-	@echo "  make build       - Build storefront for production"
+	@echo "  make build       - Build storefront + admin for production"
 	@echo "  make db-migrate  - Run Alembic migrations (prod compose)"
 	@echo "  make db-shell    - psql into the production database"
 	@echo "  make seed        - Seed the canonical ELEKTRIX store"
 	@echo "  make deploy      - Deploy the production stack (with rollback)"
 
 dev:
-	npm run dev
+	cd storefront && npm run dev
+
+dev-admin:
+	cd admin && npm run dev
 
 test:
 	bash scripts/run_backend_tests.sh
 
 typecheck:
-	npx tsc --noEmit
-	npm --prefix apps/web run typecheck
+	cd storefront && npx tsc --noEmit
+	cd admin && npx tsc --noEmit
 
 build:
-	npm run build
+	cd storefront && npm run build
+	cd admin && npm run build
 
 db-migrate:
 	docker compose -f compose.prod.vm1.yaml run --rm api alembic upgrade head

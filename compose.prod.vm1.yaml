@@ -74,10 +74,10 @@ services:
   admin:
     build:
       context: .
-      dockerfile: apps/web/Dockerfile
+      dockerfile: admin/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.elektrix.in/api/v1}
-    image: ghcr.io/elektrix/web:${IMAGE_TAG:-latest}
+    image: ghcr.io/elektrix/admin:${IMAGE_TAG:-latest}
     expose:
       - "3100"
     environment:
