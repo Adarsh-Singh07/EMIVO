@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
+
   // Pin tracing root to this project so a stray lockfile in a parent dir
   // (e.g. C:\Users\dheer\package-lock.json) isn't picked as the workspace root.
   outputFileTracingRoot: path.join(__dirname),
