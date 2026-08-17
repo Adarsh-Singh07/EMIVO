@@ -2,7 +2,7 @@
   "name": "elektrix-monorepo",
   "version": "0.2.0",
   "private": true,
-  "description": "ELEKTRIX e-commerce platform — backend API, workers, storefront, admin, seller",
+  "description": "ELEKTRIX e-commerce platform — backend API, workers, storefront, admin",
   "workspaces": [],
   "scripts": {
     "dev:api": "cd apps/api && uvicorn apps.api.main:app --reload --port 8000",

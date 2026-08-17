@@ -63,7 +63,9 @@ async def initiate_payment(
             detail="Payment provider is not available. Please retry in a moment or choose Cash on Delivery.",
         ) from exc
     checkout = {
-        "key_id": settings.razorpay_key_id if service.provider.name == "razorpay" else "mock",
+        "client_id": settings.cashfree_client_id if service.provider.name == "cashfree" else "mock",
+        "payment_session_id": payment.metadata_info.get("payment_session_id") if payment.metadata_info else None,
+        "environment": settings.cashfree_environment,
         "provider_order_id": payment.provider_order_id,
         "amount": payment.amount,
         "currency": payment.currency,
@@ -150,18 +152,23 @@ async def list_payments(
     )
 
 
-@router.post("/webhook/razorpay")
-async def razorpay_webhook(
+@router.post("/webhook/cashfree")
+async def cashfree_webhook(
     request: Request,
-    x_razorpay_signature: str = Header(..., alias="X-Razorpay-Signature"),
-    x_razorpay_event_id: Optional[str] = Header(default=None, alias="X-Razorpay-Event-Id"),
+    x_webhook_signature: str = Header(..., alias="x-webhook-signature"),
+    x_webhook_timestamp: str = Header(..., alias="x-webhook-timestamp"),
     service: PaymentService = Depends(get_webhook_payment_service),
 ):
-    """Webhook endpoint for Razorpay payment events (source of truth for
+    """Webhook endpoint for Cashfree payment events (source of truth for
     captures/failures). Signature-verified, idempotent by provider event id."""
     raw_payload = await request.body()
+    # Cashfree requires the string to hash to be timestamp + raw_body
+    payload_to_verify = x_webhook_timestamp + raw_payload.decode("utf-8", errors="replace")
+    
+    # We can pass the x-webhook-timestamp as event_id for basic idempotency deduplication
+    # or rely on internal logic.
     return await service.handle_webhook(
-        signature=x_razorpay_signature,
-        raw_payload=raw_payload,
-        event_id=x_razorpay_event_id,
+        signature=x_webhook_signature,
+        raw_payload=payload_to_verify.encode("utf-8"),
+        event_id=x_webhook_timestamp,
     )

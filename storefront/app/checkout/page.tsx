@@ -37,13 +37,13 @@ function newIdempotencyKey(): string {
   return `ik-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
-function loadRazorpayScript(): Promise<boolean> {
+function loadCashfreeScript(): Promise<boolean> {
   if (typeof window === "undefined") return Promise.resolve(false);
-  const w = window as unknown as { Razorpay?: new (options: unknown) => { open: () => void } };
-  if (w.Razorpay) return Promise.resolve(true);
+  const w = window as any;
+  if (w.Cashfree) return Promise.resolve(true);
   return new Promise((resolve) => {
     const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
     script.async = true;
     script.onload = () => resolve(true);
     script.onerror = () => resolve(false);
@@ -253,73 +253,63 @@ export default function CheckoutPage() {
     };
   };
 
-  /** Opens Razorpay for an existing PENDING online order. */
+  /** Opens Cashfree for an existing PENDING online order. */
   const startPayment = useCallback(
     async (order: OrderV2, paymentId: string, isRetry: boolean) => {
-      const loaded = await loadRazorpayScript();
+      const loaded = await loadCashfreeScript();
       if (!loaded) {
         setPendingPayment({ order, paymentId });
         toast.error("Could not load the payment window. Check your connection and retry.");
         return;
       }
       try {
-        // Every initiate gets a fresh idempotency key (retries must not
-        // collide with a previous attempt server-side).
         const init = await storeApi.initiatePayment({
           order_id: order.id,
           idempotency_key: newIdempotencyKey(),
         });
         const co = init.checkout;
-        const w = window as unknown as {
-          Razorpay: new (options: unknown) => { open: () => void };
-        };
-        const rzp = new w.Razorpay({
-          key: co.key_id,
-          order_id: co.provider_order_id,
-          amount: co.amount,
-          currency: co.currency,
-          name: "ELEKTRIX",
-          description: co.description || `Order ${order.order_number || order.id}`,
-          prefill: {
-            name: contactName,
-            email: user?.email || "",
-            contact: contactPhone,
-          },
-          handler: async (response: {
-            razorpay_payment_id: string;
-            razorpay_order_id?: string;
-            razorpay_signature: string;
-          }) => {
-            try {
-              await storeApi.verifyPaymentSuccess(paymentId, {
-                provider_payment_id: response.razorpay_payment_id,
-                provider_signature: response.razorpay_signature,
-              });
-              let fresh = order;
+        
+        const w = window as any;
+        const cashfree = w.Cashfree({
+          mode: co.environment === "sandbox" ? "sandbox" : "production"
+        });
+
+        cashfree.checkout({
+          paymentSessionId: co.payment_session_id,
+          redirectTarget: "_modal",
+        }).then(async (result: any) => {
+          if (result.error) {
+            setPendingPayment({ order, paymentId });
+            toast.error(result.error.message || "Payment was cancelled or failed");
+            return;
+          }
+          if (result.redirect) {
+             console.log("Payment will be redirected");
+             return;
+          }
+          if (result.paymentDetails) {
+            toast.success("Payment completed, verifying...");
+            // Webhook takes a moment to process. Poll the order status up to 5 times.
+            let fresh = order;
+            for (let i = 0; i < 5; i++) {
+              await new Promise((r) => setTimeout(r, 2000));
               try {
                 if (order.order_number) fresh = await storeApi.trackOrder(order.order_number);
-              } catch {
-                /* keep local copy */
-              }
-              setPendingPayment(null);
-              setPlacedOrder(fresh);
-              setAppliedCoupon(null);
-              sessionStorage.removeItem(IDEM_KEY_STORAGE);
-              reloadCart();
-              toast.success("Payment successful — order confirmed!");
-            } catch (err) {
-              setPendingPayment({ order, paymentId });
-              toast.error(err instanceof Error ? err.message : "Payment verification failed");
+                if (fresh.status !== "PENDING") break;
+              } catch {}
             }
-          },
-          modal: {
-            ondismiss: () => {
-              setPendingPayment({ order, paymentId });
-              toast.info("Payment window closed — your order is saved as PENDING");
-            },
-          },
+            setPendingPayment(null);
+            setPlacedOrder(fresh);
+            setAppliedCoupon(null);
+            sessionStorage.removeItem(IDEM_KEY_STORAGE);
+            reloadCart();
+            if (fresh.status === "PENDING") {
+               toast.info("Your payment is being verified. Please check your order history later.");
+            } else {
+               toast.success("Payment successful — order confirmed!");
+            }
+          }
         });
-        rzp.open();
       } catch (err) {
         setPendingPayment({ order, paymentId });
         toast.error(err instanceof Error ? err.message : "Could not start payment");

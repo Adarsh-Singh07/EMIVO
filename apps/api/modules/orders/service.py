@@ -228,6 +228,7 @@ class OrderService:
             order_number=order_number,
             payment_method=data.payment_method,
             coupon_code=None,
+            tracking_number=order_number,
             subtotal=subtotal,
             tax_total=0,  # GST-inclusive pricing
             shipping_total=shipping_total + cod_fee,
@@ -364,6 +365,7 @@ class OrderService:
             order_items.append(order_item)
 
         idempotency_key = data.idempotency_key or f"ord_{uuid.uuid4().hex}"
+        order_number = await self._generate_order_number()
 
         order = Order(
             user_id=current_user.id,
@@ -371,6 +373,8 @@ class OrderService:
             business_id=business_id,
             status=OrderStatus.PENDING,
             idempotency_key=idempotency_key,
+            order_number=order_number,
+            tracking_number=order_number,
             subtotal=total_amount,
             tax_total=0,
             shipping_total=0,

@@ -1,5 +1,6 @@
 import secrets
 import json
+import hashlib
 from datetime import datetime, timedelta, timezone
 
 from jose import jwt
@@ -193,7 +194,8 @@ class AuthService:
             return
 
         token = secrets.token_urlsafe(32)
-        await self.redis.set(f"auth:reset:{token}", str(user.id), ex=30 * 60)
+        hashed_token = hashlib.sha256(token.encode()).hexdigest()
+        await self.redis.set(f"auth:reset:{hashed_token}", str(user.id), ex=30 * 60)
 
         self.session.add(OutboxEvent(
             tenant_id=None,
@@ -208,7 +210,8 @@ class AuthService:
         await self.session.commit()
 
     async def reset_password(self, token: str, new_password: str) -> None:
-        user_id = await self.redis.get(f"auth:reset:{token}")
+        hashed_token = hashlib.sha256(token.encode()).hexdigest()
+        user_id = await self.redis.get(f"auth:reset:{hashed_token}")
         if not user_id:
             raise DomainException(
                 "Invalid or expired reset token", code="BAD_REQUEST", status_code=400
@@ -226,7 +229,7 @@ class AuthService:
         await self.session.commit()
 
         # Single use + revoke every active session
-        await self.redis.delete(f"auth:reset:{token}")
+        await self.redis.delete(f"auth:reset:{hashed_token}")
         await self._revoke_all_sessions(str(user_id))
 
     async def _revoke_all_sessions(self, user_id: str) -> None:
