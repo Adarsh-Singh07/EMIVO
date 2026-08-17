@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, Request, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Query, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,7 +53,15 @@ async def initiate_payment(
 ):
     """Create a provider payment order for an order awaiting payment.
     Customers may only initiate payments for their own orders."""
-    payment = await service.initiate_payment(payment_in=payment_in, current_user_id=str(current_user.id))
+    try:
+        payment = await service.initiate_payment(payment_in=payment_in, current_user_id=str(current_user.id))
+    except RuntimeError as exc:
+        # Provider rejected the request (unconfigured/bad keys, outage) —
+        # surface a truthful, retryable error instead of a raw 500.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Payment provider is not available. Please retry in a moment or choose Cash on Delivery.",
+        ) from exc
     checkout = {
         "key_id": settings.razorpay_key_id if service.provider.name == "razorpay" else "mock",
         "provider_order_id": payment.provider_order_id,
