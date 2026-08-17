@@ -94,7 +94,7 @@ class PaymentRepository:
             idempotency_key=payment_in.idempotency_key,
             metadata_info=payment_in.metadata,
             provider_order_id=provider_order_id,
-            status=PaymentStatus.PENDING,
+            status=PaymentStatus.CREATED,
         )
         self.db.add(db_payment)
         await self.db.flush()

@@ -1,6 +1,6 @@
 # ELEKTRIX Coding Agent Rules
 **Official Domain:** https://elektrix.in  
-**Current Architecture:** Modular Monolith — Storefront Next.js (port 3000), Admin Dashboard Next.js (`apps/web`, port 3001), FastAPI Backend (`apps/api`, port 8000).  
+**Current Architecture:** Modular Monolith — Storefront Next.js (port 3000), Admin Dashboard Next.js (`admin`, port 3001), FastAPI Backend (`apps/api`, port 8000).  
 **Current Milestone Status:** ✅ **ELEKTRIX Internal Release v0.1 Milestone COMPLETE** (Quality Gate PASSED — Frontend + Backend integration verified, 0 TypeScript errors, 14/14 backend tests PASSED).  
 *(Historical Note: Formerly named EMIVO during initial scaffold phase)*
 

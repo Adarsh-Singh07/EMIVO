@@ -26,7 +26,8 @@ from modules.orders.models import Order, OrderStatus
 from modules.orders.repository import OrderRepository
 from modules.payments.models import Payment, PaymentStatus, PaymentProvider
 from modules.payments.providers.base import BasePaymentProvider
-from modules.payments.providers.razorpay import RazorpayProvider, RazorpayMockProvider
+from modules.payments.providers.cashfree import CashfreeProvider
+from modules.payments.providers.mock import MockProvider
 from modules.payments.repository import PaymentRepository
 from modules.payments.schemas import PaymentCreate, PaymentResponse, PaginatedPaymentsResponse
 
@@ -37,15 +38,16 @@ def get_provider() -> BasePaymentProvider:
     """Select the payment provider from configuration. Production must be
     explicit: 'mock' is refused when ENV_NAME=prod."""
     chosen = (settings.payment_provider or "mock").lower()
-    if chosen == "razorpay":
-        return RazorpayProvider(
-            api_key=settings.razorpay_key_id,
-            api_secret=settings.razorpay_key_secret.get_secret_value(),
+    if chosen == "cashfree":
+        return CashfreeProvider(
+            client_id=settings.cashfree_client_id,
+            client_secret=settings.cashfree_client_secret.get_secret_value(),
+            environment=settings.cashfree_environment,
         )
     if chosen == "mock":
         if settings.is_prod:
             raise RuntimeError("PAYMENT_PROVIDER=mock is not allowed in production")
-        return RazorpayMockProvider()
+        return MockProvider()
     raise RuntimeError(f"Unknown PAYMENT_PROVIDER: {chosen}")
 
 
@@ -111,8 +113,8 @@ class PaymentService:
             )
         if payment_in.amount is None:
             payment_in = payment_in.model_copy(update={"amount": order.total})
-        if payment_in.provider == PaymentProvider.MOCK and self.provider.name == "razorpay":
-            payment_in = payment_in.model_copy(update={"provider": PaymentProvider.RAZORPAY})
+        if payment_in.provider == PaymentProvider.MOCK and self.provider.name == "cashfree":
+            payment_in = payment_in.model_copy(update={"provider": PaymentProvider.CASHFREE})
 
         # 4. Provider order (external call — runs on its own, no DB locks held)
         notes = (payment_in.metadata or {}) | {
@@ -132,9 +134,13 @@ class PaymentService:
                 code="PAYMENT_FAILED", status_code=502,
             )
 
+        meta = payment_in.metadata_info or {}
+        if "payment_session_id" in provider_order:
+            meta["payment_session_id"] = provider_order["payment_session_id"]
+
         # 5. Local payment record
         payment = await self.repository.create(
-            payment_in=payment_in,
+            payment_in=payment_in.model_copy(update={"metadata_info": meta}),
             business_id=business_id,
             user_id=str(order.user_id),
             provider_order_id=provider_order["id"],
@@ -160,9 +166,9 @@ class PaymentService:
         payment = await self.repository.get_by_id(payment_id)
         if not payment:
             raise DomainException("Payment not found", code="NOT_FOUND", status_code=404)
-        if payment.status == PaymentStatus.CAPTURED:
+        if payment.status == PaymentStatus.SUCCESS:
             return payment
-        if payment.status != PaymentStatus.PENDING:
+        if payment.status not in (PaymentStatus.CREATED, PaymentStatus.PENDING):
             raise DomainException(
                 f"Payment already {payment.status.value}", code="BAD_REQUEST", status_code=400
             )
@@ -202,12 +208,12 @@ class PaymentService:
         """Idempotent capture transition: payment CAPTURED, order CONFIRMED,
         reserved stock committed, notification enqueued."""
         fresh = await self.repository.get_by_id(payment.id)
-        if fresh.status == PaymentStatus.CAPTURED:
+        if fresh.status == PaymentStatus.SUCCESS:
             return fresh
 
         await self.repository.update_status(
             payment_id=payment.id,
-            status=PaymentStatus.CAPTURED,
+            status=PaymentStatus.SUCCESS,
             provider_payment_id=provider_payment_id,
         )
         await self.repository.log_event(
@@ -277,7 +283,7 @@ class PaymentService:
         payment = await self.repository.get_by_id(payment_id)
         if not payment:
             raise DomainException("Payment not found", code="NOT_FOUND", status_code=404)
-        if payment.status != PaymentStatus.CAPTURED:
+        if payment.status != PaymentStatus.SUCCESS:
             raise DomainException(
                 f"Cannot refund payment in status {payment.status.value}. Only CAPTURED payments can be refunded.",
                 code="BAD_REQUEST", status_code=400,
@@ -364,24 +370,24 @@ class PaymentService:
         self,
         signature: str,
         raw_payload: bytes,
+        timestamp: str,
         event_id: Optional[str] = None,
     ) -> dict:
         payload_str = raw_payload.decode("utf-8", errors="replace")
-        webhook_secret = settings.razorpay_webhook_secret.get_secret_value()
+        payload_to_verify = timestamp + payload_str
+        webhook_secret = settings.cashfree_client_secret
         if not webhook_secret:
-            raise DomainException("Webhook secret not configured", code="BAD_REQUEST", status_code=400)
-
-        is_valid = await self.provider.verify_signature(payload_str, signature, webhook_secret)
+            raise DomainException("Payment provider not configured", code="PAYMENT_FAILED")
+            
+        is_valid = await self.provider.verify_signature(payload_to_verify, signature, webhook_secret)
         if not is_valid:
             raise DomainException("Invalid webhook signature", code="BAD_REQUEST", status_code=400)
 
         payload = json.loads(payload_str)
-        event_name = payload.get("event", "")
-        entity = (payload.get("payload") or {})
+        event_name = payload.get("type", "")
+        entity = payload.get("data", {})
 
         # Idempotency: same provider event delivered twice must no-op.
-        # Redis SETNX dedup key (7-day TTL) — survives the race where the
-        # duplicate arrives before the first delivery's transaction commits.
         if event_id:
             from core.redis import redis_manager
 
@@ -392,11 +398,11 @@ class PaymentService:
 
         handled = None
         try:
-            if event_name == "payment.captured":
+            if event_name == "PAYMENT_SUCCESS_WEBHOOK":
                 handled = await self._webhook_payment_captured(entity)
-            elif event_name == "payment.failed":
+            elif event_name == "PAYMENT_FAILED_WEBHOOK":
                 handled = await self._webhook_payment_failed(entity)
-            elif event_name in ("refund.processed", "refund.speed_changed"):
+            elif event_name in ("REFUND_PROCESSED_WEBHOOK"):
                 handled = {"refund": True}
             else:
                 handled = {"ignored": True}
@@ -408,10 +414,10 @@ class PaymentService:
         return {"status": "success", "event": event_name, "handled": handled}
 
     async def _find_payment_by_entity(self, entity: dict) -> Optional[Payment]:
-        pay_entity = (entity.get("payment") or {}).get("entity") or {}
-        order_entity = (entity.get("order") or {}).get("entity") or {}
-        provider_order_id = order_entity.get("id")
-        provider_payment_id = pay_entity.get("id")
+        pay_entity = entity.get("payment") or {}
+        order_entity = entity.get("order") or {}
+        provider_order_id = order_entity.get("order_id")
+        provider_payment_id = str(pay_entity.get("cf_payment_id")) if pay_entity.get("cf_payment_id") else None
 
         if provider_payment_id:
             res = await self.db.execute(
@@ -435,26 +441,28 @@ class PaymentService:
         payment = await self._find_payment_by_entity(entity)
         if not payment:
             return {"payment_not_found": True}
-        pay_entity = (entity.get("payment") or {}).get("entity") or {}
+        pay_entity = entity.get("payment") or {}
 
         # Amount integrity from the provider itself
-        if pay_entity.get("amount") is not None and int(pay_entity["amount"]) != payment.amount:
+        provider_amount = pay_entity.get("payment_amount")
+        # Cashfree returns amount in major units, so we convert to paise
+        if provider_amount is not None and int(float(provider_amount) * 100) != payment.amount:
             await self.repository.log_event(
                 payment.id, "webhook_amount_mismatch",
-                {"provider_amount": pay_entity.get("amount"), "local_amount": payment.amount},
+                {"provider_amount": provider_amount, "local_amount": payment.amount},
             )
             await self.db.commit()
             logger.error("webhook amount mismatch payment=%s", payment.id)
             return {"amount_mismatch": True}
 
-        await self._capture(payment, pay_entity.get("id", ""), source="webhook")
+        await self._capture(payment, str(pay_entity.get("cf_payment_id", "")), source="webhook")
         return {"captured": True}
 
     async def _webhook_payment_failed(self, entity: dict) -> dict:
         payment = await self._find_payment_by_entity(entity)
         if not payment:
             return {"payment_not_found": True}
-        pay_entity = (entity.get("payment") or {}).get("entity") or {}
-        reason = pay_entity.get("error_description") or pay_entity.get("error_code") or "payment.failed"
-        await self._fail(payment, reason, pay_entity.get("id"))
+        pay_entity = entity.get("payment") or {}
+        reason = pay_entity.get("payment_message") or "payment.failed"
+        await self._fail(payment, reason, str(pay_entity.get("cf_payment_id", "")))
         return {"failed": True}

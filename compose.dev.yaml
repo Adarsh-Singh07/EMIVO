@@ -22,17 +22,20 @@ services:
   web:
     build:
       context: .
-      dockerfile: apps/web/Dockerfile
+      dockerfile: admin/Dockerfile
+    container_name: elektrix-web
+    restart: always
     ports:
-      - "3000:3000"
-    volumes:
-      - ./apps/web:/app/apps/web
-      - ./packages:/app/packages
+      - "3001:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
-    command: npm --prefix apps/web run dev
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
     depends_on:
       - api
+    volumes:
+      - ./admin:/app
+      - /app/node_modules
+      - /app/.nexti
 
   redis:
     image: redis:7-alpine

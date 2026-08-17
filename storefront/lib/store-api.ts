@@ -222,9 +222,11 @@ export interface CheckoutResponse {
 
 export interface PaymentInitiateResponse {
   payment: { id: string; status?: string } & Record<string, unknown>;
-  provider: "razorpay" | "mock" | string;
+  provider: "cashfree" | "mock" | string;
   checkout: {
-    key_id: string;
+    client_id: string;
+    environment: string;
+    payment_session_id?: string;
     provider_order_id: string;
     amount: number; // paise
     currency: string;
@@ -462,16 +464,6 @@ export const storeApi = {
     amount?: number;
   }): Promise<PaymentInitiateResponse> {
     return fetchApi<PaymentInitiateResponse>("/payments/initiate", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-  },
-
-  verifyPaymentSuccess(
-    paymentId: string,
-    payload: { provider_payment_id: string; provider_signature: string }
-  ): Promise<unknown> {
-    return fetchApi(`/payments/${paymentId}/verify-success`, {
       method: "POST",
       body: JSON.stringify(payload),
     });

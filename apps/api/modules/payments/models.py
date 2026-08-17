@@ -10,15 +10,16 @@ from core.models import TenantMixin
 
 
 class PaymentStatus(str, enum.Enum):
+    CREATED = "CREATED"
     PENDING = "PENDING"
-    AUTHORIZED = "AUTHORIZED"
-    CAPTURED = "CAPTURED"
+    SUCCESS = "SUCCESS"
     FAILED = "FAILED"
-    REFUNDED = "REFUNDED"
+    CANCELLED = "CANCELLED"
+    EXPIRED = "EXPIRED"
 
 
 class PaymentProvider(str, enum.Enum):
-    RAZORPAY = "RAZORPAY"
+    CASHFREE = "CASHFREE"
     STRIPE = "STRIPE"
     MOCK = "MOCK"
 
@@ -33,7 +34,7 @@ class Payment(Base, TenantMixin):
     amount = Column(Integer, nullable=False)  # Minor units (e.g. cents/paise)
     currency = Column(String(3), nullable=False, default="INR")
 
-    status = Column(Enum(PaymentStatus), nullable=False, default=PaymentStatus.PENDING)
+    status = Column(Enum(PaymentStatus), nullable=False, default=PaymentStatus.CREATED)
     provider = Column(Enum(PaymentProvider), nullable=False, default=PaymentProvider.MOCK)
 
     provider_payment_id = Column(String(255), nullable=True, unique=True)
