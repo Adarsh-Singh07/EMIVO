@@ -11,6 +11,7 @@
 set -uo pipefail
 
 API="${API_BASE:-https://api.elektrix.in/api/v1}"
+ROOT="${API%/api/v1}"  # health endpoints are mounted at app root
 RUN="smoke$(date +%s)"
 PASS=0; FAIL=0
 SMOKE_ADMIN_EMAIL="${SMOKE_ADMIN_EMAIL:-}"
@@ -29,8 +30,8 @@ check() { # name expected_status curl args...
 echo "== ELEKTRIX v0.2 production smoke @ $API =="
 
 echo "-- platform"
-check "health/live" 200 "$API/health/live"
-check "health/ready" 200 "$API/health/ready"
+check "health/live" 200 "$ROOT/health/live"
+check "health/ready" 200 "$ROOT/health/ready"
 check "store catalog" 200 "$API/store/products?page_size=3"
 check "store search" 200 "$API/store/products/search?q=earbuds"
 check "store categories" 200 "$API/store/categories"
@@ -88,6 +89,10 @@ else
 fi
 
 echo "-- ONLINE checkout up to provider order (no charge)"
+# COD checkout consumed the cart — re-add an item to the user's active cart
+USER_CART=$(curl -s "$API/carts" -H "Authorization: Bearer $TOKEN" | python3 -c "import json,sys;print(json.load(sys.stdin)['id'])")
+curl -s -o /dev/null -X POST "$API/carts/$USER_CART/items" -H "Authorization: Bearer $TOKEN" \
+    -H 'Content-Type: application/json' -d "{\"product_id\":\"$PID\",\"quantity\":1}"
 ONLINE=$(curl -s -w '\n%{http_code}' -X POST "$API/orders/checkout" -H "Authorization: Bearer $TOKEN" \
     -H 'Content-Type: application/json' -d "{\"address_id\":\"$ADDR_ID\",\"payment_method\":\"ONLINE\"}")
 OCODE=$(echo "$ONLINE" | tail -1)
