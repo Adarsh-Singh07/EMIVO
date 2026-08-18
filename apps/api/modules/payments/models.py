@@ -16,6 +16,7 @@ class PaymentStatus(str, enum.Enum):
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
     EXPIRED = "EXPIRED"
+    REFUNDED = "REFUNDED"
 
 
 class PaymentProvider(str, enum.Enum):

@@ -215,7 +215,7 @@ def upgrade() -> None:
     sa.Column('user_id', sa.String(length=36), nullable=False),
     sa.Column('amount', sa.Float(), nullable=False),
     sa.Column('currency', sa.String(length=3), nullable=False),
-    sa.Column('status', sa.Enum('PENDING', 'AUTHORIZED', 'CAPTURED', 'FAILED', 'REFUNDED', name='paymentstatus'), nullable=False),
+    sa.Column('status', sa.Enum('CREATED', 'PENDING', 'SUCCESS', 'FAILED', 'CANCELLED', 'EXPIRED', 'REFUNDED', name='paymentstatus'), nullable=False),
     sa.Column('provider', sa.Enum('RAZORPAY', 'STRIPE', 'MOCK', name='paymentprovider'), nullable=False),
     sa.Column('provider_payment_id', sa.String(length=255), nullable=True),
     sa.Column('provider_order_id', sa.String(length=255), nullable=True),
