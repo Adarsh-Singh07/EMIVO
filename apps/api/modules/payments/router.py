@@ -162,13 +162,9 @@ async def cashfree_webhook(
     """Webhook endpoint for Cashfree payment events (source of truth for
     captures/failures). Signature-verified, idempotent by provider event id."""
     raw_payload = await request.body()
-    # Cashfree requires the string to hash to be timestamp + raw_body
-    payload_to_verify = x_webhook_timestamp + raw_payload.decode("utf-8", errors="replace")
-    
-    # We can pass the x-webhook-timestamp as event_id for basic idempotency deduplication
-    # or rely on internal logic.
     return await service.handle_webhook(
         signature=x_webhook_signature,
-        raw_payload=payload_to_verify.encode("utf-8"),
+        raw_payload=raw_payload,
+        timestamp=x_webhook_timestamp,
         event_id=x_webhook_timestamp,
     )

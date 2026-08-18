@@ -9,11 +9,23 @@ DB_CONTAINER=elektrix-db-1
 API_IMAGE="${API_IMAGE:-elektrix-api:v02test}"
 NET=elektrix_default
 
+docker network create "$NET" || true
+echo "==> [0/6] building image"
+docker build -t "$API_IMAGE" -f apps/api/Dockerfile .
+
+
 echo "==> [1/6] scratch postgres up"
-docker inspect "$DB_CONTAINER" >/dev/null 2>&1 || docker run -d --name "$DB_CONTAINER" --network "$NET" \
+docker rm -f "$DB_CONTAINER" >/dev/null 2>&1 || true
+docker run -d --name "$DB_CONTAINER" --network "$NET" --network-alias db \
   -e POSTGRES_PASSWORD=password -e POSTGRES_DB=emivo ankane/pgvector:latest
 docker start "$DB_CONTAINER" >/dev/null 2>&1 || true
-sleep 3
+
+echo "Waiting for db..."
+until docker exec "$DB_CONTAINER" pg_isready -U postgres; do
+  sleep 1
+done
+sleep 5
+
 
 echo "==> [2/6] isolated test redis"
 docker rm -f elektrix-test-redis >/dev/null 2>&1 || true
@@ -22,9 +34,9 @@ sleep 2
 
 echo "==> [3/6] reset schema + migrate"
 docker exec "$DB_CONTAINER" psql -U postgres -d emivo -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" >/dev/null
-docker run --rm --network "$NET" \
-  -e DATABASE_URL="postgresql+asyncpg://postgres:password@db:5432/emivo" \
-  -e SYNC_DATABASE_URL="postgresql://postgres:password@db:5432/emivo" \
+docker run --rm --network "$NET" --network-alias db \
+  -e DATABASE_URL="postgresql+asyncpg://postgres:password@elektrix-db-1:5432/emivo" \
+  -e SYNC_DATABASE_URL="postgresql://postgres:password@elektrix-db-1:5432/emivo" \
   -e JWT_SECRET="test-secret-for-migrations-only-32ch" \
   -e REDIS_URL="redis://elektrix-test-redis:6379/0" \
   "$API_IMAGE" alembic upgrade head >/dev/null
@@ -38,9 +50,9 @@ for f in db/rls/*.sql; do
 done
 
 echo "==> [5/6] seed store"
-docker run --rm --network "$NET" \
-  -e DATABASE_URL="postgresql+asyncpg://postgres:password@db:5432/emivo" \
-  -e SYNC_DATABASE_URL="postgresql://postgres:password@db:5432/emivo" \
+docker run --rm --network "$NET" --network-alias db \
+  -e DATABASE_URL="postgresql+asyncpg://postgres:password@elektrix-db-1:5432/emivo" \
+  -e SYNC_DATABASE_URL="postgresql://postgres:password@elektrix-db-1:5432/emivo" \
   -e JWT_SECRET="test-secret-for-migrations-only-32ch" \
   -e REDIS_URL="redis://elektrix-test-redis:6379/0" \
   -e ADMIN_EMAIL="admin@example.com" \
@@ -50,14 +62,15 @@ docker run --rm --network "$NET" \
   "$API_IMAGE" python /app/scripts/seed_store.py | tail -3
 
 echo "==> [6/6] pytest"
-docker run --rm --network "$NET" \
-  -e DATABASE_URL="postgresql+asyncpg://postgres:password@db:5432/emivo" \
-  -e SYNC_DATABASE_URL="postgresql://postgres:password@db:5432/emivo" \
+docker run --rm --network "$NET" --network-alias db \
+  -e DATABASE_URL="postgresql+asyncpg://postgres:password@elektrix-db-1:5432/emivo" \
+  -e SYNC_DATABASE_URL="postgresql://postgres:password@elektrix-db-1:5432/emivo" \
   -e JWT_SECRET="test-secret-for-migrations-only-32ch" \
   -e REDIS_URL="redis://elektrix-test-redis:6379/0" \
   -e ENV_NAME=pytest \
   -e PAYMENT_PROVIDER=mock \
   -e RAZORPAY_WEBHOOK_SECRET=test_webhook_secret \
+  -e CASHFREE_CLIENT_SECRET=test_webhook_secret \
   -e STORE_BUSINESS_ID="" \
   -e ADMIN_EMAIL="admin@example.com" \
   -e ADMIN_INITIAL_PASSWORD="TestAdminPass123!" \

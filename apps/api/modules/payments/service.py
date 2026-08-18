@@ -134,13 +134,13 @@ class PaymentService:
                 code="PAYMENT_FAILED", status_code=502,
             )
 
-        meta = payment_in.metadata_info or {}
+        meta = payment_in.metadata or {}
         if "payment_session_id" in provider_order:
             meta["payment_session_id"] = provider_order["payment_session_id"]
 
         # 5. Local payment record
         payment = await self.repository.create(
-            payment_in=payment_in.model_copy(update={"metadata_info": meta}),
+            payment_in=payment_in.model_copy(update={"metadata": meta}),
             business_id=business_id,
             user_id=str(order.user_id),
             provider_order_id=provider_order["id"],
@@ -244,7 +244,7 @@ class PaymentService:
 
     async def _fail(self, payment: Payment, reason: str, provider_payment_id: Optional[str] = None) -> Payment:
         fresh = await self.repository.get_by_id(payment.id)
-        if fresh.status != PaymentStatus.PENDING:
+        if fresh.status not in (PaymentStatus.CREATED, PaymentStatus.PENDING):
             return fresh
 
         await self.repository.update_status(payment.id, PaymentStatus.FAILED, provider_payment_id)

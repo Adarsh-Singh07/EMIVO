@@ -54,21 +54,20 @@ async def test_online_payment_lifecycle_captures_and_commits_stock(client):
     assert r.status_code == 201, r.text
     init = r.json()
     assert init["checkout"]["amount"] == order["total"]
-    assert init["checkout"]["key_id"]
+    assert init["checkout"]["payment_session_id"]
     payment_id = init["payment"]["id"]
     provider_order_id = init["payment"]["provider_order_id"]
 
     # Forge a valid mock-provider signature (mock secret is empty in tests)
     provider_payment_id = f"pay_mock_{uuid.uuid4().hex[:10]}"
-    payload = f"{provider_order_id}|{provider_payment_id}"
-    signature = hmac.new(MOCK_PROVIDER_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    signature = "valid_mock_signature"
 
     r = await client.post(f"/api/v1/payments/{payment_id}/verify-success",
                           headers=buyer["headers"],
                           json={"provider_payment_id": provider_payment_id,
                                 "provider_signature": signature})
     assert r.status_code == 200, r.text
-    assert r.json()["status"] == "CAPTURED"
+    assert r.json()["status"] == "SUCCESS"
 
     # Order confirmed; stock committed (reserved → sold)
     order_after = (await client.get(f"/api/v1/orders/{order['id']}", headers=buyer["headers"])).json()
@@ -84,7 +83,7 @@ async def test_online_payment_lifecycle_captures_and_commits_stock(client):
                            json={"provider_payment_id": provider_payment_id,
                                  "provider_signature": signature})
     assert r2.status_code == 200
-    assert r2.json()["status"] == "CAPTURED"
+    assert r2.json()["status"] == "SUCCESS"
 
 
 async def test_payment_amount_tampering_rejected(client):
@@ -112,23 +111,22 @@ async def test_webhook_capture_and_duplicate_delivery(client):
     payment = init["payment"]
 
     body = {
-        "event": "payment.captured",
-        "payload": {
-            "payment": {"entity": {"id": "pay_mock_webhook1", "amount": payment["amount"],
-                                    "status": "captured"}},
-            "order": {"entity": {"id": payment["provider_order_id"]}},
-        },
+        "type": "PAYMENT_SUCCESS_WEBHOOK",
+        "data": {
+        
+            "payment": {"cf_payment_id": "pay_mock_webhook1", "payment_amount": payment["amount"] / 100, "payment_status": "SUCCESS"},
+            "order": {"order_id": payment["provider_order_id"]}
+        }
     }
     raw = json.dumps(body)
-    secret = await _webhook_secret()
-    signature = hmac.new(secret.encode(), raw.encode(), hashlib.sha256).hexdigest()
+    signature = "valid_mock_signature"
     event_id = f"evt_{uuid.uuid4().hex[:12]}"
 
-    r = await client.post("/api/v1/payments/webhook/razorpay",
+    r = await client.post("/api/v1/payments/webhook/cashfree",
                           content=raw, headers={
                               "Content-Type": "application/json",
-                              "X-Razorpay-Signature": signature,
-                              "X-Razorpay-Event-Id": event_id,
+                              "X-Webhook-Signature": signature,
+                              "x-webhook-timestamp": event_id,
                           })
     assert r.status_code == 200, r.text
     assert r.json()["handled"]["captured"] is True
@@ -137,22 +135,24 @@ async def test_webhook_capture_and_duplicate_delivery(client):
     assert order_after["status"] == "CONFIRMED"
 
     # Duplicate delivery of the same event id is a no-op
-    r2 = await client.post("/api/v1/payments/webhook/razorpay",
+    r2 = await client.post("/api/v1/payments/webhook/cashfree",
                            content=raw, headers={
                                "Content-Type": "application/json",
-                               "X-Razorpay-Signature": signature,
-                               "X-Razorpay-Event-Id": event_id,
+                               "X-Webhook-Signature": signature,
+                               "x-webhook-timestamp": event_id,
                            })
     assert r2.status_code == 200
     assert r2.json()["status"] == "duplicate_ignored"
 
 
 async def test_webhook_bad_signature_rejected(client):
-    body = {"event": "payment.captured", "payload": {}}
-    r = await client.post("/api/v1/payments/webhook/razorpay",
+    body = {"type": "PAYMENT_SUCCESS_WEBHOOK",
+        "data": { }}
+    r = await client.post("/api/v1/payments/webhook/cashfree",
                           content=json.dumps(body), headers={
                               "Content-Type": "application/json",
-                              "X-Razorpay-Signature": "deadbeef",
+                              "X-Webhook-Signature": "deadbeef",
+                              "X-Webhook-Timestamp": "1234567890",
                           })
     assert r.status_code == 400
 
@@ -164,8 +164,7 @@ async def test_refund_via_provider_and_restock(client, admin):
     payment = init["payment"]
 
     provider_payment_id = f"pay_mock_{uuid.uuid4().hex[:10]}"
-    payload = f"{payment['provider_order_id']}|{provider_payment_id}"
-    signature = hmac.new(MOCK_PROVIDER_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    signature = "valid_mock_signature"
     r = await client.post(f"/api/v1/payments/{payment['id']}/verify-success",
                           headers=buyer["headers"],
                           json={"provider_payment_id": provider_payment_id,
@@ -201,19 +200,19 @@ async def test_failed_webhook_releases_reservation(client):
     assert stock_before["reserved"] >= 1
 
     body = {
-        "event": "payment.failed",
-        "payload": {
-            "payment": {"entity": {"id": "pay_mock_fail1", "status": "failed",
-                                    "error_description": "insufficient funds"}},
-            "order": {"entity": {"id": payment["provider_order_id"]}},
-        },
+        "type": "PAYMENT_FAILED_WEBHOOK",
+        "data": {
+        
+            "payment": {"cf_payment_id": "pay_mock_fail1", "payment_message": "insufficient funds", "payment_status": "FAILED"},
+            "order": {"order_id": payment["provider_order_id"]}
+        }
     }
     raw = json.dumps(body)
-    secret = await _webhook_secret()
-    signature = hmac.new(secret.encode(), raw.encode(), hashlib.sha256).hexdigest()
-    r = await client.post("/api/v1/payments/webhook/razorpay", content=raw, headers={
+    signature = "valid_mock_signature"
+    r = await client.post("/api/v1/payments/webhook/cashfree", content=raw, headers={
         "Content-Type": "application/json",
-        "X-Razorpay-Signature": signature,
+        "X-Webhook-Signature": signature,
+        "X-Webhook-Timestamp": "1234567890",
     })
     assert r.status_code == 200
     assert r.json()["handled"]["failed"] is True
