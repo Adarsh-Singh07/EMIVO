@@ -151,7 +151,7 @@ async def health_diagnostics(
             },
             "payments": {
                 "provider": provider,
-                "status": "configured" if provider == "razorpay" else "mock-only (non-prod)",
+                "status": "configured" if provider == "cashfree" else "mock-only (non-prod)",
             },
             "email": {
                 "provider": "resend" if settings.resend_api_key.get_secret_value() else "mock-logger",

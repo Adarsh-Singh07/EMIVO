@@ -29,10 +29,14 @@ from modules.users.models import User
 
 # Allowed Order Status Transitions
 VALID_TRANSITIONS = {
-    OrderStatus.PENDING: {OrderStatus.CONFIRMED, OrderStatus.CANCELLED},
+    OrderStatus.PENDING: {OrderStatus.CONFIRMED, OrderStatus.CANCELLED, OrderStatus.PAYMENT_FAILED},
+    OrderStatus.PAYMENT_PENDING: {OrderStatus.CONFIRMED, OrderStatus.CANCELLED, OrderStatus.PAYMENT_FAILED},
+    OrderStatus.PAYMENT_FAILED: {OrderStatus.CANCELLED},
     OrderStatus.CONFIRMED: {OrderStatus.PROCESSING, OrderStatus.CANCELLED},
-    OrderStatus.PROCESSING: {OrderStatus.SHIPPED, OrderStatus.CANCELLED},
-    OrderStatus.SHIPPED: {OrderStatus.DELIVERED, OrderStatus.CANCELLED},
+    OrderStatus.PROCESSING: {OrderStatus.PACKED, OrderStatus.CANCELLED},
+    OrderStatus.PACKED: {OrderStatus.SHIPPED, OrderStatus.CANCELLED},
+    OrderStatus.SHIPPED: {OrderStatus.OUT_FOR_DELIVERY, OrderStatus.CANCELLED},
+    OrderStatus.OUT_FOR_DELIVERY: {OrderStatus.DELIVERED, OrderStatus.CANCELLED},
     OrderStatus.DELIVERED: {OrderStatus.REFUNDED},
     OrderStatus.CANCELLED: set(),
     OrderStatus.REFUNDED: set(),
@@ -458,13 +462,17 @@ class OrderService:
             order.metadata_info = meta
 
         event_type = None
-        if target_status == OrderStatus.SHIPPED:
+        if target_status == OrderStatus.PACKED:
+            event_type = "order.packed"
+        elif target_status == OrderStatus.SHIPPED:
             order.shipped_at = order.shipped_at or datetime.now(timezone.utc)
             if status_update.tracking_number:
                 order.tracking_number = status_update.tracking_number
             if status_update.tracking_url:
                 order.tracking_url = status_update.tracking_url
             event_type = "order.shipped"
+        elif target_status == OrderStatus.OUT_FOR_DELIVERY:
+            event_type = "order.out_for_delivery"
         elif target_status == OrderStatus.DELIVERED:
             order.delivered_at = order.delivered_at or datetime.now(timezone.utc)
             # COD orders commit stock on delivery

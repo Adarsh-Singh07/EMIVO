@@ -11,12 +11,12 @@ from conftest import ADDRESS, add_to_cart, get_store_products, register_and_logi
 
 pytestmark = pytest.mark.asyncio
 
-MOCK_PROVIDER_SECRET = "mock_secret"  # RazorpayMockProvider default
+MOCK_PROVIDER_SECRET = "mock_secret"  # MockProvider default
 
 
 async def _webhook_secret() -> str:
     from core.config import settings
-    return settings.razorpay_webhook_secret.get_secret_value()
+    return settings.cashfree_webhook_secret.get_secret_value()
 
 
 async def _place_pending_online_order(client, buyer, coupon=None):

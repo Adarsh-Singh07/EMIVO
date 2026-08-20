@@ -98,7 +98,7 @@ export default function ComparePage() {
     setAddingId(null);
   };
 
-  const cellCls = "px-3 py-3 text-sm align-top";
+  const productCount = products.length;
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -151,129 +151,144 @@ export default function ComparePage() {
           </Link>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-3xl border border-neutral-200 -mx-4 px-4 sm:mx-0 sm:px-0">
-          <table className="w-full min-w-[640px] border-collapse">
-            <thead>
-              <tr>
-                <th className="w-40 min-w-40 text-left text-xs uppercase tracking-wider text-neutral-400 font-medium px-3 py-3 border-b border-neutral-100">
-                  Product
-                </th>
-                {products.map((p) => (
-                  <th key={p.id} className={`${cellCls} border-b border-neutral-100 min-w-[150px]`}>
-                    <div className="relative">
-                      <button
-                        onClick={() => removeItem(p.id)}
-                        aria-label={`Remove ${p.name} from compare`}
-                        className="absolute -top-1 -right-1 z-10 w-7 h-7 rounded-full bg-white border border-neutral-200 grid place-items-center text-neutral-400 hover:text-red-600 shadow-sm"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                      <Link href={productHref({ id: p.id, slug: p.slug })} className="block group">
-                        <span className="relative block aspect-square rounded-xl bg-neutral-100 overflow-hidden mb-3">
-                          {p.images && p.images[0] ? (
-                            <Image
-                              src={p.images[0]}
-                              alt={p.name}
-                              fill
-                              sizes="150px"
-                              className="object-cover group-hover:scale-105 transition-transform"
-                            />
-                          ) : null}
-                        </span>
-                        <span className="block font-medium text-sm leading-snug line-clamp-2 text-left">
-                          {p.name}
-                        </span>
-                      </Link>
-                      <button
-                        onClick={() => handleAddToCart(p)}
-                        disabled={!p.stock?.in_stock || addingId === p.id}
-                        className="mt-3 w-full h-10 inline-flex items-center justify-center gap-2 rounded-full bg-neutral-950 text-white text-xs font-semibold hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {addingId === p.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <ShoppingBag className="w-3.5 h-3.5" />
-                        )}
-                        {p.stock?.in_stock ? "Add to Cart" : "Out of Stock"}
-                      </button>
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className={`${cellCls} text-neutral-500 border-b border-neutral-100`}>Price</td>
-                {products.map((p) => (
-                  <td key={p.id} className={`${cellCls} border-b border-neutral-100`}>
-                    <span className="font-semibold">{inr(p.effective_price)}</span>
-                    {p.mrp && p.mrp > p.effective_price && (
-                      <span className="block text-xs text-neutral-400 line-through">{inr(p.mrp)}</span>
-                    )}
-                  </td>
-                ))}
-              </tr>
-              <tr className="bg-neutral-50/50">
-                <td className={`${cellCls} text-neutral-500 border-b border-neutral-100`}>Discount</td>
-                {products.map((p) => (
-                  <td key={p.id} className={`${cellCls} border-b border-neutral-100`}>
-                    {p.discount_percent ? (
-                      <span className="text-green-600 font-medium">{p.discount_percent}% off</span>
+        <div className="rounded-3xl border border-neutral-200 overflow-hidden">
+          {/* Header row - Product names & images */}
+          <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] bg-neutral-50/50 border-b border-neutral-100">
+            <div className="p-4 pt-6 text-left text-xs uppercase tracking-wider text-neutral-400 font-medium">
+              Product
+            </div>
+            {products.map((p) => (
+              <div key={p.id} className="p-4 relative">
+                <button
+                  onClick={() => removeItem(p.id)}
+                  aria-label={`Remove ${p.name} from compare`}
+                  className="absolute -top-2 -right-2 z-10 w-8 h-8 rounded-full bg-white border border-neutral-200 grid place-items-center text-neutral-400 hover:text-red-600 shadow-sm"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <Link href={productHref({ id: p.id, slug: p.slug })} className="block group">
+                  <span className="relative block aspect-square rounded-xl bg-neutral-100 overflow-hidden mb-3">
+                    {p.images && p.images[0] ? (
+                      <Image
+                        src={p.images[0]}
+                        alt={p.name}
+                        fill
+                        sizes="150px"
+                        className="object-cover group-hover:scale-105 transition-transform duration-200"
+                      />
                     ) : (
-                      <span className="text-neutral-400">—</span>
+                      <span className="absolute inset-0 grid place-items-center text-[9px] text-neutral-400 px-2 text-center leading-tight">
+                        {p.name.slice(0, 16)}
+                      </span>
                     )}
-                  </td>
-                ))}
-              </tr>
-              <tr>
-                <td className={`${cellCls} text-neutral-500 border-b border-neutral-100`}>Brand</td>
-                {products.map((p) => (
-                  <td key={p.id} className={`${cellCls} border-b border-neutral-100`}>
-                    {p.brand || "—"}
-                  </td>
-                ))}
-              </tr>
-              <tr className="bg-neutral-50/50">
-                <td className={`${cellCls} text-neutral-500 border-b border-neutral-100`}>Category</td>
-                {products.map((p) => (
-                  <td key={p.id} className={`${cellCls} border-b border-neutral-100 capitalize`}>
-                    {p.category_name || p.category_slug || "—"}
-                  </td>
-                ))}
-              </tr>
-              <tr>
-                <td className={`${cellCls} text-neutral-500 border-b border-neutral-100`}>Availability</td>
-                {products.map((p) => (
-                  <td key={p.id} className={`${cellCls} border-b border-neutral-100`}>
-                    <span
-                      className={`inline-flex items-center gap-1.5 text-xs font-medium ${
-                        availabilityOf(p) === 2
-                          ? "text-red-600"
-                          : availabilityOf(p) === 1
-                            ? "text-amber-600"
-                            : "text-green-600"
-                      }`}
-                    >
-                      {availabilityOf(p) === 0 && <Check className="w-3.5 h-3.5" />}
-                      {availabilityOf(p) === 1 && <Minus className="w-3.5 h-3.5" />}
-                      {AVAILABILITY[availabilityOf(p)]}
-                      {availabilityOf(p) === 1 && p.stock ? ` (${p.stock.available})` : ""}
-                    </span>
-                  </td>
-                ))}
-              </tr>
-              {specRows.map((row, ri) => (
-                <tr key={row.name} className={ri % 2 ? "bg-neutral-50/50" : ""}>
-                  <td className={`${cellCls} text-neutral-500 capitalize`}>{row.name}</td>
-                  {row.values.map((v, i) => (
-                    <td key={i} className={cellCls}>
-                      {v || <span className="text-neutral-300">—</span>}
-                    </td>
-                  ))}
-                </tr>
+                  </span>
+                  <span className="block font-medium text-sm leading-snug line-clamp-2 text-left min-h-[3.5rem]">
+                    {p.name}
+                  </span>
+                </Link>
+                <button
+                  onClick={() => handleAddToCart(p)}
+                  disabled={!p.stock?.in_stock || addingId === p.id}
+                  className="mt-3 w-full h-10 inline-flex items-center justify-center gap-2 rounded-full bg-neutral-950 text-white text-xs font-semibold hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {addingId === p.id ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                  )}
+                  {p.stock?.in_stock ? "Add to Cart" : "Out of Stock"}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Spec rows - CSS Grid for equal heights */}
+          <div className="divide-y divide-neutral-100">
+            {/* Price row */}
+            <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] py-4">
+              <div className="px-4 text-neutral-500 font-medium text-sm">Price</div>
+              {products.map((p) => (
+                <div key={p.id} className="px-4">
+                  <span className="font-semibold">{inr(p.effective_price)}</span>
+                  {p.mrp && p.mrp > p.effective_price && (
+                    <span className="block text-xs text-neutral-400 line-through mt-0.5">{inr(p.mrp)}</span>
+                  )}
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+
+            {/* Discount row */}
+            <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] bg-neutral-50/50 py-4">
+              <div className="px-4 text-neutral-500 font-medium text-sm">Discount</div>
+              {products.map((p) => (
+                <div key={p.id} className="px-4">
+                  {p.discount_percent ? (
+                    <span className="text-green-600 font-medium">{p.discount_percent}% off</span>
+                  ) : (
+                    <span className="text-neutral-400">—</span>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Brand row */}
+            <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] py-4">
+              <div className="px-4 text-neutral-500 font-medium text-sm">Brand</div>
+              {products.map((p) => (
+                <div key={p.id} className="px-4">
+                  {p.brand || "—"}
+                </div>
+              ))}
+            </div>
+
+            {/* Category row */}
+            <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] bg-neutral-50/50 py-4">
+              <div className="px-4 text-neutral-500 font-medium text-sm">Category</div>
+              {products.map((p) => (
+                <div key={p.id} className="px-4 capitalize">
+                  {p.category_name || p.category_slug || "—"}
+                </div>
+              ))}
+            </div>
+
+            {/* Availability row */}
+            <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] py-4">
+              <div className="px-4 text-neutral-500 font-medium text-sm">Availability</div>
+              {products.map((p) => (
+                <div key={p.id} className="px-4">
+                  <span
+                    className={`inline-flex items-center gap-1.5 text-xs font-medium ${
+                      availabilityOf(p) === 2
+                        ? "text-red-600"
+                        : availabilityOf(p) === 1
+                          ? "text-amber-600"
+                          : "text-green-600"
+                    }`}
+                  >
+                    {availabilityOf(p) === 0 && <Check className="w-3.5 h-3.5" />}
+                    {availabilityOf(p) === 1 && <Minus className="w-3.5 h-3.5" />}
+                    {AVAILABILITY[availabilityOf(p)]}
+                    {availabilityOf(p) === 1 && p.stock ? ` (${p.stock.available})` : ""}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Dynamic spec rows */}
+            {specRows.map((row, ri) => (
+              <div
+                key={row.name}
+                className={`grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] py-4 ${ri % 2 ? "bg-neutral-50/50" : ""}`}
+              >
+                <div className="px-4 text-neutral-500 font-medium text-sm capitalize">{row.name}</div>
+                {row.values.map((v, i) => (
+                  <div key={i} className="px-4">
+                    {v || <span className="text-neutral-300">—</span>}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

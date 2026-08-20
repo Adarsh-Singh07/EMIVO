@@ -103,7 +103,17 @@ export default function RootLayout({
               <MobileBottomNav />
               {/* Spacer on mobile so the fixed bottom nav never covers footer text */}
               <div className="h-[calc(env(safe-area-inset-bottom)+3.5rem)] lg:hidden" aria-hidden />
-              <Toaster position="top-right" richColors />
+              <Toaster
+                position="top-right"
+                richColors
+                toastOptions={{
+                  duration: 3000,
+                  closeButton: true,
+                  style: {
+                    pointerEvents: "auto",
+                  },
+                }}
+              />
             </CartProvider>
           </WishlistProvider>
         </AuthProvider>

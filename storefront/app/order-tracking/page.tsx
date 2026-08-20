@@ -11,9 +11,12 @@ import { inr, formatDate } from "@/lib/format";
 
 const STEPS = [
   { status: "PENDING", label: "Order placed" },
+  { status: "PAYMENT_PENDING", label: "Payment pending" },
   { status: "CONFIRMED", label: "Confirmed" },
   { status: "PROCESSING", label: "Processing" },
-  { status: "SHIPPED", label: "In transit" },
+  { status: "PACKED", label: "Packed" },
+  { status: "SHIPPED", label: "Shipped" },
+  { status: "OUT_FOR_DELIVERY", label: "Out for delivery" },
   { status: "DELIVERED", label: "Delivered" },
 ];
 
@@ -31,6 +34,7 @@ function OrderTrackingContent() {
   const [order, setOrder] = useState<OrderV2 | null>(null);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [error, setError] = useState("");
 
   const urlOrderNumber = searchParams.get("orderId") || "";
 
@@ -38,24 +42,26 @@ function OrderTrackingContent() {
     if (!orderNumber.trim()) return;
     setLoading(true);
     setSearched(true);
+    setError("");
     try {
       // v0.2 tracking is by human-readable order number (e.g. ELK-YYMMDD-XXXXXX)
+      // Allow guest tracking by order number
       const data = await storeApi.trackOrder(orderNumber.trim());
       setOrder(data);
     } catch (err) {
       setOrder(null);
-      toast.error(err instanceof Error ? err.message : "Order not found or access denied");
+      setError(err instanceof Error ? err.message : "Order not found");
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (urlOrderNumber && user) {
+    if (urlOrderNumber) {
       setOrderNumberInput(urlOrderNumber);
       fetchOrder(urlOrderNumber);
     }
-  }, [urlOrderNumber, user, fetchOrder]);
+  }, [urlOrderNumber, fetchOrder]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +73,7 @@ function OrderTrackingContent() {
   };
 
   const activeIndex = order ? getActiveIndex(order.status) : 0;
-  const isCancelled = order && ["CANCELLED", "REFUNDED"].includes(order.status.toUpperCase());
+  const isCancelled = order && ["CANCELLED", "REFUNDED", "PAYMENT_FAILED"].includes(order.status.toUpperCase());
   const shippingAddr = order?.shipping_address;
 
   return (
@@ -83,17 +89,6 @@ function OrderTrackingContent() {
 
       {authLoading ? (
         <div className="h-14 rounded-full bg-neutral-100 animate-pulse mb-10" />
-      ) : !user ? (
-        <div className="border border-neutral-200 rounded-3xl p-8 text-center text-neutral-500">
-          <p className="font-medium text-neutral-700 mb-1">Sign in to track your orders</p>
-          <p className="text-sm mb-5">Order tracking is linked to your ELEKTRIX account.</p>
-          <Link
-            href="/login?next=/order-tracking"
-            className="h-11 px-6 inline-flex items-center gap-2 bg-neutral-950 text-white rounded-full text-sm font-semibold hover:bg-neutral-800"
-          >
-            Sign In
-          </Link>
-        </div>
       ) : (
         <form onSubmit={handleSearch} className="flex gap-2 max-w-lg mb-10">
           <input
@@ -112,7 +107,7 @@ function OrderTrackingContent() {
         </form>
       )}
 
-      {user && (loading ? (
+      {loading ? (
         <div className="h-64 rounded-3xl border border-neutral-100 animate-pulse bg-neutral-50" />
       ) : searched && order ? (
         <div className="border border-neutral-200 rounded-3xl p-6 sm:p-8 bg-white space-y-8">
@@ -279,7 +274,7 @@ function OrderTrackingContent() {
             Enter your order number (from your confirmation) to track its fulfillment status.
           </p>
         </div>
-      ))}
+      )}
     </div>
   );
 }

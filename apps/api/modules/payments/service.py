@@ -3,7 +3,7 @@
 Guarantees:
   - amount is ALWAYS taken from the local order (client-supplied amounts are
     rejected if they mismatch); totals are computed by checkout, never trusted.
-  - provider selection via PAYMENT_PROVIDER env (razorpay | mock); mock is
+  - provider selection via PAYMENT_PROVIDER env (cashfree | mock); mock is
     only usable outside prod.
   - webhook is the source of truth; the client verify endpoint applies the
     same idempotent transition.
@@ -161,7 +161,8 @@ class PaymentService:
         self,
         payment_id: str,
         provider_payment_id: str,
-        provider_signature: str,
+        provider_signature: str = "",
+        provider_order_id: str | None = None,
     ) -> Payment:
         payment = await self.repository.get_by_id(payment_id)
         if not payment:
@@ -180,21 +181,41 @@ class PaymentService:
             if not is_staff:
                 raise DomainException("Not your payment", code="FORBIDDEN", status_code=403)
 
-        payload = f"{payment.provider_order_id}|{provider_payment_id}"
-        is_valid = await self.provider.verify_signature(payload, provider_signature)
-        if not is_valid:
-            await self.repository.update_status(payment_id, PaymentStatus.FAILED, provider_payment_id)
-            await self.repository.log_event(
-                payment_id, "signature_verification_failed",
-                {"provider_payment_id": provider_payment_id},
-            )
-            order = await self.order_repository.get_by_id(payment.order_id)
-            if order:
-                await self.inventory.release_for_order(order)
-            await self.db.commit()
-            raise DomainException(
-                "Payment signature verification failed", code="BAD_REQUEST", status_code=400
-            )
+        # Provider-specific verification
+        if self.provider.name == "cashfree":
+            # For Cashfree, verify by fetching payment status from Cashfree API
+            # using the Cashfree order ID (from provider_order_id or stored in payment)
+            cf_order_id = provider_order_id or payment.provider_order_id
+            if not cf_order_id:
+                raise DomainException("Missing provider order ID", code="BAD_REQUEST", status_code=400)
+            
+            cf_payment = await self.provider.verify_payment_by_order(cf_order_id)
+            if not cf_payment:
+                raise DomainException("Could not verify payment with Cashfree", code="PAYMENT_FAILED", status_code=502)
+            
+            payment_status = cf_payment.get("payment_status")
+            if payment_status != "SUCCESS":
+                await self._fail(payment, cf_payment.get("payment_message") or "payment_failed", cf_payment.get("cf_payment_id", ""))
+                raise DomainException(f"Payment not successful: {payment_status}", code="BAD_REQUEST", status_code=400)
+            
+            provider_payment_id = cf_payment.get("cf_payment_id", provider_payment_id)
+        else:
+            # Signature verification for mock/legacy providers
+            payload = f"{payment.provider_order_id}|{provider_payment_id}"
+            is_valid = await self.provider.verify_signature(payload, provider_signature)
+            if not is_valid:
+                await self.repository.update_status(payment_id, PaymentStatus.FAILED, provider_payment_id)
+                await self.repository.log_event(
+                    payment_id, "signature_verification_failed",
+                    {"provider_payment_id": provider_payment_id},
+                )
+                order = await self.order_repository.get_by_id(payment.order_id)
+                if order:
+                    await self.inventory.release_for_order(order)
+                await self.db.commit()
+                raise DomainException(
+                    "Payment signature verification failed", code="BAD_REQUEST", status_code=400
+                )
 
         return await self._capture(payment, provider_payment_id, source="client_verify")
 
@@ -293,13 +314,15 @@ class PaymentService:
 
         order = await self.order_repository.get_by_id(payment.order_id)
 
-        # Provider-side refund first; only then mutate local state
+        # Provider-side refund first; only then mutate local state.
+        # Cashfree requires the order id (provider_order_id), not the payment id.
         if payment.provider_payment_id:
             provider_refund = await self.provider.refund(
                 payment.provider_payment_id,
                 amount=refund_amount,
+                provider_order_id=payment.provider_order_id,
             )
-            refund_id = provider_refund.get("id")
+            refund_id = provider_refund.get("id") or provider_refund.get("refund_id")
         else:
             refund_id = None
 
@@ -375,10 +398,16 @@ class PaymentService:
     ) -> dict:
         payload_str = raw_payload.decode("utf-8", errors="replace")
         payload_to_verify = timestamp + payload_str
-        webhook_secret = settings.cashfree_client_secret
-        if not webhook_secret:
-            raise DomainException("Payment provider not configured", code="PAYMENT_FAILED")
-            
+
+        # Provider-specific webhook secret. Cashfree uses a dedicated webhook
+        # secret; mock accepts any signature matching "valid_mock_signature".
+        if self.provider.name == "cashfree":
+            webhook_secret = settings.cashfree_webhook_secret.get_secret_value()
+            if not webhook_secret:
+                raise DomainException("Payment provider not configured", code="PAYMENT_FAILED")
+        else:
+            webhook_secret = None
+
         is_valid = await self.provider.verify_signature(payload_to_verify, signature, webhook_secret)
         if not is_valid:
             raise DomainException("Invalid webhook signature", code="BAD_REQUEST", status_code=400)
@@ -407,7 +436,7 @@ class PaymentService:
             else:
                 handled = {"ignored": True}
         except DomainException as exc:
-            # Log but 200 — Razorpay retries on non-2xx and we may just not
+            # Log but 200 — payment provider retries on non-2xx and we may just not
             # have the payment locally yet (race with initiate).
             logger.warning("webhook %s handling issue: %s", event_name, exc.message)
 

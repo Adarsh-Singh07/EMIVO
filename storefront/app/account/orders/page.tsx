@@ -115,7 +115,7 @@ export default function CustomerOrdersPage() {
               <div>
                 <span className="text-neutral-400 block">Payment Method</span>
                 <span className="font-semibold text-neutral-800">
-                  {o.payment_method === "COD" ? "Cash on Delivery" : "Online (Razorpay)"}
+                  {o.payment_method === "COD" ? "Cash on Delivery" : "Online (Cashfree)"}
                 </span>
               </div>
               {o.coupon_code ? (
