@@ -94,7 +94,7 @@ Secrets are divided by visibility scope to prevent exposure to frontend bundles:
 - Password reset flow (single-use 30-min Redis tokens, no user enumeration,
   revoke-all-sessions on reset) + change-password endpoint.
 - Request-ID middleware on every response (`X-Request-ID`).
-- Security headers + CSP (Razorpay-scoped) at nginx; admin portal `noindex`.
+- Security headers + CSP (Cashfree-scoped) at nginx + Vercel; admin portal `noindex`.
 - Webhook signature verification (HMAC-SHA256) + Redis event-id dedup.
 - Refresh-token family replay detection (pre-existing, retained).
 
@@ -110,6 +110,6 @@ Secrets are divided by visibility scope to prevent exposure to frontend bundles:
 
 ## Secrets
 
-Only in VPS `.env` (never in git): DATABASE_URL, JWT_SECRET, RAZORPAY_* (live),
+Only in VPS `.env` (never in git): DATABASE_URL, JWT_SECRET, CASHFREE_* (live),
 R2_*, RESEND_API_KEY. `SENTRY_DSN` empty (optional). Rotate the Supabase DB
 password (see DNS.md known issues / git history leak).

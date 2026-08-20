@@ -60,7 +60,8 @@ class PaginatedPaymentsResponse(BaseModel):
 
 class PaymentSuccessVerification(BaseModel):
     provider_payment_id: str
-    provider_signature: str
+    provider_signature: Optional[str] = None  # Not used for Cashfree; verified via API
+    provider_order_id: Optional[str] = None   # Cashfree order ID for API verification
 
 
 class PaymentRefundRequest(BaseModel):
@@ -74,5 +75,5 @@ class PaymentInitiationResponse(BaseModel):
     provider: str
     checkout: dict[str, Any] = Field(
         default_factory=dict,
-        description="Provider checkout parameters (e.g. Razorpay key_id, order_id, amount)",
+        description="Provider checkout parameters (e.g. Cashfree payment_session_id, order_id, amount)",
     )

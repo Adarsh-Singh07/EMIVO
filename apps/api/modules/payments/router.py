@@ -32,7 +32,7 @@ async def get_payment_service(
 async def get_webhook_payment_service(
     db: AsyncSession = Depends(get_db_session),
 ) -> PaymentService:
-    """Webhook session: unauthenticated (Razorpay server-to-server) but
+    """Webhook session: unauthenticated (payment provider server-to-server) but
     signature-verified, so it operates with staff scope on the store tenant —
     this is what lets the capture path update orders + inventory under RLS."""
     store_id = await get_store_business_id(db)
@@ -89,13 +89,14 @@ async def verify_payment_success(
     service: PaymentService = Depends(get_payment_service),
     current_user: User = Depends(get_current_user),
 ):
-    """Verify the provider signature (Razorpay Checkout callback) and capture.
-    Ownership enforced in the service; the webhook applies the same idempotent
-    transition server-side."""
+    """Verify the payment with the provider and capture.
+    For Cashfree, this calls the Cashfree API to verify payment status.
+    For other providers (mock), it verifies the signature."""
     return await service.verify_and_capture(
         payment_id=payment_id,
         provider_payment_id=verification_data.provider_payment_id,
-        provider_signature=verification_data.provider_signature,
+        provider_signature=verification_data.provider_signature or "",
+        provider_order_id=verification_data.provider_order_id,
     )
 
 

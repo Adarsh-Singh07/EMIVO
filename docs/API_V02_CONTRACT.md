@@ -56,15 +56,15 @@ ALL amounts are integer **paise** (₹2,700 = 270000). Display: `₹${(paise/100
 - OrderV2 adds: `order_number ('ELK-YYMMDD-XXXXXX'), payment_method, coupon_code, tracking_number, tracking_url, shipped_at, delivered_at` + base fields (`id, status, subtotal, tax_total, shipping_total, discount_total, total, currency, shipping_address, items[{product_id, product_name, variant_name, quantity, unit_price, subtotal}], created_at`)
 - `GET /orders?page=&page_size=&status=` (customers auto-scoped to own)
 - `GET /orders/{id}` · `GET /orders/track/{order_number}` (ownership enforced)
-- Order status flow: PENDING → CONFIRMED → PROCESSING → SHIPPED → DELIVERED; CANCELLED / REFUNDED.
+- Order status flow: PENDING → PAYMENT_PENDING → CONFIRMED → PROCESSING → PACKED → SHIPPED → OUT_FOR_DELIVERY → DELIVERED; CANCELLED / REFUNDED / PAYMENT_FAILED.
 
 ## Payments
 - `POST /payments/initiate {order_id, idempotency_key, amount?}` (auth, own order, must equal order.total)
-  → `{payment, provider: 'razorpay'|'mock', checkout: {key_id, provider_order_id, amount, currency, name, description}}`
-  - Open Razorpay Checkout.js with `{key: checkout.key_id, order_id: checkout.provider_order_id, amount, currency, name, description}`.
-- `POST /payments/{payment_id}/verify-success {provider_payment_id, provider_signature}`
-  (signature = HMAC-SHA256 of `provider_order_id|provider_payment_id` — the Razorpay checkout handler gives both)
-- Payment statuses: PENDING / CAPTURED / FAILED / REFUNDED. Webhooks confirm server-side independently.
+  → `{payment, provider: 'cashfree'|'mock', checkout: {client_id, environment, payment_session_id, provider_order_id, amount, currency, name, description}}`
+  - Open Cashfree Web Checkout via the Cashfree JS SDK: `Cashfree.checkout({paymentSessionId: checkout.payment_session_id, redirectTarget: "_modal"})`.
+  - Client-side verification: `POST /payments/{payment_id}/verify-success {provider_payment_id, provider_signature?, provider_order_id?}` — for Cashfree, the backend verifies by calling the Cashfree API with the order ID rather than checking a signature.
+- Payment statuses: CREATED / PENDING / SUCCESS / FAILED / REFUNDED. Webhooks confirm server-side independently.
+- Webhook: `POST /payments/webhook/cashfree` (signature-verified, idempotent by event ID).
 
 ## Notifications (auth)
 - `GET /notifications?unread_only=&limit=` → `{items: [{id, type, title, body, link, read_at, created_at}], unread_count}`

@@ -12,6 +12,10 @@ const Cookies = {
   set: (key: string, value: string, options?: { expires?: number }) => {
     if (typeof document !== 'undefined') {
       let cookie = key + '=' + value + '; path=/; SameSite=Lax';
+      // Secure flag for production (HTTPS)
+      if (window.location.protocol === 'https:') {
+        cookie += '; Secure';
+      }
       if (options?.expires) {
         const d = new Date();
         d.setTime(d.getTime() + (options.expires * 24 * 60 * 60 * 1000));

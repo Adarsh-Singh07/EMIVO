@@ -110,8 +110,8 @@ if [ -n "$ONLINE_ORDER_ID" ]; then
 fi
 
 echo "-- ownership + webhook security"
-check "webhook bad signature rejected" 400 -X POST "$API/payments/webhook/razorpay" \
-    -H 'Content-Type: application/json' -H 'X-Razorpay-Signature: deadbeef' -d '{"event":"payment.captured"}'
+check "webhook bad signature rejected" 400 -X POST "$API/payments/webhook/cashfree" \
+    -H 'Content-Type: application/json' -H 'X-Cashfree-Signature: deadbeef' -d '{"event":"payment.captured"}'
 if [ -n "$ORDER_NUM" ]; then
     check "order tracking by number" 200 "$API/orders/track/$ORDER_NUM" -H "Authorization: Bearer $TOKEN"
 fi

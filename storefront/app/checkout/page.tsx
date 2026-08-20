@@ -259,7 +259,8 @@ export default function CheckoutPage() {
       const loaded = await loadCashfreeScript();
       if (!loaded) {
         setPendingPayment({ order, paymentId });
-        toast.error("Could not load the payment window. Check your connection and retry.");
+        toast.error("Online payment is temporarily unavailable. Please proceed with Cash on Delivery.");
+        setPaymentMethod("COD");
         return;
       }
       try {
@@ -312,6 +313,13 @@ export default function CheckoutPage() {
         });
       } catch (err) {
         setPendingPayment({ order, paymentId });
+        const apiErr = err as ApiError;
+        if (apiErr instanceof ApiError && (apiErr.status === 502 || apiErr.status === 503) && apiErr.code === "PAYMENT_FAILED") {
+          toast.error("Online payment is temporarily unavailable. Please proceed with Cash on Delivery.");
+          setPaymentMethod("COD");
+          setPlacing(false);
+          return;
+        }
         toast.error(err instanceof Error ? err.message : "Could not start payment");
       } finally {
         if (isRetry) setRetryingPayment(false);
@@ -371,6 +379,9 @@ export default function CheckoutPage() {
         setAppliedCoupon(null);
       } else if (apiErr?.code === "CART_EMPTY") {
         message = "Your cart is empty.";
+      } else if (apiErr instanceof ApiError && (apiErr.status === 502 || apiErr.status === 503) && apiErr.code === "PAYMENT_FAILED") {
+        message = "Online payment is temporarily unavailable. Please proceed with Cash on Delivery.";
+        setPaymentMethod("COD");
       }
       setPlaceError(message);
       toast.error(message);
@@ -993,7 +1004,7 @@ export default function CheckoutPage() {
                   <CreditCard className="w-5 h-5" />
                   <span className="text-sm font-semibold">Pay online</span>
                   <span className="text-xs text-neutral-500">
-                    UPI, cards, netbanking & wallets via Razorpay
+                    UPI, cards, netbanking & wallets via Cashfree
                   </span>
                 </button>
                 <button
