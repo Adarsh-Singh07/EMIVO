@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
 
   // Pin tracing root to this project so a stray lockfile in a parent dir
   // (e.g. C:\Users\dheer\package-lock.json) isn't picked as the workspace root.
-  outputFileTracingRoot: path.join(__dirname),
+  outputFileTracingRoot: process.env.VERCEL ? undefined : path.join(__dirname),
 
   // Allow next/image to serve optimized images from these domains.
   // media.elektrix.in = Cloudflare R2 CDN (product images)
