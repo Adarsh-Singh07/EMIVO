@@ -27,7 +27,7 @@ class BasePaymentProvider(ABC):
         pass
 
     async def refund(
-        self, provider_payment_id: str, amount: Optional[int] = None, speed: str = "normal"
+        self, provider_payment_id: str, amount: Optional[int] = None, speed: str = "normal", provider_order_id: Optional[str] = None
     ) -> dict[str, Any]:
         """Issue a full (amount=None) or partial refund. Returns refund dict."""
         raise NotImplementedError(f"{self.name} provider does not support refunds")

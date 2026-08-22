@@ -25,6 +25,6 @@ class MockProvider(BasePaymentProvider):
         return {"id": payment_id, "status": "captured", "amount": 1000}
 
     async def refund(
-        self, provider_payment_id: str, amount: Optional[int] = None, speed: str = "normal"
+        self, provider_payment_id: str, amount: Optional[int] = None, speed: str = "normal", provider_order_id: Optional[str] = None
     ) -> dict[str, Any]:
         return {"id": f"mock_rfnd_{uuid.uuid4().hex[:10]}"}
