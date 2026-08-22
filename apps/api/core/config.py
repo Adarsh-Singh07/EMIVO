@@ -105,7 +105,7 @@ class Settings(BaseSettings):
     free_shipping_threshold: int = Field(default=99900)
     flat_shipping_paise: int = Field(default=9900)
     cod_enabled: bool = Field(default=True)
-    cod_fee_paise: int = Field(default=0)
+    cod_fee_paise: int = Field(default=5000)
     cod_max_order_paise: int = Field(default=50000000)
 
     @property

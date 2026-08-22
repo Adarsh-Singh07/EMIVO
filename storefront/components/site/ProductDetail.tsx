@@ -65,6 +65,24 @@ export default function ProductDetail({
     setTab("description");
   }, [product.id]);
 
+  const [orderedOrderId, setOrderedOrderId] = useState<string | null>(null);
+  useEffect(() => {
+    if (user) {
+      import("@/lib/store-api").then(({ storeApi }) => {
+        storeApi.listOrders({ page: 1, page_size: 50 }).then((res) => {
+          for (const order of (res.items || [])) {
+            if (["PENDING", "CONFIRMED", "PROCESSING", "PACKED", "SHIPPED", "OUT_FOR_DELIVERY"].includes(order.status?.toUpperCase() || "")) {
+              if (order.items?.some((i: any) => i.product_id === product.id)) {
+                setOrderedOrderId(order.order_number || order.id);
+                break;
+              }
+            }
+          }
+        }).catch(() => {}); // silent fail
+      });
+    }
+  }, [user, product.id]);
+
   // Recently-viewed tracker.
   useEffect(() => {
     pushRecent({
@@ -317,6 +335,14 @@ export default function ProductDetail({
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 mt-5">
+            {orderedOrderId ? (
+              <Link
+                href={`/order-tracking?order=${orderedOrderId}`}
+                className="flex-1 h-12 inline-flex items-center justify-center gap-2 bg-blue-600 text-white rounded-full text-sm font-medium hover:bg-blue-700 transition-colors"
+              >
+                <Truck className="w-4 h-4" /> Track Your Order
+              </Link>
+            ) : null}
             <button
               onClick={addToCart}
               disabled={outOfStock || adding}

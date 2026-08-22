@@ -30,7 +30,7 @@ async def test_cod_checkout_reserves_stock(client):
     assert order["status"] == "CONFIRMED"
     assert order["payment_method"] == "COD"
     assert order["order_number"].startswith("ELK-")
-    assert order["total"] == product["effective_price"] * 2  # above free-shipping? checked below
+    assert order["total"] == product["effective_price"] * 2 + 5000  # 5000 is the COD fee
     assert order["shipping_address"]["pincode"] == "560001"
 
     # Stock reserved: available dropped by 2
@@ -57,12 +57,13 @@ async def test_checkout_shipping_and_coupon_math(client):
 
     unit = product["effective_price"]
     expected_discount = min(int(unit * 10 / 100), 50000)
-    # free shipping applies at/above ₹999
+    # free shipping applies at/above ₹999. COD fee is ₹50 (5000 paise)
     shipping = 0 if unit >= 99900 else 9900
+    cod_fee = 5000
     assert order["subtotal"] == unit
     assert order["discount_total"] == expected_discount
-    assert order["shipping_total"] == shipping
-    assert order["total"] == unit - expected_discount + shipping
+    assert order["shipping_total"] == shipping + cod_fee
+    assert order["total"] == unit - expected_discount + shipping + cod_fee
     assert order["coupon_code"] == "WELCOME10"
 
 

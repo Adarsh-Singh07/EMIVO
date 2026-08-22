@@ -250,6 +250,17 @@ export interface NotificationPage {
   unread_count: number;
 }
 
+export interface StoreConfig {
+  online_payment_available: boolean;
+  payment_provider: string;
+  cod_enabled: boolean;
+  cod_fee_paise: number;
+  flat_shipping_paise: number;
+  free_shipping_threshold_paise: number;
+  currency: string;
+  storefront_url: string;
+}
+
 /* ------------------------------------------------------------------ */
 /* Cart session (guest carts)                                          */
 /* ------------------------------------------------------------------ */
@@ -499,6 +510,12 @@ export const storeApi = {
       method: "POST",
       body: JSON.stringify({ email }),
     });
+  },
+
+  /* ----- Store Config (public) ----- */
+
+  getStoreConfig(): Promise<StoreConfig> {
+    return fetchApi<StoreConfig>("/store/config");
   },
 };
 

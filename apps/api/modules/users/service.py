@@ -33,6 +33,8 @@ class UserService:
             user.first_name = data.first_name
         if data.last_name is not None:
             user.last_name = data.last_name
+        if data.phone is not None:
+            user.phone = data.phone
         if data.mfa_enabled is not None:
             user.mfa_enabled = data.mfa_enabled
         if data.addresses is not None:

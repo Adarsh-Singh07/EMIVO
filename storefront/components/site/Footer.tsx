@@ -80,7 +80,7 @@ export default function Footer() {
               <Link href="/terms">Terms & Conditions</Link>
             </li>
             <li>
-              <Link href="/refund">Refund Policy</Link>
+              <Link href="/refund">Return Policy</Link>
             </li>
             <li>
               <Link href="/shipping">Shipping Policy</Link>

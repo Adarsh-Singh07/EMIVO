@@ -114,7 +114,7 @@ redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 class WorkerSettings:
     functions = [process_outbox_event]
-    cron_jobs = [cron(poll_outbox, second=0, run_at_startup=True)]  # every minute
+    cron_jobs = [cron(poll_outbox, second={0, 10, 20, 30, 40, 50}, run_at_startup=True)]  # every 10 seconds
     on_startup = startup
     on_shutdown = shutdown
     redis_settings = RedisSettings.from_dsn(redis_url)

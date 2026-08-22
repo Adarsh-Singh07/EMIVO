@@ -6,6 +6,7 @@ class UserResponse(BaseModel):
     email: EmailStr
     first_name: str
     last_name: str
+    phone: str | None = None
     is_active: bool
     is_email_verified: bool
     mfa_enabled: bool
@@ -21,6 +22,7 @@ class UserUpdate(BaseModel):
     email: EmailStr | None = None
     first_name: str | None = None
     last_name: str | None = None
+    phone: str | None = None
     mfa_enabled: bool | None = None
     addresses: list[dict] | None = None
     wishlist: list[str] | None = None

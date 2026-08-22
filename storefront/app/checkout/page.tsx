@@ -84,6 +84,22 @@ export default function CheckoutPage() {
     }
   }, [authLoading, user, router]);
 
+  /* ---------------- Store config: payment availability ---------------- */
+  const [onlinePaymentAvailable, setOnlinePaymentAvailable] = useState<boolean | null>(null);
+  const [codFeePaise, setCodFeePaise] = useState<number>(0);
+  useEffect(() => {
+    storeApi.getStoreConfig().then((cfg) => {
+      setOnlinePaymentAvailable(cfg.online_payment_available);
+      setCodFeePaise(cfg.cod_fee_paise ?? 0);
+      // If online payment not available, force COD
+      if (!cfg.online_payment_available) setPaymentMethod("COD");
+    }).catch(() => {
+      setOnlinePaymentAvailable(false);
+      setPaymentMethod("COD");
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /* ---------------- Stepper ---------------- */
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
@@ -989,24 +1005,36 @@ export default function CheckoutPage() {
               <h2 className="flex items-center gap-2 font-semibold text-lg mb-4">
                 <CreditCard className="w-5 h-5" /> Payment Method
               </h2>
+              {/* Online payment unavailable banner */}
+              {onlinePaymentAvailable === false && (
+                <div className="mb-4 flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
+                  <svg className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  <p className="text-sm text-amber-800">
+                    <span className="font-semibold">Online payment is temporarily unavailable.</span>{" "}
+                    Please continue with Cash on Delivery.
+                  </p>
+                </div>
+              )}
 
               <div className="grid sm:grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod("ONLINE")}
-                  aria-pressed={paymentMethod === "ONLINE"}
-                  className={`flex flex-col items-start gap-2 rounded-2xl border-2 p-5 text-left transition-all ${
-                    paymentMethod === "ONLINE"
-                      ? "border-neutral-950 bg-neutral-50"
-                      : "border-neutral-200 hover:border-neutral-400"
-                  }`}
-                >
-                  <CreditCard className="w-5 h-5" />
-                  <span className="text-sm font-semibold">Pay online</span>
-                  <span className="text-xs text-neutral-500">
-                    UPI, cards, netbanking & wallets via Cashfree
-                  </span>
-                </button>
+                {onlinePaymentAvailable !== false && (
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("ONLINE")}
+                    aria-pressed={paymentMethod === "ONLINE"}
+                    className={`flex flex-col items-start gap-2 rounded-2xl border-2 p-5 text-left transition-all ${
+                      paymentMethod === "ONLINE"
+                        ? "border-neutral-950 bg-neutral-50"
+                        : "border-neutral-200 hover:border-neutral-400"
+                    }`}
+                  >
+                    <CreditCard className="w-5 h-5" />
+                    <span className="text-sm font-semibold">Pay online</span>
+                    <span className="text-xs text-neutral-500">
+                      UPI, cards, netbanking &amp; wallets via Cashfree
+                    </span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setPaymentMethod("COD")}
@@ -1015,13 +1043,15 @@ export default function CheckoutPage() {
                     paymentMethod === "COD"
                       ? "border-neutral-950 bg-neutral-50"
                       : "border-neutral-200 hover:border-neutral-400"
-                  }`}
+                  } ${onlinePaymentAvailable === false ? "col-span-full" : ""}`}
                 >
                   <Banknote className="w-5 h-5" />
                   <span className="text-sm font-semibold">Pay on delivery (COD)</span>
                   <span className="text-xs text-neutral-500">
-                    Pay in cash when your order arrives. Any COD fee is added by the store and shown
-                    on your invoice.
+                    Pay in cash when your order arrives.
+                    {codFeePaise > 0 && (
+                      <> A COD handling fee of <strong>₹{codFeePaise / 100}</strong> will be added.</>
+                    )}
                   </span>
                 </button>
               </div>

@@ -1,12 +1,12 @@
 export const metadata = {
-  title: "Refund & Return Policy | ELEKTRIX",
-  description: "Refund and Return Policy for ELEKTRIX",
+  title: "Return Policy | ELEKTRIX",
+  description: "Return Policy for ELEKTRIX — Open Box Delivery, no returns after acceptance.",
 };
 
 export default function RefundPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-12 md:py-20 text-neutral-800">
-      <h1 className="text-3xl font-bold mb-8">Refund & Return Policy</h1>
+      <h1 className="text-3xl font-bold mb-8">Return Policy</h1>
       
       <div className="prose prose-neutral max-w-none">
         <p><strong>Effective Date:</strong> August 22, 2026</p>

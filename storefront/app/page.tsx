@@ -59,20 +59,20 @@ export default async function Home() {
       {/* 1. Hero slider with auto-rotation */}
       <HeroSlider />
 
-      {/* 2. Features strip */}
-      <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 2. Features strip — horizontal scroll on mobile, grid on desktop */}
+      <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 lg:grid lg:grid-cols-4 lg:overflow-visible">
           {FEATURES.map((f) => (
             <div
               key={f.title}
-              className="flex items-center gap-4 rounded-2xl border border-neutral-100 bg-white p-5"
+              className="flex items-center gap-3 rounded-2xl border border-neutral-100 bg-white px-4 py-3 min-w-[220px] sm:min-w-[240px] lg:min-w-0 shrink-0 lg:shrink"
             >
-              <div className="w-11 h-11 rounded-full bg-neutral-950 text-white grid place-items-center shrink-0">
-                <f.icon className="w-5 h-5" />
+              <div className="w-9 h-9 rounded-full bg-neutral-950 text-white grid place-items-center shrink-0">
+                <f.icon className="w-4 h-4" />
               </div>
               <div>
-                <p className="text-sm font-semibold">{f.title}</p>
-                <p className="text-xs text-neutral-500 mt-0.5">{f.desc}</p>
+                <p className="text-sm font-semibold leading-tight">{f.title}</p>
+                <p className="text-xs text-neutral-500 mt-0.5 leading-tight">{f.desc}</p>
               </div>
             </div>
           ))}
@@ -93,7 +93,7 @@ export default async function Home() {
             View All <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
-        <div className="flex overflow-x-auto no-scrollbar gap-4 pb-4 -mx-4 px-4 snap-x snap-mandatory">
+        <div className="flex overflow-x-auto scrollbar-hide gap-4 pb-4 -mx-4 px-4 snap-x snap-mandatory">
           {categories.map((cat) => {
             const Icon = CAT_ICONS[cat.icon] || Package;
             return (
