@@ -9,7 +9,7 @@
 
 /** Format integer paise as an Indian-rupee string, e.g. 270000 → "₹2,700". */
 export const inr = (paise: number): string =>
-  `₹${(paise / 100).toLocaleString("en-IN")}`;
+  `₹${Math.round(paise / 100).toLocaleString("en-IN")}`;
 
 /** Format an ISO timestamp as a short Indian date, e.g. "12 Aug 2026". */
 export const formatDate = (iso: string): string =>

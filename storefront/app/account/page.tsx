@@ -8,6 +8,7 @@ import { apiClient } from "@/lib/api-client";
 
 const SECTIONS = [
   { icon: Package, title: "Orders", desc: "Track, return or re-order", href: "/account/orders" },
+  { icon: LogIn, title: "Profile", desc: "Manage personal details", href: "/account/profile" },
   { icon: Heart, title: "Wishlist", desc: "Items you saved", href: "/account/wishlist" },
   { icon: MapPin, title: "Addresses", desc: "Saved delivery addresses", href: "/account/addresses" },
 ];

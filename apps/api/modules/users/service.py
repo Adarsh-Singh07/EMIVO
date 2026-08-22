@@ -26,6 +26,9 @@ class UserService:
     async def update_user(self, user_id: str, data: UserUpdate) -> User:
         user = await self.get_user_by_id(user_id)
         await self._bind_rls_owner(user_id)
+        if getattr(data, "email", None) is not None:
+            user.email = data.email
+            user.is_email_verified = False
         if data.first_name is not None:
             user.first_name = data.first_name
         if data.last_name is not None:

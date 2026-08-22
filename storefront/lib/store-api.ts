@@ -445,6 +445,11 @@ export const storeApi = {
     return fetchApi<OrderV2>(`/orders/track/${encodeURIComponent(orderNumber)}`);
   },
 
+
+  cancelOrder(orderId: string): Promise<OrderV2> {
+    return fetchApi<OrderV2>(`/orders/${encodeURIComponent(orderId)}/cancel`, { method: "POST" });
+  },
+
   listOrders(params: { page?: number; page_size?: number; status?: string } = {}): Promise<{
     items: OrderV2[];
     total?: number;

@@ -158,7 +158,7 @@ export function colorName(hex: string): string {
 
 const STATIC_PRODUCTS: StaticProduct[] = [
   {
-    id: "iphone-16-pro",
+    id: "iphone-16-pro-256gb",
     name: "iPhone 16 Pro 256GB",
     category: "mobiles",
     brand: "Apple",
@@ -571,7 +571,7 @@ export const HERO_SLIDES: HeroSlide[] = [
     price: 119900,
     mrp: 134900,
     cta: "Shop iPhone 16 Pro",
-    link: "/product/iphone-16-pro",
+    link: "/product/iphone-16-pro-256gb",
     img: "https://images.unsplash.com/photo-1716882173326-04d822f142a8?crop=entropy&cs=srgb&fm=jpg&q=85&w=1400",
     bg: "from-neutral-100 to-neutral-200",
   },

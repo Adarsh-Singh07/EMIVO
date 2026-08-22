@@ -27,6 +27,9 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 STORE_NAME = "ELEKTRIX"
 
 CATEGORIES = [
+    ("Mobiles", "mobiles", [
+        ("Smartphones", "smartphones"),
+    ]),
     ("Audio", "audio", [
         ("Wireless Earbuds", "wireless-earbuds"),
     ]),
@@ -56,6 +59,10 @@ U = "https://images.unsplash.com/{}?auto=format&fit=crop&w=900&q=80"
 
 # (name, brand, cat_slug, price₹, mrp₹, featured, specs, images, tags)
 PRODUCTS = [
+    # Mobiles
+    ("iPhone 16 Pro 256GB", "Apple", "smartphones", 119900, 134900, True,
+     [("Display", "6.1\" Super Retina XDR"), ("Processor", "A18 Pro"), ("Camera", "48MP Main"), ("Storage", "256GB")],
+     ["photo-1716882173326-04d822f142a8"], ["smartphone", "apple", "iphone"]),
     # Audio
     ("PulseBuds Pro ANC Earbuds", "ELEKTRIX", "wireless-earbuds", 2999, 4999, True,
      [("Driver", "13mm dynamic"), ("ANC", "Hybrid, up to 32dB"), ("Battery", "40h with case"), ("Water resistance", "IPX5"), ("Bluetooth", "5.3")],
@@ -171,7 +178,7 @@ async def main() -> None:
             business_id = str(uuidlib.uuid4())
             await s.execute(text("""
                 INSERT INTO businesses (id, name, slug, is_active, settings, contact_email)
-                VALUES (:id, :name, :slug, true, '{}'::jsonb, 'support@elektrix.in')
+                VALUES (:id, :name, :slug, true, '{"currency": "INR", "tax_rate": 18, "cod_enabled": true, "cod_fee_paise": 5000, "cod_max_order_paise": 20000000, "flat_shipping_paise": 9900, "free_shipping_threshold_paise": 99900}'::jsonb, 'support@elektrix.in')
             """), {"id": business_id, "name": STORE_NAME, "slug": "elektrix-store"})
             print(f"[seed] created store business: {business_id}")
         await s.execute(text("SELECT set_config('app.business_id', :bid, false)"), {"bid": business_id})

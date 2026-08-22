@@ -93,19 +93,19 @@ export default async function Home() {
             View All <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
-          {categories.slice(0, 6).map((cat) => {
+        <div className="flex overflow-x-auto no-scrollbar gap-4 pb-4 -mx-4 px-4 snap-x snap-mandatory">
+          {categories.map((cat) => {
             const Icon = CAT_ICONS[cat.icon] || Package;
             return (
               <Link
                 key={cat.slug}
                 href={`/shop?category=${cat.slug}`}
-                className="group flex flex-col items-center gap-3 rounded-2xl border border-neutral-200 p-5 hover:border-neutral-950 hover:shadow-sm transition-all"
+                className="group flex-shrink-0 w-[120px] md:w-[150px] flex flex-col items-center gap-3 rounded-2xl border border-neutral-200 p-5 hover:border-neutral-950 hover:shadow-sm transition-all snap-start"
               >
                 <div className="w-12 h-12 rounded-full bg-neutral-100 group-hover:bg-neutral-950 group-hover:text-white grid place-items-center transition-colors">
                   <Icon className="w-6 h-6" />
                 </div>
-                <span className="text-sm font-medium">{cat.name}</span>
+                <span className="text-sm font-medium text-center">{cat.name}</span>
               </Link>
             );
           })}

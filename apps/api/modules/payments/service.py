@@ -417,13 +417,18 @@ class PaymentService:
         entity = payload.get("data", {})
 
         # Idempotency: same provider event delivered twice must no-op.
-        if event_id:
-            from core.redis import redis_manager
+        import hashlib
+        # Cashfree events usually have a unique combination of type + payment_id, or we can just hash the payload
+        payment_id = entity.get("payment", {}).get("cf_payment_id", "")
+        dedup_id = f"{event_name}_{payment_id}" if payment_id else hashlib.sha256(raw_payload).hexdigest()
+        
+        from core.redis import redis_manager
+        dedup_key = f"webhook:seen:{dedup_id}"
+        first_time = await redis_manager.client.set(dedup_key, event_name, nx=True, ex=7 * 24 * 3600)
+        if not first_time:
+            return {"status": "duplicate_ignored", "event": event_name}
 
-            dedup_key = f"webhook:seen:{event_id}"
-            first_time = await redis_manager.client.set(dedup_key, event_name, nx=True, ex=7 * 24 * 3600)
-            if not first_time:
-                return {"status": "duplicate_ignored", "event": event_name}
+
 
         handled = None
         try:

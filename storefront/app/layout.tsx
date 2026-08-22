@@ -8,6 +8,7 @@ import Header from "@/components/site/Header";
 import Footer from "@/components/site/Footer";
 import MobileBottomNav from "@/components/site/MobileBottomNav";
 import { Toaster } from "sonner";
+import { CookieConsent } from "@/components/site/CookieConsent";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -28,7 +29,7 @@ const organizationJsonLd = {
     "India's premium electronics store — mobiles, laptops, appliances, audio and wearables.",
   contactPoint: {
     "@type": "ContactPoint",
-    telephone: "+91-79059-35908",
+    telephone: "+91-85398-38942",
     email: "support@elektrix.in",
     contactType: "customer support",
     areaServed: "IN",

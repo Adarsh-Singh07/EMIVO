@@ -140,7 +140,7 @@ export default function ProductCard({ product }: { product: Product }) {
 
       {/* Details */}
       <div className="mt-3 flex flex-1 flex-col">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start justify-between gap-2 min-h-[24px]">
           <p className="text-sm uppercase tracking-wider text-neutral-500 pt-0.5 truncate">
             {product.brand}
           </p>

@@ -141,7 +141,7 @@ function LoginForm() {
 
       <p className="text-center text-xs text-neutral-400 mt-6">
         By continuing you agree to ELEKTRIX&apos;s{" "}
-        <Link href="/faq" className="underline underline-offset-2 hover:text-neutral-700">
+        <Link href="/terms" className="underline underline-offset-2 hover:text-neutral-700">
           Terms of Service
         </Link>
       </p>

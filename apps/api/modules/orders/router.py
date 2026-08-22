@@ -126,6 +126,26 @@ async def update_order_status(
     return await service.update_order_status(order_id, payload)
 
 
+
+
+@router.post("/{order_id}/cancel", response_model=OrderResponseV2)
+async def cancel_order_by_user(
+    order_id: str,
+    service: OrderService = Depends(get_order_service),
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    """Customer-initiated order cancellation."""
+    from core.exceptions import DomainException
+    
+    order = await service.get_order_for_user(order_id, current_user, _is_staff(current_user))
+    
+    # Must be able to cancel an order until it reaches 'Out for Delivery'.
+    if order.status in [OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DELIVERED, OrderStatus.CANCELLED, OrderStatus.REFUNDED]:
+        raise DomainException(f"Cannot cancel order in {order.status} state", code="INVALID_TRANSITION", status_code=400)
+        
+    update_payload = OrderStatusUpdate(status=OrderStatus.CANCELLED)
+    return await service.update_order_status(order_id, update_payload)
+
 @router.delete(
     "/{order_id}",
     status_code=status.HTTP_204_NO_CONTENT,
