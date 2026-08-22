@@ -58,7 +58,7 @@ docker run --rm --network "$NET" --network-alias db \
   -e ADMIN_EMAIL="admin@example.com" \
   -e ADMIN_INITIAL_PASSWORD="TestAdminPass123!" \
   -e ENV_NAME=pytest \
-  -v /opt/elektrix/scripts:/app/scripts \
+  -v "$(pwd)/scripts:/app/scripts" \
   "$API_IMAGE" python /app/scripts/seed_store.py | tail -3
 
 echo "==> [6/6] pytest"
@@ -75,7 +75,7 @@ docker run --rm --network "$NET" --network-alias db \
   -e ADMIN_EMAIL="admin@example.com" \
   -e ADMIN_INITIAL_PASSWORD="TestAdminPass123!" \
   -e PYTHONPATH=/app/apps/api \
-  -v /opt/elektrix/apps/api/tests:/app/apps/api/tests \
+  -v "$(pwd)/apps/api/tests:/app/apps/api/tests" \
   --workdir /app \
   "$API_IMAGE" python -m pytest apps/api/tests/v02 -x -q
 

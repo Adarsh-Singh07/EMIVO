@@ -15,6 +15,7 @@ import {
   Scale,
   Bell,
   Search,
+  Package,
 } from "lucide-react";
 import { useCart } from "./CartProvider";
 import CartDrawer from "./CartDrawer";
@@ -357,8 +358,6 @@ export default function Header() {
               </p>
             </div>
           </>
-        )}
-
         )}
       </header>
 
