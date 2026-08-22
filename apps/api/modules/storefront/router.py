@@ -77,3 +77,26 @@ async def store_categories(service: CatalogService = Depends(_catalog)):
 @router.get("/brands", response_model=List[str])
 async def store_brands(service: CatalogService = Depends(_catalog)):
     return await service.brands()
+
+
+@router.get("/config")
+async def store_config():
+    """Public endpoint: returns store configuration the frontend needs.
+    Notably exposes whether online payment is available (Cashfree configured).
+    Never exposes secrets."""
+    from core.config import settings
+    cashfree_configured = bool(
+        settings.payment_provider == "cashfree"
+        and settings.cashfree_client_id
+        and settings.cashfree_client_secret.get_secret_value()
+    )
+    return {
+        "online_payment_available": cashfree_configured,
+        "payment_provider": settings.payment_provider,
+        "cod_enabled": settings.cod_enabled,
+        "cod_fee_paise": settings.cod_fee_paise,
+        "flat_shipping_paise": settings.flat_shipping_paise,
+        "free_shipping_threshold_paise": settings.free_shipping_threshold,
+        "currency": "INR",
+        "storefront_url": settings.storefront_url,
+    }

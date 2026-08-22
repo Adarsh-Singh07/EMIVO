@@ -42,9 +42,9 @@ function OrdersSection({ canSeeOrders }: { canSeeOrders: boolean }) {
   useEffect(() => {
     if (!canSeeOrders) return;
     setLoading(true);
-    apiClient
-      .get<{ items: OrderSummary[] }>("/orders?page=1&page_size=5")
-      .then((data) => setOrders(data.items || []))
+    import("@/lib/store-api")
+      .then(({ storeApi }) => storeApi.listOrders({ page: 1, page_size: 5 }))
+      .then((data) => setOrders(data.items as any || []))
       .catch((err) => setError(err?.message || "Failed to load orders"))
       .finally(() => setLoading(false));
   }, [canSeeOrders]);
@@ -55,7 +55,7 @@ function OrdersSection({ canSeeOrders }: { canSeeOrders: boolean }) {
     <div className="mb-8">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold">Recent Orders</h2>
-        <Link href="/order-tracking" className="text-sm text-neutral-500 hover:text-neutral-900 flex items-center gap-1">
+        <Link href="/account/orders" className="text-sm text-neutral-500 hover:text-neutral-900 flex items-center gap-1">
           View all <ChevronRight className="w-4 h-4" />
         </Link>
       </div>
@@ -78,15 +78,16 @@ function OrdersSection({ canSeeOrders }: { canSeeOrders: boolean }) {
       ) : (
         <div className="space-y-3">
           {orders.map((order) => (
-            <div
+            <Link
+              href={`/account/orders`}
               key={order.id}
-              className="flex items-center gap-4 rounded-2xl border border-neutral-100 bg-white p-4"
+              className="flex items-center gap-4 rounded-2xl border border-neutral-100 bg-white p-4 hover:border-neutral-950 transition-colors group"
             >
               <div className="w-10 h-10 rounded-full bg-neutral-950 text-white grid place-items-center shrink-0">
                 <Package className="w-4 h-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate">
+                <p className="font-medium text-sm truncate group-hover:underline">
                   {order.items[0]?.product_name || "Order"}
                   {order.items.length > 1 && ` +${order.items.length - 1} more`}
                 </p>
@@ -102,13 +103,13 @@ function OrdersSection({ canSeeOrders }: { canSeeOrders: boolean }) {
                 <p className="text-sm font-semibold">{inr(order.total)}</p>
                 <span
                   className={`inline-block text-xs px-2 py-0.5 rounded-full border capitalize ${
-                    STATUS_STYLES[order.status] ?? "bg-neutral-50 text-neutral-600 border-neutral-200"
+                    STATUS_STYLES[order.status.toLowerCase()] ?? "bg-neutral-50 text-neutral-600 border-neutral-200"
                   }`}
                 >
                   {order.status}
                 </span>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}
