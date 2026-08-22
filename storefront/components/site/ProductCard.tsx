@@ -69,7 +69,7 @@ export default function ProductCard({ product }: { product: Product }) {
   };
 
   return (
-    <div className="group flex h-full flex-col bg-white rounded-2xl border border-neutral-100 p-2 sm:p-3">
+    <div className="group flex h-full flex-col bg-white rounded-2xl border border-neutral-100 p-2 sm:p-3 min-w-0">
       {/* Image */}
       <div className="relative overflow-hidden rounded-xl bg-neutral-100 hover-swap aspect-square">
         <Link href={href} aria-label={product.name}>
@@ -139,7 +139,7 @@ export default function ProductCard({ product }: { product: Product }) {
       </div>
 
       {/* Details */}
-      <div className="mt-3 flex flex-1 flex-col">
+      <div className="mt-3 flex flex-1 flex-col min-w-0">
         <div className="flex items-start justify-between gap-2 min-h-[24px]">
           <p className="text-sm uppercase tracking-wider text-neutral-500 pt-0.5 truncate">
             {product.brand}

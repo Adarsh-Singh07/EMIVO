@@ -92,7 +92,7 @@ class Settings(BaseSettings):
 
     # Transactional email (Resend). EMAIL_FROM must be a verified sender.
     resend_api_key: SecretStr = Field(default=SecretStr(""))
-    email_from: str = Field(default="ELEKTRIX <onboarding@resend.dev>")
+    email_from: str = Field(default="ELEKTRIX <support@elektrix.in>")
 
     # Storefront URL (links inside emails)
     storefront_url: str = Field(default="https://elektrix.in")
