@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  output: process.env.VERCEL ? undefined : "standalone",
 
   // Disable source maps in production builds to prevent code exposure.
   productionBrowserSourceMaps: false,
