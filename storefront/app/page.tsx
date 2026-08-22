@@ -61,7 +61,7 @@ export default async function Home() {
 
       {/* 2. Features strip */}
       <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {FEATURES.map((f) => (
             <div
               key={f.title}

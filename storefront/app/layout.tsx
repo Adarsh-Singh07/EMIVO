@@ -8,7 +8,7 @@ import Header from "@/components/site/Header";
 import Footer from "@/components/site/Footer";
 import MobileBottomNav from "@/components/site/MobileBottomNav";
 import { Toaster } from "sonner";
-import { CookieConsent } from "@/components/site/CookieConsent";
+import CookieConsent from "@/components/site/CookieConsent";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -117,6 +117,7 @@ export default function RootLayout({
                   },
                 }}
               />
+              <CookieConsent />
             </CartProvider>
           </WishlistProvider>
         </AuthProvider>

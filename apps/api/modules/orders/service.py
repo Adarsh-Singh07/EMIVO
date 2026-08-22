@@ -19,8 +19,10 @@ from modules.orders.schemas import (
     CheckoutRequest,
     OrderCreate,
     OrderResponse,
+    OrderResponseV2,
     OrderStatusUpdate,
     PaginatedOrdersResponse,
+    PaginatedOrdersResponseV2,
 )
 from modules.products.models import ProductStatus
 from modules.products.repository import ProductRepository
@@ -406,7 +408,7 @@ class OrderService:
         user_id: Optional[str] = None,
         page: int = 1,
         page_size: int = 20
-    ) -> PaginatedOrdersResponse:
+    ) -> PaginatedOrdersResponseV2:
         orders, total = await self.repository.list_orders(
             status=status,
             customer_id=customer_id,
@@ -415,11 +417,11 @@ class OrderService:
             page_size=page_size
         )
 
-        items_resp = [OrderResponse.model_validate(o) for o in orders]
+        items_resp = [OrderResponseV2.model_validate(o) for o in orders]
         has_next = (page * page_size) < total
         has_prev = page > 1
 
-        return PaginatedOrdersResponse(
+        return PaginatedOrdersResponseV2(
             items=items_resp,
             total=total,
             page=page,

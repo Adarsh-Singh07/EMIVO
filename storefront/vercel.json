@@ -3,7 +3,6 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "installCommand": "npm ci",
-  "outputDirectory": ".next",
   "regions": ["bom1"],
   "env": {
     "NEXT_PUBLIC_API_URL": "https://api.elektrix.in/api/v1"

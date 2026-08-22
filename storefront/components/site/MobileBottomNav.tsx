@@ -1,24 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Home, LayoutGrid, Package, User, Sparkles } from "lucide-react";
-
-/**
- * Mobile-only bottom navigation bar (app-style).
- *
- * Shown below the `lg` breakpoint to mirror a native app tab bar:
- * Home · Categories · [Ask AI] · Orders · Profile.
- *
- * The centre slot is a raised gradient "Ask AI" orb that draws the eye —
- * fixed to the bottom of the viewport. Padding for the iOS home indicator
- * is applied via `env(safe-area-inset-bottom)` (requires `viewport-fit=cover`,
- * set in app/layout.tsx).
- */
+import { usePathname, useRouter } from "next/navigation";
+import { Home, LayoutGrid, Package, User, ShoppingBag, Search } from "lucide-react";
+import { useCart } from "./CartProvider";
 
 const LEFT_ITEMS = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/shop", label: "Categories", icon: LayoutGrid },
+  { href: "/shop", label: "Shop", icon: LayoutGrid },
 ] as const;
 
 const RIGHT_ITEMS = [
@@ -30,6 +19,8 @@ type NavItem = { href: string; label: string; icon: typeof Home };
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
+  const { count, setDrawerOpen } = useCart();
+  const router = useRouter();
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
@@ -51,8 +42,6 @@ export default function MobileBottomNav() {
     );
   };
 
-  const aiActive = isActive("/ai");
-
   return (
     <nav
       aria-label="Mobile navigation"
@@ -61,25 +50,21 @@ export default function MobileBottomNav() {
       <div className="grid w-full grid-cols-5 min-w-0">
         {LEFT_ITEMS.map(renderItem)}
 
-        {/* Ask AI — raised gradient centre button */}
-        <Link
-          href="/ai"
-          aria-current={aiActive ? "page" : undefined}
+        {/* Cart orb */}
+        <button
+          onClick={() => setDrawerOpen(true)}
           className="relative flex flex-col items-center justify-end gap-1 pb-2.5 text-[10px] font-semibold text-neutral-950"
         >
-          <span
-            className={`relative -mt-5 grid h-[52px] w-[52px] place-items-center rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-rose-500 text-white shadow-lg shadow-fuchsia-500/40 ring-4 ring-white transition-transform ${
-              aiActive ? "scale-105" : "active:scale-95"
-            }`}
-          >
-            <Sparkles className="h-6 w-6" strokeWidth={2.2} />
-            <span className="absolute -right-0.5 -top-0.5 flex h-3 w-3">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-fuchsia-400 opacity-75" />
-              <span className="relative inline-flex h-3 w-3 rounded-full bg-fuchsia-500" />
-            </span>
+          <span className="relative -mt-5 grid h-[52px] w-[52px] place-items-center rounded-2xl bg-neutral-950 text-white shadow-lg ring-4 ring-white transition-transform active:scale-95">
+            <ShoppingBag className="h-6 w-6" strokeWidth={2.2} />
+            {count > 0 && (
+              <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
+                {count}
+              </span>
+            )}
           </span>
-          <span>Ask AI</span>
-        </Link>
+          <span>Cart</span>
+        </button>
 
         {RIGHT_ITEMS.map(renderItem)}
       </div>

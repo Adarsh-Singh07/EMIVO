@@ -85,6 +85,9 @@ export default function Footer() {
             <li>
               <Link href="/shipping">Shipping Policy</Link>
             </li>
+            <li>
+              <Link href="/cookie">Cookie Policy</Link>
+            </li>
           </ul>
         </div>
 

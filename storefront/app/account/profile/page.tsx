@@ -10,7 +10,7 @@ import Link from "next/link";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, mutate } = useAuth();
+  const { user, refreshUser } = useAuth();
   
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -34,7 +34,7 @@ export default function ProfilePage() {
         last_name: lastName,
         email: email
       });
-      await mutate();
+      await refreshUser();
       toast.success("Profile updated successfully");
     } catch (err: any) {
       toast.error(err.message || "Failed to update profile");
