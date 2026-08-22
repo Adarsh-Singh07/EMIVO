@@ -359,43 +359,69 @@ export default function Header() {
           </>
         )}
 
-        {/* Mobile dropdown nav */}
-        {mobileOpen && (
-          <div className="lg:hidden border-t border-neutral-100 bg-white">
-            <nav className="flex flex-col p-4 gap-3 text-[15px] font-medium">
+        )}
+      </header>
+
+      {/* Mobile Drawer Overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-neutral-950/20 backdrop-blur-sm"
+            onClick={() => setMobileOpen(false)}
+          />
+          
+          {/* Drawer */}
+          <div className="absolute inset-y-0 left-0 w-4/5 max-w-sm bg-white shadow-xl animate-in slide-in-from-left">
+            <div className="p-4 border-b border-neutral-100 flex items-center justify-between">
+              <span className="font-bold text-lg tracking-tight">MENU</span>
+              <button onClick={() => setMobileOpen(false)} className="p-2 -mr-2 text-neutral-500 hover:text-neutral-900">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <nav className="flex flex-col p-4 gap-4 text-[15px] font-medium overflow-y-auto">
+              <Link href="/" onClick={() => setMobileOpen(false)}>Home</Link>
               {NAV_LINKS.map((l) => (
                 <Link key={l.label} href={l.href} onClick={() => setMobileOpen(false)}>
                   {l.label}
                 </Link>
               ))}
-              <Link href="/compare" onClick={() => setMobileOpen(false)} className="flex items-center gap-2">
-                Compare{compareIds.length > 0 ? ` (${compareIds.length})` : ""}
-              </Link>
-              <Link
-                href="/notifications"
-                onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-2"
-              >
-                <Bell className="w-4 h-4" /> Notifications
-              </Link>
-              <div className="border-t border-neutral-100 pt-3 mt-1">
+              <div className="border-t border-neutral-100 pt-4 mt-2">
+                <Link href="/account/orders" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 text-neutral-600 mb-4">
+                  <Package className="w-5 h-5" /> Orders
+                </Link>
+                <Link href="/compare" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 text-neutral-600 mb-4">
+                  <Scale className="w-5 h-5" /> Compare{compareIds.length > 0 ? ` (${compareIds.length})` : ""}
+                </Link>
+                <Link
+                  href="/notifications"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 text-neutral-600 mb-4"
+                >
+                  <Bell className="w-5 h-5" /> Notifications
+                </Link>
                 {user ? (
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 text-red-600 text-sm"
-                  >
-                    <LogOut className="w-4 h-4" /> Sign Out
-                  </button>
+                  <>
+                    <Link href="/account" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 text-neutral-600 mb-4">
+                      <User className="w-5 h-5" /> Account
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center gap-3 text-red-600 w-full"
+                    >
+                      <LogOut className="w-5 h-5" /> Sign Out
+                    </button>
+                  </>
                 ) : (
-                  <Link href="/login" className="flex items-center gap-2 text-sm font-semibold">
-                    <User className="w-4 h-4" /> Sign In
+                  <Link href="/login" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 text-neutral-900 font-semibold">
+                    <User className="w-5 h-5" /> Sign In
                   </Link>
                 )}
               </div>
             </nav>
           </div>
-        )}
-      </header>
+        </div>
+      )}
 
       {/* Mobile search sheet — same suggestions as the desktop bar */}
       {searchOpen && (
