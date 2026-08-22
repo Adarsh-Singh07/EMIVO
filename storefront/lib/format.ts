@@ -13,8 +13,11 @@ export const inr = (paise: number): string =>
 
 /** Format an ISO timestamp as a short Indian date, e.g. "12 Aug 2026". */
 export const formatDate = (iso: string): string =>
-  new Date(iso).toLocaleDateString("en-IN", {
+  new Date(iso).toLocaleString("en-IN", {
     day: "numeric",
     month: "short",
     year: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    hour12: true,
   });

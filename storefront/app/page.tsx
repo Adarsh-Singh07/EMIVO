@@ -100,12 +100,12 @@ export default async function Home() {
               <Link
                 key={cat.slug}
                 href={`/shop?category=${cat.slug}`}
-                className="group flex-shrink-0 w-[120px] md:w-[150px] flex flex-col items-center gap-3 rounded-2xl border border-neutral-200 p-5 hover:border-neutral-950 hover:shadow-sm transition-all snap-start"
+                className="group flex-shrink-0 w-[90px] md:w-[150px] flex flex-col items-center gap-2 md:gap-3 rounded-2xl border border-neutral-200 p-3 md:p-5 hover:border-neutral-950 hover:shadow-sm transition-all snap-start"
               >
-                <div className="w-12 h-12 rounded-full bg-neutral-100 group-hover:bg-neutral-950 group-hover:text-white grid place-items-center transition-colors">
-                  <Icon className="w-6 h-6" />
+                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-neutral-100 group-hover:bg-neutral-950 group-hover:text-white grid place-items-center transition-colors">
+                  <Icon className="w-5 h-5 md:w-6 md:h-6" />
                 </div>
-                <span className="text-sm font-medium text-center">{cat.name}</span>
+                <span className="text-[11px] md:text-sm font-medium text-center">{cat.name}</span>
               </Link>
             );
           })}
