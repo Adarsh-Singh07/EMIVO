@@ -382,7 +382,7 @@ function ShopContent() {
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 md:gap-6">
               {Array.from({ length: PAGE_SIZE }).map((_, i) => (
                 <ProductSkeleton key={i} />
               ))}
@@ -400,7 +400,7 @@ function ShopContent() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 md:gap-6">
                 {products.map((p) => (
                   <ProductCard key={p.id} product={p} />
                 ))}

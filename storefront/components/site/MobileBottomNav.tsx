@@ -55,10 +55,10 @@ export default function MobileBottomNav() {
           onClick={() => setDrawerOpen(true)}
           className="relative flex flex-col items-center justify-end gap-1 pb-2.5 text-[10px] font-semibold text-neutral-950"
         >
-          <span className="relative -mt-5 grid h-[52px] w-[52px] place-items-center rounded-2xl bg-neutral-950 text-white shadow-lg ring-4 ring-white transition-transform active:scale-95">
-            <ShoppingBag className="h-6 w-6" strokeWidth={2.2} />
+          <span className="relative -mt-4 grid h-[46px] w-[46px] place-items-center rounded-xl bg-neutral-950 text-white shadow-lg ring-2 ring-white transition-transform active:scale-95">
+            <ShoppingBag className="h-5 w-5" strokeWidth={2.2} />
             {count > 0 && (
-              <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
+              <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm ring-1 ring-white">
                 {count}
               </span>
             )}

@@ -1,7 +1,7 @@
 {
-  "name": "EMIVO — Premium Electronics Store",
-  "short_name": "EMIVO",
-  "description": "Shop the latest mobiles, laptops, appliances and accessories at EMIVO.",
+  "name": "Elektrix — Premium Electronics Store",
+  "short_name": "Elektrix",
+  "description": "Shop the latest mobiles, laptops, appliances and accessories at Elektrix.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

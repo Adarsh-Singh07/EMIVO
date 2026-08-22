@@ -169,7 +169,7 @@ export default async function Home() {
             View All <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6">
           {newArrivals.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
@@ -193,7 +193,7 @@ export default async function Home() {
               View Collection <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 md:gap-6">
             {trending.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
