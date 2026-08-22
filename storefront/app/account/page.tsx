@@ -42,7 +42,7 @@ function OrdersSection({ canSeeOrders }: { canSeeOrders: boolean }) {
     if (!canSeeOrders) return;
     setLoading(true);
     apiClient
-      .get<{ items: OrderSummary[] }>("/orders/?page=1&page_size=5")
+      .get<{ items: OrderSummary[] }>("/orders?page=1&page_size=5")
       .then((data) => setOrders(data.items || []))
       .catch((err) => setError(err?.message || "Failed to load orders"))
       .finally(() => setLoading(false));
