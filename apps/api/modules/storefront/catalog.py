@@ -320,16 +320,30 @@ class CatalogService:
         if not q or len(q.strip()) < 2:
             return []
         store_id = await self._store_business_id()
-        like = f"%{q.strip()}%"
+        
+        words = q.strip().split()
+        # Cap words to prevent huge queries
+        if len(words) > 5:
+            words = words[:5]
+            
+        conditions = []
+        params = {"bid": store_id, "lim": limit}
+        for i, w in enumerate(words):
+            like = f"%{w}%"
+            params[f"q{i}"] = like
+            conditions.append(f"(p.name ILIKE :q{i} OR p.brand ILIKE :q{i} OR p.sku ILIKE :q{i} OR c.name ILIKE :q{i})")
+            
+        where_clause = " AND ".join(conditions)
+
         rows = (
             await self.session.execute(
                 text(f"""
                     {self._BASE_SELECT}
                     WHERE p.business_id = :bid AND p.status = 'ACTIVE'
-                      AND (p.name ILIKE :q OR p.brand ILIKE :q OR p.sku ILIKE :q OR c.name ILIKE :q)
+                      AND {where_clause}
                     ORDER BY p.featured DESC, p.name ASC LIMIT :lim
                 """),
-                {"bid": store_id, "q": like, "lim": limit},
+                params,
             )
         ).mappings().all()
         images = await self._load_images([r["id"] for r in rows])

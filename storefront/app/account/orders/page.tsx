@@ -316,19 +316,6 @@ function OrderDetail({
               key={item.id || item.product_id}
               className="p-5 sm:p-6 flex items-start gap-4"
             >
-              <div className="w-16 h-16 rounded-xl bg-neutral-100 shrink-0 overflow-hidden flex items-center justify-center">
-                {item.image ? (
-                  <Image
-                    src={item.image}
-                    alt={item.product_name || "Product"}
-                    width={64}
-                    height={64}
-                    className="object-cover"
-                  />
-                ) : (
-                  <Package className="w-8 h-8 text-neutral-400" />
-                )}
-              </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm leading-snug line-clamp-2">
                   {item.product_name || "Product"}
@@ -514,19 +501,6 @@ function OrderCard({ order, onClick }: { order: OrderV2; onClick: () => void }) 
       </div>
 
       <div className="p-5 flex items-start gap-4">
-        <div className="w-16 h-16 rounded-xl bg-neutral-100 shrink-0 overflow-hidden flex items-center justify-center">
-          {(firstItem as any)?.image ? (
-            <Image
-              src={(firstItem as any).image}
-              alt={firstItem?.product_name || "Product"}
-              width={64}
-              height={64}
-              className="object-cover"
-            />
-          ) : (
-            <Package className="w-8 h-8 text-neutral-300" />
-          )}
-        </div>
 
         <div className="flex-1 min-w-0">
           <p className="font-medium text-sm leading-snug line-clamp-2">

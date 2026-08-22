@@ -245,7 +245,9 @@ export default function CheckoutPage() {
 
   const discount = appliedCoupon?.discount ?? 0;
   const shipping = displayShipping(subtotal, discount);
-  const total = Math.max(0, subtotal - discount + shipping);
+  const totalBeforeFee = Math.max(0, subtotal - discount + shipping);
+  const finalCodFee = paymentMethod === "COD" ? codFeePaise : 0;
+  const total = totalBeforeFee + finalCodFee;
 
   const contactName = selectedAddress?.full_name || draftAddress?.full_name || user?.first_name || "";
   const contactPhone = selectedAddress?.phone || draftAddress?.phone || "";
@@ -329,14 +331,9 @@ export default function CheckoutPage() {
         });
       } catch (err) {
         setPendingPayment({ order, paymentId });
-        const apiErr = err as ApiError;
-        if (apiErr instanceof ApiError && (apiErr.status === 502 || apiErr.status === 503) && apiErr.code === "PAYMENT_FAILED") {
-          toast.error("Online payment is temporarily unavailable. Please proceed with Cash on Delivery.");
-          setPaymentMethod("COD");
-          setPlacing(false);
-          return;
-        }
-        toast.error(err instanceof Error ? err.message : "Could not start payment");
+        toast.error("Online payment is facing issues. Please try Cash on Delivery (COD).");
+        setPaymentMethod("COD");
+        setPlacing(false);
       } finally {
         if (isRetry) setRetryingPayment(false);
       }
@@ -1139,6 +1136,12 @@ export default function CheckoutPage() {
                 {shipping === 0 ? <span className="text-green-600">FREE</span> : inr(shipping)}
               </dd>
             </div>
+            {finalCodFee > 0 && (
+              <div className="flex justify-between text-neutral-500">
+                <dt>COD Fee</dt>
+                <dd className="font-medium">{inr(finalCodFee)}</dd>
+              </div>
+            )}
             <div className="flex justify-between border-t border-neutral-200 pt-3 text-base">
               <dt className="font-semibold">Total</dt>
               <dd className="font-semibold">{inr(total)}</dd>

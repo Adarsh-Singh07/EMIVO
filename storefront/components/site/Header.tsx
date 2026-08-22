@@ -158,10 +158,10 @@ export default function Header() {
           {/* Logo + tagline */}
           <Link href="/" className="flex flex-col items-start shrink-0 leading-none">
             <div className="flex items-center gap-1.5">
-              <div className="w-8 h-8 rounded-lg bg-neutral-950 text-white grid place-items-center font-bold text-sm tracking-tighter">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-neutral-950 text-white grid place-items-center font-bold text-xs sm:text-sm tracking-tighter">
                 EX
               </div>
-              <span className="text-2xl font-bold tracking-tight">ELEKTRIX</span>
+              <span className="text-xl sm:text-2xl font-bold tracking-tight">ELEKTRIX</span>
             </div>
             <span className="hidden sm:block text-[10px] text-neutral-500 mt-0.5 ml-10">
               India&apos;s Premium Electronics Store
@@ -386,14 +386,14 @@ export default function Header() {
           />
           
           {/* Drawer */}
-          <div className="absolute inset-y-0 left-0 w-4/5 max-w-sm bg-white shadow-xl animate-in slide-in-from-left">
-            <div className="p-4 border-b border-neutral-100 flex items-center justify-between">
+          <div className="absolute inset-y-0 left-0 w-4/5 max-w-sm bg-white shadow-xl animate-in slide-in-from-left flex flex-col">
+            <div className="p-4 border-b border-neutral-100 flex items-center justify-between shrink-0">
               <span className="font-bold text-lg tracking-tight">MENU</span>
               <button onClick={() => setMobileOpen(false)} className="p-2 -mr-2 text-neutral-500 hover:text-neutral-900">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <nav className="flex flex-col p-4 gap-4 text-[15px] font-medium overflow-y-auto">
+            <nav className="flex-1 flex flex-col p-4 gap-4 text-[15px] font-medium overflow-y-auto">
               <Link href="/" onClick={() => setMobileOpen(false)}>Home</Link>
               {NAV_LINKS.map((l) => (
                 <Link key={l.label} href={l.href} onClick={() => setMobileOpen(false)}>
