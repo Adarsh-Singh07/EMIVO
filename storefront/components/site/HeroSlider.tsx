@@ -39,29 +39,29 @@ export default function HeroSlider() {
 
         {/* Content */}
         <div className="relative max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center min-h-[380px] sm:min-h-[440px] lg:min-h-[560px] py-10">
+          <div className="flex items-center min-h-[320px] sm:min-h-[440px] lg:min-h-[560px] py-8 sm:py-10">
             <div key={`t-${s.id}`} className="max-w-xl text-white">
-              <span className="inline-block text-xs uppercase tracking-[0.2em] text-white/70 mb-4">
+              <span className="inline-block text-[10px] sm:text-xs uppercase tracking-[0.2em] text-white/70 mb-3 sm:mb-4">
                 {s.eyebrow}
               </span>
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight leading-[1.05]">
+              <h1 className="text-[32px] sm:text-5xl lg:text-6xl font-semibold tracking-tight leading-[1.05]">
                 {s.title}
               </h1>
-              <p className="mt-4 text-white/80 text-lg max-w-md">{s.subtitle}</p>
-              <div className="mt-5 flex items-baseline gap-3">
-                <span className="text-2xl font-semibold">{inr(s.price)}</span>
-                <span className="text-white/60 line-through">{inr(s.mrp)}</span>
+              <p className="mt-3 sm:mt-4 text-white/80 text-[13px] sm:text-lg max-w-md">{s.subtitle}</p>
+              <div className="mt-4 sm:mt-5 flex items-baseline gap-2 sm:gap-3">
+                <span className="text-xl sm:text-2xl font-semibold">{inr(s.price)}</span>
+                <span className="text-white/60 line-through text-[13px] sm:text-base">{inr(s.mrp)}</span>
               </div>
-              <div className="mt-8 flex items-center gap-4">
+              <div className="mt-6 flex flex-wrap items-center gap-3">
                 <Link
                   href={s.link}
-                  className="inline-flex items-center gap-2 h-12 px-6 rounded-full bg-white text-neutral-950 text-sm font-medium hover:bg-neutral-100"
+                  className="inline-flex items-center gap-2 h-10 px-5 sm:h-12 sm:px-6 rounded-full bg-white text-neutral-950 text-[13px] sm:text-sm font-medium hover:bg-neutral-100"
                 >
-                  {s.cta} <ArrowRight className="w-4 h-4" />
+                  {s.cta} <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </Link>
                 <Link
                   href="/shop"
-                  className="inline-flex items-center gap-2 h-12 px-6 rounded-full border border-white/60 text-white text-sm font-medium hover:bg-white/10"
+                  className="inline-flex items-center gap-2 h-10 px-5 sm:h-12 sm:px-6 rounded-full border border-white/60 text-white text-[13px] sm:text-sm font-medium hover:bg-white/10"
                 >
                   Browse All
                 </Link>

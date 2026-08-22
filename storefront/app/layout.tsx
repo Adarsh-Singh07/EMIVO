@@ -62,7 +62,7 @@ export const metadata: Metadata = {
     title: "ELEKTRIX",
   },
   // PWA — installable app with standalone display, icons and manifest.
-  manifest: "/manifest.webmanifest",
+  manifest: "/manifest.webmanifest?v=2",
   icons: {
     icon: "/icons/icon-192.png",
     apple: "/icons/icon-192.png",
