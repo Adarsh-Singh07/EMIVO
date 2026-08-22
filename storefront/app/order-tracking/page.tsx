@@ -232,6 +232,14 @@ function OrderTrackingContent() {
                     {order.payment_method === "COD" ? "Cash on delivery" : "Paid online"}
                   </span>
                 </p>
+                {order.payment_status && (
+                  <p>
+                    Payment Status:{" "}
+                    <span className={`font-medium capitalize ${order.payment_status === "SUCCESS" || order.payment_status === "PAID" ? "text-green-600" : order.payment_status === "FAILED" ? "text-red-600" : "text-amber-600"}`}>
+                      {order.payment_status.toLowerCase()}
+                    </span>
+                  </p>
+                )}
                 {order.coupon_code && (
                   <p>
                     Coupon: <span className="font-medium text-neutral-800">{order.coupon_code}</span>

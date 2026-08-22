@@ -86,11 +86,12 @@ async def test_order_lifecycle_ship_and_deliver(client, admin):
         return r.json()
 
     updated = await transition("PROCESSING")
+    updated = await transition("PACKED")
     updated = await transition("SHIPPED", tracking_number="TRK123456789",
                                tracking_url="https://track.example.com/TRK123456789")
     assert updated["tracking_number"] == "TRK123456789"
     assert updated["shipped_at"]
-
+    updated = await transition("OUT_FOR_DELIVERY")
     updated = await transition("DELIVERED")
     assert updated["delivered_at"]
 

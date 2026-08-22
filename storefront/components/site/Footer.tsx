@@ -62,19 +62,28 @@ export default function Footer() {
         </div>
 
         <div>
-          <h4 className="text-white font-semibold mb-4">Company</h4>
+          <h4 className="text-white font-semibold mb-4">Company & Legal</h4>
           <ul className="space-y-2 text-sm">
             <li>
               <Link href="/about">About Us</Link>
-            </li>
-            <li>
-              <Link href="/blog">Blog</Link>
             </li>
             <li>
               <Link href="/contact">Contact</Link>
             </li>
             <li>
               <Link href="/faq">FAQ</Link>
+            </li>
+            <li>
+              <Link href="/privacy">Privacy Policy</Link>
+            </li>
+            <li>
+              <Link href="/terms">Terms & Conditions</Link>
+            </li>
+            <li>
+              <Link href="/refund">Refund Policy</Link>
+            </li>
+            <li>
+              <Link href="/shipping">Shipping Policy</Link>
             </li>
           </ul>
         </div>

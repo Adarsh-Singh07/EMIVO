@@ -104,11 +104,13 @@ export default function RootLayout({
               {/* Spacer on mobile so the fixed bottom nav never covers footer text */}
               <div className="h-[calc(env(safe-area-inset-bottom)+3.5rem)] lg:hidden" aria-hidden />
               <Toaster
-                position="top-right"
+                position="bottom-right"
                 richColors
+                expand={false}
                 toastOptions={{
-                  duration: 3000,
+                  duration: 2500,
                   closeButton: true,
+                  className: "mb-[calc(env(safe-area-inset-bottom)+3.5rem)] lg:mb-0",
                   style: {
                     pointerEvents: "auto",
                   },
