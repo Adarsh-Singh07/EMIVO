@@ -102,7 +102,25 @@ export default function CustomerOrdersPage() {
                   }`}
                 >
                   {o.status?.toLowerCase()}
+
                 </span>
+                {!['OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', 'REFUNDED', 'PAYMENT_FAILED'].includes(o.status) && (
+                  <button
+                    onClick={async () => {
+                      if (confirm("Are you sure you want to cancel this order?")) {
+                        try {
+                          await storeApi.cancelOrder(o.id);
+                          window.location.reload();
+                        } catch (err) {
+                          alert(err instanceof Error ? err.message : "Failed to cancel order");
+                        }
+                      }
+                    }}
+                    className="ml-3 text-sm text-red-600 hover:text-red-700 underline font-medium"
+                  >
+                    Cancel
+                  </button>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-6 text-sm">

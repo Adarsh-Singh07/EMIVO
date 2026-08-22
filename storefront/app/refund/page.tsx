@@ -9,39 +9,31 @@ export default function RefundPage() {
       <h1 className="text-3xl font-bold mb-8">Refund & Return Policy</h1>
       
       <div className="prose prose-neutral max-w-none">
-        <p><strong>Effective Date:</strong> January 1, 2026</p>
+        <p><strong>Effective Date:</strong> August 22, 2026</p>
 
-        <h2 className="text-xl font-bold mt-8 mb-4">1. Return Eligibility</h2>
+        <h2 className="text-xl font-bold mt-8 mb-4">1. Open-Box Delivery Policy</h2>
         <p>
-          We accept returns within <strong>10 days of delivery</strong> for products that are defective, damaged upon arrival, or incorrect. To be eligible for a return, the item must be unused, in its original packaging, and include all accessories, manuals, and warranty cards.
+          To ensure complete transparency and prevent fraud, ELEKTRIX mandates an <strong>Open-Box Delivery Policy</strong> for all shipments. You or your authorized receiver MUST open the package and inspect the product in the presence of the delivery executive before accepting the delivery and sharing the delivery OTP.
         </p>
 
-        <h2 className="text-xl font-bold mt-8 mb-4">2. Exclusions</h2>
-        <p>The following items cannot be returned:</p>
-        <ul className="list-disc pl-6 mb-4">
-          <li>Products with physical damage caused by the customer.</li>
-          <li>Items with missing original packaging or accessories.</li>
-          <li>Digital goods, software, or gift cards.</li>
-          <li>Personal care appliances (if unsealed).</li>
-        </ul>
-
-        <h2 className="text-xl font-bold mt-8 mb-4">3. Refund Process & Timeline</h2>
+        <h2 className="text-xl font-bold mt-8 mb-4">2. No Returns After Acceptance</h2>
         <p>
-          Once your return is received and inspected, we will notify you of the approval or rejection of your refund. If approved, refunds are processed within <strong>5-7 business days</strong>.
+          Once a delivery is accepted following the open-box inspection, <strong>we do not accept returns or provide refunds</strong> under any circumstances for reasons such as physical damage, missing accessories, or incorrect products. By accepting the package, you confirm that the product was received in perfect physical condition.
         </p>
-        <ul className="list-disc pl-6 mb-4">
-          <li><strong>Prepaid Orders:</strong> Refunded to the original payment method (via Cashfree).</li>
-          <li><strong>COD Orders:</strong> Refunded via bank transfer or UPI (details will be collected securely by our support team).</li>
-        </ul>
+
+        <h2 className="text-xl font-bold mt-8 mb-4">3. Manufacturing Defects & Warranty</h2>
+        <p>
+          For internal manufacturing defects or technical issues discovered after the device has been powered on, the product is covered by the manufacturer's standard warranty. Customers must visit the respective brand's authorized service center for repairs or replacements. ELEKTRIX does not directly process warranty claims.
+        </p>
 
         <h2 className="text-xl font-bold mt-8 mb-4">4. Order Cancellations</h2>
         <p>
-          You may cancel your order at any time before it has been shipped. Once an order is marked as <em>Shipped</em>, it cannot be cancelled, but you may refuse delivery or request a return upon receiving it.
+          You may cancel your order at any time before the status changes to <em>Out for Delivery</em>. Once an order is out for delivery, it cannot be cancelled. Refunds for valid online cancellations will be processed to the original payment method (via Cashfree) within <strong>5-7 business days</strong>.
         </p>
 
-        <h2 className="text-xl font-bold mt-8 mb-4">5. Contact for Returns</h2>
+        <h2 className="text-xl font-bold mt-8 mb-4">5. Contact Information</h2>
         <p>
-          To initiate a return, please contact our support team at <strong>support@elektrix.in</strong> with your Order ID and photographic evidence of the defect or damage.
+          If you face any issues during the open-box delivery process or need assistance with a cancellation, please contact our support team at <strong>support@elektrix.in</strong>.
         </p>
       </div>
     </div>

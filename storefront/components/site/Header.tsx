@@ -26,7 +26,7 @@ import { useCompareIds } from "@/lib/compare";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 
-const DEFAULT_PINCODE = "400070";
+const DEFAULT_PINCODE = "841508";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -92,6 +92,21 @@ export default function Header() {
   const [pincodeDraft, setPincodeDraft] = useState(DEFAULT_PINCODE);
   const [pinOpen, setPinOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (mobileOpen) {
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.overflow = "hidden";
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    } else {
+      document.body.style.overflow = "";
+      document.body.style.paddingRight = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.paddingRight = "";
+    };
+  }, [mobileOpen]);
 
   // Load the saved pincode only after mount to avoid SSR hydration mismatch.
   useEffect(() => {

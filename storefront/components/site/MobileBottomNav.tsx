@@ -22,7 +22,7 @@ const LEFT_ITEMS = [
 ] as const;
 
 const RIGHT_ITEMS = [
-  { href: "/order-tracking", label: "Orders", icon: Package },
+  { href: "/account/orders", label: "Orders", icon: Package },
   { href: "/account", label: "Profile", icon: User },
 ] as const;
 

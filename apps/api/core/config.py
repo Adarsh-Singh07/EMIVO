@@ -106,7 +106,7 @@ class Settings(BaseSettings):
     flat_shipping_paise: int = Field(default=9900)
     cod_enabled: bool = Field(default=True)
     cod_fee_paise: int = Field(default=0)
-    cod_max_order_paise: int = Field(default=5000000)
+    cod_max_order_paise: int = Field(default=50000000)
 
     @property
     def is_prod(self) -> bool:

@@ -159,7 +159,7 @@ export default function ComparePage() {
                 Product
               </div>
               {products.map((p) => (
-                <div key={p.id} className="p-4 relative flex flex-col">
+                <div key={p.id} className="p-4 relative flex flex-col h-full">
                   <button
                     onClick={() => removeItem(p.id)}
                     aria-label={`Remove ${p.name} from compare`}

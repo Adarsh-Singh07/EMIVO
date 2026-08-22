@@ -88,9 +88,9 @@ export default function ContactPage() {
 
         <aside className="space-y-4">
           {[
-            { icon: Phone, label: "Call us", value: "+91 79059 35908", note: "Mon–Sat, 9am–9pm IST" },
+            { icon: Phone, label: "Call us", value: "+91 85398 38942", note: "Mon–Sat, 9am–9pm IST" },
             { icon: Mail, label: "Email", value: SUPPORT_EMAIL, note: "Replies within 24 hours" },
-            { icon: MapPin, label: "Store Address", value: "DS1, 109, Near Indian Petrol Pump, Vijayipur, Gopalganj, Bihar - 841508", note: "APANA ENTERPRISES" },
+            { icon: MapPin, label: "Store Address", value: "DS1, 109, Near Indian Petrol Pump, Vijayipur, Gopalganj, Bihar - 841508", note: "Apna Enterprise" },
             { icon: Clock, label: "Support hours", value: "9:00 – 21:00 IST", note: "7 days a week" },
           ].map((c) => (
             <div key={c.label} className="flex gap-4 rounded-2xl border border-neutral-100 bg-white p-5">
