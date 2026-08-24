@@ -118,7 +118,7 @@ async def get_order(
 )
 async def update_order_status(
     order_id: str,
-    payload: OrderStatusUpdate, OrderNotesUpdate,
+    payload: OrderStatusUpdate,
     service: OrderService = Depends(get_order_service),
 ) -> Any:
     """Update order status with state transition validation, inventory
