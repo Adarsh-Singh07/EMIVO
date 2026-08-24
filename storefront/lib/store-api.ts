@@ -259,6 +259,14 @@ export interface StoreConfig {
   free_shipping_threshold_paise: number;
   currency: string;
   storefront_url: string;
+  banner?: {
+    active: boolean;
+    title?: string;
+    subtitle?: string;
+    image_url?: string;
+    link?: string;
+  };
+  announcement?: string;
 }
 
 /* ------------------------------------------------------------------ */
