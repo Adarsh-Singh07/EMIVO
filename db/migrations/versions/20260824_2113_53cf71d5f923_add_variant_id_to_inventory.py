@@ -15,6 +15,9 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
+    # Add variant_id column
+    op.add_column('inventory', sa.Column('variant_id', sa.String(length=36), nullable=True))
+    op.create_foreign_key('fk_inventory_variant_id', 'inventory', 'product_variants', ['variant_id'], ['id'], ondelete='CASCADE')
     # Drop unique constraint on product_id
     op.drop_constraint('uq_inventory_product', 'inventory', type_='unique')
     # Create index on product_id
@@ -26,3 +29,5 @@ def downgrade() -> None:
     op.drop_constraint('uq_inventory_variant_id', 'inventory', type_='unique')
     op.drop_index('ix_inventory_product_id', table_name='inventory')
     op.create_unique_constraint('uq_inventory_product', 'inventory', ['product_id'])
+    op.drop_constraint('fk_inventory_variant_id', 'inventory', type_='foreignkey')
+    op.drop_column('inventory', 'variant_id')
