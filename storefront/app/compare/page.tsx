@@ -175,7 +175,7 @@ export default function ComparePage() {
                           alt={p.name}
                           fill
                           sizes="150px"
-                          className="object-cover group-hover:scale-105 transition-transform duration-200"
+                          className="object-contain group-hover:scale-105 transition-transform duration-200"
                         />
                       ) : (
                         <span className="absolute inset-0 grid place-items-center text-[9px] text-neutral-400 px-2 text-center leading-tight">

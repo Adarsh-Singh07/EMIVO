@@ -80,7 +80,7 @@ export default function ProductCard({ product }: { product: Product }) {
               alt={product.name}
               fill
               sizes="(max-width: 768px) 50vw, 25vw"
-              className="object-cover"
+              className="object-contain"
             />
           </span>
           <span className="img-secondary absolute inset-0 block">
@@ -89,7 +89,7 @@ export default function ProductCard({ product }: { product: Product }) {
               alt=""
               fill
               sizes="(max-width: 768px) 50vw, 25vw"
-              className="object-cover"
+              className="object-contain"
             />
           </span>
         </Link>

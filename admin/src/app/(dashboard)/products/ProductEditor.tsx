@@ -780,7 +780,7 @@ export function ProductEditor({ productId }: { productId?: string }) {
                 {media.map((m, i) => (
                   <li key={m.id} className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-50/50 p-2">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={m.media_url} alt={m.alt_text || "product image"} className="h-12 w-12 rounded-lg border border-neutral-200 object-cover" />
+                    <img src={m.media_url} alt={m.alt_text || "product image"} className="h-12 w-12 rounded-lg border border-neutral-200 object-contain" />
                     <span className="flex-1 truncate text-xs text-neutral-500">{m.media_url}</span>
                     <div className="flex items-center gap-0.5">
                       <button
@@ -815,7 +815,7 @@ export function ProductEditor({ productId }: { productId?: string }) {
                 {draftMedia.map((m, i) => (
                   <li key={m.key} className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50/40 p-2">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={m.media_url} alt="pending product image" className="h-12 w-12 rounded-lg border border-neutral-200 object-cover" />
+                    <img src={m.media_url} alt="pending product image" className="h-12 w-12 rounded-lg border border-neutral-200 object-contain" />
                     <span className="flex-1 truncate text-xs text-neutral-500">{m.media_url}</span>
                     <div className="flex items-center gap-0.5">
                       <button

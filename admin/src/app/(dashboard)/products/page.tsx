@@ -252,7 +252,7 @@ export default function ProductsPage() {
                           <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-50">
                             {thumb ? (
                               // eslint-disable-next-line @next/next/no-img-element
-                              <img src={thumb} alt={product.name} className="h-full w-full object-cover" />
+                              <img src={thumb} alt={product.name} className="h-full w-full object-contain" />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center text-neutral-300">
                                 <Package className="h-4 w-4" />

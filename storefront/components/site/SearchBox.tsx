@@ -125,7 +125,7 @@ export default function SearchBox({
             >
               <span className="relative w-10 h-10 rounded-lg bg-neutral-100 overflow-hidden shrink-0">
                 {s.image ? (
-                  <Image src={s.image} alt={s.name} fill sizes="40px" className="object-cover" />
+                  <Image src={s.image} alt={s.name} fill sizes="40px" className="object-contain" />
                 ) : null}
               </span>
               <span className="flex-1 min-w-0">
