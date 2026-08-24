@@ -507,6 +507,13 @@ class OrderService:
         await self.session.commit()
         return await self.get_order(order_id)
 
+    async def update_order_notes(self, order_id: str, notes: Optional[str]) -> Order:
+        order = await self.get_order(order_id)
+        order.notes = notes
+        await self.repository.update(order)
+        await self.session.commit()
+        return order
+
     async def get_order_for_user(self, order_id: str, user: User, is_staff: bool) -> Order:
         """Ownership-checked fetch: customers see only their own orders."""
         order = await self.repository.get_by_id(order_id)

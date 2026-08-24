@@ -473,9 +473,28 @@ export default function OrderDetailPage() {
             ) : (
               <p className="text-sm text-neutral-400">No address snapshot on this order.</p>
             )}
-            {order.notes && (
-              <div className="mt-3 rounded-xl bg-neutral-50 p-3 text-xs italic text-neutral-500">“{order.notes}”</div>
-            )}
+
+            <div className="mt-4 pt-4 border-t border-neutral-100">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-neutral-900">Notes & Complaints</h3>
+              </div>
+              <textarea
+                className="w-full rounded-xl border border-neutral-200 bg-white p-3 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                rows={3}
+                placeholder="Log internal notes, customer complaints, or special instructions here..."
+                defaultValue={order.notes || ""}
+                onBlur={async (e) => {
+                  if (e.target.value === (order.notes || "")) return;
+                  try {
+                    await apiClient.patch(`/orders/${order.id}/notes`, { notes: e.target.value });
+                    toast.success("Notes updated");
+                  } catch (err) {
+                    toast.error("Failed to update notes");
+                  }
+                }}
+              />
+              <p className="text-xs text-neutral-500 mt-1">Changes are saved automatically when you click outside.</p>
+            </div>
           </section>
         </div>
       </div>
