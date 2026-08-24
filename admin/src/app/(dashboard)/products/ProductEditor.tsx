@@ -16,9 +16,14 @@ import {
   AlertCircle,
   ImageIcon,
 } from "lucide-react";
+import { VariantBuilder } from "@/components/products/VariantBuilder";
+import dynamic from "next/dynamic";
+import "react-quill/dist/quill.snow.css";
 import { toast } from "sonner";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { formatINR, rupeesToPaise, paiseToRupeeInput, isoToLocalInput, localInputToIso } from "@/lib/money";
+
+const ReactQuill = dynamic(() => import("react-quill"), { ssr: false });
 
 export interface ProductMedia {
   id: string;
