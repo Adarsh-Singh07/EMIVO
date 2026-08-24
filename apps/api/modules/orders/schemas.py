@@ -73,6 +73,9 @@ class OrderResponse(BaseModel):
         from_attributes = True
 
 
+class OrderNotesUpdate(BaseModel):
+    notes: Optional[str] = Field(None, max_length=2000)
+
 class OrderStatusUpdate(BaseModel):
     status: OrderStatus
     reason: Optional[str] = Field(None, max_length=500)

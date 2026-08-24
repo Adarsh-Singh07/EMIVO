@@ -14,7 +14,7 @@ from modules.orders.schemas import (
     CheckoutRequest,
     CheckoutResponse,
     OrderResponseV2,
-    OrderStatusUpdate,
+    OrderStatusUpdate, OrderNotesUpdate,
     PaginatedOrdersResponseV2,
 )
 from modules.orders.service import OrderService
@@ -118,7 +118,7 @@ async def get_order(
 )
 async def update_order_status(
     order_id: str,
-    payload: OrderStatusUpdate,
+    payload: OrderStatusUpdate, OrderNotesUpdate,
     service: OrderService = Depends(get_order_service),
 ) -> Any:
     """Update order status with state transition validation, inventory
@@ -126,6 +126,18 @@ async def update_order_status(
     return await service.update_order_status(order_id, payload)
 
 
+@router.patch(
+    "/{order_id}/notes",
+    response_model=OrderResponseV2,
+    dependencies=[Depends(require_staff)],
+)
+async def update_order_notes(
+    order_id: str,
+    payload: OrderNotesUpdate,
+    service: OrderService = Depends(get_order_service),
+) -> Any:
+    """Update internal notes/complaints for an order (staff only)."""
+    return await service.update_order_notes(order_id, payload.notes)
 
 
 @router.post("/{order_id}/cancel", response_model=OrderResponseV2)

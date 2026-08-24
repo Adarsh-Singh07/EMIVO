@@ -479,17 +479,42 @@ export function ProductEditor({ productId }: { productId?: string }) {
                 <label className={labelClass}>SKU</label>
                 <input className={inputClass} value={sku} onChange={(e) => setSku(e.target.value)} placeholder="e.g. HVL-BLD-750" />
               </div>
-              <div>
+              <div className="relative">
                 <label className={labelClass}>Category</label>
-                <select className={inputClass} value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-                  <option value="">No category</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {"   ".repeat(c.depth)}
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex gap-2">
+                  <select className={`${inputClass} flex-1`} value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+                    <option value="">No category</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {"   ".repeat(c.depth)}
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const name = window.prompt("New Category Name:");
+                      if (!name) return;
+                      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+                      apiClient.post<{ id: string }>("/products/categories", { name, slug })
+                        .then((res) => {
+                          toast.success("Category created");
+                          setCategoryId(res.id);
+                          return apiClient.get<{id:string; name:string; depth:number}[]>("/store/categories");
+                        })
+                        .then((cats) => {
+                          const flatten = (nodes: any[], depth = 0): any[] =>
+                            nodes.reduce((acc, node) => [...acc, { id: node.id, name: node.name, depth }, ...flatten(node.children || [], depth + 1)], []);
+                          setCategories(flatten(cats));
+                        })
+                        .catch(() => toast.error("Failed to create category"));
+                    }}
+                    className="shrink-0 px-3 py-2 text-sm font-semibold text-neutral-700 bg-neutral-100 rounded-xl hover:bg-neutral-200"
+                  >
+                    + New
+                  </button>
+                </div>
               </div>
               <div>
                 <label className={labelClass}>Status</label>
