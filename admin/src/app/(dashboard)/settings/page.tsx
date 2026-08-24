@@ -314,7 +314,7 @@ export default function SettingsPage() {
               {bannerImage && (
                 <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={bannerImage} alt="Banner preview" className="h-24 w-full object-cover" />
+                  <img src={bannerImage} alt="Banner preview" className="h-24 w-full object-contain" />
                 </div>
               )}
             </div>

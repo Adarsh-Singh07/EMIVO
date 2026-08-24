@@ -1092,7 +1092,7 @@ export default function CheckoutPage() {
                       alt={i.product_name}
                       fill
                       sizes="56px"
-                      className="object-cover"
+                      className="object-contain"
                     />
                   ) : (
                     <span className="absolute inset-0 grid place-items-center text-[9px] text-neutral-400 px-1 text-center leading-tight">

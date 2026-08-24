@@ -35,7 +35,7 @@ export default function RecentlyViewedStrip() {
                   alt={p.name}
                   fill
                   sizes="192px"
-                  className="object-cover group-hover:scale-105 transition-transform"
+                  className="object-contain group-hover:scale-105 transition-transform"
                 />
               ) : null}
             </span>

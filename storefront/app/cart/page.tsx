@@ -87,7 +87,7 @@ export default function CartPage() {
                       alt={i.product_name}
                       fill
                       sizes="96px"
-                      className="object-cover"
+                      className="object-contain"
                     />
                   ) : (
                     <span className="absolute inset-0 grid place-items-center text-[10px] text-neutral-400 px-1 text-center leading-tight">

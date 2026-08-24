@@ -115,7 +115,7 @@ export default function CategoriesPage() {
                 <td className="px-6 py-4">
                   <label className="cursor-pointer group relative block h-12 w-12 rounded-xl border border-neutral-200 bg-neutral-100 overflow-hidden">
                     {c.image_url ? (
-                      <img src={c.image_url} alt={c.name} className="h-full w-full object-cover" />
+                      <img src={c.image_url} alt={c.name} className="h-full w-full object-contain" />
                     ) : (
                       <div className="flex h-full items-center justify-center text-neutral-400 group-hover:text-neutral-600">
                         <ImageIcon className="h-5 w-5" />
