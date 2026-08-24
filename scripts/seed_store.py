@@ -28,7 +28,7 @@ STORE_NAME = "ELEKTRIX"
 
 CATEGORIES = [
     ("Mobiles", "mobiles", [
-        ("Smartphones", "smartphones"),
+        
     ]),
     ("Audio", "audio", [
         ("Wireless Earbuds", "wireless-earbuds"),
@@ -60,7 +60,7 @@ U = "https://images.unsplash.com/{}?auto=format&fit=crop&w=900&q=80"
 # (name, brand, cat_slug, price₹, mrp₹, featured, specs, images, tags)
 PRODUCTS = [
     # Mobiles
-    ("iPhone 16 Pro 256GB", "Apple", "smartphones", 119900, 134900, True,
+    ("iPhone 16 Pro 256GB", "Apple", "mobiles", 119900, 134900, True,
      [("Display", "6.1\" Super Retina XDR"), ("Processor", "A18 Pro"), ("Camera", "48MP Main"), ("Storage", "256GB")],
      ["photo-1716882173326-04d822f142a8"], ["smartphone", "apple", "iphone"]),
     # Audio
