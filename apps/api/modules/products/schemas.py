@@ -14,6 +14,7 @@ class CategoryBase(BaseModel):
     parent_id: Optional[str] = None
     slug: Optional[str] = None
     position: int = 0
+    image_url: Optional[str] = None
 
 
 class CategoryCreate(CategoryBase):
@@ -51,6 +52,8 @@ class ProductVariantBase(BaseModel):
     name: str
     sku: Optional[str] = None
     price: int = Field(..., gt=0, description="Selling price in paise")
+    attributes: Optional[dict] = None
+    is_active: bool = True
 
 
 class ProductVariantCreate(ProductVariantBase):
@@ -61,6 +64,9 @@ class ProductVariantUpdate(BaseModel):
     name: Optional[str] = None
     sku: Optional[str] = None
     price: Optional[int] = Field(default=None, gt=0)
+    attributes: Optional[dict] = None
+    is_active: Optional[bool] = None
+    id: Optional[str] = None
 
 
 class ProductVariantResponse(ProductVariantBase):
@@ -91,16 +97,22 @@ class ProductBase(BaseModel):
     category_id: Optional[str] = None
     specs: Optional[List[SpecRow]] = None
     tags: Optional[List[str]] = None
+    options: Optional[List[dict]] = None
+    variants: Optional[List[ProductVariantUpdate]] = None
 
 
 class ProductCreate(ProductBase):
     media: Optional[List[ProductMediaCreate]] = None
     initial_stock: Optional[int] = Field(default=None, ge=0)
+    variants: Optional[List[ProductVariantCreate]] = None
 
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
     price: Optional[int] = Field(default=None, gt=0)
+    attributes: Optional[dict] = None
+    is_active: Optional[bool] = None
+    id: Optional[str] = None
     description: Optional[str] = None
     sku: Optional[str] = None
     mrp: Optional[int] = None
@@ -113,6 +125,8 @@ class ProductUpdate(BaseModel):
     category_id: Optional[str] = None
     specs: Optional[List[SpecRow]] = None
     tags: Optional[List[str]] = None
+    options: Optional[List[dict]] = None
+    variants: Optional[List[ProductVariantUpdate]] = None
 
 
 class ProductResponse(ProductBase):
