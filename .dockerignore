@@ -1,7 +1,10 @@
-﻿.git
+.git
 node_modules
+**/node_modules
 .vercel
 .next
+**/.next
 .venv
 __pycache__
+**/__pycache__
 backups
