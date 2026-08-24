@@ -35,6 +35,7 @@ export interface ProductVariant {
 }
 
 export interface Product {
+  status?: string;
   /** Database UUID — used for cart/wishlist/compare API calls. */
   id: string;
   /** slug (preferred) or id — used in /product/[id] URLs. */

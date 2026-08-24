@@ -105,7 +105,8 @@ export default function ProductDetail({
   const displayPrice = selectedVariant ? selectedVariant.price : product.price;
 
   const stockAvailable = product.stockAvailable;
-  const outOfStock = !product.inStock || stockAvailable === 0;
+  const isComingSoon = product.status === "COMING_SOON";
+  const outOfStock = !isComingSoon && (!product.inStock || stockAvailable === 0);
   const lowStock = !outOfStock && stockAvailable != null && stockAvailable > 0 && stockAvailable <= 5;
   const maxQty = stockAvailable != null && stockAvailable > 0 ? stockAvailable : 10;
 
