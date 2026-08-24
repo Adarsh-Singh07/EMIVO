@@ -48,7 +48,6 @@ const NAV_SECTIONS: Array<{
     label: "People",
     links: [
       { href: "/customers", label: "Customers", icon: UserCheck },
-      { href: "/users", label: "Users", icon: Users },
     ],
   },
   {

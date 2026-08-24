@@ -411,6 +411,71 @@ export default function SettingsPage() {
           </div>
         )}
       </form>
+
+      {/* Change Password Section */}
+      <ChangePassword />
     </div>
   );
 }
+
+function ChangePassword() {
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPw !== confirmPw) { toast.error("Passwords do not match"); return; }
+    if (newPw.length < 8) { toast.error("New password must be at least 8 characters"); return; }
+    setSaving(true);
+    try {
+      await apiClient.post("/auth/change-password", { current_password: currentPw, new_password: newPw });
+      toast.success("Password changed successfully");
+      setCurrentPw(""); setNewPw(""); setConfirmPw("");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to change password");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputClass = "w-full h-11 px-4 rounded-xl bg-white border border-neutral-200 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-amber-500";
+  const labelClass = "block text-sm font-semibold text-neutral-700 mb-1.5";
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <section className="space-y-4 rounded-2xl border border-neutral-200 bg-white p-6">
+        <div className="flex items-center gap-2">
+          <Shield className="h-5 w-5 text-amber-500" />
+          <h2 className="text-base font-bold text-neutral-900">Change Password</h2>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div>
+            <label className={labelClass}>Current Password</label>
+            <input type="password" className={inputClass} placeholder="••••••••" value={currentPw} onChange={e => setCurrentPw(e.target.value)} required />
+          </div>
+          <div>
+            <label className={labelClass}>New Password</label>
+            <input type="password" className={inputClass} placeholder="••••••••" value={newPw} onChange={e => setNewPw(e.target.value)} required minLength={8} />
+          </div>
+          <div>
+            <label className={labelClass}>Confirm New Password</label>
+            <input type="password" className={inputClass} placeholder="••••••••" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} required minLength={8} />
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={saving}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 transition-all hover:from-amber-600 hover:to-orange-700 disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {saving ? "Changing..." : "Change Password"}
+          </button>
+        </div>
+      </section>
+    </form>
+  );
+}
+

@@ -13,6 +13,7 @@ class ProductStatus(str, enum.Enum):
     DRAFT = "DRAFT"
     ACTIVE = "ACTIVE"
     ARCHIVED = "ARCHIVED"
+    COMING_SOON = "COMING_SOON"
 
 
 class Product(Base):

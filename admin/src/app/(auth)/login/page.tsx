@@ -157,14 +157,6 @@ function LoginForm() {
       </form>
 
       {/* Footer */}
-      <FadeIn direction="up" delay={0.3} className="mt-8 text-center">
-        <p className="text-neutral-400 text-sm">
-          Don&apos;t have an account?{" "}
-          <Link href="/register" className="text-amber-500 hover:underline font-medium">
-            Sign up for {BRAND_CONFIG.name}
-          </Link>
-        </p>
-      </FadeIn>
     </motion.div>
   );
 }
