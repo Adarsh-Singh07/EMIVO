@@ -210,7 +210,7 @@ export default function ProductDetail({
                 }`}
                 aria-label={`View image ${i + 1}`}
               >
-                <Image src={src} alt="" fill sizes="80px" className="object-cover" />
+                <Image src={src} alt="" fill sizes="80px" className="object-contain" />
               </button>
             ))}
           </div>
@@ -221,7 +221,7 @@ export default function ProductDetail({
               fill
               priority
               sizes="(max-width: 1024px) 100vw, 50vw"
-              className="object-cover"
+              className="object-contain"
             />
             {product.discount > 0 && !selectedVariant && (
               <span className="absolute top-4 left-4 bg-green-600 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
@@ -361,7 +361,7 @@ export default function ProductDetail({
             <button
               onClick={buyNow}
               disabled={outOfStock || buying}
-              className="flex-1 h-16 inline-flex items-center justify-center gap-2 bg-white text-neutral-950 border-2 border-neutral-950 rounded-2xl text-lg font-semibold hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all active:scale-[0.98]"
+              className="flex-1 h-16 inline-flex items-center justify-center gap-2 bg-amber-400 text-amber-950 rounded-2xl text-lg font-bold hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all active:scale-[0.98]"
             >
               {buying ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
               Buy Now

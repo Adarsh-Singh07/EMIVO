@@ -161,7 +161,7 @@ export default function Header() {
               <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-neutral-950 text-white grid place-items-center font-bold text-[10px] sm:text-sm tracking-tighter">
                 EX
               </div>
-              <span className="text-lg sm:text-2xl font-bold tracking-tight">ELEKTRIX</span>
+              <span className="text-[16px] sm:text-2xl font-bold tracking-tight">ELEKTRIX</span>
             </div>
             <span className="hidden sm:block text-[10px] text-neutral-500 mt-0.5 ml-10">
               India&apos;s Premium Electronics Store
@@ -190,6 +190,8 @@ export default function Header() {
             <SearchBox />
           </div>
 
+          <div className="flex-1 lg:hidden" />
+
           {/* Mobile search shortcut */}
           <button
             className="md:hidden p-2"
@@ -198,8 +200,6 @@ export default function Header() {
           >
             <Search className="w-5 h-5" />
           </button>
-
-          <div className="flex-1 lg:hidden" />
 
           {/* Right icons */}
           <div className="flex items-center gap-1 sm:gap-2">
