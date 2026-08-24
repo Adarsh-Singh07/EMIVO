@@ -25,7 +25,8 @@ export default function ProductCard({ product }: { product: Product }) {
   const href = productHref(product);
   const wished = wishlist.has(product.id);
   const comparing = compareIds.includes(product.id);
-  const outOfStock = !product.inStock;
+  const isComingSoon = product.status === "COMING_SOON";
+  const outOfStock = !isComingSoon && !product.inStock;
 
   const handleWishlist = async () => {
     if (!user) {

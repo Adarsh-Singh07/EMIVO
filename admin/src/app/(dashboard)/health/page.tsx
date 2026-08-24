@@ -17,7 +17,7 @@ export default function HealthPage() {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiClient.get("/system/status", true);
+      const data = await apiClient.get("/system/status");
       setTelemetry(data);
     } catch (err: any) {
       setError(err?.message || "Failed to fetch live health metrics");
