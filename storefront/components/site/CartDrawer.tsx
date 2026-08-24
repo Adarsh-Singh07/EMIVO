@@ -13,13 +13,13 @@ export default function CartDrawer() {
   return (
     <>
       <div
-        className={`fixed inset-0 bg-black/40 z-50 transition-opacity ${
+        className={`fixed inset-0 bg-black/40 z-[60] transition-opacity ${
           drawerOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
         onClick={() => setDrawerOpen(false)}
       />
       <aside
-        className={`fixed top-0 right-0 h-full w-full sm:w-[420px] max-w-full bg-white z-50 shadow-2xl transform transition-transform ${
+        className={`fixed top-0 right-0 h-full w-full sm:w-[420px] max-w-full bg-white z-[60] shadow-2xl transform transition-transform ${
           drawerOpen ? "translate-x-0" : "translate-x-full"
         }`}
         inert={!drawerOpen}

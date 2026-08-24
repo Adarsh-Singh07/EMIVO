@@ -173,12 +173,15 @@ class CatalogService:
                 "EXISTS (SELECT 1 FROM inventory i WHERE i.product_id = p.id AND i.on_hand - i.reserved > 0)"
             )
         if q:
-            like = f"%{q}%"
-            filters.append(
-                "(p.name ILIKE :q OR p.brand ILIKE :q OR p.sku ILIKE :q OR p.description ILIKE :q "
-                "OR c.name ILIKE :q)"
-            )
-            params["q"] = like
+            terms = [t.strip() for t in q.split() if t.strip()]
+            if terms:
+                term_filters = []
+                for i, t in enumerate(terms):
+                    params[f"q_{i}"] = f"%{t}%"
+                    term_filters.append(
+                        f"(p.name ILIKE :q_{i} OR p.brand ILIKE :q_{i} OR p.sku ILIKE :q_{i} OR p.description ILIKE :q_{i} OR c.name ILIKE :q_{i})"
+                    )
+                filters.append("(" + " AND ".join(term_filters) + ")")
 
         order = {
             "price_asc": f"{EFFECTIVE_PRICE_SQL} ASC",

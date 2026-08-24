@@ -334,29 +334,29 @@ export default function ProductDetail({
             {outOfStock && <span className="text-sm font-medium text-red-600">Out of stock</span>}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 mt-5">
+          <div className="flex flex-col sm:flex-row gap-4 mt-6">
             {orderedOrderId ? (
               <Link
                 href={`/order-tracking?order=${orderedOrderId}`}
-                className="flex-1 h-12 inline-flex items-center justify-center gap-2 bg-blue-600 text-white rounded-full text-sm font-medium hover:bg-blue-700 transition-colors"
+                className="flex-1 h-14 inline-flex items-center justify-center gap-2 bg-blue-600 text-white rounded-2xl text-base font-semibold hover:bg-blue-700 transition-colors shadow-sm"
               >
-                <Truck className="w-4 h-4" /> Track Your Order
+                <Truck className="w-5 h-5" /> Track Your Order
               </Link>
             ) : null}
             <button
               onClick={addToCart}
               disabled={outOfStock || adding}
-              className="flex-1 h-12 inline-flex items-center justify-center gap-2 bg-neutral-950 text-white rounded-full text-sm font-medium hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 h-14 inline-flex items-center justify-center gap-2 bg-neutral-950 text-white rounded-2xl text-base font-semibold hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all active:scale-[0.98]"
             >
-              {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingBag className="w-4 h-4" />}
+              {adding ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShoppingBag className="w-5 h-5" />}
               Add to Cart
             </button>
             <button
               onClick={buyNow}
               disabled={outOfStock || buying}
-              className="flex-1 h-12 inline-flex items-center justify-center gap-2 bg-white text-neutral-950 border border-neutral-950 rounded-full text-sm font-medium hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 h-14 inline-flex items-center justify-center gap-2 bg-white text-neutral-950 border-2 border-neutral-950 rounded-2xl text-base font-semibold hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all active:scale-[0.98]"
             >
-              {buying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+              {buying ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
               Buy Now
             </button>
           </div>

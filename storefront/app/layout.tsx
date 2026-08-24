@@ -49,6 +49,7 @@ const organizationJsonLd = {
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: "ELEKTRIX — Premium Electronics Store",
+  applicationName: "ELEKTRIX",
   description:
     "Shop the latest electronics and manage your autonomous commerce operations at ELEKTRIX.",
   keywords: ["electronics", "laptops", "mobiles", "audio", "elektrix", "autonomous commerce"],
@@ -63,7 +64,7 @@ export const metadata: Metadata = {
     title: "ELEKTRIX",
   },
   // PWA — installable app with standalone display, icons and manifest.
-  manifest: "/manifest.webmanifest?v=2",
+  manifest: "/manifest.webmanifest?v=3",
   icons: {
     icon: "/icons/icon-192.png",
     apple: "/icons/icon-192.png",
