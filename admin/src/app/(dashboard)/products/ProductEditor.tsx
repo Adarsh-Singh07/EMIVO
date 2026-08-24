@@ -131,7 +131,8 @@ export function ProductEditor({ productId }: { productId?: string }) {
   const [uploading, setUploading] = useState(false);
 
   // Variants
-  const [variants, setVariants] = useState<VariantRowState[]>([]);
+  const [variants, setVariants] = useState<any[]>([]);
+  const [options, setOptions] = useState<Array<{ name: string; values: string[] }>>([]);
 
   const loadProduct = useCallback(async () => {
     if (!productId) return;
@@ -156,9 +157,18 @@ export function ProductEditor({ productId }: { productId?: string }) {
       setFeatured(!!p.featured);
       setTagsText((p.tags || []).join(", "));
       setSpecs((p.specs || []).map((s, i) => ({ key: `orig-${i}`, name: s.name, value: s.value })));
+      setOptions(p.options || []);
       setMedia([...(p.media || [])].sort((a, b) => (a.position || 0) - (b.position || 0)));
       setVariants(
-        (p.variants || []).map((v) => ({ key: `v-${v.id}`, id: v.id, name: v.name, sku: v.sku || "", price: paiseToRupeeInput(v.price) }))
+        (p.variants || []).map((v) => ({ 
+          key: `v-${v.id}`, 
+          id: v.id, 
+          name: v.name, 
+          sku: v.sku || "", 
+          price: paiseToRupeeInput(v.price), 
+          attributes: v.attributes || {},
+          is_active: v.is_active !== false 
+        }))
       );
     } catch (err) {
       setLoadError(err instanceof ApiError ? `${err.message}${err.code ? ` (${err.code})` : ""}` : "Failed to load product");
@@ -684,68 +694,15 @@ export function ProductEditor({ productId }: { productId?: string }) {
             </div>
           </section>
 
-          {/* Variants */}
-          <section className="space-y-4 rounded-2xl border border-neutral-200 bg-white p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-bold text-neutral-900">Variants</h2>
-                <p className="text-xs text-neutral-500">
-                  Named options with their own price{!isEdit && " — created together with the product"}.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setVariants((prev) => [...prev, { key: `v-${Date.now()}`, name: "", sku: "", price: "" }])}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100"
-              >
-                <Plus className="h-3.5 w-3.5" /> Add Variant
-              </button>
-            </div>
-            {variants.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-neutral-200 p-4 text-center text-xs text-neutral-400">No variants.</p>
-            ) : (
-              <div className="space-y-2">
-                {variants
-                  .filter((v) => !v._deleted)
-                  .map((row) => (
-                    <div key={row.key} className="flex flex-col gap-2 sm:flex-row">
-                      <input
-                        className={`${inputClass} h-10 flex-1`}
-                        placeholder="Variant name (e.g. Red / XL)"
-                        value={row.name}
-                        onChange={(e) => setVariants((prev) => prev.map((r) => (r.key === row.key ? { ...r, name: e.target.value } : r)))}
-                      />
-                      <input
-                        className={`${inputClass} h-10 sm:w-40`}
-                        placeholder="SKU (optional)"
-                        value={row.sku}
-                        onChange={(e) => setVariants((prev) => prev.map((r) => (r.key === row.key ? { ...r, sku: e.target.value } : r)))}
-                      />
-                      <div className="relative sm:w-36">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400">₹</span>
-                        <input
-                          className={`${inputClass} h-10 pl-7`}
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="Price"
-                          value={row.price}
-                          onChange={(e) => setVariants((prev) => prev.map((r) => (r.key === row.key ? { ...r, price: e.target.value } : r)))}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setVariants((prev) => prev.map((r) => (r.key === row.key ? { ...r, _deleted: true } : r)))}
-                        className="self-center rounded-lg p-2 text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-500"
-                        title="Delete variant"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-              </div>
-            )}
-          </section>
+          {/* Variants Builder */}
+          <VariantBuilder
+            options={options}
+            setOptions={setOptions}
+            variants={variants}
+            setVariants={setVariants}
+            basePrice={price}
+            baseSku={sku}
+          />
         </div>
 
         {/* Side column */}
