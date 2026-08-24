@@ -1,6 +1,6 @@
 #!/bin/bash
 echo "Waiting for GitHub action to finish..."
-while gh run view 32749853669 --json status -q ".status" | grep -q "in_progress"; do
+while gh run view 32775391288 --json status -q ".status" | grep -q "in_progress"; do
   sleep 10
 done
 echo "GitHub action finished. Pulling images..."
