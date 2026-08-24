@@ -16,7 +16,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # Drop unique constraint on product_id
-    op.drop_constraint('inventory_product_id_key', 'inventory', type_='unique')
+    op.drop_constraint('uq_inventory_product', 'inventory', type_='unique')
     # Create index on product_id
     op.create_index('ix_inventory_product_id', 'inventory', ['product_id'], unique=False)
     # Create unique constraint on variant_id
@@ -25,4 +25,4 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_constraint('uq_inventory_variant_id', 'inventory', type_='unique')
     op.drop_index('ix_inventory_product_id', table_name='inventory')
-    op.create_unique_constraint('inventory_product_id_key', 'inventory', ['product_id'])
+    op.create_unique_constraint('uq_inventory_product', 'inventory', ['product_id'])
