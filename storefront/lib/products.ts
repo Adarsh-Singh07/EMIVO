@@ -679,7 +679,7 @@ export async function fetchApiProducts(
 export async function getApiProductById(idOrSlug: string): Promise<Product | null> {
   try {
     const res = await fetch(`${API_BASE}/store/products/${encodeURIComponent(idOrSlug)}`, {
-      next: { revalidate: 60 },
+      cache: "no-store",
       headers: { "Content-Type": "application/json" },
     });
     if (res.ok) {
