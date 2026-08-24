@@ -20,6 +20,8 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "media.elektrix.in" },
       { protocol: "https", hostname: "pub-*.r2.dev" },
       { protocol: "https", hostname: "picsum.photos" },
+      { protocol: "https", hostname: "**" },
+      { protocol: "http", hostname: "**" },
     ],
   },
 };

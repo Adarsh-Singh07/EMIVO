@@ -521,6 +521,7 @@ export function ProductEditor({ productId }: { productId?: string }) {
                 <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value)}>
                   <option value="DRAFT">Draft</option>
                   <option value="ACTIVE">Active</option>
+                  <option value="COMING_SOON">Coming Soon</option>
                   <option value="ARCHIVED">Archived</option>
                 </select>
               </div>

@@ -86,7 +86,7 @@ class ProductBase(BaseModel):
     offer_starts_at: Optional[datetime] = None
     offer_ends_at: Optional[datetime] = None
     brand: Optional[str] = None
-    status: Optional[str] = Field(default="ACTIVE", pattern="^(DRAFT|ACTIVE|ARCHIVED)$")
+    status: Optional[str] = Field(default="ACTIVE", pattern="^(DRAFT|ACTIVE|ARCHIVED|COMING_SOON)$")
     featured: bool = False
     category_id: Optional[str] = None
     specs: Optional[List[SpecRow]] = None
@@ -108,7 +108,7 @@ class ProductUpdate(BaseModel):
     offer_starts_at: Optional[datetime] = None
     offer_ends_at: Optional[datetime] = None
     brand: Optional[str] = None
-    status: Optional[str] = Field(default=None, pattern="^(DRAFT|ACTIVE|ARCHIVED)$")
+    status: Optional[str] = Field(default=None, pattern="^(DRAFT|ACTIVE|ARCHIVED|COMING_SOON)$")
     featured: Optional[bool] = None
     category_id: Optional[str] = None
     specs: Optional[List[SpecRow]] = None
