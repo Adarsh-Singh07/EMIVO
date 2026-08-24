@@ -145,10 +145,10 @@ export default function Header() {
       <TopRibbon />
 
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-neutral-100">
-        <div className="max-w-[1400px] mx-auto px-4 h-[72px] flex items-center gap-3 lg:gap-5">
+        <div className="max-w-[1400px] mx-auto px-2 sm:px-4 h-[72px] flex items-center gap-1 sm:gap-3 lg:gap-5">
           {/* Mobile hamburger */}
           <button
-            className="lg:hidden p-2 -ml-2"
+            className="lg:hidden p-2 -ml-1"
             onClick={() => setMobileOpen((v) => !v)}
             aria-label="Menu"
           >
@@ -158,10 +158,10 @@ export default function Header() {
           {/* Logo + tagline */}
           <Link href="/" className="flex flex-col items-start shrink-0 leading-none">
             <div className="flex items-center gap-1.5">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-neutral-950 text-white grid place-items-center font-bold text-xs sm:text-sm tracking-tighter">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-neutral-950 text-white grid place-items-center font-bold text-[10px] sm:text-sm tracking-tighter">
                 EX
               </div>
-              <span className="text-xl sm:text-2xl font-bold tracking-tight">ELEKTRIX</span>
+              <span className="text-lg sm:text-2xl font-bold tracking-tight">ELEKTRIX</span>
             </div>
             <span className="hidden sm:block text-[10px] text-neutral-500 mt-0.5 ml-10">
               India&apos;s Premium Electronics Store
