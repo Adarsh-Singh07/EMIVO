@@ -32,6 +32,8 @@ export interface ProductVariant {
   name: string;
   sku?: string | null;
   price: number;
+  attributes?: Record<string, string>;
+  is_active?: boolean;
 }
 
 export interface ProductFull {
@@ -43,6 +45,8 @@ export interface ProductFull {
   description?: string | null;
   category_id?: string | null;
   price: number;
+  attributes?: Record<string, string>;
+  is_active?: boolean;
   mrp?: number | null;
   sale_price?: number | null;
   offer_starts_at?: string | null;
@@ -51,6 +55,7 @@ export interface ProductFull {
   featured?: boolean;
   specs?: Array<{ name: string; value: string }> | null;
   tags?: string[] | null;
+  options?: any[] | null;
   media?: ProductMedia[] | null;
   variants?: ProductVariant[] | null;
 }
