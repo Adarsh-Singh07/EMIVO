@@ -299,11 +299,12 @@ async def main() -> None:
 
             # inventory: varied stock, a couple of out-of-stock/low-stock rows
             stock = 0 if idx == 5 else (3 if idx % 7 == 3 else 20 + (idx * 7) % 60)
-            await s.execute(text("""
-                INSERT INTO inventory (id, product_id, business_id, on_hand, reserved, low_stock_threshold)
-                VALUES (:i, :p, :b, :oh, 0, 5)
-                ON CONFLICT (product_id) DO NOTHING
-            """), {"i": str(uuidlib.uuid4()), "p": pid, "b": business_id, "oh": stock})
+            inv_exists = (await s.execute(text("SELECT id FROM inventory WHERE product_id = :p AND variant_id IS NULL"), {"p": pid})).scalar()
+            if not inv_exists:
+                await s.execute(text("""
+                    INSERT INTO inventory (id, product_id, business_id, on_hand, reserved, low_stock_threshold)
+                    VALUES (:i, :p, :b, :oh, 0, 5)
+                """), {"i": str(uuidlib.uuid4()), "p": pid, "b": business_id, "oh": stock})
         await s.commit()
         print(f"[seed] products ready ({len(PRODUCTS)})")
 
