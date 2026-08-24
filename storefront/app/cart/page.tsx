@@ -28,7 +28,7 @@ export default function CartPage() {
 
   if (loading && lines.length === 0) {
     return (
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-24 lg:pb-8">
         <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-8">Your Cart</h1>
         <div className="space-y-4">
           <LineSkeleton />
@@ -40,7 +40,7 @@ export default function CartPage() {
 
   if (lines.length === 0) {
     return (
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-24 lg:pb-8">
         <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-8">Your Cart</h1>
         <div className="text-center py-24 border border-dashed border-neutral-200 rounded-3xl">
           <ShoppingBag className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
@@ -57,7 +57,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-24 lg:pb-8">
       <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-2">Your Cart</h1>
       <p className="text-sm text-neutral-500 mb-8">
         {count} {count === 1 ? "item" : "items"}
