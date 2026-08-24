@@ -40,7 +40,10 @@ class Inventory(Base, TimestampMixin):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     product_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("products.id", ondelete="CASCADE"), nullable=False, unique=True
+        String(36), ForeignKey("products.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    variant_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("product_variants.id", ondelete="CASCADE"), nullable=True, unique=True
     )
     business_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     on_hand: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
