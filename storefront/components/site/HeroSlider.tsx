@@ -5,7 +5,10 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { HERO_SLIDES } from "@/lib/products";
 
-const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
+const inr = (n?: number) => {
+  if (typeof n !== "number") return "";
+  return `₹${n.toLocaleString("en-IN")}`;
+};
 
 /**
  * Full-bleed promotional banner (Flipkart-style).
