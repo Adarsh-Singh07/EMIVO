@@ -8,7 +8,7 @@ from modules.products.schemas import (
     ProductCreate, ProductResponse, ProductUpdate,
     ProductVariantCreate, ProductVariantResponse, ProductVariantUpdate,
     ProductMediaCreate, ProductMediaResponse,
-    CategoryCreate, CategoryResponse,
+    CategoryCreate, CategoryResponse, CategoryUpdate,
 )
 from modules.products.service import ProductService
 
@@ -147,6 +147,22 @@ async def reorder_media(
 # --------------------------------------------------------------------------
 
 @router.post("/categories", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
+@router.put("/categories/{category_id}", response_model=CategoryResponse)
+async def update_category(
+    category_id: str,
+    payload: CategoryUpdate,
+    service: ProductService = Depends(get_product_service),
+    current_user: User = Depends(require_roles(STAFF))
+) -> Any:
+    return await service.update_category(category_id, payload)
+
+@router.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_category(
+    category_id: str,
+    service: ProductService = Depends(get_product_service),
+    current_user: User = Depends(require_roles(STAFF))
+) -> None:
+    await service.delete_category(category_id)
 async def create_category(
     payload: CategoryCreate,
     service: ProductService = Depends(get_product_service),

@@ -266,8 +266,42 @@ class ProductService:
             slug=_slugify(data.name),
             parent_id=data.parent_id,
             position=data.position,
+            image_url=data.image_url,
         )
         self.session.add(category)
         await self.session.commit()
         await self.session.refresh(category)
         return category
+
+    async def update_category(self, category_id: str, data) -> "Category":
+        from modules.products.models import Category
+        from sqlalchemy import select
+        business_id = await self._get_current_business_id()
+        result = await self.session.execute(
+            select(Category).where(Category.id == category_id, Category.business_id == business_id)
+        )
+        category = result.scalar_one_or_none()
+        if not category:
+            raise DomainException("Category not found", code="NOT_FOUND", status_code=404)
+        
+        update_data = data.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(category, key, value)
+            
+        await self.session.commit()
+        await self.session.refresh(category)
+        return category
+
+    async def delete_category(self, category_id: str) -> None:
+        from modules.products.models import Category
+        from sqlalchemy import select
+        business_id = await self._get_current_business_id()
+        result = await self.session.execute(
+            select(Category).where(Category.id == category_id, Category.business_id == business_id)
+        )
+        category = result.scalar_one_or_none()
+        if not category:
+            raise DomainException("Category not found", code="NOT_FOUND", status_code=404)
+        
+        await self.session.delete(category)
+        await self.session.commit()
