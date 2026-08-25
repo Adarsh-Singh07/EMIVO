@@ -31,7 +31,7 @@ export default function HeroSlider({ slides = HERO_SLIDES }: { slides?: any[] })
   return (
     <section className="relative overflow-hidden">
       <div className="relative bg-neutral-950">
-        {/* Horizontal background image */}
+        <Link href={s.link || "/shop"} className="absolute inset-0 z-0 block">
         <img
           key={`bg-${s.id}`}
           src={s.img}
@@ -40,11 +40,12 @@ export default function HeroSlider({ slides = HERO_SLIDES }: { slides?: any[] })
         />
         {/* Legibility overlay — darker on the text side */}
         <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/65 to-black/20" />
+        </Link>
 
         {/* Content */}
-        <div className="relative max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="relative z-10 max-w-[1400px] pointer-events-none mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center min-h-[320px] sm:min-h-[440px] lg:min-h-[560px] py-8 sm:py-10">
-            <div key={`t-${s.id}`} className="max-w-xl text-white">
+            <div key={`t-${s.id}`} className="max-w-xl text-white pointer-events-auto">
               <span className="inline-block text-[10px] sm:text-xs uppercase tracking-[0.2em] text-white/70 mb-3 sm:mb-4">
                 {s.eyebrow}
               </span>

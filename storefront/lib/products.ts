@@ -764,3 +764,14 @@ export async function fetchStoreConfigServer(): Promise<any | null> {
     return null;
   }
 }
+
+
+export async function getActiveCoupons(): Promise<any[]> {
+  try {
+    const res = await fetch(`${API_BASE}/store/coupons`, { next: { revalidate: 60 } });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
