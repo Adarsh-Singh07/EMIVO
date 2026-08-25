@@ -31,7 +31,7 @@ class CategoryCreate(CategoryBase):
 class CategoryResponse(CategoryBase):
     id: str
     business_id: str
-    children: Optional[List["CategoryResponse"]] = None
+    # children intentionally omitted to prevent lazy load crashes
 
     class Config:
         from_attributes = True
@@ -150,4 +150,4 @@ class ProductResponse(ProductBase):
         from_attributes = True
 
 
-CategoryResponse.model_rebuild()
+

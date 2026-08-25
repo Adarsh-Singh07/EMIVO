@@ -260,7 +260,6 @@ class ProductService:
     async def create_category(self, data) -> "Category":
         from modules.products.models import Category
         from sqlalchemy import select
-        from sqlalchemy.orm import selectinload
         business_id = await self._get_current_business_id()
         category = Category(
             business_id=business_id,
@@ -273,22 +272,16 @@ class ProductService:
         self.session.add(category)
         await self.session.commit()
         # Re-fetch to ensure children are loaded for Pydantic
-        res = await self.session.execute(
-            select(Category).options(selectinload(Category.children)).where(Category.id == category.id)
-        )
-        return res.scalar_one()
+        await self.session.refresh(category)
+        return category
 
     async def update_category(self, category_id: str, data) -> "Category":
         from modules.products.models import Category
         from sqlalchemy import select
-        from sqlalchemy.orm import selectinload
         from sqlalchemy import select
-        from sqlalchemy.orm import selectinload
         business_id = await self._get_current_business_id()
         result = await self.session.execute(
-            select(Category)
-            .options(selectinload(Category.children))
-            .where(Category.id == category_id, Category.business_id == business_id)
+            select(Category).where(Category.id == category_id, Category.business_id == business_id)
         )
         category = result.scalar_one_or_none()
         if not category:
@@ -300,15 +293,12 @@ class ProductService:
             
         await self.session.commit()
         # Re-fetch to ensure children are loaded for Pydantic
-        res = await self.session.execute(
-            select(Category).options(selectinload(Category.children)).where(Category.id == category.id)
-        )
-        return res.scalar_one()
+        await self.session.refresh(category)
+        return category
 
     async def delete_category(self, category_id: str) -> None:
         from modules.products.models import Category
         from sqlalchemy import select
-        from sqlalchemy.orm import selectinload
         from sqlalchemy import select
         business_id = await self._get_current_business_id()
         result = await self.session.execute(
