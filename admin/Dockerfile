@@ -9,7 +9,7 @@ WORKDIR /app
 ARG NEXT_PUBLIC_API_URL=https://api.elektrix.in/api/v1
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
-COPY admin/package.json admin/package-lock.json ./
+COPY admin/package.json admin/package-lock.json admin/.npmrc ./
 RUN npm ci --no-audit --no-fund
 
 COPY admin/ .
