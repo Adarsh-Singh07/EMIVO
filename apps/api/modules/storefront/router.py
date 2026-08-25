@@ -110,3 +110,45 @@ async def store_config(session: AsyncSession = Depends(optional_db_context)):
         "banner": db_cfg.get("banner"),
         "announcement": db_cfg.get("announcement"),
     }
+
+from pydantic import BaseModel
+class ContactForm(BaseModel):
+    name: str
+    email: str
+    mobile: str
+    subject: str
+    message: str
+
+@router.post("/contact")
+async def handle_contact_form(form: ContactForm):
+    from modules.notifications.providers import get_email_provider
+    from core.config import settings
+    
+    provider = get_email_provider()
+    
+    # 1. Send query to support
+    admin_subject = f"Support Request: {form.subject} (from {form.name})"
+    admin_html = f"""
+    <h2>New Contact Form Submission</h2>
+    <p><strong>Name:</strong> {form.name}</p>
+    <p><strong>Email:</strong> {form.email}</p>
+    <p><strong>Mobile:</strong> {form.mobile}</p>
+    <p><strong>Subject:</strong> {form.subject}</p>
+    <h3>Message:</h3>
+    <p>{form.message}</p>
+    """
+    support_email = settings.email_from
+    await provider.send_email(to_email=support_email, subject=admin_subject, html=admin_html)
+    
+    # 2. Send confirmation to user
+    user_subject = f"We received your message: {form.subject}"
+    user_html = f"""
+    <h2>Hi {form.name},</h2>
+    <p>Thank you for reaching out to us. We have received your message regarding "<strong>{form.subject}</strong>" and our support team will get back to you within 24 hours.</p>
+    <p>For urgent queries, please call us at +91 85398 38942.</p>
+    <br>
+    <p>Best regards,<br>The Elektrix Team</p>
+    """
+    await provider.send_email(to_email=form.email, subject=user_subject, html=user_html)
+    
+    return {"status": "ok"}
