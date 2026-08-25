@@ -131,12 +131,12 @@ export default async function Home() {
 
       {/* 4. Promo tiles */}
       <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        <div className="flex overflow-x-auto scrollbar-hide gap-4 md:gap-6 pb-4 snap-x snap-mandatory">
           {(config?.promo_tiles?.length ? config.promo_tiles : PROMO_TILES).map((tile: any) => (
             <Link
               key={tile.title}
               href={tile.link}
-              className="group relative h-56 md:h-64 rounded-2xl overflow-hidden block"
+              className="group relative h-56 md:h-64 w-[280px] md:w-[calc(33.333%-16px)] shrink-0 snap-start rounded-2xl overflow-hidden block"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img

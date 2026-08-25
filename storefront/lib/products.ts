@@ -22,6 +22,7 @@ export interface Category {
   name: string;
   icon: string;
   image_url?: string;
+  keywords?: string;
 }
 
 export interface ProductSpec {
@@ -46,6 +47,8 @@ export interface Product {
   category: string;
   categoryName?: string;
   brand: string;
+  return_policy?: string;
+  warranty_info?: string;
   /** Effective selling price in paise (authoritative). */
   price: number;
   /** MRP in paise. */

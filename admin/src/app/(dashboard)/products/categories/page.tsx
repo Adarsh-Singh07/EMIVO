@@ -10,6 +10,8 @@ interface Category {
   name: string;
   slug: string;
   image_url?: string;
+  icon?: string;
+  keywords?: string;
   position: number;
 }
 
@@ -44,6 +46,17 @@ export default function CategoriesPage() {
       loadCategories();
     } catch (err) {
       toast.error("Failed to create category");
+    }
+  };
+
+
+  const handleUpdate = async (categoryId: string, field: string, value: string) => {
+    try {
+      await apiClient.put(`/products/categories/${categoryId}`, { [field]: value });
+      toast.success("Updated");
+      loadCategories();
+    } catch (err) {
+      toast.error("Failed to update");
     }
   };
 
@@ -105,7 +118,8 @@ export default function CategoriesPage() {
             <tr>
               <th className="px-6 py-4 font-medium text-neutral-500">Image</th>
               <th className="px-6 py-4 font-medium text-neutral-500">Name</th>
-              <th className="px-6 py-4 font-medium text-neutral-500">Slug</th>
+              <th className="px-6 py-4 font-medium text-neutral-500">Icon</th>
+              <th className="px-6 py-4 font-medium text-neutral-500">Keywords</th>
               <th className="px-6 py-4 font-medium text-neutral-500 text-right">Actions</th>
             </tr>
           </thead>
@@ -137,7 +151,24 @@ export default function CategoriesPage() {
                   </label>
                 </td>
                 <td className="px-6 py-4 font-medium text-neutral-900">{c.name}</td>
-                <td className="px-6 py-4 text-neutral-500">{c.slug}</td>
+                <td className="px-6 py-4">
+                  <input
+                    type="text"
+                    defaultValue={c.icon || ""}
+                    onBlur={(e) => { if (e.target.value !== c.icon) handleUpdate(c.id, "icon", e.target.value); }}
+                    className="w-full text-sm border-neutral-200 rounded-lg px-2 py-1"
+                    placeholder="e.g. Smartphone"
+                  />
+                </td>
+                <td className="px-6 py-4">
+                  <input
+                    type="text"
+                    defaultValue={c.keywords || ""}
+                    onBlur={(e) => { if (e.target.value !== c.keywords) handleUpdate(c.id, "keywords", e.target.value); }}
+                    className="w-full text-sm border-neutral-200 rounded-lg px-2 py-1"
+                    placeholder="e.g. mobile, phone"
+                  />
+                </td>
                 <td className="px-6 py-4 text-right">
                   <button onClick={() => handleDelete(c.id)} className="p-2 text-neutral-400 hover:text-red-600 transition-colors">
                     <Trash2 className="h-4 w-4" />

@@ -12,6 +12,8 @@ def _slugify(value: str) -> str:
 class CategoryBase(BaseModel):
     name: str
     parent_id: Optional[str] = None
+    icon: Optional[str] = None
+    keywords: Optional[str] = None
     slug: Optional[str] = None
     position: int = 0
     image_url: Optional[str] = None
@@ -102,6 +104,8 @@ class ProductBase(BaseModel):
     status: Optional[str] = Field(default="ACTIVE", pattern="^(DRAFT|ACTIVE|ARCHIVED|COMING_SOON)$")
     featured: bool = False
     category_id: Optional[str] = None
+    return_policy: Optional[str] = None
+    warranty_info: Optional[str] = None
     specs: Optional[List[SpecRow]] = None
     tags: Optional[List[str]] = None
     options: Optional[List[dict]] = None
@@ -130,6 +134,8 @@ class ProductUpdate(BaseModel):
     status: Optional[str] = Field(default=None, pattern="^(DRAFT|ACTIVE|ARCHIVED|COMING_SOON)$")
     featured: Optional[bool] = None
     category_id: Optional[str] = None
+    return_policy: Optional[str] = None
+    warranty_info: Optional[str] = None
     specs: Optional[List[SpecRow]] = None
     tags: Optional[List[str]] = None
     options: Optional[List[dict]] = None

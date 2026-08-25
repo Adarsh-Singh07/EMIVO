@@ -47,6 +47,8 @@ export interface ProductFull {
   slug?: string | null;
   sku?: string | null;
   brand?: string | null;
+  return_policy?: string | null;
+  warranty_info?: string | null;
   description?: string | null;
   category_id?: string | null;
   price: number;
@@ -120,6 +122,8 @@ export function ProductEditor({ productId }: { productId?: string }) {
   // Form state
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
+  const [returnPolicy, setReturnPolicy] = useState("");
+  const [warrantyInfo, setWarrantyInfo] = useState("");
   const [sku, setSku] = useState("");
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -155,6 +159,8 @@ export function ProductEditor({ productId }: { productId?: string }) {
       setCategories(flattenCategories(cats));
       setName(p.name || "");
       setBrand(p.brand || "");
+      setReturnPolicy(p.return_policy || "");
+      setWarrantyInfo(p.warranty_info || "");
       setSku(p.sku || "");
       setDescription(p.description || "");
       setCategoryId(p.category_id || "");
@@ -304,6 +310,8 @@ export function ProductEditor({ productId }: { productId?: string }) {
       price: rupeesToPaise(price) ?? 0,
     };
     if (brand.trim()) payload.brand = brand.trim();
+    if (returnPolicy.trim()) payload.return_policy = returnPolicy.trim();
+    if (warrantyInfo.trim()) payload.warranty_info = warrantyInfo.trim();
     if (sku.trim()) payload.sku = sku.trim();
     payload.description = description.trim() || null;
     payload.status = status;
@@ -494,6 +502,14 @@ export function ProductEditor({ productId }: { productId?: string }) {
               <div>
                 <label className={labelClass}>Brand</label>
                 <input className={inputClass} value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Havells" />
+              </div>
+              <div>
+                <label className={labelClass}>Return Policy</label>
+                <input className={inputClass} value={returnPolicy} onChange={(e) => setReturnPolicy(e.target.value)} placeholder="e.g. 7-day easy returns" />
+              </div>
+              <div>
+                <label className={labelClass}>Warranty Info</label>
+                <input className={inputClass} value={warrantyInfo} onChange={(e) => setWarrantyInfo(e.target.value)} placeholder="e.g. 1-year brand warranty" />
               </div>
               <div>
                 <label className={labelClass}>SKU</label>
