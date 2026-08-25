@@ -18,6 +18,8 @@ class StoreCategory(BaseModel):
     parent_id: Optional[str] = None
     product_count: int = 0
     image_url: Optional[str] = None
+    icon: Optional[str] = None
+    keywords: Optional[str] = None
     children: List["StoreCategory"] = []
 
 
@@ -39,6 +41,8 @@ class StoreProduct(BaseModel):
     slug: Optional[str] = None
     description: Optional[str] = None
     brand: Optional[str] = None
+    return_policy: Optional[str] = None
+    warranty_info: Optional[str] = None
     sku: Optional[str] = None
     category_id: Optional[str] = None
     category_name: Optional[str] = None
@@ -76,5 +80,7 @@ class SearchSuggestion(BaseModel):
     name: str
     slug: Optional[str] = None
     brand: Optional[str] = None
+    return_policy: Optional[str] = None
+    warranty_info: Optional[str] = None
     image: Optional[str] = None
     effective_price: int

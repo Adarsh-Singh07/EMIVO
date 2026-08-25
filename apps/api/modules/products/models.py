@@ -41,6 +41,8 @@ class Product(Base):
     )
     featured = Column(Boolean, nullable=False, default=False, server_default="false")
     category_id = Column(String(36), ForeignKey("categories.id", ondelete="SET NULL"), nullable=True, index=True)
+    return_policy = Column(String(255), nullable=True)
+    warranty_info = Column(String(255), nullable=True)
     specs = Column(JSON, nullable=True)  # [{name, value}] specification rows
     tags = Column(JSON, nullable=True)   # [string]
 
@@ -73,6 +75,8 @@ class Category(Base):
     parent_id = Column(String, ForeignKey("categories.id"), nullable=True)
     position = Column(Integer, nullable=False, default=0, server_default="0")
     image_url = Column(String(1000), nullable=True)
+    icon = Column(String(255), nullable=True)
+    keywords = Column(String(500), nullable=True)
 
     products = relationship("Product", back_populates="category")
     children = relationship("Category", cascade="all, delete-orphan", lazy="selectin")

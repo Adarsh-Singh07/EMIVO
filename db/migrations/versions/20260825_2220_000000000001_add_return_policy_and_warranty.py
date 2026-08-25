@@ -21,8 +21,12 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.add_column('products', sa.Column('return_policy', sa.String(length=255), nullable=True))
     op.add_column('products', sa.Column('warranty_info', sa.String(length=255), nullable=True))
+    op.add_column('categories', sa.Column('icon', sa.String(length=255), nullable=True))
+    op.add_column('categories', sa.Column('keywords', sa.String(length=500), nullable=True))
 
 
 def downgrade() -> None:
     op.drop_column('products', 'warranty_info')
     op.drop_column('products', 'return_policy')
+    op.drop_column('categories', 'keywords')
+    op.drop_column('categories', 'icon')

@@ -51,6 +51,8 @@ class CatalogService:
             slug=d.get("slug"),
             description=d.get("description"),
             brand=d.get("brand"),
+            return_policy=d.get("return_policy"),
+            warranty_info=d.get("warranty_info"),
             sku=d.get("sku"),
             category_id=d.get("category_id"),
             category_name=d.get("category_name"),
@@ -124,7 +126,7 @@ class CatalogService:
         return out
 
     _BASE_SELECT = f"""
-        SELECT p.id, p.name, p.slug, p.description, p.brand, p.sku, p.price, p.mrp,
+        SELECT p.id, p.name, p.slug, p.description, p.brand, p.return_policy, p.warranty_info, p.sku, p.price, p.mrp,
                p.sale_price, p.status, p.featured, p.specs, p.tags, p.category_id,
                p.created_at, c.name AS category_name, c.slug AS category_slug,
                {EFFECTIVE_PRICE_SQL} AS effective_price
@@ -179,7 +181,7 @@ class CatalogService:
                 for i, t in enumerate(terms):
                     params[f"q_{i}"] = f"%{t}%"
                     term_filters.append(
-                        f"(p.name ILIKE :q_{i} OR p.brand ILIKE :q_{i} OR p.sku ILIKE :q_{i} OR p.description ILIKE :q_{i} OR c.name ILIKE :q_{i})"
+                        f"(p.name ILIKE :q_{i} OR p.brand ILIKE :q_{i} OR p.sku ILIKE :q_{i} OR p.description ILIKE :q_{i} OR c.name ILIKE :q_{i} OR c.keywords ILIKE :q_{i})"
                     )
                 filters.append("(" + " AND ".join(term_filters) + ")")
 
@@ -283,7 +285,7 @@ class CatalogService:
         rows = (
             await self.session.execute(
                 text("""
-                    SELECT c.id, c.name, c.slug, c.parent_id,
+                    SELECT c.id, c.name, c.slug, c.parent_id, c.image_url, c.icon, c.keywords,
                            (SELECT count(*) FROM products p
                             WHERE p.category_id = c.id AND p.status = 'ACTIVE') AS product_count
                     FROM categories c WHERE c.business_id = :bid
@@ -295,7 +297,7 @@ class CatalogService:
         nodes = {
             r["id"]: StoreCategory(
                 id=r["id"], name=r["name"], slug=r["slug"],
-                parent_id=r["parent_id"], product_count=r["product_count"],
+                parent_id=r["parent_id"], product_count=r["product_count"], image_url=r.get("image_url"), icon=r.get("icon"), keywords=r.get("keywords"),
             )
             for r in rows
         }
