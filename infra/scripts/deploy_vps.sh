@@ -53,6 +53,7 @@ bash infra/scripts/setup_ssl.sh || echo "  (cert step reported issues — contin
 echo "=== [7/9] Rollout ==="
 $COMPOSE up -d --remove-orphans
 sleep 8
+$COMPOSE exec -T nginx nginx -s reload || true
 
 echo "=== [8/9] Store seed (idempotent) ==="
 $COMPOSE run --rm api python /app/scripts/seed_store.py || {
