@@ -17,6 +17,13 @@ class CategoryBase(BaseModel):
     image_url: Optional[str] = None
 
 
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    parent_id: Optional[str] = None
+    slug: Optional[str] = None
+    position: Optional[int] = None
+    image_url: Optional[str] = None
+
 class CategoryCreate(CategoryBase):
     pass
 

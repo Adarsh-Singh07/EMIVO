@@ -72,6 +72,7 @@ class Category(Base):
     slug = Column(String(280), nullable=True)
     parent_id = Column(String, ForeignKey("categories.id"), nullable=True)
     position = Column(Integer, nullable=False, default=0, server_default="0")
+    image_url = Column(String(1000), nullable=True)
 
     products = relationship("Product", back_populates="category")
     children = relationship("Category", cascade="all, delete-orphan", lazy="selectin")
@@ -96,6 +97,7 @@ class ProductMedia(Base):
     product_id = Column(String, ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
     media_url = Column(String(1000), nullable=False)
     position = Column(Integer, nullable=False, default=0, server_default="0")
+    
     alt_text = Column(String(255), nullable=True)
 
     product = relationship("Product", back_populates="media")
