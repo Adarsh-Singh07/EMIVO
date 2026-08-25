@@ -5,7 +5,7 @@ const VALUES = [
   { icon: Truck, title: "Fast Delivery", desc: "Same-day dispatch and 1–3 day delivery across India." },
   { icon: BadgePercent, title: "Honest Pricing", desc: "Genuine deals on premium electronics, every day." },
   { icon: ShieldCheck, title: "100% Genuine", desc: "Every product sourced from authorised distributors." },
-  { icon: RotateCcw, title: "Easy Returns", desc: "10-day no-questions-asked return policy." },
+  { icon: RotateCcw, title: "Open Box Delivery", desc: "No returns after delivery." },
 ];
 
 export default function AboutPage() {
