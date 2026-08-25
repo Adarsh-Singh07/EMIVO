@@ -53,7 +53,7 @@ export default function PrivacyPolicyPage() {
         <p>
           If you have any questions about this Privacy Policy, please contact us at: <br/>
           <strong>Email:</strong> support@elektrix.in<br/>
-          <strong>Address:</strong> Apna Enterprise, DS1, 109, Near Indian Petrol Pump, Vijayipur, Gopalganj, Bihar - 841508
+          <strong>Address:</strong> Apna Enterprises, DS1, 109, Near Indian Petrol Pump, Vijayipur, Gopalganj, Bihar - 841508
         </p>
       </div>
     </div>

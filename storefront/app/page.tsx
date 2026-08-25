@@ -24,6 +24,7 @@ import {
   getCategories,
   getNewArrivals,
   getTrending,
+  fetchStoreConfigServer,
   PROMO_TILES,
 } from "@/lib/products";
 
@@ -48,16 +49,17 @@ const FEATURES = [
 export const revalidate = 300;
 
 export default async function Home() {
-  const [categories, newArrivals, trending] = await Promise.all([
+  const [categories, newArrivals, trending, config] = await Promise.all([
     getCategories(),
     getNewArrivals(8),
     getTrending(4),
+    fetchStoreConfigServer(),
   ]);
 
   return (
     <div>
       {/* 1. Hero slider with auto-rotation */}
-      <HeroSlider />
+      <HeroSlider slides={config?.hero_slides} />
 
       {/* 2. Features strip — horizontal scroll on mobile, grid on desktop */}
       <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -115,7 +117,7 @@ export default async function Home() {
       {/* 4. Promo tiles */}
       <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-          {PROMO_TILES.map((tile) => (
+          {(config?.promo_tiles?.length ? config.promo_tiles : PROMO_TILES).map((tile: any) => (
             <Link
               key={tile.title}
               href={tile.link}

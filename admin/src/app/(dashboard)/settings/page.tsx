@@ -33,6 +33,8 @@ interface StoreSettings {
   flat_shipping_paise: number;
   banner: StoreBanner | null;
   announcement: string | null;
+  hero_slides?: any[];
+  promo_tiles?: any[];
 }
 
 const inputClass =
@@ -102,6 +104,8 @@ export default function SettingsPage() {
   const [bannerLink, setBannerLink] = useState("");
   const [bannerActive, setBannerActive] = useState(false);
   const [announcement, setAnnouncement] = useState("");
+  const [heroSlides, setHeroSlides] = useState<any[]>([]);
+  const [promoTiles, setPromoTiles] = useState<any[]>([]);
 
   const loadBusiness = useCallback(async () => {
     try {
@@ -138,6 +142,8 @@ export default function SettingsPage() {
       setBannerLink(data.banner?.link || "");
       setBannerActive(!!data.banner?.active);
       setAnnouncement(data.announcement || "");
+      setHeroSlides(data.hero_slides || []);
+      setPromoTiles(data.promo_tiles || []);
     } catch (err) {
       setStoreError(err instanceof ApiError ? `${err.message}${err.code ? ` (${err.code})` : ""}` : "Could not load store settings");
     } finally {
@@ -186,6 +192,8 @@ export default function SettingsPage() {
         banner_link: bannerLink.trim() || null,
         banner_active: bannerActive,
         announcement: announcement.trim() || null,
+        hero_slides: heroSlides,
+        promo_tiles: promoTiles,
       };
       const data = await apiClient.put<StoreSettings>("/admin/store-settings", payload);
       setStore(data);
@@ -329,6 +337,34 @@ export default function SettingsPage() {
                 placeholder="e.g. Free shipping on orders above ₹999"
               />
               <p className="mt-1 text-xs text-neutral-400">Shown as a slim bar on the storefront. Empty clears it.</p>
+            </div>
+
+            
+            
+            {/* Hero Slides CRUD */}
+            <div className="pt-4 border-t border-neutral-100">
+              <h3 className="text-lg font-semibold mb-4">Home Page Sliding Banners</h3>
+              {heroSlides.map((slide, idx) => (
+                <div key={idx} className="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 mb-4">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-sm">Banner {idx + 1}</span>
+                    <button type="button" onClick={() => setHeroSlides(prev => prev.filter((_, i) => i !== idx))} className="text-red-500 text-sm">Delete</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <input className={inputClass} value={slide.eyebrow || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].eyebrow = e.target.value; return n; })} placeholder="Eyebrow text" />
+                    <input className={inputClass} value={slide.title || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].title = e.target.value; return n; })} placeholder="Title text" />
+                    <input className={inputClass} value={slide.subtitle || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].subtitle = e.target.value; return n; })} placeholder="Subtitle text" />
+                    <input className={inputClass} value={slide.cta || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].cta = e.target.value; return n; })} placeholder="Button text" />
+                    <input className={inputClass} value={slide.link || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].link = e.target.value; return n; })} placeholder="Button link URL" />
+                    <input className={inputClass} value={slide.img || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].img = e.target.value; return n; })} placeholder="Image URL" />
+                    <input className={inputClass} value={slide.bg || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].bg = e.target.value; return n; })} placeholder="Background CSS (e.g. bg-blue-100)" />
+                  </div>
+                  {slide.img && <img src={slide.img} className="w-full h-32 object-cover rounded-xl mt-2" />}
+                </div>
+              ))}
+              <button type="button" onClick={() => setHeroSlides(prev => [...prev, { id: Date.now() }])} className="text-sm font-semibold text-blue-600 bg-blue-50 px-4 py-2 rounded-xl">
+                + Add Banner
+              </button>
             </div>
 
             <div className="flex justify-end">
