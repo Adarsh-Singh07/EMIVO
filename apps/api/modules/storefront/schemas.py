@@ -17,6 +17,7 @@ class StoreCategory(BaseModel):
     slug: Optional[str] = None
     parent_id: Optional[str] = None
     product_count: int = 0
+    image_url: Optional[str] = None
     children: List["StoreCategory"] = []
 
 

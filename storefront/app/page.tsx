@@ -42,7 +42,7 @@ const FEATURES = [
   { icon: Truck, title: "Free Delivery", desc: "On all orders over ₹999" },
   { icon: BadgePercent, title: "No-Cost EMI", desc: "Available on 3, 6 & 12 months" },
   { icon: ShieldCheck, title: "100% Genuine", desc: "Brand warranty on everything" },
-  { icon: RotateCcw, title: "Easy Returns", desc: "10-day no-questions returns" },
+  { icon: RotateCcw, title: "Open Box Delivery", desc: "No returns after delivery", href: "/refund" },
 ];
 
 // ISR: the marketing frame is static; product sections revalidate frequently.
@@ -64,20 +64,31 @@ export default async function Home() {
       {/* 2. Features strip — horizontal scroll on mobile, grid on desktop */}
       <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 lg:grid lg:grid-cols-4 lg:overflow-visible">
-          {FEATURES.map((f) => (
-            <div
-              key={f.title}
-              className="flex items-center gap-3 rounded-2xl border border-neutral-100 bg-white px-4 py-3 min-w-[220px] sm:min-w-[240px] lg:min-w-0 shrink-0 lg:shrink"
-            >
-              <div className="w-9 h-9 rounded-full bg-neutral-950 text-white grid place-items-center shrink-0">
-                <f.icon className="w-4 h-4" />
+          {FEATURES.map((f) => {
+            const inner = (
+              <>
+                <div className="w-9 h-9 rounded-full bg-neutral-950 text-white grid place-items-center shrink-0">
+                  <f.icon className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold leading-tight">{f.title}</p>
+                  <p className="text-xs text-neutral-500 mt-0.5 leading-tight">{f.desc}</p>
+                </div>
+              </>
+            );
+
+            const className = "flex items-center gap-3 rounded-2xl border border-neutral-100 bg-white px-4 py-3 min-w-[220px] sm:min-w-[240px] lg:min-w-0 shrink-0 lg:shrink" + (f.href ? " hover:border-neutral-300 hover:shadow-sm transition-all" : "");
+
+            return f.href ? (
+              <Link key={f.title} href={f.href} className={className}>
+                {inner}
+              </Link>
+            ) : (
+              <div key={f.title} className={className}>
+                {inner}
               </div>
-              <div>
-                <p className="text-sm font-semibold leading-tight">{f.title}</p>
-                <p className="text-xs text-neutral-500 mt-0.5 leading-tight">{f.desc}</p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -104,8 +115,12 @@ export default async function Home() {
                 href={`/shop?category=${cat.slug}`}
                 className="group flex-shrink-0 w-[90px] md:w-[150px] flex flex-col items-center gap-2 md:gap-3 rounded-2xl border border-neutral-200 p-3 md:p-5 hover:border-neutral-950 hover:shadow-sm transition-all snap-start"
               >
-                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-neutral-100 group-hover:bg-neutral-950 group-hover:text-white grid place-items-center transition-colors">
-                  <Icon className="w-5 h-5 md:w-6 md:h-6" />
+                                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-neutral-100 group-hover:bg-neutral-950 group-hover:text-white grid place-items-center transition-colors overflow-hidden">
+                  {cat.image_url ? (
+                    <img src={cat.image_url} alt={cat.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <Icon className="w-5 h-5 md:w-6 md:h-6" />
+                  )}
                 </div>
                 <span className="text-[11px] md:text-sm font-medium text-center">{cat.name}</span>
               </Link>
