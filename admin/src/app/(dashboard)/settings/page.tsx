@@ -406,7 +406,11 @@ export default function SettingsPage() {
                 <div key={idx} className="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 mb-4">
                   <div className="flex justify-between items-center">
                     <span className="font-semibold text-sm">Banner {idx + 1}</span>
-                    <button type="button" onClick={() => setHeroSlides(prev => prev.filter((_, i) => i !== idx))} className="text-red-500 text-sm">Delete</button>
+                    <div className="flex gap-4">
+                      {idx > 0 && <button type="button" onClick={() => setHeroSlides(prev => { const n = [...prev]; const temp = n[idx]; n[idx] = n[idx-1]; n[idx-1] = temp; return n; })} className="text-blue-500 text-sm">Move Up</button>}
+                      {idx < heroSlides.length - 1 && <button type="button" onClick={() => setHeroSlides(prev => { const n = [...prev]; const temp = n[idx]; n[idx] = n[idx+1]; n[idx+1] = temp; return n; })} className="text-blue-500 text-sm">Move Down</button>}
+                      <button type="button" onClick={() => setHeroSlides(prev => prev.filter((_, i) => i !== idx))} className="text-red-500 text-sm">Delete</button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <input className={inputClass} value={slide.eyebrow || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].eyebrow = e.target.value; return n; })} placeholder="Eyebrow text" />
@@ -442,45 +446,7 @@ export default function SettingsPage() {
               </button>
             </div>
 
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={storeSaving}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 transition-all hover:from-amber-600 hover:to-orange-700 disabled:opacity-50"
-              >
-                {storeSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                {storeSaving ? "Saving..." : "Save Store Settings"}
-              </button>
-            </div>
-          </div>
-        )}
-      </form>
 
-      {/* Business settings (existing) */}
-      <form onSubmit={saveBusiness} className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
-        {businessLoading ? (
-          <div className="space-y-6 animate-pulse">
-            <div className="h-6 w-1/3 rounded-md bg-neutral-100" />
-            <div className="h-12 w-full rounded-xl bg-neutral-100" />
-            <div className="h-12 w-full rounded-xl bg-neutral-100" />
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <div className="flex items-center gap-2">
-              <Globe className="h-5 w-5 text-amber-500" />
-              <h2 className="text-lg font-bold text-neutral-900">Business Profile</h2>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className={labelClass}>Company / Store Name</label>
-                <input className={inputClass} value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-amber-500" />
-                
             {/* Promo Tiles CRUD */}
             <div className="pt-4 border-t border-neutral-100 mt-8">
               <h3 className="text-lg font-semibold mb-4">Promo Tiles (Shop by Category)</h3>
@@ -523,7 +489,45 @@ export default function SettingsPage() {
               </button>
             </div>
 
-              <h3 className="text-sm font-bold text-neutral-900">Financial Configuration</h3>
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={storeSaving}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 transition-all hover:from-amber-600 hover:to-orange-700 disabled:opacity-50"
+              >
+                {storeSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                {storeSaving ? "Saving..." : "Save Store Settings"}
+              </button>
+            </div>
+          </div>
+        )}
+      </form>
+
+      {/* Business settings (existing) */}
+      <form onSubmit={saveBusiness} className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
+        {businessLoading ? (
+          <div className="space-y-6 animate-pulse">
+            <div className="h-6 w-1/3 rounded-md bg-neutral-100" />
+            <div className="h-12 w-full rounded-xl bg-neutral-100" />
+            <div className="h-12 w-full rounded-xl bg-neutral-100" />
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="flex items-center gap-2">
+              <Globe className="h-5 w-5 text-amber-500" />
+              <h2 className="text-lg font-bold text-neutral-900">Business Profile</h2>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className={labelClass}>Company / Store Name</label>
+                <input className={inputClass} value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-amber-500" />
+                <h3 className="text-sm font-bold text-neutral-900">Financial Configuration</h3>
               </div>
               <div>
                 <label className={labelClass}>Default Store Currency</label>
