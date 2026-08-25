@@ -42,7 +42,7 @@ export default function CategoriesPage() {
   };
 
   const handleOpenAdd = () => {
-    setEditingCat({ name: "", slug: "", icon: "", keywords: "", image_url: "" });
+    setEditingCat({ name: "", slug: "", position: 0, icon: "", keywords: "", image_url: "" });
     setModalOpen(true);
   };
 
@@ -193,11 +193,17 @@ export default function CategoriesPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className={labelClass}>Icon Name (e.g. Smartphone)</label>
                   <input className={inputClass} value={editingCat.icon || ""} onChange={e => setEditingCat(prev => ({ ...prev, icon: e.target.value }))} />
                 </div>
+                
+                <div>
+                  <label className={labelClass}>Position / Priority (0 is first)</label>
+                  <input className={inputClass} type="number" value={editingCat.position || 0} onChange={(e) => setEditingCat(prev => ({ ...prev, position: parseInt(e.target.value) || 0 }))} />
+                </div>
+
                 <div>
                   <label className={labelClass}>Keywords (comma separated)</label>
                   <input className={inputClass} value={editingCat.keywords || ""} onChange={e => setEditingCat(prev => ({ ...prev, keywords: e.target.value }))} />

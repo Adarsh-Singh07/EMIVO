@@ -310,8 +310,8 @@ export function ProductEditor({ productId }: { productId?: string }) {
       price: rupeesToPaise(price) ?? 0,
     };
     if (brand.trim()) payload.brand = brand.trim();
-    if (returnPolicy.trim()) payload.return_policy = returnPolicy.trim();
-    if (warrantyInfo.trim()) payload.warranty_info = warrantyInfo.trim();
+    payload.return_policy = returnPolicy.trim() || null;
+    payload.warranty_info = warrantyInfo.trim() || null;
     if (sku.trim()) payload.sku = sku.trim();
     payload.description = description.trim() || null;
     payload.status = status;
@@ -715,7 +715,7 @@ export function ProductEditor({ productId }: { productId?: string }) {
               </div>
             )}
             <div>
-              <label className={labelClass}>Tags</label>
+              <label className={labelClass}>Tags (Additional Categories)</label>
               <input className={inputClass} value={tagsText} onChange={(e) => setTagsText(e.target.value)} placeholder="comma, separated, tags" />
             </div>
           </section>

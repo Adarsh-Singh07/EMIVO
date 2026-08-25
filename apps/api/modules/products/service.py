@@ -115,15 +115,21 @@ class ProductService:
         if data.sku is not None:
             product.sku = data.sku
         # Optional-clearable fields: explicit null in the payload clears them
-        provided = data.model_fields_set
+                provided = data.model_fields_set
         for field in ("mrp", "sale_price", "offer_starts_at", "offer_ends_at",
-                      "category_id"):
+                      "category_id", "warranty_info", "return_policy", "brand", "featured"):
             if field in provided:
                 setattr(product, field, getattr(data, field))
-        if data.brand is not None:
-            product.brand = data.brand
-        if data.status is not None:
+        
+        if "status" in provided and data.status is not None:
             product.status = ProductStatus(data.status)
+        
+        if "specs" in provided:
+            product.specs = [s.model_dump() for s in data.specs] if data.specs else []
+        if "tags" in provided:
+            product.tags = data.tags
+        if "options" in provided:
+            product.options = data.options
         if data.featured is not None:
             product.featured = data.featured
         if data.specs is not None:

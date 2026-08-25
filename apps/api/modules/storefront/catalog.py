@@ -155,10 +155,10 @@ class CatalogService:
             # match the category itself or any of its children (parents are
             # navigation nodes; products attach to leaf categories)
             filters.append(
-                """(c.slug = :cat OR c.id::text = :cat OR c.parent_id IN (
-                    SELECT id FROM categories WHERE slug = :cat))"""
+                """(c.slug = :cat OR c.id::text = :cat OR c.parent_id IN (SELECT id FROM categories WHERE slug = :cat) OR (p.tags IS NOT NULL AND p.tags::text ILIKE :cat_tag))"""
             )
             params["cat"] = category
+            params["cat_tag"] = f'%"{category}"%'
         if brand:
             filters.append("p.brand ILIKE :brand")
             params["brand"] = f"%{brand}%"

@@ -30,7 +30,7 @@ async def list_inventory(
     low_stock: bool = False,
     out_of_stock: bool = False,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=1000),
     session: AsyncSession = Depends(_staff_session),
 ):
     business_id = await session.execute(
