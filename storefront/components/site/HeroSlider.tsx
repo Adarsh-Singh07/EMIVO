@@ -13,16 +13,17 @@ const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
  * dark gradient keeps the headline legible on top — so it scales down to any
  * phone width without breaking layout.
  */
-export default function HeroSlider() {
+export default function HeroSlider({ slides = HERO_SLIDES }: { slides?: any[] }) {
   const [i, setI] = useState(0);
-  const n = HERO_SLIDES.length;
+  const activeSlides = slides.length > 0 ? slides : HERO_SLIDES;
+  const n = activeSlides.length;
 
   useEffect(() => {
     const t = setInterval(() => setI((v) => (v + 1) % n), 5500);
     return () => clearInterval(t);
   }, [n]);
 
-  const s = HERO_SLIDES[i];
+  const s = activeSlides[i];
 
   return (
     <section className="relative overflow-hidden">
@@ -88,7 +89,7 @@ export default function HeroSlider() {
 
         {/* Dots */}
         <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2">
-          {HERO_SLIDES.map((_, k) => (
+          {activeSlides.map((_, k) => (
             <button
               key={k}
               onClick={() => setI(k)}

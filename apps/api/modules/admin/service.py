@@ -177,6 +177,8 @@ class AdminService:
             "flat_shipping_paise": fields.get("flat_shipping_paise", current["flat_shipping_paise"]),
             "banner": banner,
             "announcement": fields.get("announcement", current.get("announcement")),
+            "hero_slides": fields.get("hero_slides", current.get("hero_slides", [])),
+            "promo_tiles": fields.get("promo_tiles", current.get("promo_tiles", [])),
         }
 
         await self.session.execute(text("""

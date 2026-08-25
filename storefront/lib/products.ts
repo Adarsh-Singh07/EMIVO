@@ -750,3 +750,13 @@ export async function getCategories(): Promise<Category[]> {
     return CATEGORIES;
   }
 }
+
+export async function fetchStoreConfigServer(): Promise<any | null> {
+  try {
+    const res = await fetch(`${API_BASE}/store/config`, { next: { revalidate: 60 } });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}

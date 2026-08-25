@@ -147,6 +147,13 @@ async def reorder_media(
 # --------------------------------------------------------------------------
 
 @router.post("/categories", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
+async def create_category(
+    payload: CategoryCreate,
+    service: ProductService = Depends(get_product_service),
+    current_user: User = Depends(require_roles(STAFF))
+) -> Any:
+    return await service.create_category(payload)
+
 @router.put("/categories/{category_id}", response_model=CategoryResponse)
 async def update_category(
     category_id: str,
@@ -163,9 +170,3 @@ async def delete_category(
     current_user: User = Depends(require_roles(STAFF))
 ) -> None:
     await service.delete_category(category_id)
-async def create_category(
-    payload: CategoryCreate,
-    service: ProductService = Depends(get_product_service),
-    current_user: User = Depends(require_roles(STAFF))
-) -> Any:
-    return await service.create_category(payload)

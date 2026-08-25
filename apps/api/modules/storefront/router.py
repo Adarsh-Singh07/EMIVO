@@ -109,6 +109,8 @@ async def store_config(session: AsyncSession = Depends(optional_db_context)):
         "storefront_url": settings.storefront_url,
         "banner": db_cfg.get("banner"),
         "announcement": db_cfg.get("announcement"),
+        "hero_slides": db_cfg.get("hero_slides", []),
+        "promo_tiles": db_cfg.get("promo_tiles", []),
     }
 
 from pydantic import BaseModel
@@ -143,11 +145,23 @@ async def handle_contact_form(form: ContactForm):
     # 2. Send confirmation to user
     user_subject = f"We received your message: {form.subject}"
     user_html = f"""
-    <h2>Hi {form.name},</h2>
-    <p>Thank you for reaching out to us. We have received your message regarding "<strong>{form.subject}</strong>" and our support team will get back to you within 24 hours.</p>
-    <p>For urgent queries, please call us at +91 85398 38942.</p>
-    <br>
-    <p>Best regards,<br>The Elektrix Team</p>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">
+        <div style="text-align: center; padding: 20px 0; border-bottom: 2px solid #f3f4f6;">
+            <h1 style="color: #0f172a; margin: 0; font-size: 24px;">Apna Enterprises</h1>
+        </div>
+        <div style="padding: 30px 20px;">
+            <h2 style="font-size: 18px; color: #111;">Hi {form.name},</h2>
+            <p style="margin-bottom: 20px;">Thank you for contacting <strong>Apna Enterprises</strong>. We have received your message regarding "<strong>{form.subject}</strong>".</p>
+            <p style="margin-bottom: 20px;">Our support team is reviewing your request and will get back to you within 24 hours.</p>
+            <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
+                <p style="margin: 0; font-size: 14px; color: #4b5563;"><strong>For urgent queries:</strong><br>Please call us at +91 85398 38942</p>
+            </div>
+            <p style="margin: 0;">Best regards,<br><strong>The Apna Enterprises Support Team</strong></p>
+        </div>
+        <div style="text-align: center; padding: 20px; font-size: 12px; color: #6b7280; border-top: 1px solid #f3f4f6;">
+            Apna Enterprises | DS1, 109, Near Indian Petrol Pump, Vijayipur, Gopalganj, Bihar - 841508
+        </div>
+    </div>
     """
     await provider.send_email(to_email=form.email, subject=user_subject, html=user_html)
     

@@ -49,6 +49,8 @@ class StoreSettingsUpdate(BaseModel):
     banner_link: Optional[str] = None
     banner_active: Optional[bool] = None
     announcement: Optional[str] = None
+    hero_slides: Optional[List[dict]] = None
+    promo_tiles: Optional[List[dict]] = None
 
 
 class StoreSettingsResponse(BaseModel):
@@ -59,3 +61,5 @@ class StoreSettingsResponse(BaseModel):
     flat_shipping_paise: int
     banner: Optional[dict] = None
     announcement: Optional[str] = None
+    hero_slides: Optional[List[dict]] = None
+    promo_tiles: Optional[List[dict]] = None

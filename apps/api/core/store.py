@@ -85,4 +85,6 @@ async def get_store_settings(session: AsyncSession) -> dict:
         "flat_shipping_paise": store_cfg.get("flat_shipping_paise", settings.flat_shipping_paise),
         "banner": store_cfg.get("banner"),
         "announcement": store_cfg.get("announcement"),
+        "hero_slides": store_cfg.get("hero_slides", []),
+        "promo_tiles": store_cfg.get("promo_tiles", []),
     }
