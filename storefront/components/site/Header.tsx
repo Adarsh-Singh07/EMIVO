@@ -291,7 +291,7 @@ export default function Header() {
             {/* Wishlist */}
             <Link
               href="/account/wishlist"
-              className="relative p-2 hover:bg-neutral-100 rounded-full"
+              className="relative p-2 hover:bg-neutral-100 rounded-full "
               aria-label={`Wishlist (${wishlist.count} items)`}
             >
               <Heart className="w-5 h-5" />
@@ -303,7 +303,7 @@ export default function Header() {
             {/* Cart */}
             <button
               onClick={() => setDrawerOpen(true)}
-              className="relative p-2 hover:bg-neutral-100 rounded-full"
+              className="relative p-2 hover:bg-neutral-100 rounded-full hidden lg:block"
               aria-label="Cart"
             >
               <ShoppingBag className="w-5 h-5" />

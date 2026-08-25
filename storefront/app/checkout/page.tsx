@@ -1021,24 +1021,23 @@ export default function CheckoutPage() {
               )}
 
               <div className="grid sm:grid-cols-2 gap-3">
-                {onlinePaymentAvailable !== false && (
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("ONLINE")}
-                    aria-pressed={paymentMethod === "ONLINE"}
-                    className={`flex flex-col items-start gap-2 rounded-2xl border-2 p-5 text-left transition-all ${
-                      paymentMethod === "ONLINE"
-                        ? "border-neutral-950 bg-neutral-50"
-                        : "border-neutral-200 hover:border-neutral-400"
-                    }`}
-                  >
-                    <CreditCard className="w-5 h-5" />
-                    <span className="text-sm font-semibold">Pay online</span>
-                    <span className="text-xs text-neutral-500">
-                      UPI, cards, netbanking &amp; wallets via Cashfree
-                    </span>
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => onlinePaymentAvailable !== false ? setPaymentMethod("ONLINE") : toast.error("Unavailable - Please try again")}
+                  disabled={onlinePaymentAvailable === false}
+                  aria-pressed={paymentMethod === "ONLINE"}
+                  className={`flex flex-col items-start gap-2 rounded-2xl border-2 p-5 text-left transition-all ${
+                    paymentMethod === "ONLINE"
+                      ? "border-neutral-950 bg-neutral-50"
+                      : "border-neutral-200 hover:border-neutral-400"
+                  } ${onlinePaymentAvailable === false ? "opacity-60 cursor-not-allowed border-neutral-200 hover:border-neutral-200" : ""}`}
+                >
+                  <CreditCard className="w-5 h-5" />
+                  <span className="text-sm font-semibold">Pay online</span>
+                  <span className="text-xs text-neutral-500">
+                    {onlinePaymentAvailable === false ? "Unavailable - Please try again" : "UPI, cards, netbanking & wallets via Cashfree"}
+                  </span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setPaymentMethod("COD")}
@@ -1047,7 +1046,7 @@ export default function CheckoutPage() {
                     paymentMethod === "COD"
                       ? "border-neutral-950 bg-neutral-50"
                       : "border-neutral-200 hover:border-neutral-400"
-                  } ${onlinePaymentAvailable === false ? "col-span-full" : ""}`}
+                  }`}
                 >
                   <Banknote className="w-5 h-5" />
                   <span className="text-sm font-semibold">Pay on delivery (COD)</span>
