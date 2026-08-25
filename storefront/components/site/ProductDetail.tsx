@@ -341,7 +341,7 @@ export default function ProductDetail({
             {outOfStock && <span className="text-sm font-medium text-red-600">Out of stock</span>}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 mt-6">
+          <div className="flex gap-2 sm:gap-4 mt-6">
             {orderedOrderId ? (
               <Link
                 href={`/order-tracking?order=${orderedOrderId}`}
