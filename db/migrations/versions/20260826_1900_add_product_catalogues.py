@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "20260826_1900"
-down_revision = "20260825_2220_000000000001_add_return_policy_and_warranty"
+down_revision = "000000000001"
 branch_labels = None
 depends_on = None
 
