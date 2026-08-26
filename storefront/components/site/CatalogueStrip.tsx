@@ -1,7 +1,7 @@
 "use client";
 import { useRef } from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import ProductCard from "@/components/site/ProductCard";
 import { type Product } from "@/lib/products";
 
@@ -15,7 +15,15 @@ interface CatalogueStripProps {
 }
 
 export default function CatalogueStrip({ title, eyebrow, subtitle, category_link, products }: CatalogueStripProps) {
+  
   const scrollRef = useRef<HTMLDivElement>(null);
+  const scroll = (direction: "left" | "right") => {
+    if (scrollRef.current) {
+      const scrollAmount = direction === "left" ? -400 : 400;
+      scrollRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
+    }
+  };
+
 
   if (!products || products.length === 0) return null;
 
@@ -29,6 +37,14 @@ export default function CatalogueStrip({ title, eyebrow, subtitle, category_link
           )}
           <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">{title}</h2>
           {subtitle && <p className="text-sm text-neutral-500 mt-1">{subtitle}</p>}
+        </div>
+        <div className="hidden md:flex items-center gap-2">
+          <button onClick={() => scroll("left")} className="w-8 h-8 rounded-full border border-neutral-200 grid place-items-center hover:bg-neutral-50 transition-colors" aria-label="Scroll left">
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button onClick={() => scroll("right")} className="w-8 h-8 rounded-full border border-neutral-200 grid place-items-center hover:bg-neutral-50 transition-colors" aria-label="Scroll right">
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
         {category_link && (
           <Link

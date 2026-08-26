@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  X, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import {
+  X,
   ShoppingBag,
   Zap,
   Heart,
@@ -57,6 +59,23 @@ export default function ProductDetail({
   }, [router]);
 
   const [activeImg, setActiveImg] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  const onTouchStart = (e: React.TouchEvent) => setTouchStart(e.targetTouches[0].clientX);
+  const onTouchMove = (e: React.TouchEvent) => setTouchEnd(e.targetTouches[0].clientX);
+  const onTouchEndHandler = () => {
+    if (!touchStart || !touchEnd) return;
+    const dist = touchStart - touchEnd;
+    const isLeftSwipe = dist > 50;
+    const isRightSwipe = dist < -50;
+    const n = images.length;
+    if (isLeftSwipe) setActiveImg((v) => (v + 1) % n);
+    if (isRightSwipe) setActiveImg((v) => (v - 1 + n) % n);
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
   const [variantIdx, setVariantIdx] = useState<number | null>(null);
   const [qty, setQty] = useState(1);
   const [tab, setTab] = useState<TabId>("description");
@@ -214,7 +233,13 @@ export default function ProductDetail({
               </button>
             ))}
           </div>
-          <div className="relative flex-1 aspect-square rounded-3xl overflow-hidden bg-white border border-neutral-100">
+          <div 
+            className="relative flex-1 aspect-square rounded-3xl overflow-hidden bg-white border border-neutral-100 cursor-zoom-in"
+            onClick={() => setLightboxOpen(true)}
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEndHandler}
+          >
             <Image
               src={images[activeImg] || product.img}
               alt={product.name}
@@ -368,11 +393,11 @@ export default function ProductDetail({
             </button>
           </div>
 
-          <div className="flex flex-wrap gap-2 mt-4">
+          <div className="flex gap-2 mt-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
             <button
               onClick={handleWishlist}
               aria-pressed={wished}
-              className={`flex-1 min-w-[110px] h-11 inline-flex items-center justify-center gap-2 border rounded-full text-sm hover:bg-neutral-50 ${
+              className={`shrink-0 min-w-[120px] h-11 inline-flex items-center justify-center gap-2 border rounded-full text-sm hover:bg-neutral-50 snap-start ${
                 wished ? "border-red-200 text-red-600" : "border-neutral-200"
               }`}
             >
@@ -382,14 +407,14 @@ export default function ProductDetail({
             <button
               onClick={handleCompare}
               aria-pressed={comparing}
-              className={`flex-1 min-w-[110px] h-11 inline-flex items-center justify-center gap-2 border rounded-full text-sm hover:bg-neutral-50 ${
+              className={`shrink-0 min-w-[120px] h-11 inline-flex items-center justify-center gap-2 border rounded-full text-sm hover:bg-neutral-50 snap-start ${
                 comparing ? "border-neutral-950" : "border-neutral-200"
               }`}
             >
               <RefreshCw className="w-4 h-4" /> {comparing ? "In compare" : "Compare"}
             </button>
             <button
-              className="flex-1 min-w-[110px] h-11 inline-flex items-center justify-center gap-2 border border-neutral-200 rounded-full text-sm hover:bg-neutral-50"
+              className="shrink-0 min-w-[120px] h-11 inline-flex items-center justify-center gap-2 border border-neutral-200 rounded-full text-sm hover:bg-neutral-50 snap-start"
               onClick={() => {
                 navigator.clipboard?.writeText(window.location.href);
                 toast.success("Link copied to clipboard");
@@ -400,14 +425,14 @@ export default function ProductDetail({
           </div>
 
           {/* Trust badges */}
-          <div className="grid grid-cols-3 gap-3 mt-8">
-            <div className="flex items-center gap-2 text-xs text-neutral-600">
+          <div className="flex gap-6 mt-8 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="flex items-center gap-2 text-xs text-neutral-600 shrink-0 snap-start">
               <Truck className="w-5 h-5 text-neutral-400 shrink-0" /> Free shipping over ₹999
             </div>
-            <div className="flex items-center gap-2 text-xs text-neutral-600">
+            <div className="flex items-center gap-2 text-xs text-neutral-600 shrink-0 snap-start">
               <RotateCcw className="w-5 h-5 text-neutral-400 shrink-0" /> {product.return_policy || "Open Box Delivery — No returns after delivery"}
             </div>
-            <div className="flex items-center gap-2 text-xs text-neutral-600">
+            <div className="flex items-center gap-2 text-xs text-neutral-600 shrink-0 snap-start">
               <ShieldCheck className="w-5 h-5 text-neutral-400 shrink-0" /> {product.warranty_info || "1-year warranty"}
             </div>
           </div>
@@ -512,6 +537,28 @@ export default function ProductDetail({
             ))}
           </div>
         </section>
+      )}
+
+      {lightboxOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur flex flex-col">
+          <div className="flex items-center justify-between p-4 sm:p-6 text-white absolute top-0 w-full z-10">
+            <span className="text-sm font-medium">{activeImg + 1} / {images.length}</span>
+            <button onClick={() => setLightboxOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          <div className="flex-1 relative flex items-center justify-center">
+             <div className="flex overflow-x-auto snap-x snap-mandatory h-full w-full scrollbar-hide items-center">
+               {images.map((img, idx) => (
+                 <div key={idx} className="w-full shrink-0 h-full relative snap-center flex items-center justify-center">
+                   <div className="relative w-full h-[80vh] max-w-4xl max-h-4xl">
+                     <Image src={img} alt="" fill className="object-contain" sizes="100vw" />
+                   </div>
+                 </div>
+               ))}
+             </div>
+          </div>
+        </div>
       )}
     </div>
   );

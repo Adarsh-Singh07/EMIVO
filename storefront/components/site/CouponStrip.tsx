@@ -9,7 +9,7 @@ interface Coupon {
   discount_type: "PERCENTAGE" | "FIXED_AMOUNT";
   discount_value: number;
   min_order_amount?: number;
-  terms?: string;
+  terms_conditions?: string;
 }
 
 function CouponModal({ coupon, onClose }: { coupon: Coupon; onClose: () => void }) {
@@ -62,11 +62,17 @@ function CouponModal({ coupon, onClose }: { coupon: Coupon; onClose: () => void 
 
         <div className="text-xs text-neutral-500 space-y-1">
           <p className="font-semibold text-neutral-700 mb-2">Terms & Conditions</p>
-          <p>• {discount} applied automatically at checkout when this code is used.</p>
-          {minOrder && <p>• Minimum order value of {minOrder} required.</p>}
-          <p>• One coupon per order. Cannot be combined with other offers.</p>
-          <p>• Valid for a limited time only. ELEKTRIX reserves the right to modify or withdraw this offer.</p>
-          <p>• Not applicable on already discounted items unless stated otherwise.</p>
+          {coupon.terms_conditions ? (
+            <p className="whitespace-pre-wrap">{coupon.terms_conditions}</p>
+          ) : (
+            <>
+              <p>• {discount} applied automatically at checkout when this code is used.</p>
+              {minOrder && <p>• Minimum order value of {minOrder} required.</p>}
+              <p>• One coupon per order. Cannot be combined with other offers.</p>
+              <p>• Valid for a limited time only. ELEKTRIX reserves the right to modify or withdraw this offer.</p>
+              <p>• Not applicable on already discounted items unless stated otherwise.</p>
+            </>
+          )}
         </div>
       </div>
     </div>

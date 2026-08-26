@@ -655,7 +655,7 @@ export async function fetchStoreProductsServer(
 
   try {
     const res = await fetch(`${API_BASE}/store/products${qs ? `?${qs}` : ""}`, {
-      next: { revalidate: 60 },
+      next: { revalidate: 0 },
       headers: { "Content-Type": "application/json" },
     });
     if (!res.ok) return null;

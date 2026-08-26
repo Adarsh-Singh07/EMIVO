@@ -155,7 +155,7 @@ export default function ComparePage() {
           <div className="min-w-[800px] lg:min-w-0">
             {/* Header row - Product names & images */}
             <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] bg-neutral-50/50 border-b border-neutral-100">
-              <div className="p-4 pt-6 text-left text-xs uppercase tracking-wider text-neutral-400 font-medium">
+              <div className="p-4 pt-6 text-left text-xs uppercase tracking-wider text-neutral-400 font-medium sticky left-0 bg-neutral-50/95 z-20">
                 Product
               </div>
               {products.map((p) => (
@@ -209,7 +209,7 @@ export default function ComparePage() {
             <div className="divide-y divide-neutral-100 bg-white">
               {/* Price row */}
               <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] py-4 items-center">
-                <div className="px-4 text-neutral-500 font-medium text-sm">Price</div>
+                <div className="px-4 text-neutral-500 font-medium text-sm sticky left-0 bg-inherit z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Price</div>
                 {products.map((p) => (
                   <div key={p.id} className="px-4">
                     <span className="font-semibold">{inr(p.effective_price)}</span>
@@ -222,7 +222,7 @@ export default function ComparePage() {
 
               {/* Discount row */}
               <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] bg-neutral-50/50 py-4 items-center">
-                <div className="px-4 text-neutral-500 font-medium text-sm">Discount</div>
+                <div className="px-4 text-neutral-500 font-medium text-sm sticky left-0 bg-inherit z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Discount</div>
                 {products.map((p) => (
                   <div key={p.id} className="px-4">
                     {p.discount_percent ? (
@@ -236,7 +236,7 @@ export default function ComparePage() {
 
               {/* Brand row */}
               <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] py-4 items-center">
-                <div className="px-4 text-neutral-500 font-medium text-sm">Brand</div>
+                <div className="px-4 text-neutral-500 font-medium text-sm sticky left-0 bg-inherit z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Brand</div>
                 {products.map((p) => (
                   <div key={p.id} className="px-4">
                     {p.brand || "—"}
@@ -246,7 +246,7 @@ export default function ComparePage() {
 
               {/* Category row */}
               <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] bg-neutral-50/50 py-4 items-center">
-                <div className="px-4 text-neutral-500 font-medium text-sm">Category</div>
+                <div className="px-4 text-neutral-500 font-medium text-sm sticky left-0 bg-inherit z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Category</div>
                 {products.map((p) => (
                   <div key={p.id} className="px-4 capitalize">
                     {p.category_name || p.category_slug || "—"}
@@ -256,7 +256,7 @@ export default function ComparePage() {
 
               {/* Availability row */}
               <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] py-4 items-center">
-                <div className="px-4 text-neutral-500 font-medium text-sm">Availability</div>
+                <div className="px-4 text-neutral-500 font-medium text-sm sticky left-0 bg-inherit z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Availability</div>
                 {products.map((p) => (
                   <div key={p.id} className="px-4">
                     <span
@@ -283,7 +283,7 @@ export default function ComparePage() {
                   key={row.name}
                   className={`grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] py-4 items-center ${ri % 2 ? "bg-neutral-50/50" : ""}`}
                 >
-                  <div className="px-4 text-neutral-500 font-medium text-sm capitalize">{row.name}</div>
+                  <div className="px-4 text-neutral-500 font-medium text-sm capitalize sticky left-0 bg-inherit z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">{row.name}</div>
                   {row.values.map((v, i) => (
                     <div key={i} className="px-4">
                       {v || <span className="text-neutral-300">—</span>}
