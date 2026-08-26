@@ -775,3 +775,13 @@ export async function getActiveCoupons(): Promise<any[]> {
     return [];
   }
 }
+
+export async function fetchCatalogues(): Promise<any[]> {
+  try {
+    const res = await fetch(`${API_BASE}/store/catalogues`, { next: { revalidate: 30 } });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}

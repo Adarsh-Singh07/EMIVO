@@ -22,11 +22,19 @@ class ProductRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def list_products(self, offset: int = 0, limit: int = 50) -> List[Product]:
+    async def list_products(self, offset: int = 0, limit: int = 50, search: str | None = None) -> List[Product]:
         stmt = select(Product).options(
             selectinload(Product.variants),
             selectinload(Product.media)
-        ).order_by(Product.created_at.desc()).offset(offset).limit(limit)
+        ).order_by(Product.created_at.desc())
+        if search:
+            term = f"%{search}%"
+            stmt = stmt.where(
+                (Product.name.ilike(term)) |
+                (Product.brand.ilike(term)) |
+                (Product.sku.ilike(term))
+            )
+        stmt = stmt.offset(offset).limit(limit)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 

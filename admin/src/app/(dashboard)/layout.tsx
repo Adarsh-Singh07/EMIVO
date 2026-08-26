@@ -41,6 +41,7 @@ const NAV_SECTIONS: Array<{
       { href: "/orders", label: "Orders", icon: ShoppingCart },
       { href: "/products", label: "Products", icon: Package },
       { href: "/products/categories", label: "Categories & Brands", icon: Package },
+      { href: "/products/catalogues", label: "Homepage Catalogues", icon: Package },
       { href: "/inventory", label: "Inventory", icon: Boxes },
       { href: "/coupons", label: "Coupons", icon: Tag },
     ],

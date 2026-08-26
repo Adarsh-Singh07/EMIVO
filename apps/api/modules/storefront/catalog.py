@@ -181,7 +181,7 @@ class CatalogService:
                 for i, t in enumerate(terms):
                     params[f"q_{i}"] = f"%{t}%"
                     term_filters.append(
-                        f"(p.name ILIKE :q_{i} OR p.brand ILIKE :q_{i} OR p.sku ILIKE :q_{i} OR p.description ILIKE :q_{i} OR c.name ILIKE :q_{i} OR c.keywords ILIKE :q_{i})"
+                        f"(p.name ILIKE :q_{i} OR p.brand ILIKE :q_{i} OR p.sku ILIKE :q_{i} OR p.description ILIKE :q_{i} OR c.name ILIKE :q_{i} OR c.keywords ILIKE :q_{i} OR p.tags::text ILIKE :q_{i})"
                     )
                 filters.append("(" + " AND ".join(term_filters) + ")")
 
@@ -336,7 +336,7 @@ class CatalogService:
         for i, w in enumerate(words):
             like = f"%{w}%"
             params[f"q{i}"] = like
-            conditions.append(f"(p.name ILIKE :q{i} OR p.brand ILIKE :q{i} OR p.sku ILIKE :q{i} OR c.name ILIKE :q{i})")
+            conditions.append(f"(p.name ILIKE :q{i} OR p.brand ILIKE :q{i} OR p.sku ILIKE :q{i} OR c.name ILIKE :q{i} OR p.tags::text ILIKE :q{i})")
             
         where_clause = " AND ".join(conditions)
 
@@ -360,3 +360,38 @@ class CatalogService:
             )
             for r in rows
         ]
+
+    async def get_products_by_ids(self, product_ids: list) -> list:
+        """Fetch full product data for a list of product IDs, preserving order."""
+        if not product_ids:
+            return []
+        store_id = await self._store_business_id()
+        placeholders = ", ".join(f":pid_{i}" for i in range(len(product_ids)))
+        params = {"bid": store_id}
+        for i, pid in enumerate(product_ids):
+            params[f"pid_{i}"] = pid
+        rows = (
+            await self.session.execute(
+                text(f"""
+                    {self._BASE_SELECT}
+                    WHERE p.business_id = :bid AND p.status = 'ACTIVE'
+                      AND p.id IN ({placeholders})
+                """),
+                params,
+            )
+        ).mappings().all()
+
+        # Build a lookup then re-order to match product_ids order
+        ids_set = {r["id"]: r for r in rows}
+        ordered_rows = [ids_set[pid] for pid in product_ids if pid in ids_set]
+
+        ids = [r["id"] for r in ordered_rows]
+        images = await self._load_images(ids)
+        stocks = await self._load_stock(ids)
+        variants = await self._load_variants(ids)
+        items = []
+        for r in ordered_rows:
+            m = self._product_row_to_model(r, images.get(r["id"], []), stocks.get(r["id"]))
+            m.variants = [StoreVariant(**v) for v in variants.get(r["id"], [])]
+            items.append(m)
+        return [i.model_dump() for i in items]

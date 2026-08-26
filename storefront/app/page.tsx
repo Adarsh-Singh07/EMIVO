@@ -15,17 +15,17 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import HeroSlider from "@/components/site/HeroSlider";
-import ProductCard from "@/components/site/ProductCard";
 import NewsletterForm from "@/components/site/NewsletterForm";
 import RecentlyViewedStrip from "@/components/site/RecentlyViewedStrip";
 import CouponStrip from "@/components/site/CouponStrip";
+import CatalogueStrip from "@/components/site/CatalogueStrip";
 import {
   CATEGORIES,
   BRANDS,
-  getCategories, getActiveCoupons,
-  getNewArrivals,
-  getTrending,
+  getCategories,
+  getActiveCoupons,
   fetchStoreConfigServer,
+  fetchCatalogues,
   PROMO_TILES,
 } from "@/lib/products";
 
@@ -51,12 +51,11 @@ export const revalidate = 30;
 
 
 export default async function Home() {
-  const [categories, newArrivals, trending, config, coupons] = await Promise.all([
+  const [categories, config, coupons, catalogues] = await Promise.all([
     getCategories(),
-    getNewArrivals(8),
-    getTrending(4),
     fetchStoreConfigServer(),
     getActiveCoupons(),
+    fetchCatalogues(),
   ]);
 
   return (
@@ -194,51 +193,10 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* 6. New Arrivals (live catalog, static fallback) */}
-      <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="flex items-end justify-between mb-8">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-neutral-500 mb-2">Just Dropped</p>
-            <h2 className="text-3xl font-semibold tracking-tight">New Arrivals</h2>
-          </div>
-          <Link
-            href="/shop?sort=newest"
-            className="hidden md:inline-flex items-center gap-2 text-sm font-medium hover:text-neutral-500"
-          >
-            View All <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 md:gap-6">
-          {newArrivals.map((p) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
-        </div>
-      </section>
-
-      {/* 7. Trending in Audio */}
-      <section className="bg-neutral-50 border-y border-neutral-100 py-16">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-end justify-between mb-8">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-neutral-500 mb-2">
-                Hot Right Now
-              </p>
-              <h2 className="text-3xl font-semibold tracking-tight">Trending in Audio</h2>
-            </div>
-            <Link
-              href="/shop?category=audio"
-              className="hidden md:inline-flex items-center gap-2 text-sm font-medium hover:text-neutral-500"
-            >
-              View Collection <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 md:gap-6">
-            {trending.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* 6 + 7. Dynamic catalogue strips — created and managed from Admin → Products → Catalogues */}
+      {catalogues.map((cat) => (
+        <CatalogueStrip key={cat.id} {...cat} />
+      ))}
 
       {/* 8. Recently viewed (client, localStorage) */}
       <RecentlyViewedStrip />
