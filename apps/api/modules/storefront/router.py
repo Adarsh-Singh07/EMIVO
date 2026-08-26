@@ -107,11 +107,11 @@ async def store_config(session: AsyncSession = Depends(optional_db_context)):
         "free_shipping_threshold_paise": db_cfg.get("free_shipping_threshold_paise", settings.free_shipping_threshold),
         "currency": "INR",
         "storefront_url": settings.storefront_url,
-        "banner_active": db_cfg.get("banner_active"),
-        "banner_title": db_cfg.get("banner_title"),
-        "banner_subtitle": db_cfg.get("banner_subtitle"),
-        "banner_image": db_cfg.get("banner_image"),
-        "banner_link": db_cfg.get("banner_link"),
+        "banner_active": (db_cfg.get("banner") or {}).get("active"),
+        "banner_title": (db_cfg.get("banner") or {}).get("title"),
+        "banner_subtitle": (db_cfg.get("banner") or {}).get("subtitle"),
+        "banner_image": (db_cfg.get("banner") or {}).get("image_url"),
+        "banner_link": (db_cfg.get("banner") or {}).get("link"),
         "announcement": db_cfg.get("announcement"),
         "hero_slides": db_cfg.get("hero_slides", []),
         "promo_tiles": db_cfg.get("promo_tiles", []),
@@ -175,12 +175,16 @@ async def handle_contact_form(form: ContactForm):
 @router.get("/coupons")
 async def public_coupons(session: AsyncSession = Depends(optional_db_context)):
     from sqlalchemy import text
-    query = text("""
-        SELECT code, description, discount_type, discount_value, min_order_value 
-        FROM coupons 
-        WHERE is_active = true 
-        AND (valid_from IS NULL OR valid_from <= now()) 
-        AND (valid_until IS NULL OR valid_until >= now())
-    """)
-    result = await session.execute(query)
-    return [dict(row._mapping) for row in result.fetchall()]
+    try:
+        query = text("""
+            SELECT code, description, discount_type, discount_value, min_order_amount 
+            FROM coupons 
+            WHERE is_active = true 
+            AND deleted_at IS NULL
+            AND (start_date IS NULL OR start_date <= now()) 
+            AND (end_date IS NULL OR end_date >= now())
+        """)
+        result = await session.execute(query)
+        return [dict(row._mapping) for row in result.fetchall()]
+    except Exception:
+        return []
