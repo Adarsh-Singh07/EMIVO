@@ -26,7 +26,7 @@ def upgrade() -> None:
         sa.Column("position", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column("is_homepage", sa.Boolean(), nullable=False, server_default="true"),
-        sa.Column("product_ids", postgresql.JSONB(), nullable=False, server_default="'[]'"),
+        sa.Column("product_ids", postgresql.JSONB(), nullable=False, server_default=sa.text("'[]'::jsonb")),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()")),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), onupdate=sa.text("now()")),
     )
