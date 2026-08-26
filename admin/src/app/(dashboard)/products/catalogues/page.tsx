@@ -87,7 +87,7 @@ export default function CataloguesPage() {
     // Load product metadata for existing products
     if (c.product_ids && c.product_ids.length > 0) {
       try {
-        const results = await apiClient.get<any[]>(`/products?limit=200`);
+        const results = await apiClient.get<any[]>(`/products/?limit=200`);
         const meta: Record<string, ProductResult> = {};
         results.forEach((p: any) => { if (c.product_ids.includes(p.id)) meta[p.id] = { id: p.id, name: p.name, brand: p.brand, price: p.price, img: p.images?.[0]?.url, slug: p.slug }; });
         setProductMeta(meta);
@@ -102,7 +102,7 @@ export default function CataloguesPage() {
     if (!q || q.length < 2) { setSearchResults([]); return; }
     setSearching(true);
     try {
-      const res = await apiClient.get<any[]>(`/products?search=${encodeURIComponent(q)}&limit=10`);
+      const res = await apiClient.get<any[]>(`/products/?search=${encodeURIComponent(q)}&limit=10`);
       setSearchResults(res.map((p: any) => ({ id: p.id, name: p.name, brand: p.brand, price: p.price, img: p.images?.[0]?.url, slug: p.slug })));
     } catch { setSearchResults([]); }
     finally { setSearching(false); }
