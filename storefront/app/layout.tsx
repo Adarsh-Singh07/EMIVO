@@ -8,6 +8,7 @@ import Header from "@/components/site/Header";
 import Footer from "@/components/site/Footer";
 import MobileBottomNav from "@/components/site/MobileBottomNav";
 import { Toaster } from "sonner";
+import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import CookieConsent from "@/components/site/CookieConsent";
 import LenisProvider from "@/components/site/LenisProvider";
 
@@ -30,7 +31,7 @@ const organizationJsonLd = {
     "India's premium electronics store — mobiles, laptops, appliances, audio and wearables.",
   contactPoint: {
     "@type": "ContactPoint",
-    telephone: "+91-85398-38942",
+    telephone: "+91-80920-24066",
     email: "support@elektrix.in",
     contactType: "customer support",
     areaServed: "IN",
@@ -107,7 +108,10 @@ export default function RootLayout({
               <MobileBottomNav />
               {/* Spacer on mobile so the fixed bottom nav never covers footer or page content */}
               <div className="h-[calc(env(safe-area-inset-bottom)+5rem)] lg:hidden" aria-hidden />
-              <Toaster
+              
+        
+        <PwaInstallPrompt />
+        <Toaster
                 position="bottom-right"
                 richColors
                 expand={false}

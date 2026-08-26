@@ -158,7 +158,7 @@ async def handle_contact_form(form: ContactForm):
             <p style="margin-bottom: 20px;">Thank you for contacting <strong>Apna Enterprises</strong>. We have received your message regarding "<strong>{form.subject}</strong>".</p>
             <p style="margin-bottom: 20px;">Our support team is reviewing your request and will get back to you within 24 hours.</p>
             <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
-                <p style="margin: 0; font-size: 14px; color: #4b5563;"><strong>For urgent queries:</strong><br>Please call us at +91 85398 38942</p>
+                <p style="margin: 0; font-size: 14px; color: #4b5563;"><strong>For urgent queries:</strong><br>Please call us at +91 80920 24066</p>
             </div>
             <p style="margin: 0;">Best regards,<br><strong>The Apna Enterprises Support Team</strong></p>
         </div>
