@@ -780,7 +780,11 @@ export async function fetchCatalogues(): Promise<any[]> {
   try {
     const res = await fetch(`${API_BASE}/store/catalogues`, { next: { revalidate: 30 } });
     if (!res.ok) return [];
-    return await res.json();
+    const data = await res.json();
+    return data.map((cat: any) => ({
+      ...cat,
+      products: (cat.products || []).map(mapStoreProduct),
+    }));
   } catch {
     return [];
   }
