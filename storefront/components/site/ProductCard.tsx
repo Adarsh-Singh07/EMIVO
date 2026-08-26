@@ -72,7 +72,7 @@ export default function ProductCard({ product }: { product: Product }) {
   return (
     <div className="group flex h-full flex-col bg-white rounded-xl border border-neutral-100 p-2 sm:p-2.5 min-w-0">
       {/* Image */}
-      <div className="relative overflow-hidden rounded-lg bg-neutral-100 hover-swap aspect-square">
+      <div className="relative overflow-hidden rounded-lg bg-white hover-swap aspect-square border border-neutral-100">
         <Link href={href} aria-label={product.name}>
           <span className="img-primary absolute inset-0 block">
             <Image
@@ -80,16 +80,16 @@ export default function ProductCard({ product }: { product: Product }) {
               alt={product.name}
               fill
               sizes="(max-width: 768px) 50vw, 25vw"
-              className="object-contain"
+              className="object-contain p-2"
             />
           </span>
           <span className="img-secondary absolute inset-0 block">
             <Image
               src={product.imgHover || product.img}
-              alt=""
+              alt={product.name}
               fill
               sizes="(max-width: 768px) 50vw, 25vw"
-              className="object-contain"
+              className="object-contain p-2"
             />
           </span>
         </Link>

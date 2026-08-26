@@ -1192,7 +1192,7 @@ export default function CheckoutPage() {
           )}
 
           <p className="flex items-center justify-center gap-1.5 text-xs text-neutral-500 mt-3">
-            <ShieldCheck className="w-3.5 h-3.5" /> Secure checkout · 10-day easy returns
+            <ShieldCheck className="w-3.5 h-3.5" /> Secure checkout · Open Box Delivery
           </p>
           {placedOrder === null && pendingPayment === null && (
             <p className="text-[11px] text-neutral-400 mt-2 text-center">

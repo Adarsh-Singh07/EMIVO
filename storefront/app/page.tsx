@@ -18,6 +18,7 @@ import HeroSlider from "@/components/site/HeroSlider";
 import ProductCard from "@/components/site/ProductCard";
 import NewsletterForm from "@/components/site/NewsletterForm";
 import RecentlyViewedStrip from "@/components/site/RecentlyViewedStrip";
+import CouponStrip from "@/components/site/CouponStrip";
 import {
   CATEGORIES,
   BRANDS,
@@ -45,8 +46,9 @@ const FEATURES = [
   { icon: RotateCcw, title: "Open Box Delivery", desc: "No returns after delivery", href: "/refund" },
 ];
 
-// ISR: the marketing frame is static; product sections revalidate frequently.
-export const revalidate = 300;
+// ISR: revalidate frequently so banner/coupon changes reflect quickly.
+export const revalidate = 30;
+
 
 export default async function Home() {
   const [categories, newArrivals, trending, config, coupons] = await Promise.all([
@@ -77,26 +79,8 @@ export default async function Home() {
       )}
 
       {/* Active Coupons */}
-      {coupons && coupons.length > 0 && (
-        <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2">
-            {coupons.map((c) => (
-              <div key={c.code} className="flex-shrink-0 min-w-[280px] bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between shadow-sm">
-                <div>
-                  <p className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-1">{c.description || "Special Offer"}</p>
-                  <p className="font-mono font-bold text-lg text-neutral-900 border-2 border-dashed border-amber-300 bg-white px-2 py-1 rounded inline-block">{c.code}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-black text-amber-600">
-                    {c.discount_type === 'PERCENTAGE' ? `${c.discount_value}%` : `₹${c.discount_value/100}`}
-                  </p>
-                  <p className="text-xs text-neutral-500 font-medium mt-1">OFF</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      <CouponStrip coupons={coupons || []} />
+
 
 
       {/* 2. Features strip — horizontal scroll on mobile, grid on desktop */}
