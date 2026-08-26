@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.dependencies import get_db_session, require_staff, optional_db_context
+from core.dependencies import get_db_session, require_staff, optional_db_context, set_db_context
 from core.store import get_store_business_id
 from modules.catalogues.models import ProductCatalogue
 from modules.catalogues.schemas import CatalogueCreate, CatalogueUpdate, CatalogueResponse
@@ -48,7 +48,7 @@ async def public_catalogues(session: AsyncSession = Depends(optional_db_context)
 
 
 @admin_router.get("/catalogues", dependencies=[Depends(require_staff)])
-async def list_catalogues(session: AsyncSession = Depends(get_db_session)):
+async def list_catalogues(session: AsyncSession = Depends(set_db_context)):
     store_id = await get_store_business_id(session)
     res = await session.execute(
         select(ProductCatalogue)
@@ -60,7 +60,7 @@ async def list_catalogues(session: AsyncSession = Depends(get_db_session)):
 
 
 @admin_router.post("/catalogues", dependencies=[Depends(require_staff)])
-async def create_catalogue(data: CatalogueCreate, session: AsyncSession = Depends(get_db_session)):
+async def create_catalogue(data: CatalogueCreate, session: AsyncSession = Depends(set_db_context)):
     store_id = await get_store_business_id(session)
     cat = ProductCatalogue(business_id=store_id, **data.model_dump())
     session.add(cat)
@@ -70,7 +70,7 @@ async def create_catalogue(data: CatalogueCreate, session: AsyncSession = Depend
 
 
 @admin_router.put("/catalogues/{catalogue_id}", dependencies=[Depends(require_staff)])
-async def update_catalogue(catalogue_id: str, data: CatalogueUpdate, session: AsyncSession = Depends(get_db_session)):
+async def update_catalogue(catalogue_id: str, data: CatalogueUpdate, session: AsyncSession = Depends(set_db_context)):
     store_id = await get_store_business_id(session)
     res = await session.execute(
         select(ProductCatalogue).where(
@@ -89,7 +89,7 @@ async def update_catalogue(catalogue_id: str, data: CatalogueUpdate, session: As
 
 
 @admin_router.delete("/catalogues/{catalogue_id}", dependencies=[Depends(require_staff)])
-async def delete_catalogue(catalogue_id: str, session: AsyncSession = Depends(get_db_session)):
+async def delete_catalogue(catalogue_id: str, session: AsyncSession = Depends(set_db_context)):
     store_id = await get_store_business_id(session)
     res = await session.execute(
         select(ProductCatalogue).where(
