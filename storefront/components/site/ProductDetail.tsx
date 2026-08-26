@@ -210,18 +210,18 @@ export default function ProductDetail({
                 }`}
                 aria-label={`View image ${i + 1}`}
               >
-                <Image src={src} alt="" fill sizes="80px" className="object-contain" />
+                <Image src={src} alt={`${product.name} — image ${i + 1}`} fill sizes="80px" className="object-contain p-1" />
               </button>
             ))}
           </div>
-          <div className="relative flex-1 aspect-square rounded-3xl overflow-hidden bg-neutral-100">
+          <div className="relative flex-1 aspect-square rounded-3xl overflow-hidden bg-white border border-neutral-100">
             <Image
               src={images[activeImg] || product.img}
               alt={product.name}
               fill
               priority
               sizes="(max-width: 1024px) 100vw, 50vw"
-              className="object-contain"
+              className="object-contain p-4"
             />
             {product.discount > 0 && !selectedVariant && (
               <span className="absolute top-4 left-4 bg-green-600 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
@@ -405,7 +405,7 @@ export default function ProductDetail({
               <Truck className="w-5 h-5 text-neutral-400 shrink-0" /> Free shipping over ₹999
             </div>
             <div className="flex items-center gap-2 text-xs text-neutral-600">
-              <RotateCcw className="w-5 h-5 text-neutral-400 shrink-0" /> {product.return_policy || "7-day easy returns"}
+              <RotateCcw className="w-5 h-5 text-neutral-400 shrink-0" /> {product.return_policy || "Open Box Delivery — No returns after delivery"}
             </div>
             <div className="flex items-center gap-2 text-xs text-neutral-600">
               <ShieldCheck className="w-5 h-5 text-neutral-400 shrink-0" /> {product.warranty_info || "1-year warranty"}
@@ -453,8 +453,8 @@ export default function ProductDetail({
               <ul className="space-y-2 mt-4 pt-4 border-t border-neutral-100">
                 {[
                   "Genuine product with manufacturer warranty",
-                  "Free & fast shipping on orders over ₹999",
-                  "7-day easy replacement policy",
+                  "Free & fast shipping on orders above ₹999",
+                  "Open Box Delivery — inspect before accepting",
                   "Secure encrypted checkout",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2">
