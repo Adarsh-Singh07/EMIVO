@@ -25,6 +25,8 @@ class CategoryUpdate(BaseModel):
     slug: Optional[str] = None
     position: Optional[int] = None
     image_url: Optional[str] = None
+    icon: Optional[str] = None
+    keywords: Optional[str] = None
 
 class CategoryCreate(CategoryBase):
     pass
