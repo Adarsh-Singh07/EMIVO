@@ -86,7 +86,7 @@ export default function ContactPage() {
 
         <aside className="space-y-4">
           {[
-            { icon: Phone, label: "Call us", value: "+91 85398 38942", note: "Mon–Sat, 9am–9pm IST" },
+            { icon: Phone, label: "Call us", value: "+91 80920 24066", note: "Mon–Sat, 9am–9pm IST" },
             { icon: Mail, label: "Email", value: SUPPORT_EMAIL, note: "Replies within 24 hours" },
             { icon: MapPin, label: "Store Address", value: "DS1, 109, Near Indian Petrol Pump, Vijayipur, Gopalganj, Bihar - 841508", note: "Apna Enterprises" },
             { icon: Clock, label: "Support hours", value: "9:00 – 21:00 IST", note: "7 days a week" },
