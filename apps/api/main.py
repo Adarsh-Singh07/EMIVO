@@ -21,6 +21,7 @@ from modules.inventory.router import router as inventory_router
 from modules.admin.router import router as admin_router
 from modules.media.router import router as media_router
 from modules.marketing.router import router as newsletter_router
+from modules.catalogues.router import router as catalogues_router, admin_router as catalogues_admin_router
 from contextlib import asynccontextmanager
 from core.redis import lifespan_redis
 from core.exceptions import DomainException, domain_exception_handler, unhandled_exception_handler
@@ -184,6 +185,8 @@ app.include_router(inventory_router)
 app.include_router(admin_router)
 app.include_router(media_router)
 app.include_router(newsletter_router)
+app.include_router(catalogues_router, prefix="/api/v1/store")
+app.include_router(catalogues_admin_router, prefix="/api/v1/admin")
 app.include_router(routers_settings.router, prefix="/api/v1")
 
 if __name__ == "__main__":

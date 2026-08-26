@@ -715,8 +715,25 @@ export function ProductEditor({ productId }: { productId?: string }) {
               </div>
             )}
             <div>
-              <label className={labelClass}>Tags (Additional Categories)</label>
-              <input className={inputClass} value={tagsText} onChange={(e) => setTagsText(e.target.value)} placeholder="comma, separated, tags" />
+              <label className={labelClass}>Tags / Search Keywords</label>
+              <p className="text-xs text-neutral-400 mb-2">
+                Comma-separated keywords. Products appear in catalogue sections tagged with these words, and customers can search these terms. Example: <span className="font-mono bg-neutral-100 px-1 rounded">sale, iphone-deal, 20-off, diwali</span>
+              </p>
+              <input
+                className={inputClass}
+                value={tagsText}
+                onChange={(e) => setTagsText(e.target.value)}
+                placeholder="e.g. new-arrival, trending, sale, mobiles"
+              />
+              {tagsText && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {tagsText.split(",").map(t => t.trim()).filter(Boolean).map(tag => (
+                    <span key={tag} className="inline-flex items-center gap-1 text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2.5 py-0.5 font-medium">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
 

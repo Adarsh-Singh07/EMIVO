@@ -93,9 +93,9 @@ class ProductService:
         await self.session.commit()
         return await self.repository.get_by_id(product.id)
 
-    async def list_products(self, limit: int = 50, offset: int = 0) -> List[Product]:
+    async def list_products(self, limit: int = 50, offset: int = 0, search: str | None = None) -> List[Product]:
         # RLS implicitly filters by current business context
-        return await self.repository.list_products(offset=offset, limit=limit)
+        return await self.repository.list_products(offset=offset, limit=limit, search=search)
 
     async def get_product(self, product_id: str) -> Product:
         product = await self.repository.get_by_id(product_id)

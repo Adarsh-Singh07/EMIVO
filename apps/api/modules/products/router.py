@@ -45,13 +45,14 @@ async def create_product(
 
 @router.get("/", response_model=List[ProductResponse])
 async def list_products(
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    search: Optional[str] = Query(None),
     service: ProductService = Depends(get_public_product_service),
     current_user: Optional[User] = Depends(get_optional_user)
 ) -> Any:
     """List products — public endpoint, no auth required for storefront browsing."""
-    return await service.list_products(limit=limit, offset=offset)
+    return await service.list_products(limit=limit, offset=offset, search=search)
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
