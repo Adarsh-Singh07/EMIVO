@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Tag, RefreshCw, AlertCircle, Plus, Loader2, Ticket, Trash2 } from "lucide-react";
+import { Tag, RefreshCw, AlertCircle, Plus, Loader2, Ticket, Trash2, Edit2 } from "lucide-react";
 import { toast } from "sonner";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { formatINR, rupeesToPaise } from "@/lib/money";
@@ -14,6 +14,7 @@ interface Coupon {
   id: string;
   code: string;
   description?: string | null;
+  terms_conditions?: string | null;
   discount_type: "PERCENTAGE" | "FIXED_AMOUNT";
   discount_value: number;
   min_order_amount?: number | null;
@@ -62,6 +63,9 @@ export default function CouponsPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [terms, setTerms] = useState("");
+  
+  const [editId, setEditId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -120,35 +124,70 @@ export default function CouponsPage() {
       toast.error(discountType === "PERCENTAGE" ? "Percentage must be a positive number" : "Value must be a positive ₹ amount");
       return;
     }
+    
     setCreating(true);
     try {
-      const payload: Record<string, unknown> = {
+      const payload: any = {
         code: trimmedCode,
         discount_type: discountType,
-        discount_value:
-          discountType === "PERCENTAGE" ? Math.trunc(numericValue) : (rupeesToPaise(value) ?? 0),
-        per_user_limit: Math.max(parseInt(perUserLimit, 10) || 1, 1),
+        discount_value: discountType === "PERCENTAGE" ? numericValue : Math.round(numericValue * 100),
+        min_order_amount: minOrder ? Math.round(Number(minOrder) * 100) : null,
+        max_discount_amount: maxDiscount ? Math.round(Number(maxDiscount) * 100) : null,
+        usage_limit: usageLimit ? Number(usageLimit) : null,
+        per_user_limit: perUserLimit ? Number(perUserLimit) : null,
+        start_date: startDate ? new Date(startDate).toISOString() : null,
+        end_date: endDate ? new Date(endDate).toISOString() : null,
         is_active: isActive,
+        terms_conditions: terms || null,
       };
-      const minPaise = rupeesToPaise(minOrder);
-      if (minPaise != null && minPaise > 0) payload.min_order_amount = minPaise;
-      const maxPaise = rupeesToPaise(maxDiscount);
-      if (maxPaise != null && maxPaise > 0) payload.max_discount_amount = maxPaise;
-      const ul = parseInt(usageLimit, 10);
-      if (!Number.isNaN(ul) && ul > 0) payload.usage_limit = ul;
-      if (startDate) payload.start_date = new Date(startDate).toISOString();
-      if (endDate) payload.end_date = new Date(endDate).toISOString();
-
-      await apiClient.post("/coupons/", payload);
-      toast.success(`Coupon ${trimmedCode} created`);
+      
+      if (editId) {
+        delete payload.code;
+        await apiClient.patch(`/coupons/${editId}`, payload);
+        toast.success("Coupon updated");
+      } else {
+        await apiClient.post("/coupons/", payload);
+        toast.success("Coupon created");
+      }
       setCreateOpen(false);
-      resetForm();
       load();
     } catch (err) {
-      toast.error(err instanceof ApiError ? `${err.message}${err.code ? ` (${err.code})` : ""}` : "Create failed");
+      toast.error(err instanceof ApiError ? err.message : "Save failed");
     } finally {
       setCreating(false);
     }
+  };
+  
+  const openEdit = (c: Coupon) => {
+    setEditId(c.id);
+    setCode(c.code);
+    setDiscountType(c.discount_type);
+    setValue(c.discount_type === "PERCENTAGE" ? String(c.discount_value) : String(c.discount_value / 100));
+    setMinOrder(c.min_order_amount ? String(c.min_order_amount / 100) : "");
+    setMaxDiscount(c.max_discount_amount ? String(c.max_discount_amount / 100) : "");
+    setUsageLimit(c.usage_limit ? String(c.usage_limit) : "");
+    setPerUserLimit(c.per_user_limit ? String(c.per_user_limit) : "");
+    setStartDate(c.start_date ? c.start_date.split("T")[0] : "");
+    setEndDate(c.end_date ? c.end_date.split("T")[0] : "");
+    setIsActive(c.is_active);
+    setTerms(c.terms_conditions || "");
+    setCreateOpen(true);
+  };
+  
+  const openCreate = () => {
+    setEditId(null);
+    setCode("");
+    setDiscountType("PERCENTAGE");
+    setValue("");
+    setMinOrder("");
+    setMaxDiscount("");
+    setUsageLimit("");
+    setPerUserLimit("1");
+    setStartDate("");
+    setEndDate("");
+    setIsActive(true);
+    setTerms("");
+    setCreateOpen(true);
   };
 
   const resetForm = () => {
@@ -193,7 +232,7 @@ export default function CouponsPage() {
             Refresh
           </button>
           <button
-            onClick={() => setCreateOpen(true)}
+            onClick={openCreate}
             className="inline-flex items-center gap-2 self-start rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 transition-all hover:from-amber-600 hover:to-orange-700"
           >
             <Plus className="h-4 w-4" />
@@ -295,7 +334,13 @@ export default function CouponsPage() {
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       <button
-                        onClick={() => softDelete(c)}
+                        onClick={() => openEdit(c)}
+                        className="rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
+                        title="Edit"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button
                         disabled={busyId === c.id}
                         className="rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-500 disabled:opacity-40"
                         title="Delete (soft)"
@@ -316,7 +361,7 @@ export default function CouponsPage() {
       <Modal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        title="Create coupon"
+        title={editId ? "Edit coupon" : "Create coupon"}
         wide
         footer={
           <>
@@ -332,7 +377,7 @@ export default function CouponsPage() {
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 transition-all hover:from-amber-600 hover:to-orange-700 disabled:opacity-50"
             >
               {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Create
+              {editId ? "Save" : "Create"}
             </button>
           </>
         }
@@ -344,6 +389,7 @@ export default function CouponsPage() {
               className={`${inputCls} font-mono uppercase`}
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
+              disabled={!!editId}
               placeholder="DIWALI20"
             />
           </div>
@@ -404,6 +450,10 @@ export default function CouponsPage() {
           <div>
             <label className={labelCls}>End date</label>
             <input className={inputCls} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelCls}>Terms & Conditions</label>
+            <textarea className={`${inputCls} min-h-[80px] py-2`} value={terms} onChange={e => setTerms(e.target.value)} placeholder="• Valid for a limited time only..." />
           </div>
           <div className="sm:col-span-2">
             <label className="flex cursor-pointer items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50/50 px-4 py-3">

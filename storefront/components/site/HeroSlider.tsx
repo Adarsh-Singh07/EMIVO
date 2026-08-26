@@ -18,6 +18,8 @@ const inr = (n?: number) => {
  */
 export default function HeroSlider({ slides = HERO_SLIDES }: { slides?: any[] }) {
   const [i, setI] = useState(0);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const activeSlides = slides.length > 0 ? slides : HERO_SLIDES;
   const n = activeSlides.length;
 
@@ -26,10 +28,23 @@ export default function HeroSlider({ slides = HERO_SLIDES }: { slides?: any[] })
     return () => clearInterval(t);
   }, [n]);
 
+    const onTouchStart = (e: React.TouchEvent) => setTouchStart(e.targetTouches[0].clientX);
+  const onTouchMove = (e: React.TouchEvent) => setTouchEnd(e.targetTouches[0].clientX);
+  const onTouchEndHandler = () => {
+    if (!touchStart || !touchEnd) return;
+    const dist = touchStart - touchEnd;
+    const isLeftSwipe = dist > 50;
+    const isRightSwipe = dist < -50;
+    if (isLeftSwipe) setI((v) => (v + 1) % n);
+    if (isRightSwipe) setI((v) => (v - 1 + n) % n);
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
+  
   const s = activeSlides[i];
 
   return (
-    <section className="relative overflow-hidden">
+    <section className="relative overflow-hidden" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEndHandler}>
       <div className="relative bg-neutral-950">
         <Link href={s.link || "/shop"} className="absolute inset-0 z-0 block">
         <img

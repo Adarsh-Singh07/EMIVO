@@ -17,6 +17,7 @@ class CouponBase(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     is_active: bool = True
+    terms_conditions: Optional[str] = None
 
 
 class CouponCreate(CouponBase):

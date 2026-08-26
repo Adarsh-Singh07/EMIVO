@@ -80,6 +80,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   themeColor: "#0a0a0a",
   // Extends the layout viewport into the notch/home-indicator area so the
   // mobile bottom nav can add `env(safe-area-inset-bottom)` padding on iPhones.
