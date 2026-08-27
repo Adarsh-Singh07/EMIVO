@@ -325,6 +325,27 @@ class OrderService:
                     status_code=404
                 )
 
+        customer_id = data.customer_id
+        if not customer_id and current_user:
+            stmt = text("SELECT id FROM customers WHERE email = :email AND business_id = :bid")
+            existing_cust = (await self.session.execute(stmt, {"email": current_user.email, "bid": business_id})).scalar()
+            if existing_cust:
+                customer_id = str(existing_cust)
+            else:
+                import uuid
+                customer_id = str(uuid.uuid4())
+                await self.session.execute(text("""
+                    INSERT INTO customers (id, business_id, name, email, phone)
+                    VALUES (:id, :bid, :name, :email, :phone)
+                    ON CONFLICT (business_id, email) DO NOTHING
+                """), {
+                    "id": customer_id,
+                    "bid": business_id,
+                    "name": f"{current_user.first_name} {current_user.last_name}".strip(),
+                    "email": current_user.email,
+                    "phone": getattr(current_user, "phone", None) or getattr(data.address, "phone", None)
+                })
+        
         # Validate items and calculate totals
         total_amount = 0
         order_items = []
@@ -376,7 +397,7 @@ class OrderService:
 
         order = Order(
             user_id=current_user.id,
-            customer_id=data.customer_id,
+            customer_id=customer_id,
             business_id=business_id,
             status=OrderStatus.PENDING,
             idempotency_key=idempotency_key,

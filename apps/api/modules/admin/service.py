@@ -190,3 +190,43 @@ class AdminService:
         """), {"bid": bid, "cfg": json.dumps(store_cfg)})
         await self.session.commit()
         return await self.get_settings()
+
+    async def invite_admin(self, data: AdminInviteRequest) -> None:
+        from passlib.hash import argon2
+        from modules.users.models import User
+        import uuid
+        
+        bid = await get_store_business_id(self.session)
+        
+        # Check if user exists
+        user_id = (await self.session.execute(text("SELECT id FROM users WHERE email = :email"), {"email": data.email})).scalar()
+        
+        if not user_id:
+            user_id = str(uuid.uuid4())
+            await self.session.execute(text("""
+                INSERT INTO users (id, email, password_hash, first_name, last_name, is_active, is_email_verified)
+                VALUES (:id, :email, :pw, :fn, :ln, true, true)
+            """), {
+                "id": user_id, "email": data.email, "pw": argon2.hash(data.password),
+                "fn": data.first_name, "ln": data.last_name
+            })
+            
+        # Insert into business_members
+        existing = (await self.session.execute(text("""
+            SELECT id FROM business_members WHERE business_id = :bid AND user_id = :uid LIMIT 1
+        """), {"bid": bid, "uid": user_id})).scalar()
+        
+        if not existing:
+            await self.session.execute(text("""
+                INSERT INTO business_members (id, business_id, user_id, role)
+                VALUES (:id, :bid, :uid, 'admin')
+            """), {"id": str(uuid.uuid4()), "bid": bid, "uid": user_id})
+            
+        await self.session.commit()
+
+    async def revoke_admin(self, user_id: str) -> None:
+        bid = await get_store_business_id(self.session)
+        await self.session.execute(text("""
+            DELETE FROM business_members WHERE business_id = :bid AND user_id = :uid
+        """), {"bid": bid, "uid": user_id})
+        await self.session.commit()

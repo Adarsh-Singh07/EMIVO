@@ -56,7 +56,8 @@ const NAV_SECTIONS: Array<{
   {
     label: "System",
     links: [
-      { href: "/settings", label: "Settings", icon: Settings },
+      { href: "/settings", label: "Store Settings", icon: Settings },
+      { href: "/profile", label: "Profile & Team", icon: UserCheck },
       { href: "/health", label: "System Health", icon: Activity },
     ],
   },
@@ -150,14 +151,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               </div>
               <div className="flex items-center gap-4">
                 <NotificationBell />
-                <div className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-neutral-50 transition-colors">
+                <Link href="/profile" className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-neutral-50 transition-colors">
                   <div className="w-8 h-8 rounded-full bg-neutral-950 flex items-center justify-center text-white text-sm font-bold shadow-md">
                     {userInitial}
                   </div>
                   <span className="text-sm font-medium text-neutral-700 hidden sm:block">
                     {userName}
                   </span>
-                </div>
+                </Link>
               </div>
             </header>
 

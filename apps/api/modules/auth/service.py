@@ -62,6 +62,21 @@ class AuthService:
             is_email_verified=False
         )
         self.session.add(user)
+        await self.session.flush()
+
+        from core.store import get_store_business_id
+        import uuid
+        business_id = await get_store_business_id(self.session)
+        await self.session.execute(text("""
+            INSERT INTO customers (id, business_id, name, email)
+            VALUES (:id, :bid, :name, :email)
+            ON CONFLICT (business_id, email) DO NOTHING
+        """), {
+            "id": str(uuid.uuid4()),
+            "bid": business_id,
+            "name": f"{data.first_name} {data.last_name}".strip(),
+            "email": data.email
+        })
         await self.session.commit()
         await self.session.refresh(user)
         return user

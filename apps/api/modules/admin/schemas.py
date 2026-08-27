@@ -63,3 +63,9 @@ class StoreSettingsResponse(BaseModel):
     announcement: Optional[str] = None
     hero_slides: Optional[List[dict]] = None
     promo_tiles: Optional[List[dict]] = None
+
+class AdminInviteRequest(BaseModel):
+    email: str
+    first_name: str
+    last_name: str
+    password: str
