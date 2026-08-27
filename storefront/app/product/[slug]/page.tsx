@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const description =
     product.description?.slice(0, 160) ||
-    `${product.name} by ${product.brand} at ELEKTRIX — genuine products, fast delivery with Open Box Delivery.`;
+    `${product.name} by ${product.brand} at ELEKTRIX — genuine products, fast delivery with Easy Replacement.`;
 
   return {
     title: `${product.name} — ELEKTRIX`,

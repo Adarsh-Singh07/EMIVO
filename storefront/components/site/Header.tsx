@@ -394,7 +394,7 @@ export default function Header() {
               </button>
             </div>
             <nav className="flex-1 flex flex-col p-4 gap-4 text-[15px] font-medium overflow-y-auto">
-              <Link href="/" onClick={() => setMobileOpen(false)}>Home</Link>
+              
               {NAV_LINKS.map((l) => (
                 <Link key={l.label} href={l.href} onClick={() => setMobileOpen(false)}>
                   {l.label}

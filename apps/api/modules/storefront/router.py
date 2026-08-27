@@ -95,7 +95,8 @@ async def store_config(session: AsyncSession = Depends(optional_db_context)):
     
     try:
         db_cfg = await get_store_settings(session)
-    except Exception:
+    except Exception as e:
+        import logging; logging.error("COUPONS ERROR: " + repr(e))
         db_cfg = {}
         
     return {
@@ -176,8 +177,10 @@ async def handle_contact_form(form: ContactForm):
 async def public_coupons(session: AsyncSession = Depends(optional_db_context)):
     from sqlalchemy import text
     try:
+        bid = await session.execute(text("SELECT current_setting('app.business_id', true)"))
+        import logging; logging.warning(f"BUSINESS_ID IN COUPONS ROUTE: {bid.scalar()}")
         query = text("""
-            SELECT code, description, discount_type, discount_value, min_order_amount, max_discount_amount, terms_conditions 
+            SELECT code, description, discount_type, discount_value, min_order_amount, max_discount_amount 
             FROM coupons 
             WHERE is_active = true 
             AND deleted_at IS NULL
@@ -185,6 +188,7 @@ async def public_coupons(session: AsyncSession = Depends(optional_db_context)):
             AND (end_date IS NULL OR end_date >= now())
         """)
         result = await session.execute(query)
-        return [dict(row._mapping) for row in result.fetchall()]
-    except Exception:
+        return [{**dict(row._mapping), 'discount_type': str(row._mapping['discount_type'].value) if hasattr(row._mapping['discount_type'], 'value') else str(row._mapping['discount_type'])} for row in result.fetchall()]
+    except Exception as e:
+        import logging; logging.error("COUPONS ERROR: " + repr(e))
         return []
