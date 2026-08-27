@@ -67,6 +67,7 @@ class AuthService:
         from core.store import get_store_business_id
         import uuid
         business_id = await get_store_business_id(self.session)
+        await self.session.execute(text("SELECT set_config('app.business_id', :bid, true)"), {"bid": str(business_id)})
         await self.session.execute(text("""
             INSERT INTO customers (id, business_id, name, email)
             VALUES (:id, :bid, :name, :email)
