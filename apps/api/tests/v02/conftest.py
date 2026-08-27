@@ -54,8 +54,8 @@ async def register_and_login(client: httpx.AsyncClient, n: int = 0, password: st
 
 async def admin_login(client: httpx.AsyncClient):
     r = await client.post("/api/v1/auth/login", json={
-        "email": os.environ["ADMIN_EMAIL"],
-        "password": os.environ["ADMIN_INITIAL_PASSWORD"],
+        "email": os.environ.get("ADMIN_EMAIL", "admin@example.com"),
+        "password": os.environ.get("ADMIN_INITIAL_PASSWORD", "TestAdminPass123!"),
     })
     assert r.status_code == 200, r.text
     tokens = r.json()
