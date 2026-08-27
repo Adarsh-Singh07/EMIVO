@@ -9,6 +9,7 @@ from modules.admin.schemas import (
     DashboardStats,
     StoreSettingsResponse,
     StoreSettingsUpdate,
+    AdminInviteRequest,
 )
 from modules.admin.service import AdminService
 
@@ -50,3 +51,18 @@ async def update_store_settings(
     """Runtime commerce switches: COD on/off + fee + max order, shipping rules,
     festival banner content, storefront announcement."""
     return await service.update_settings(payload)
+
+@router.post("/users/invite", response_model=dict, dependencies=[Depends(require_staff)])
+async def invite_admin(
+    payload: AdminInviteRequest,
+    service: AdminService = Depends(_service),
+):
+    await service.invite_admin(payload)
+    return {"status": "success"}
+
+@router.delete("/users/{user_id}/revoke", status_code=204, dependencies=[Depends(require_staff)])
+async def revoke_admin(
+    user_id: str,
+    service: AdminService = Depends(_service),
+):
+    await service.revoke_admin(user_id)
