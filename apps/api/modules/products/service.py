@@ -144,11 +144,21 @@ class ProductService:
         return await self.repository.get_by_id(product.id)
 
     async def delete_product(self, product_id: str) -> None:
-        """Soft-delete for commerce: ARCHIVED products disappear from the
-        storefront but remain referenced by historical orders."""
+        from sqlalchemy import select, func
+        from modules.orders.models import OrderItem
+        
         product = await self.get_product(product_id)
-        product.status = ProductStatus.ARCHIVED
-        await self.repository.update(product)
+        
+        stmt = select(func.count(OrderItem.id)).where(OrderItem.product_id == product.id)
+        res = await self.session.execute(stmt)
+        order_count = res.scalar()
+        
+        if order_count == 0:
+            await self.session.delete(product)
+        else:
+            product.status = ProductStatus.ARCHIVED
+            await self.repository.update(product)
+            
         await self.session.commit()
 
     async def add_variant(self, product_id: str, data: ProductVariantCreate) -> ProductVariant:
