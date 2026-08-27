@@ -27,7 +27,7 @@ export default function Footer() {
             <div className="flex items-start gap-2">
               <MapPin className="w-4 h-4 text-neutral-500 mt-1 shrink-0" />
               <div>
-                <span className="font-semibold text-white">Apna Enterprises</span>
+                <span className="font-semibold text-white">APANA ENTERPRISES</span>
                 <br />
                 DS1, 109, Near Indian Petrol Pump,
                 <br />

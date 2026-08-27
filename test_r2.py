@@ -1,34 +1,29 @@
 import os
 import boto3
-from dotenv import load_dotenv
+from botocore.config import Config
+import requests
 
-load_dotenv("/opt/elektrix/.env")
+account_id = os.getenv("R2_ACCOUNT_ID")
+endpoint = f"https://{account_id}.r2.cloudflarestorage.com"
+access = os.getenv("R2_ACCESS_KEY_ID")
+secret = os.getenv("R2_SECRET_ACCESS_KEY")
 
-account_id = os.environ.get("R2_ACCOUNT_ID")
-access_key = os.environ.get("R2_ACCESS_KEY_ID")
-secret_key = os.environ.get("R2_SECRET_ACCESS_KEY")
-bucket = os.environ.get("R2_BUCKET_NAME")
-
-print(f"Account ID: {account_id}")
-print(f"Bucket: {bucket}")
-print(f"Access Key: {access_key}")
-print(f"Secret Key: {secret_key[:5]}..." if secret_key else "Missing secret")
-
-if not access_key or access_key.startswith("your_production"):
-    print("Invalid placeholder credentials.")
-    exit(1)
-
-s3 = boto3.client(
+client = boto3.client(
     "s3",
-    endpoint_url=f"https://{account_id}.r2.cloudflarestorage.com",
-    aws_access_key_id=access_key,
-    aws_secret_access_key=secret_key,
-    region_name="auto"
+    endpoint_url=endpoint,
+    aws_access_key_id=access,
+    aws_secret_access_key=secret,
+    region_name="auto",
+    config=Config(signature_version="s3v4")
 )
 
-try:
-    s3.list_objects_v2(Bucket=bucket, MaxKeys=1)
-    print("Successfully connected to R2 and accessed bucket!")
-except Exception as e:
-    print(f"Failed: {e}")
-    exit(1)
+url = client.generate_presigned_url(
+    "put_object",
+    Params={"Bucket": "elektrix-media", "Key": "products/test.txt", "ContentType": "text/plain"},
+    ExpiresIn=3600
+)
+
+print(url)
+
+res = requests.put(url, data=b"hello", headers={"Content-Type": "text/plain"})
+print(res.status_code, res.text)

@@ -43,7 +43,7 @@ const FEATURES = [
   { icon: Truck, title: "Free Delivery", desc: "On all orders over ₹999" },
   { icon: BadgePercent, title: "No-Cost EMI", desc: "Available on 3, 6 & 12 months" },
   { icon: ShieldCheck, title: "100% Genuine", desc: "Brand warranty on everything" },
-  { icon: RotateCcw, title: "Open Box Delivery", desc: "No returns after delivery", href: "/refund" },
+  { icon: RotateCcw, title: "Easy Replacement", desc: "On Damaged/Defective Delivery", href: "/refund" },
 ];
 
 // ISR: revalidate frequently so banner/coupon changes reflect quickly.

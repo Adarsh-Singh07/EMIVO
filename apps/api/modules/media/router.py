@@ -14,7 +14,7 @@ from modules.media.schemas import PresignedUploadRequest, PresignedUploadRespons
 
 router = APIRouter(prefix="/api/v1/media", tags=["media"])
 
-ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".avif", ".gif"}
+ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".avif", ".gif", ".svg", ".ico"}
 
 
 @router.post(

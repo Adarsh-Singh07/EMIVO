@@ -88,7 +88,7 @@ export default function ContactPage() {
           {[
             { icon: Phone, label: "Call us", value: "+91 80920 24066", note: "Mon–Sat, 9am–9pm IST" },
             { icon: Mail, label: "Email", value: SUPPORT_EMAIL, note: "Replies within 24 hours" },
-            { icon: MapPin, label: "Store Address", value: "DS1, 109, Near Indian Petrol Pump, Vijayipur, Gopalganj, Bihar - 841508", note: "Apna Enterprises" },
+            { icon: MapPin, label: "Store Address", value: "APANA ENTERPRISES", note: "DS1, 109, Near Indian Petrol Pump, Vijayipur, Gopalganj, Bihar - 841508" },
             { icon: Clock, label: "Support hours", value: "9:00 – 21:00 IST", note: "7 days a week" },
           ].map((c) => (
             <div key={c.label} className="flex gap-4 rounded-2xl border border-neutral-100 bg-white p-5">

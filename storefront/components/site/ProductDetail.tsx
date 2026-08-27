@@ -429,7 +429,7 @@ export default function ProductDetail({
               <Truck className="w-5 h-5 text-neutral-400 shrink-0" /> Free shipping over ₹999
             </div>
             <div className="flex items-center gap-2 text-xs text-neutral-600 shrink-0 snap-start">
-              <RotateCcw className="w-5 h-5 text-neutral-400 shrink-0" /> {product.return_policy || "Open Box Delivery — No returns after delivery"}
+              <RotateCcw className="w-5 h-5 text-neutral-400 shrink-0" /> {product.return_policy || "Easy Replacement on Damaged/Defective Delivery"}
             </div>
             <div className="flex items-center gap-2 text-xs text-neutral-600 shrink-0 snap-start">
               <ShieldCheck className="w-5 h-5 text-neutral-400 shrink-0" /> {product.warranty_info || "1-year warranty"}
@@ -478,7 +478,7 @@ export default function ProductDetail({
                 {[
                   "Genuine product with manufacturer warranty",
                   "Free & fast shipping on orders above ₹999",
-                  "Open Box Delivery — inspect before accepting",
+                  "Easy Replacement on Damaged/Defective Delivery",
                   "Secure encrypted checkout",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2">

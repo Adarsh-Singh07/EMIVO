@@ -1,6 +1,6 @@
 export const metadata = {
   title: "Return Policy | ELEKTRIX",
-  description: "Return Policy for ELEKTRIX — Open Box Delivery, no returns after acceptance.",
+  description: "Return Policy for ELEKTRIX — Easy Replacement on Damaged/Defective Delivery.",
 };
 
 export default function RefundPage() {

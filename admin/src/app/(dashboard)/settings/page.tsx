@@ -216,6 +216,7 @@ export default function SettingsPage() {
       const presign = await apiClient.post<{ upload_url: string; public_url: string }>("/media/presign", {
         filename: file.name,
         content_type: file.type,
+        size_bytes: file.size,
       });
       await fetch(presign.upload_url, {
         method: "PUT",
@@ -241,7 +242,7 @@ export default function SettingsPage() {
       const presign = await apiClient.post<{ upload_url: string; public_url: string }>("/media/presign", {
         filename: file.name,
         content_type: file.type,
-        size_bytes: file.size,
+                size_bytes: file.size,
       });
       const put = await fetch(presign.upload_url, {
         method: "PUT",
