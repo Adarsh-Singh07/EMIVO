@@ -197,7 +197,7 @@ export default function ProductDetail({
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <nav className="text-sm text-neutral-500 mb-6 flex flex-wrap items-center gap-1">
+      <nav className="text-xs sm:text-sm text-neutral-500 mb-6 flex items-center gap-1 overflow-x-auto whitespace-nowrap no-scrollbar">
         <Link href="/">Home</Link> <ChevronRight className="w-3 h-3" />
         <Link href="/shop" className="hover:text-neutral-900">
           Shop
@@ -392,11 +392,11 @@ export default function ProductDetail({
             </button>
           </div>
 
-          <div className="flex gap-2 mt-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="flex gap-2 mt-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-2 ">
             <button
               onClick={handleWishlist}
               aria-pressed={wished}
-              className={`shrink-0 min-w-[120px] h-11 inline-flex items-center justify-center gap-2 border rounded-full text-sm hover:bg-neutral-50 snap-start ${
+              className={`shrink-0 min-w-[100px] h-11 inline-flex items-center justify-center gap-2 border rounded-full text-sm hover:bg-neutral-50 snap-start ${
                 wished ? "border-red-200 text-red-600" : "border-neutral-200"
               }`}
             >
@@ -406,14 +406,14 @@ export default function ProductDetail({
             <button
               onClick={handleCompare}
               aria-pressed={comparing}
-              className={`shrink-0 min-w-[120px] h-11 inline-flex items-center justify-center gap-2 border rounded-full text-sm hover:bg-neutral-50 snap-start ${
+              className={`shrink-0 min-w-[100px] h-11 inline-flex items-center justify-center gap-2 border rounded-full text-sm hover:bg-neutral-50 snap-start ${
                 comparing ? "border-neutral-950" : "border-neutral-200"
               }`}
             >
               <RefreshCw className="w-4 h-4" /> {comparing ? "In compare" : "Compare"}
             </button>
             <button
-              className="shrink-0 min-w-[120px] h-11 inline-flex items-center justify-center gap-2 border border-neutral-200 rounded-full text-sm hover:bg-neutral-50 snap-start"
+              className="shrink-0 min-w-[100px] h-11 inline-flex items-center justify-center gap-2 border border-neutral-200 rounded-full text-sm hover:bg-neutral-50 snap-start"
               onClick={() => {
                 navigator.clipboard?.writeText(window.location.href);
                 toast.success("Link copied to clipboard");
@@ -424,7 +424,7 @@ export default function ProductDetail({
           </div>
 
           {/* Trust badges */}
-          <div className="flex gap-6 mt-8 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="flex gap-6 mt-8 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-2 ">
             <div className="flex items-center gap-2 text-xs text-neutral-600 shrink-0 snap-start">
               <Truck className="w-5 h-5 text-neutral-400 shrink-0" /> Free shipping over ₹999
             </div>
@@ -528,7 +528,7 @@ export default function ProductDetail({
               View all →
             </Link>
           </div>
-          <div className="flex gap-4 sm:gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="flex gap-4 sm:gap-6 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-2 ">
             {related.map((p) => (
               <div key={p.id} className="w-[70vw] sm:w-64 shrink-0 snap-start">
                 <ProductCard product={p} />

@@ -59,15 +59,15 @@ export default function HeroSlider({ slides = HERO_SLIDES }: { slides?: any[] })
 
         {/* Content */}
         <div className="relative z-10 max-w-[1400px] pointer-events-none mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center min-h-[320px] sm:min-h-[440px] lg:min-h-[560px] py-8 sm:py-10">
+          <div className="flex items-center min-h-[280px] sm:min-h-[440px] lg:min-h-[560px] py-6 sm:py-10">
             <div key={`t-${s.id}`} className="max-w-xl text-white pointer-events-auto">
               <span className="inline-block text-[10px] sm:text-xs uppercase tracking-[0.2em] text-white/70 mb-3 sm:mb-4">
                 {s.eyebrow}
               </span>
-              <h1 className="text-[32px] sm:text-5xl lg:text-6xl font-semibold tracking-tight leading-[1.05]">
+              <h1 className="text-[24px] sm:text-5xl lg:text-6xl font-semibold tracking-tight leading-[1.05]">
                 {s.title}
               </h1>
-              <p className="mt-3 sm:mt-4 text-white/80 text-[13px] sm:text-lg max-w-md">{s.subtitle}</p>
+              <p className="mt-2 sm:mt-4 text-white/80 text-[13px] sm:text-lg max-w-md">{s.subtitle}</p>
               <div className="mt-4 sm:mt-5 flex items-baseline gap-2 sm:gap-3">
                 <span className="text-xl sm:text-2xl font-semibold">{inr(s.price)}</span>
                 <span className="text-white/60 line-through text-[13px] sm:text-base">{inr(s.mrp)}</span>
