@@ -7,7 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.store import get_store_business_id, get_store_settings
-from modules.admin.schemas import DashboardStats, StoreSettingsUpdate
+from modules.admin.schemas import DashboardStats, StoreSettingsUpdate, AdminInviteRequest
 
 
 class AdminService:
