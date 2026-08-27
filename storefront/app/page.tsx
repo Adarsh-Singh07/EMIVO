@@ -176,14 +176,14 @@ export default async function Home() {
       </section>
 
       {/* 5. Brand marquee */}
-      <section className="py-12 border-y border-neutral-100 overflow-hidden">
+      <section className="py-6 border-y border-neutral-100 overflow-hidden">
         <div className="flex w-max animate-marquee">
           {[0, 1].map((copy) => (
             <div key={copy} className="flex items-center gap-16 pr-16">
               {BRANDS.map((brand) => (
                 <span
                   key={`${copy}-${brand}`}
-                  className="text-2xl font-semibold text-neutral-300 whitespace-nowrap"
+                  className="text-2xl font-semibold text-neutral-400 whitespace-nowrap"
                 >
                   {brand}
                 </span>
