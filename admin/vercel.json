@@ -4,17 +4,16 @@
   "buildCommand": "npm run build",
   "installCommand": "npm ci",
   "outputDirectory": ".next",
-  "regions": ["bom1"],
-  "env": {
-    "NEXT_PUBLIC_API_URL": "https://api.elektrix.in/api/v1"
-  },
+  "regions": [
+    "bom1"
+  ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.cashfree.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://api.elektrix.in https://api.cashfree.com https://sandbox.cashfree.com https://*.cloudflarestorage.com; frame-src https://checkout.cashfree.com https://www.cashfree.com; object-src 'none'; base-uri 'self'; form-action 'self' https://api.cashfree.com https://sandbox.cashfree.com"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.cashfree.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://api.elektrix.in https://elektrix.onrender.com https://api.cashfree.com https://sandbox.cashfree.com https://*.cloudflarestorage.com; frame-src https://checkout.cashfree.com https://www.cashfree.com; object-src 'none'; base-uri 'self'; form-action 'self' https://api.cashfree.com https://sandbox.cashfree.com"
         },
         {
           "key": "X-Frame-Options",
