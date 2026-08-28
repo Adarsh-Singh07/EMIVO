@@ -1,22 +1,9 @@
-import httpx
-from core.config import settings
+import re
 
-async def get_delhivery_estimate(destination_pincode: str) -> dict:
-    if not settings.delhivery_api_key.get_secret_value() or not settings.delhivery_origin_pincode:
-        return {"serviceable": True, "estimated_days": "3-5", "message": "Standard Delivery"}
+with open("apps/api/modules/storefront/shipping.py", "r") as f:
+    content = f.read()
 
-    headers = {
-        "Authorization": f"Token {settings.delhivery_api_key.get_secret_value()}",
-        "Content-Type": "application/json"
-    }
-    
-    # 1. Check Serviceability
-    url = f"https://track.delhivery.com/c/api/pin-codes/json/?filter_codes={destination_pincode}"
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(url, headers=headers)
-        if resp.status_code == 200:
-            data = resp.json()
-            if "delivery_codes" in data and len(data["delivery_codes"]) > 0:
+new_logic = """
                 dc = data["delivery_codes"][0]["postal_code"]
                 state = dc.get("state_code", "")
                 
@@ -41,5 +28,15 @@ async def get_delhivery_estimate(destination_pincode: str) -> dict:
                     "prepaid_available": dc.get("pre_paid") == "Y",
                     "message": f"Delivery to {dc.get('city', 'your location')}"
                 }
-    
-    return {"serviceable": False, "estimated_days": None, "message": "Pincode not serviceable by our courier"}
+"""
+
+content = re.sub(
+    r'dc = data\["delivery_codes"\]\[0\]\["postal_code"\].*?"message": "Delivery available"\n\s*\}',
+    new_logic.strip(),
+    content,
+    flags=re.DOTALL
+)
+
+with open("apps/api/modules/storefront/shipping.py", "w") as f:
+    f.write(content)
+
