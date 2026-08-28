@@ -23,7 +23,7 @@ from modules.storefront.schemas import (
 # Effective price as a SQL expression (used in SELECT, ORDER BY and filters)
 EFFECTIVE_PRICE_SQL = (
     "CASE WHEN p.sale_price IS NOT NULL AND p.sale_price > 0 "
-    "AND p.offer_starts_at IS NOT NULL AND p.offer_starts_at <= now() "
+    "AND (p.offer_starts_at IS NULL OR p.offer_starts_at <= now()) "
     "AND (p.offer_ends_at IS NULL OR p.offer_ends_at >= now()) "
     "THEN p.sale_price ELSE p.price END"
 )

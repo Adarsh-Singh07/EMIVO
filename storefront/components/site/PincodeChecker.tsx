@@ -14,7 +14,7 @@ export default function PincodeChecker() {
     
     setLoading(true);
     try {
-      const res = await fetch(`/api/v1/store/shipping-estimate?pincode=${pincode}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/store/shipping-estimate?pincode=${pincode}`);
       if (res.ok) {
         const data = await res.json();
         setResult(data);

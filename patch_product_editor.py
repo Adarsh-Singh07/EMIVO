@@ -1,37 +1,48 @@
 import re
 
-path = "/opt/elektrix/admin/src/app/(dashboard)/products/ProductEditor.tsx"
-with open(path, "r") as f:
+with open("admin/src/app/(dashboard)/products/ProductEditor.tsx", "r") as f:
     content = f.read()
 
-old_desc = """              <textarea
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="w-full h-32 px-4 py-3 bg-neutral-100 border-none rounded-xl text-sm focus:ring-2 focus:ring-neutral-900 resize-none"
-                placeholder="Product description and details..."
-              />"""
+# 1. Add state
+content = re.sub(
+    r'const \[salePrice, setSalePrice\] = useState\(""\); // rupees',
+    'const [salePrice, setSalePrice] = useState("");\n  const [hasOffer, setHasOffer] = useState(false);',
+    content
+)
 
-# We need to import dynamic from next/dynamic for ReactQuill
-# Wait, react-quill doesn't support SSR out of the box, we need dynamic import.
-new_import = """import { Camera, ChevronRight, Image as ImageIcon, Loader2, Plus, Trash2, Link as LinkIcon, RefreshCw, Eye } from "lucide-react";
-import dynamic from "next/dynamic";
-import "react-quill/dist/quill.snow.css";
+# 2. Update loadProduct
+content = re.sub(
+    r'setSalePrice\(paiseToRupeeInput\(p\.sale_price\)\);',
+    'setSalePrice(paiseToRupeeInput(p.sale_price));\n      setHasOffer(p.sale_price != null && p.sale_price > 0);',
+    content
+)
 
-const ReactQuill = dynamic(() => import("react-quill"), { ssr: false });"""
+# 3. Update handleSave logic
+# find payload.mrp = mrpPaise ?? null;
+save_logic_old = """    const salePaise = rupeesToPaise(salePrice);
+    payload.sale_price = salePaise ?? null;
+    payload.offer_name = salePaise != null ? (offerName.trim() || null) : null;
+    payload.offer_starts_at = salePaise != null ? localInputToIso(offerStarts) : null;
+    payload.offer_ends_at = salePaise != null ? localInputToIso(offerEnds) : null;"""
 
-if "import dynamic" not in content:
-    content = content.replace('import { Camera, ChevronRight, Image as ImageIcon, Loader2, Plus, Trash2, Link as LinkIcon, RefreshCw, Eye } from "lucide-react";', new_import)
+save_logic_new = """    const salePaise = hasOffer ? rupeesToPaise(salePrice) : null;
+    payload.sale_price = salePaise ?? null;
+    payload.offer_name = hasOffer ? (offerName.trim() || null) : null;
+    payload.offer_starts_at = hasOffer ? localInputToIso(offerStarts) : null;
+    payload.offer_ends_at = hasOffer ? localInputToIso(offerEnds) : null;"""
+content = content.replace(save_logic_old, save_logic_new)
 
-new_desc = """              <div className="bg-white [&_.ql-container]:min-h-[160px] [&_.ql-container]:text-sm [&_.ql-container]:font-sans [&_.ql-editor]:min-h-[160px] [&_.ql-toolbar]:border-none [&_.ql-toolbar]:bg-neutral-50 [&_.ql-toolbar]:rounded-t-xl [&_.ql-container]:border-none [&_.ql-container]:bg-neutral-50 [&_.ql-container]:rounded-b-xl [&_.ql-editor]:px-4">
-                <ReactQuill
-                  theme="snow"
-                  value={form.description}
-                  onChange={(val) => setForm({ ...form, description: val })}
-                  placeholder="Product description and details..."
-                />
-              </div>"""
+# 4. Update validate logic
+validate_logic_old = """    const salePaise = rupeesToPaise(salePrice);
+    if (salePrice.trim() !== "" && salePaise == null) return "Sale price must be a valid amount in ₹.";
+    if (salePaise != null && salePaise >= pricePaise) return "Sale price must be lower than the selling price.";
+    if (offerStarts && offerEnds && new Date(offerStarts) >= new Date(offerEnds)) return "Offer end must be after offer start.";"""
+validate_logic_new = """    const salePaise = hasOffer ? rupeesToPaise(salePrice) : null;
+    if (hasOffer && salePrice.trim() !== "" && salePaise == null) return "Sale price must be a valid amount in ₹.";
+    if (hasOffer && salePaise != null && salePaise >= pricePaise) return "Sale price must be lower than the selling price.";
+    if (hasOffer && offerStarts && offerEnds && new Date(offerStarts) >= new Date(offerEnds)) return "Offer end must be after offer start.";"""
+content = content.replace(validate_logic_old, validate_logic_new)
 
-content = content.replace(old_desc, new_desc)
-
-with open(path, "w") as f:
+with open("admin/src/app/(dashboard)/products/ProductEditor.tsx", "w") as f:
     f.write(content)
+

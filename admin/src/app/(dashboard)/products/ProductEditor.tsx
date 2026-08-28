@@ -130,7 +130,8 @@ export function ProductEditor({ productId }: { productId?: string }) {
   const [categoryId, setCategoryId] = useState("");
   const [price, setPrice] = useState(""); // rupees
   const [mrp, setMrp] = useState(""); // rupees
-  const [salePrice, setSalePrice] = useState(""); // rupees
+  const [salePrice, setSalePrice] = useState("");
+  const [hasOffer, setHasOffer] = useState(false);
   const [offerName, setOfferName] = useState("");
   const [offerStarts, setOfferStarts] = useState(""); // datetime-local
   const [offerEnds, setOfferEnds] = useState(""); // datetime-local
@@ -169,6 +170,7 @@ export function ProductEditor({ productId }: { productId?: string }) {
       setPrice(paiseToRupeeInput(p.price));
       setMrp(paiseToRupeeInput(p.mrp));
       setSalePrice(paiseToRupeeInput(p.sale_price));
+      setHasOffer(p.sale_price != null && p.sale_price > 0);
       setOfferName(p.offer_name || "");
       setOfferStarts(isoToLocalInput(p.offer_starts_at));
       setOfferEnds(isoToLocalInput(p.offer_ends_at));
@@ -323,11 +325,11 @@ export function ProductEditor({ productId }: { productId?: string }) {
     // Explicit null clears mrp / sale_price / offer_* / category_id
     const mrpPaise = rupeesToPaise(mrp);
     payload.mrp = mrpPaise ?? null;
-    const salePaise = rupeesToPaise(salePrice);
+    const salePaise = hasOffer ? rupeesToPaise(salePrice) : null;
     payload.sale_price = salePaise ?? null;
-    payload.offer_name = salePaise != null ? (offerName.trim() || null) : null;
-    payload.offer_starts_at = salePaise != null ? localInputToIso(offerStarts) : null;
-    payload.offer_ends_at = salePaise != null ? localInputToIso(offerEnds) : null;
+    payload.offer_name = hasOffer ? (offerName.trim() || null) : null;
+    payload.offer_starts_at = hasOffer ? localInputToIso(offerStarts) : null;
+    payload.offer_ends_at = hasOffer ? localInputToIso(offerEnds) : null;
     payload.category_id = categoryId || null;
 
     payload.specs = specs.filter((s) => s.name.trim() && s.value.trim()).map((s) => ({ name: s.name.trim(), value: s.value.trim() }));
@@ -344,10 +346,10 @@ export function ProductEditor({ productId }: { productId?: string }) {
     if (pricePaise == null || pricePaise <= 0) return "A valid selling price (₹) is required.";
     const mrpPaise = rupeesToPaise(mrp);
     if (mrp.trim() !== "" && mrpPaise == null) return "MRP must be a valid amount in ₹.";
-    const salePaise = rupeesToPaise(salePrice);
-    if (salePrice.trim() !== "" && salePaise == null) return "Sale price must be a valid amount in ₹.";
-    if (salePaise != null && salePaise >= pricePaise) return "Sale price must be lower than the selling price.";
-    if (offerStarts && offerEnds && new Date(offerStarts) >= new Date(offerEnds)) return "Offer end must be after offer start.";
+    const salePaise = hasOffer ? rupeesToPaise(salePrice) : null;
+    if (hasOffer && salePrice.trim() !== "" && salePaise == null) return "Sale price must be a valid amount in ₹.";
+    if (hasOffer && salePaise != null && salePaise >= pricePaise) return "Sale price must be lower than the selling price.";
+    if (hasOffer && offerStarts && offerEnds && new Date(offerStarts) >= new Date(offerEnds)) return "Offer end must be after offer start.";
     return null;
   };
 
