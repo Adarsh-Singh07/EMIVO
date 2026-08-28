@@ -21,6 +21,7 @@ import {
   Loader2,
   Star,
 } from "lucide-react";
+import PincodeChecker from "./PincodeChecker";
 import ProductCard from "./ProductCard";
 import { useCart } from "./CartProvider";
 import { useWishlist } from "@/lib/wishlist-context";
@@ -304,6 +305,8 @@ export default function ProductDetail({
           <p className="text-sm text-neutral-500 mt-1">
             Inclusive of all taxes &nbsp;·&nbsp; Dispatched in 24-48 hrs
           </p>
+
+          <PincodeChecker />
 
           {/* Variant selector */}
           {hasVariants && (

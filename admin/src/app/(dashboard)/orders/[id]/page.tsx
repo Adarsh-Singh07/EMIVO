@@ -79,7 +79,7 @@ interface Payment {
 }
 
 /** Backend state machine: PENDING→CONFIRMED→PROCESSING→SHIPPED→DELIVERED; CANCELLED; DELIVERED→REFUNDED. */
-const NEXT_ACTIONS: Record<string, Array<{ label: string; target: string; style: "primary" | "danger" | "neutral"; tracking?: boolean; reason?: boolean }>> = {
+const NEXT_ACTIONS: Record<string, Array<{ label: string; target: string; style: "primary" | "danger" | "neutral" | "brand"; tracking?: boolean; reason?: boolean; delhivery?: boolean }>> = {
   PENDING: [
     { label: "Confirm", target: "CONFIRMED", style: "primary" },
     { label: "Cancel", target: "CANCELLED", style: "danger", reason: true },
@@ -89,7 +89,8 @@ const NEXT_ACTIONS: Record<string, Array<{ label: string; target: string; style:
     { label: "Cancel", target: "CANCELLED", style: "danger", reason: true },
   ],
   PROCESSING: [
-    { label: "Mark Shipped", target: "SHIPPED", style: "primary", tracking: true },
+    { label: "Ship via Delhivery", target: "SHIPPED", style: "brand", delhivery: true },
+    { label: "Mark Shipped (Manual)", target: "SHIPPED", style: "neutral", tracking: true },
     { label: "Cancel", target: "CANCELLED", style: "danger", reason: true },
   ],
   SHIPPED: [
@@ -146,6 +147,19 @@ export default function OrderDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const shipWithDelhivery = async () => {
+    setTransitioning(true);
+    try {
+      if (!order) return;
+      await apiClient.post(`/orders/${order.id}/ship-delhivery`, {});
+      toast.success("Order shipped via Delhivery!");
+      load();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "Delhivery integration failed");
+    }
+    setTransitioning(false);
+  };
 
   const applyTransition = async (
     target: string,
@@ -374,7 +388,9 @@ export default function OrderDetailPage() {
                 <button
                   key={action.target}
                   onClick={() => {
-                    if (action.tracking) {
+                    if (action.delhivery) {
+                      shipWithDelhivery();
+                    } else if (action.tracking) {
                       setTrackingNumber("");
                       setTrackingUrl("");
                       setShipOpen(true);
@@ -389,12 +405,14 @@ export default function OrderDetailPage() {
                   className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all disabled:opacity-50 ${
                     action.style === "primary"
                       ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/20 hover:from-amber-600 hover:to-orange-700"
+                      : action.style === "brand"
+                        ? "bg-neutral-900 text-white hover:bg-black"
                       : action.style === "danger"
                         ? "border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
                         : "border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
                   }`}
                 >
-                  {action.style === "danger" ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                  {action.delhivery ? <Truck className="h-4 w-4" /> : action.style === "danger" ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                   {action.label}
                 </button>
               ))}

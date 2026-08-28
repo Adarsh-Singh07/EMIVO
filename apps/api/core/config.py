@@ -94,7 +94,12 @@ class Settings(BaseSettings):
     # NEVER commit real values; insert via environment / Docker secrets only.
     easebuzz_merchant_key: str = Field(default="")
     easebuzz_salt: SecretStr = Field(default=SecretStr(""))
-    easebuzz_environment: str = Field(default="sandbox")  # "sandbox" | "production"
+    easebuzz_environment: str = Field(default="test")  # "test" | "prod"
+
+    # Delhivery Configuration
+    delhivery_api_key: SecretStr = Field(default=SecretStr(""))
+    delhivery_origin_pincode: str = Field(default="")
+    delhivery_environment: str = Field(default="prod") # "prod" or "sandbox"
 
     # Transactional email (Resend). EMAIL_FROM must be a verified sender.
     resend_api_key: SecretStr = Field(default=SecretStr(""))

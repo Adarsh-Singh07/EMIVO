@@ -169,3 +169,11 @@ async def delete_order(
 ) -> None:
     """Soft delete / cancel an order (staff)."""
     await service.delete_order(order_id)
+
+@router.post("/{order_id}/ship-delhivery", dependencies=[Depends(require_staff)])
+async def ship_order_delhivery(
+    order_id: str,
+    service: OrderService = Depends(get_order_service),
+) -> Any:
+    """Create a Delhivery shipment for the order and mark it shipped."""
+    return await service.create_delhivery_shipment(order_id)

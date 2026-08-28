@@ -123,6 +123,11 @@ async def store_config(session: AsyncSession = Depends(optional_db_context)):
         "promo_tiles": db_cfg.get("promo_tiles", []),
     }
 
+@router.get("/shipping-estimate")
+async def shipping_estimate(pincode: str = Query(..., min_length=6, max_length=6)):
+    from modules.storefront.shipping import get_delhivery_estimate
+    return await get_delhivery_estimate(pincode)
+
 from pydantic import BaseModel
 class ContactForm(BaseModel):
     name: str
