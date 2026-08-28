@@ -100,6 +100,7 @@ class ProductBase(BaseModel):
     sku: Optional[str] = None
     mrp: Optional[int] = Field(default=None, ge=0, description="List price (MRP) in paise")
     sale_price: Optional[int] = Field(default=None, ge=0, description="Festival offer price in paise")
+    offer_name: Optional[str] = Field(default=None, max_length=100, description="Name of the offer, e.g., Diwali Dhamaka")
     offer_starts_at: Optional[datetime] = None
     offer_ends_at: Optional[datetime] = None
     brand: Optional[str] = None
@@ -130,6 +131,7 @@ class ProductUpdate(BaseModel):
     sku: Optional[str] = None
     mrp: Optional[int] = None
     sale_price: Optional[int] = None
+    offer_name: Optional[str] = Field(default=None, max_length=100)
     offer_starts_at: Optional[datetime] = None
     offer_ends_at: Optional[datetime] = None
     brand: Optional[str] = None

@@ -56,6 +56,7 @@ export interface ProductFull {
   is_active?: boolean;
   mrp?: number | null;
   sale_price?: number | null;
+  offer_name?: string | null;
   offer_starts_at?: string | null;
   offer_ends_at?: string | null;
   status?: string | null;
@@ -130,8 +131,9 @@ export function ProductEditor({ productId }: { productId?: string }) {
   const [price, setPrice] = useState(""); // rupees
   const [mrp, setMrp] = useState(""); // rupees
   const [salePrice, setSalePrice] = useState(""); // rupees
-  const [offerStarts, setOfferStarts] = useState("");
-  const [offerEnds, setOfferEnds] = useState("");
+  const [offerName, setOfferName] = useState("");
+  const [offerStarts, setOfferStarts] = useState(""); // datetime-local
+  const [offerEnds, setOfferEnds] = useState(""); // datetime-local
   const [status, setStatus] = useState("DRAFT");
   const [featured, setFeatured] = useState(false);
   const [initialStock, setInitialStock] = useState("");
@@ -167,6 +169,7 @@ export function ProductEditor({ productId }: { productId?: string }) {
       setPrice(paiseToRupeeInput(p.price));
       setMrp(paiseToRupeeInput(p.mrp));
       setSalePrice(paiseToRupeeInput(p.sale_price));
+      setOfferName(p.offer_name || "");
       setOfferStarts(isoToLocalInput(p.offer_starts_at));
       setOfferEnds(isoToLocalInput(p.offer_ends_at));
       setStatus((p.status || "DRAFT").toUpperCase());
@@ -322,6 +325,7 @@ export function ProductEditor({ productId }: { productId?: string }) {
     payload.mrp = mrpPaise ?? null;
     const salePaise = rupeesToPaise(salePrice);
     payload.sale_price = salePaise ?? null;
+    payload.offer_name = salePaise != null ? (offerName.trim() || null) : null;
     payload.offer_starts_at = salePaise != null ? localInputToIso(offerStarts) : null;
     payload.offer_ends_at = salePaise != null ? localInputToIso(offerEnds) : null;
     payload.category_id = categoryId || null;
@@ -618,7 +622,7 @@ export function ProductEditor({ productId }: { productId?: string }) {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-bold text-neutral-900">Festival Offer</h3>
-                  <p className="text-xs text-neutral-500">Optional sale price with a display window.</p>
+                  <p className="text-xs text-neutral-500">Optional sale price with a display window and custom name.</p>
                 </div>
                 {effectivePrice > 0 && mrpPaiseVal != null && mrpPaiseVal > effectivePrice && (
                   <span className="rounded-full border border-emerald-200 bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
@@ -626,16 +630,25 @@ export function ProductEditor({ productId }: { productId?: string }) {
                   </span>
                 )}
               </div>
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className={labelClass}>Sale Price (₹)</label>
+                  <label className="mb-1 block text-[11px] font-bold uppercase text-neutral-500">Offer Name (e.g. Diwali)</label>
+                  <input
+                    type="text"
+                    className="h-10 w-full rounded-xl border border-neutral-300 bg-white px-3 text-sm text-neutral-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    value={offerName}
+                    onChange={(e) => setOfferName(e.target.value)}
+                    placeholder="Festival Offer"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] font-bold uppercase text-neutral-500">Sale Price (₹)</label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-400">₹</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400">₹</span>
                     <input
-                      className={`${inputClass} pl-8`}
                       type="number"
-                      min="0"
                       step="0.01"
+                      className="h-10 w-full rounded-xl border border-neutral-300 bg-white pl-7 pr-3 text-sm text-neutral-900 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
                       value={salePrice}
                       onChange={(e) => setSalePrice(e.target.value)}
                       placeholder="optional"

@@ -62,6 +62,7 @@ class CatalogService:
             effective_price=effective,
             discount_percent=max(discount, 0),
             on_offer=effective < d["price"],
+            offer_name=d.get("offer_name"),
             status=str(d.get("status") or "ACTIVE"),
             featured=bool(d.get("featured")),
             specs=d.get("specs"),
@@ -127,7 +128,7 @@ class CatalogService:
 
     _BASE_SELECT = f"""
         SELECT p.id, p.name, p.slug, p.description, p.brand, p.return_policy, p.warranty_info, p.sku, p.price, p.mrp,
-               p.sale_price, p.status, p.featured, p.specs, p.tags, p.category_id,
+               p.sale_price, p.offer_name, p.status, p.featured, p.specs, p.tags, p.category_id,
                p.created_at, c.name AS category_name, c.slug AS category_slug,
                {EFFECTIVE_PRICE_SQL} AS effective_price
         FROM products p

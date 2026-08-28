@@ -70,6 +70,7 @@ export interface Product {
   variants?: ProductVariant[];
   sku?: string;
   onOffer?: boolean;
+  offerName?: string | null;
   createdAt?: string;
 }
 
@@ -527,12 +528,13 @@ export function mapStoreProduct(p: StoreProduct): Product {
     imgHover: images[1] || images[0],
     tagline: p.description?.split(/[.\n]/)[0]?.slice(0, 90) || p.name,
     highlights: p.tags || [],
-    description: p.description,
-    specs: p.specs || [],
+    description: p.description || undefined,
+    specs: p.specs || undefined,
     variants: (p.variants || []).map((v) => ({ id: v.id, name: v.name, price: v.price })),
-    sku: p.sku,
+    sku: p.sku || undefined,
     onOffer: p.on_offer,
-    createdAt: p.created_at,
+    offerName: (p as any).offer_name,
+    createdAt: p.created_at || undefined,
   };
 }
 

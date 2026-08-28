@@ -19,6 +19,7 @@ import {
   Check,
   ChevronRight,
   Loader2,
+  Star,
 } from "lucide-react";
 import ProductCard from "./ProductCard";
 import { useCart } from "./CartProvider";
@@ -275,6 +276,14 @@ export default function ProductDetail({
               </span>
             )}
           </div>
+          {!selectedVariant && product.onOffer && (
+            <div className="mt-1">
+              <span className="inline-flex items-center gap-1.5 rounded bg-amber-50 px-2 py-1 text-xs font-bold text-amber-700 border border-amber-200/50">
+                <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                {product.offerName || "Festival Offer"} Active
+              </span>
+            </div>
+          )}
 
           {/* Stock badge */}
           <p className="mt-2">

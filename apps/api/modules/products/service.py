@@ -50,6 +50,7 @@ class ProductService:
             sku=data.sku,
             mrp=data.mrp if data.mrp is not None else data.price,
             sale_price=data.sale_price,
+            offer_name=data.offer_name,
             offer_starts_at=data.offer_starts_at,
             offer_ends_at=data.offer_ends_at,
             brand=data.brand,
@@ -116,7 +117,7 @@ class ProductService:
             product.sku = data.sku
         # Optional-clearable fields: explicit null in the payload clears them
         provided = data.model_fields_set
-        for field in ("mrp", "sale_price", "offer_starts_at", "offer_ends_at",
+        for field in ("mrp", "sale_price", "offer_name", "offer_starts_at", "offer_ends_at",
                       "category_id", "warranty_info", "return_policy", "brand", "featured"):
             if field in provided:
                 setattr(product, field, getattr(data, field))
