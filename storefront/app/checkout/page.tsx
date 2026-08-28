@@ -86,13 +86,19 @@ export default function CheckoutPage() {
 
   /* ---------------- Store config: payment availability ---------------- */
   const [onlinePaymentAvailable, setOnlinePaymentAvailable] = useState<boolean | null>(null);
+  const [codEnabled, setCodEnabled] = useState<boolean | null>(null);
   const [codFeePaise, setCodFeePaise] = useState<number>(0);
   useEffect(() => {
     storeApi.getStoreConfig().then((cfg) => {
       setOnlinePaymentAvailable(cfg.online_payment_available);
+      setCodEnabled(cfg.cod_enabled);
       setCodFeePaise(cfg.cod_fee_paise ?? 0);
-      // If online payment not available, force COD
-      if (!cfg.online_payment_available) setPaymentMethod("COD");
+      
+      if (!cfg.online_payment_available && cfg.cod_enabled) {
+        setPaymentMethod("COD");
+      } else if (!cfg.cod_enabled && cfg.online_payment_available) {
+        setPaymentMethod("ONLINE");
+      }
     }).catch(() => {
       setOnlinePaymentAvailable(false);
       setPaymentMethod("COD");
@@ -1034,37 +1040,42 @@ export default function CheckoutPage() {
               <div className="grid sm:grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => onlinePaymentAvailable !== false ? setPaymentMethod("ONLINE") : toast.error("Unavailable - Please try again")}
+                  onClick={() => onlinePaymentAvailable !== false ? setPaymentMethod("ONLINE") : toast.error("Online payments are not available right now. Please try others.")}
                   disabled={onlinePaymentAvailable === false}
                   aria-pressed={paymentMethod === "ONLINE"}
                   className={`flex flex-col items-start gap-2 rounded-2xl border-2 p-5 text-left transition-all ${
                     paymentMethod === "ONLINE"
                       ? "border-neutral-950 bg-neutral-50"
                       : "border-neutral-200 hover:border-neutral-400"
-                  } ${onlinePaymentAvailable === false ? "opacity-60 cursor-not-allowed border-neutral-200 hover:border-neutral-200" : ""}`}
+                  } ${onlinePaymentAvailable === false ? "opacity-60 cursor-not-allowed border-neutral-200 hover:border-neutral-200 grayscale bg-neutral-50/50" : ""}`}
                 >
                   <CreditCard className="w-5 h-5" />
                   <span className="text-sm font-semibold">Pay online</span>
                   <span className="text-xs text-neutral-500">
-                    {onlinePaymentAvailable === false ? "Unavailable - Please try again" : "UPI, cards, netbanking & wallets"}
+                    {onlinePaymentAvailable === false ? "Not available right now" : "UPI, cards, netbanking & wallets"}
                   </span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setPaymentMethod("COD")}
+                  onClick={() => codEnabled !== false ? setPaymentMethod("COD") : toast.error("COD is not available right now. Please try others.")}
+                  disabled={codEnabled === false}
                   aria-pressed={paymentMethod === "COD"}
                   className={`flex flex-col items-start gap-2 rounded-2xl border-2 p-5 text-left transition-all ${
                     paymentMethod === "COD"
                       ? "border-neutral-950 bg-neutral-50"
                       : "border-neutral-200 hover:border-neutral-400"
-                  }`}
+                  } ${codEnabled === false ? "opacity-60 cursor-not-allowed border-neutral-200 hover:border-neutral-200 grayscale bg-neutral-50/50" : ""}`}
                 >
                   <Banknote className="w-5 h-5" />
                   <span className="text-sm font-semibold">Pay on delivery (COD)</span>
                   <span className="text-xs text-neutral-500">
-                    Pay in cash when your order arrives.
-                    {codFeePaise > 0 && (
-                      <> A COD handling fee of <strong>₹{codFeePaise / 100}</strong> will be added.</>
+                    {codEnabled === false ? "Not available right now" : (
+                      <>
+                        Pay in cash when your order arrives.
+                        {codFeePaise > 0 && (
+                          <> A COD handling fee of <strong>₹{codFeePaise / 100}</strong> will be added.</>
+                        )}
+                      </>
                     )}
                   </span>
                 </button>

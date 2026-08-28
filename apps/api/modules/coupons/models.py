@@ -50,6 +50,7 @@ class Coupon(Base, TimestampMixin, SoftDeleteMixin, TenantMixin):
     )
 
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    terms_conditions: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     usages: Mapped[List["CouponUsage"]] = relationship(
         "CouponUsage", back_populates="coupon", cascade="all, delete-orphan", lazy="selectin"
