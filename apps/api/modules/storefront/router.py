@@ -92,6 +92,11 @@ async def store_config(session: AsyncSession = Depends(optional_db_context)):
         and settings.cashfree_client_id
         and settings.cashfree_client_secret.get_secret_value()
     )
+    easebuzz_configured = bool(
+        settings.payment_provider == "easebuzz"
+        and settings.easebuzz_merchant_key
+        and settings.easebuzz_salt.get_secret_value()
+    )
     
     try:
         db_cfg = await get_store_settings(session)
@@ -100,7 +105,7 @@ async def store_config(session: AsyncSession = Depends(optional_db_context)):
         db_cfg = {}
         
     return {
-        "online_payment_available": cashfree_configured,
+        "online_payment_available": cashfree_configured or easebuzz_configured,
         "payment_provider": settings.payment_provider,
         "cod_enabled": db_cfg.get("cod_enabled", settings.cod_enabled),
         "cod_fee_paise": db_cfg.get("cod_fee_paise", settings.cod_fee_paise),
