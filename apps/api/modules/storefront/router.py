@@ -185,7 +185,7 @@ async def public_coupons(session: AsyncSession = Depends(optional_db_context)):
         bid = await session.execute(text("SELECT current_setting('app.business_id', true)"))
         import logging; logging.warning(f"BUSINESS_ID IN COUPONS ROUTE: {bid.scalar()}")
         query = text("""
-            SELECT code, description, discount_type, discount_value, min_order_amount, max_discount_amount 
+            SELECT code, description, discount_type, discount_value, min_order_amount, max_discount_amount, terms_conditions 
             FROM coupons 
             WHERE is_active = true 
             AND deleted_at IS NULL
