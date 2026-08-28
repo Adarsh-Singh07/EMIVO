@@ -570,3 +570,61 @@ class OrderService:
                 await self.inventory.release_for_order(order)
         await self.repository.update(order)
         await self.session.commit()
+
+    async def create_delhivery_shipment(self, order_id: str) -> dict:
+        from core.exceptions import DomainException
+        from modules.orders.delhivery import create_delhivery_order
+        from modules.orders.models import OrderStatus
+        
+        # Get order
+        order = await self.get_order_by_id(order_id)
+        if not order:
+            raise DomainException("Order not found", code="NOT_FOUND", status_code=404)
+            
+        if order.status != OrderStatus.CONFIRMED and order.status != OrderStatus.PROCESSING:
+            raise DomainException(f"Order must be CONFIRMED or PROCESSING to ship, currently {order.status}", code="INVALID_STATUS", status_code=400)
+            
+        # Get shipping address
+        addr_id = order.shipping_address_id
+        if not addr_id:
+            raise DomainException("Order missing shipping address", code="NO_ADDRESS", status_code=400)
+            
+        # Fetch Address
+        from modules.users.models import UserAddress
+        from sqlalchemy import select as _select
+        res = await self.session.execute(_select(UserAddress).where(UserAddress.id == addr_id))
+        address = res.scalar_one_or_none()
+        
+        if not address:
+            raise DomainException("Shipping address not found in DB", code="NO_ADDRESS", status_code=400)
+            
+        # Call Delhivery API
+        try:
+            awb = await create_delhivery_order(order, address)
+        except Exception as e:
+            raise DomainException(f"Delhivery integration failed: {str(e)}", code="SHIPPING_FAILED", status_code=500)
+            
+        # Update order with AWB and status
+        order.status = OrderStatus.SHIPPED
+        order.tracking_number = awb
+        order.tracking_url = f"https://www.delhivery.com/track/package/{awb}"
+        
+        self.session.add(order)
+        await self.session.commit()
+        await self.session.refresh(order)
+        
+        # Optional: Send notification
+        from modules.notifications.providers import get_email_provider
+        from modules.users.service import UserService
+        user_service = UserService(self.session)
+        user = await user_service.get_user(order.user_id)
+        if user:
+            provider = get_email_provider()
+            await provider.send_email(
+                to_email=user.email,
+                subject=f"Your order {order.order_number} has been shipped!",
+                html=f"<p>Hi {user.name}, your order is on the way. Tracking number: {awb}</p>"
+            )
+            
+        from modules.orders.schemas import OrderResponseV2
+        return OrderResponseV2.model_validate(order)
