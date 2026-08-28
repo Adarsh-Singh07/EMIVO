@@ -141,6 +141,7 @@ export async function fetchApi<T>(
     const refreshToken = Cookies.get('refresh_token');
 
     if (refreshToken) {
+      let newToken: string | null = null;
       try {
         const refreshResponse = await fetch(API_URL + '/auth/refresh', {
           method: 'POST',
@@ -153,17 +154,8 @@ export async function fetchApi<T>(
           if (data.access_token && data.refresh_token) {
             Cookies.set('access_token', data.access_token, { expires: 1 });
             Cookies.set('refresh_token', data.refresh_token, { expires: 7 });
+            newToken = data.access_token;
             processQueue(null, data.access_token);
-
-            // Retry original request with new token
-            const newHeaders = new Headers(options.headers || {});
-            newHeaders.set('Authorization', 'Bearer ' + data.access_token);
-            const retryResponse = await fetch(API_URL + endpoint, { ...options, headers: newHeaders });
-
-            if (!retryResponse.ok) {
-              throw await parseError(retryResponse);
-            }
-            return parseBody<T>(retryResponse);
           }
         }
       } catch (refreshError) {
@@ -174,9 +166,21 @@ export async function fetchApi<T>(
         if (typeof window !== 'undefined') {
           window.location.href = '/login';
         }
-        throw refreshError;
-      } finally {
         isRefreshing = false;
+        throw refreshError;
+      }
+      isRefreshing = false;
+
+      if (newToken) {
+        // Retry original request with new token
+        const newHeaders = new Headers(options.headers || {});
+        newHeaders.set('Authorization', 'Bearer ' + newToken);
+        const retryResponse = await fetch(API_URL + endpoint, { ...options, headers: newHeaders });
+
+        if (!retryResponse.ok) {
+          throw await parseError(retryResponse);
+        }
+        return parseBody<T>(retryResponse);
       }
     }
 

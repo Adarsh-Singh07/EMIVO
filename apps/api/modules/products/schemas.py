@@ -95,11 +95,11 @@ class SpecRow(BaseModel):
 
 class ProductBase(BaseModel):
     name: str
-    price: int = Field(..., gt=0, description="Everyday selling price in paise")
+    price: int = Field(..., ge=0, description="Everyday selling price in paise")
     description: Optional[str] = None
     sku: Optional[str] = None
-    mrp: Optional[int] = Field(default=None, gt=0, description="List price (MRP) in paise")
-    sale_price: Optional[int] = Field(default=None, gt=0, description="Festival offer price in paise")
+    mrp: Optional[int] = Field(default=None, ge=0, description="List price (MRP) in paise")
+    sale_price: Optional[int] = Field(default=None, ge=0, description="Festival offer price in paise")
     offer_starts_at: Optional[datetime] = None
     offer_ends_at: Optional[datetime] = None
     brand: Optional[str] = None
@@ -122,7 +122,7 @@ class ProductCreate(ProductBase):
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
-    price: Optional[int] = Field(default=None, gt=0)
+    price: Optional[int] = Field(default=None, ge=0)
     attributes: Optional[dict] = None
     is_active: Optional[bool] = None
     id: Optional[str] = None
