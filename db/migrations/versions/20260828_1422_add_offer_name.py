@@ -7,6 +7,7 @@ Create Date: 2026-08-28 14:22:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.engine.reflection import Inspector
 
 
 # revision identifiers, used by Alembic.
@@ -17,7 +18,11 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column('products', sa.Column('offer_name', sa.String(length=255), nullable=True))
+    conn = op.get_bind()
+    inspector = Inspector.from_engine(conn)
+    columns = [c['name'] for c in inspector.get_columns('products')]
+    if 'offer_name' not in columns:
+        op.add_column('products', sa.Column('offer_name', sa.String(length=255), nullable=True))
 
 def downgrade():
     op.drop_column('products', 'offer_name')
