@@ -12,7 +12,7 @@ import {
   UserCheck,
   Bell,
   LayoutDashboard,
-  Boxes,
+  Boxes, Menu,
 } from "lucide-react";
 import Link from "next/link";
 import { ReactNode, useEffect, useState } from "react";
@@ -95,6 +95,7 @@ function NotificationBell() {
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const userInitial = user?.first_name ? user.first_name[0].toUpperCase() : (user?.email ? user.email[0].toUpperCase() : "E");
   const userName = user ? `${user.first_name} ${user.last_name}`.trim() || user.email : "User";
@@ -102,15 +103,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <AuthGuard requiredRoles={[...ADMIN_ROLES]}>
       <SmoothScrollProvider>
-        <div className="flex h-screen w-full bg-neutral-50 font-sans text-neutral-900">
+        <div className="flex min-h-screen w-full bg-neutral-50 font-sans text-neutral-900">
           {/* Sidebar */}
-          <aside className="w-64 flex-shrink-0 flex flex-col border-r border-neutral-200 bg-white">
-            <div className="h-16 flex items-center px-6 border-b border-neutral-200">
+          <aside className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r border-neutral-200 bg-white transition-all duration-300 ease-in-out ${sidebarOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full overflow-hidden opacity-0'}`}>
+            <div className="h-16 flex-shrink-0 flex items-center px-6 border-b border-neutral-200 w-64">
               <Link href="/dashboard" className="flex items-center gap-3">
                 <BrandLogo variant="wordmark" size={30} />
               </Link>
             </div>
-            <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-4">
+            <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-4 w-64">
               {NAV_SECTIONS.map((section) => (
                 <div key={section.label} className="space-y-1">
                   <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
@@ -129,7 +130,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 </div>
               ))}
             </nav>
-            <div className="p-4 border-t border-neutral-200">
+            <div className="p-4 border-t border-neutral-200 w-64">
               <button
                 onClick={logout}
                 className="flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50/50 transition-colors"
@@ -141,11 +142,18 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </aside>
 
           {/* Main Content */}
-          <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <main className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${sidebarOpen ? 'lg:ml-64' : 'ml-0'}`}>
             {/* Topbar */}
-            <header className="h-16 flex-shrink-0 border-b border-neutral-200 bg-white flex items-center justify-between px-6">
+            <header className="sticky top-0 z-30 h-16 flex-shrink-0 border-b border-neutral-200 bg-white/80 backdrop-blur-md flex items-center justify-between px-6">
               <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-700 border border-neutral-200">
+                <button 
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="p-2 -ml-2 rounded-xl text-neutral-500 hover:bg-neutral-100 transition-colors"
+                  aria-label="Toggle Sidebar"
+                >
+                  <Menu className="w-5 h-5" />
+                </button>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-700 border border-neutral-200 hidden sm:inline-block">
                   {BRAND_CONFIG.name} Operations
                 </span>
               </div>
@@ -163,7 +171,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             </header>
 
             {/* Page Content */}
-            <div className="flex-1 overflow-y-auto p-6 bg-neutral-50/50">
+            <div className="flex-1 p-6 bg-neutral-50/50">
               <div className="mx-auto max-w-6xl">
                 <PageTransition>{children}</PageTransition>
               </div>
