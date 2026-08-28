@@ -34,6 +34,7 @@ class CouponUpdate(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     is_active: Optional[bool] = None
+    terms_conditions: Optional[str] = None
 
 
 class CouponResponse(CouponBase):

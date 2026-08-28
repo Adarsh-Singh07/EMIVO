@@ -372,7 +372,8 @@ export default function CouponsPage() {
               Cancel
             </button>
             <button
-              onClick={submitCreate}
+              type="submit"
+              form="coupon-form"
               disabled={creating}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 transition-all hover:from-amber-600 hover:to-orange-700 disabled:opacity-50"
             >
@@ -382,20 +383,21 @@ export default function CouponsPage() {
           </>
         }
       >
-        <div className="grid gap-4 sm:grid-cols-2">
+        <form id="coupon-form" onSubmit={(e) => { e.preventDefault(); submitCreate(); }} className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className={labelCls}>Code *</label>
             <input
               className={`${inputCls} font-mono uppercase`}
+              required
               value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              onChange={(e) => setCode(e.target.value.toUpperCase().replace(/\s+/g, ""))}
               disabled={!!editId}
               placeholder="DIWALI20"
             />
           </div>
           <div>
             <label className={labelCls}>Type *</label>
-            <select className={inputCls} value={discountType} onChange={(e) => setDiscountType(e.target.value as "PERCENTAGE" | "FIXED_AMOUNT")}>
+            <select className={inputCls} required value={discountType} onChange={(e) => setDiscountType(e.target.value as "PERCENTAGE" | "FIXED_AMOUNT")}>
               <option value="PERCENTAGE">Percentage (%)</option>
               <option value="FIXED_AMOUNT">Fixed amount (₹)</option>
             </select>
@@ -409,7 +411,9 @@ export default function CouponsPage() {
               <input
                 className={`${inputCls} ${discountType === "FIXED_AMOUNT" ? "pl-7" : ""}`}
                 type="number"
-                min="0"
+                required
+                min={discountType === "PERCENTAGE" ? "1" : "0.01"}
+                max={discountType === "PERCENTAGE" ? "100" : undefined}
                 step={discountType === "PERCENTAGE" ? "1" : "0.01"}
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
@@ -461,7 +465,7 @@ export default function CouponsPage() {
               <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="h-5 w-5 accent-amber-500" />
             </label>
           </div>
-        </div>
+        </form>
       </Modal>
     </div>
   );

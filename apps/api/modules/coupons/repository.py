@@ -75,6 +75,7 @@ class CouponRepository:
             start_date=coupon_data.start_date,
             end_date=coupon_data.end_date,
             is_active=coupon_data.is_active,
+            terms_conditions=coupon_data.terms_conditions,
             usage_count=0,
         )
         self.db.add(db_coupon)
@@ -82,8 +83,11 @@ class CouponRepository:
         return db_coupon
 
     async def update(self, coupon: Coupon, update_data: CouponUpdate) -> Coupon:
-        data = update_data.model_dump(exclude_unset=True)
-        for key, value in data.items():
+        update_dict = update_data.model_dump(exclude_unset=True)
+        if 'terms_conditions' in update_dict and update_dict['terms_conditions'] is None:
+            # allow clearing it out but usually we want to respect the value given
+            pass
+        for key, value in update_dict.items():
             setattr(coupon, key, value)
         await self.db.flush()
         return coupon
