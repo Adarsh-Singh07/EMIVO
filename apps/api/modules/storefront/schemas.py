@@ -53,6 +53,7 @@ class StoreProduct(BaseModel):
     effective_price: int          # what the customer pays now (paise)
     discount_percent: int = 0     # vs MRP, for display
     on_offer: bool = False
+    offer_name: Optional[str] = None
 
     status: str = "ACTIVE"
     featured: bool = False

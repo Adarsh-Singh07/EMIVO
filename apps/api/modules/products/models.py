@@ -29,6 +29,7 @@ class Product(Base):
     # v0.2 merchandising fields
     mrp = Column(Integer, nullable=True)  # list price (paise); price/mrp drives discount display
     sale_price = Column(Integer, nullable=True)  # festival offer price (paise), active only within offer window
+    offer_name = Column(String(100), nullable=True) # e.g. "Diwali Dhamaka", "Festival Offer"
     offer_starts_at = Column(DateTime(timezone=True), nullable=True)
     offer_ends_at = Column(DateTime(timezone=True), nullable=True)
     brand = Column(String(120), nullable=True)

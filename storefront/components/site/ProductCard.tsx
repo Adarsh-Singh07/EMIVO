@@ -165,13 +165,20 @@ export default function ProductCard({ product }: { product: Product }) {
           {product.name}
         </Link>
 
-        <div className="mt-1 flex items-baseline gap-1.5 flex-wrap">
-          <span className="font-bold text-sm">{inr(product.price)}</span>
-          {product.mrp > product.price && (
-            <span className="text-neutral-400 line-through text-[11px]">{inr(product.mrp)}</span>
-          )}
-          {product.discount > 0 && (
-            <span className="text-green-600 text-[11px] font-semibold">{product.discount}% OFF</span>
+        <div className="mt-1 flex flex-col gap-0.5">
+          <div className="flex items-baseline gap-1.5 flex-wrap">
+            <span className="font-bold text-sm">{inr(product.price)}</span>
+            {product.mrp > product.price && (
+              <span className="text-neutral-400 line-through text-[11px]">{inr(product.mrp)}</span>
+            )}
+            {product.discount > 0 && (
+              <span className="text-green-600 text-[11px] font-semibold">{product.discount}% OFF</span>
+            )}
+          </div>
+          {product.onOffer && (
+            <span className="text-amber-600 text-[11px] font-bold tracking-tight">
+              ✦ {product.offerName || "Festival Offer"}
+            </span>
           )}
         </div>
 
