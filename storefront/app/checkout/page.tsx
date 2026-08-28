@@ -274,20 +274,31 @@ export default function CheckoutPage() {
   /** Opens Cashfree for an existing PENDING online order. */
   const startPayment = useCallback(
     async (order: OrderV2, paymentId: string, isRetry: boolean) => {
-      const loaded = await loadCashfreeScript();
-      if (!loaded) {
-        setPendingPayment({ order, paymentId });
-        toast.error("Online payment is temporarily unavailable. Please proceed with Cash on Delivery.");
-        setPaymentMethod("COD");
-        return;
-      }
       try {
         const init = await storeApi.initiatePayment({
           order_id: order.id,
           idempotency_key: newIdempotencyKey(),
         });
         const co = init.checkout;
+
+        if (co.provider === "easebuzz") {
+          // EaseBuzz integration: directly redirect the browser to the hosted checkout page
+          if (co.checkout_url) {
+            window.location.href = co.checkout_url;
+            return;
+          }
+          throw new Error("Missing checkout_url for EaseBuzz payment");
+        } 
         
+        // Fallback to Cashfree logic (if still configured)
+        const loaded = await loadCashfreeScript();
+        if (!loaded) {
+          setPendingPayment({ order, paymentId });
+          toast.error("Online payment is temporarily unavailable. Please proceed with Cash on Delivery.");
+          setPaymentMethod("COD");
+          return;
+        }
+
         const w = window as any;
         const cashfree = w.Cashfree({
           mode: co.environment === "sandbox" ? "sandbox" : "production"
@@ -1035,7 +1046,7 @@ export default function CheckoutPage() {
                   <CreditCard className="w-5 h-5" />
                   <span className="text-sm font-semibold">Pay online</span>
                   <span className="text-xs text-neutral-500">
-                    {onlinePaymentAvailable === false ? "Unavailable - Please try again" : "UPI, cards, netbanking & wallets via Cashfree"}
+                    {onlinePaymentAvailable === false ? "Unavailable - Please try again" : "UPI, cards, netbanking & wallets"}
                   </span>
                 </button>
                 <button

@@ -21,6 +21,7 @@ class PaymentStatus(str, enum.Enum):
 
 class PaymentProvider(str, enum.Enum):
     CASHFREE = "CASHFREE"
+    EASEBUZZ = "EASEBUZZ"
     STRIPE = "STRIPE"
     MOCK = "MOCK"
 

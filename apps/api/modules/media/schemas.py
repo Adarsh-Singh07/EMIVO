@@ -2,8 +2,8 @@ from pydantic import BaseModel, Field
 
 class PresignedUploadRequest(BaseModel):
     filename: str = Field(..., max_length=255)
-    content_type: str = Field(..., pattern=r"^image/(png|jpe?g|webp|avif|gif|svg\+xml|x-icon|vnd\.microsoft\.icon)$")
-    size_bytes: int = Field(..., gt=0, le=10 * 1024 * 1024)  # 10 MB cap
+    content_type: str = Field(..., pattern=r"^image/.*$")
+    size_bytes: int = Field(..., gt=0, le=25 * 1024 * 1024)  # 25 MB cap
 
 class PresignedUploadResponse(BaseModel):
     """Upload with `upload_url` (PUT, content-type must match), then use

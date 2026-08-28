@@ -224,14 +224,17 @@ export interface PaymentInitiateResponse {
   payment: { id: string; status?: string } & Record<string, unknown>;
   provider: "cashfree" | "mock" | string;
   checkout: {
-    client_id: string;
-    environment: string;
+    client_id?: string;
+    environment?: string;
     payment_session_id?: string;
-    provider_order_id: string;
-    amount: number; // paise
-    currency: string;
+    provider_order_id?: string;
+    amount?: number; // paise
+    currency?: string;
     name?: string;
     description?: string;
+    provider?: string;
+    checkout_url?: string;
+    access_key?: string;
   };
 }
 

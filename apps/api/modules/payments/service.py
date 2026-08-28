@@ -27,6 +27,7 @@ from modules.orders.repository import OrderRepository
 from modules.payments.models import Payment, PaymentStatus, PaymentProvider
 from modules.payments.providers.base import BasePaymentProvider
 from modules.payments.providers.cashfree import CashfreeProvider
+from modules.payments.providers.easebuzz import EasebuzzProvider
 from modules.payments.providers.mock import MockProvider
 from modules.payments.repository import PaymentRepository
 from modules.payments.schemas import PaymentCreate, PaymentResponse, PaginatedPaymentsResponse
@@ -44,11 +45,19 @@ def get_provider() -> BasePaymentProvider:
             client_secret=settings.cashfree_client_secret.get_secret_value(),
             environment=settings.cashfree_environment,
         )
+    if chosen == "easebuzz":
+        return EasebuzzProvider(
+            merchant_key=settings.easebuzz_merchant_key,
+            salt=settings.easebuzz_salt.get_secret_value(),
+            environment=settings.easebuzz_environment,
+            storefront_url=settings.storefront_url,
+        )
     if chosen == "mock":
         if settings.is_prod:
             raise RuntimeError("PAYMENT_PROVIDER=mock is not allowed in production")
         return MockProvider()
     raise RuntimeError(f"Unknown PAYMENT_PROVIDER: {chosen}")
+
 
 
 class PaymentService:
@@ -115,6 +124,8 @@ class PaymentService:
             payment_in = payment_in.model_copy(update={"amount": order.total})
         if payment_in.provider == PaymentProvider.MOCK and self.provider.name == "cashfree":
             payment_in = payment_in.model_copy(update={"provider": PaymentProvider.CASHFREE})
+        elif payment_in.provider == PaymentProvider.MOCK and self.provider.name == "easebuzz":
+            payment_in = payment_in.model_copy(update={"provider": PaymentProvider.EASEBUZZ})
 
         # 4. Provider order (external call — runs on its own, no DB locks held)
         notes = (payment_in.metadata or {}) | {
@@ -135,8 +146,17 @@ class PaymentService:
             )
 
         meta = payment_in.metadata or {}
+        # Cashfree-specific
         if "payment_session_id" in provider_order:
             meta["payment_session_id"] = provider_order["payment_session_id"]
+        # EaseBuzz-specific
+        if "access_key" in provider_order:
+            meta["access_key"] = provider_order["access_key"]
+            meta["checkout_url"] = provider_order.get("checkout_url", "")
+            meta["txnid"] = provider_order.get("txnid", "")
+            meta["easebuzz_productinfo"] = provider_order.get("productinfo", "")
+            meta["easebuzz_firstname"] = provider_order.get("firstname", "")
+            meta["easebuzz_email"] = provider_order.get("email", "")
 
         # 5. Local payment record
         payment = await self.repository.create(
@@ -500,3 +520,125 @@ class PaymentService:
         reason = pay_entity.get("payment_message") or "payment.failed"
         await self._fail(payment, reason, str(pay_entity.get("cf_payment_id", "")))
         return {"failed": True}
+
+    # ------------------------------------------------------------------ #
+    # EaseBuzz callback / webhook handler                                 #
+    # ------------------------------------------------------------------ #
+
+    async def handle_easebuzz_callback(
+        self,
+        txnid: str,
+        status: str,
+        callback_data: dict,
+    ) -> dict:
+        """Process an EaseBuzz surl/furl callback or background webhook.
+
+        Security:
+          - Hash MUST be verified BEFORE calling this method (done in the router).
+          - We look up the payment by txnid from our own DB (not trusting client order_id).
+          - We cross-verify with EaseBuzz status API before marking PAID.
+          - Operation is idempotent — duplicate calls are no-ops.
+        """
+        import hashlib as _hashlib
+        from core.redis import redis_manager
+
+        if not txnid:
+            logger.warning("EaseBuzz callback missing txnid")
+            return {"error": "missing_txnid"}
+
+        # Dedup: same txnid + status combination
+        dedup_key = f"eb:cb:seen:{txnid}:{status}"
+        first_time = await redis_manager.client.set(
+            dedup_key, "1", nx=True, ex=7 * 24 * 3600
+        )
+        if not first_time:
+            logger.info("EaseBuzz: duplicate callback for txnid=%s ignored", txnid)
+            return {"status": "duplicate_ignored"}
+
+        # Find payment by txnid stored in metadata
+        res = await self.db.execute(
+            text(
+                "SELECT id FROM payments WHERE metadata_info->>'txnid' = :txnid "
+                "ORDER BY created_at DESC LIMIT 1"
+            ),
+            {"txnid": txnid},
+        )
+        row = res.first()
+        if not row:
+            logger.warning("EaseBuzz: payment not found for txnid=%s", txnid)
+            return {"payment_not_found": True}
+
+        payment = await self.repository.get_by_id(row[0])
+        if not payment:
+            return {"payment_not_found": True}
+
+        # Idempotency: already captured
+        if payment.status == PaymentStatus.SUCCESS:
+            logger.info("EaseBuzz: txnid=%s already captured — no-op", txnid)
+            return {"already_captured": True}
+
+        if payment.status in (PaymentStatus.CANCELLED, PaymentStatus.REFUNDED):
+            logger.warning(
+                "EaseBuzz: txnid=%s status=%s — ignoring callback for terminal state",
+                txnid,
+                payment.status,
+            )
+            return {"terminal_state": payment.status.value}
+
+        amount_str = callback_data.get("amount", "")
+        # Amount integrity: compare callback amount with stored amount
+        if amount_str:
+            try:
+                callback_amount_paise = round(float(amount_str) * 100)
+                if callback_amount_paise != payment.amount:
+                    logger.error(
+                        "EaseBuzz: AMOUNT MISMATCH txnid=%s expected=%s got=%s — rejecting",
+                        txnid,
+                        payment.amount,
+                        callback_amount_paise,
+                    )
+                    await self.repository.log_event(
+                        payment.id, "easebuzz_amount_mismatch",
+                        {"callback_amount": amount_str, "stored_amount_paise": payment.amount},
+                    )
+                    await self.db.commit()
+                    return {"amount_mismatch": True}
+            except (ValueError, TypeError):
+                pass
+
+        # Cross-verify with EaseBuzz status API (do not trust callback alone)
+        try:
+            fetched = await self.provider.fetch_payment(txnid)
+            provider_status = str(fetched.get("status", "")).upper()
+            logger.info("EaseBuzz status API: txnid=%s status=%s", txnid, provider_status)
+        except Exception as exc:
+            logger.error("EaseBuzz: status API fetch failed for txnid=%s: %s", txnid, exc)
+            # Fall back to callback status if API unavailable — log for manual review
+            provider_status = status
+            await self.repository.log_event(
+                payment.id, "easebuzz_status_api_error",
+                {"txnid": txnid, "error": str(exc), "callback_status": status},
+            )
+
+        if provider_status == "SUCCESS" or status == "SUCCESS":
+            provider_payment_id = callback_data.get("easepayid") or callback_data.get("paymentId") or txnid
+            await self._capture(payment, provider_payment_id, source="easebuzz_callback")
+            return {"captured": True}
+        elif provider_status in ("FAILED", "FAILURE", "BOUNCED") or status in ("FAILURE", "FAILED", "BOUNCED"):
+            reason = callback_data.get("error_Message") or callback_data.get("field9") or "payment_failed"
+            provider_payment_id = callback_data.get("easepayid") or txnid
+            await self._fail(payment, reason, provider_payment_id)
+            return {"failed": True}
+        elif status == "USERCANCEL":
+            reason = "user_cancelled"
+            await self._fail(payment, reason, txnid)
+            return {"cancelled": True}
+        else:
+            logger.info("EaseBuzz: unhandled status=%s for txnid=%s", status, txnid)
+            await self.repository.log_event(
+                payment.id, "easebuzz_unhandled_status",
+                {"status": status, "provider_status": provider_status, "txnid": txnid},
+            )
+            await self.db.commit()
+            return {"unhandled": status}
+

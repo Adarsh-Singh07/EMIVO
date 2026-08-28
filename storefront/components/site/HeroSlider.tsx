@@ -46,16 +46,18 @@ export default function HeroSlider({ slides = HERO_SLIDES }: { slides?: any[] })
   return (
     <section className="relative overflow-hidden" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEndHandler}>
       <div className="relative bg-neutral-950">
-        <Link href={s.link || "/shop"} className="absolute inset-0 z-0 block">
+        <Link href={s.link || "#"} className="block absolute inset-0 group">
         <img
           key={`bg-${s.id}`}
           src={s.img}
           alt=""
+          fetchPriority={i === 0 ? "high" : "auto"}
+          loading={i === 0 ? "eager" : "lazy"}
           className="absolute inset-0 w-full h-full object-cover animate-[fadeIn_0.7s_ease]"
         />
         {/* Legibility overlay — darker on the text side */}
         <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/65 to-black/20" />
-        </Link>
+      </Link>
 
         {/* Content */}
         <div className="relative z-10 max-w-[1400px] pointer-events-none mx-auto px-4 sm:px-6 lg:px-8">

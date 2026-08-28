@@ -83,12 +83,18 @@ class Settings(BaseSettings):
     # business name 'ELEKTRIX' (see core/store.py). Set explicitly in prod.
     store_business_id: str | None = Field(default=None)
 
-    # Payment provider selection: "cashfree" | "mock"
+    # Payment provider selection: "cashfree" | "easebuzz" | "mock"
     payment_provider: str = Field(default="mock")
     cashfree_client_id: str = Field(default="")
     cashfree_client_secret: SecretStr = Field(default=SecretStr(""))
     cashfree_environment: str = Field(default="sandbox")
     cashfree_webhook_secret: SecretStr = Field(default=SecretStr(""))
+
+    # EaseBuzz payment provider — credentials from EaseBuzz dashboard
+    # NEVER commit real values; insert via environment / Docker secrets only.
+    easebuzz_merchant_key: str = Field(default="")
+    easebuzz_salt: SecretStr = Field(default=SecretStr(""))
+    easebuzz_environment: str = Field(default="sandbox")  # "sandbox" | "production"
 
     # Transactional email (Resend). EMAIL_FROM must be a verified sender.
     resend_api_key: SecretStr = Field(default=SecretStr(""))
