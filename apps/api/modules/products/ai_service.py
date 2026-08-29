@@ -7,14 +7,13 @@ from typing import List
 logger = logging.getLogger(__name__)
 
 # Fallback models ordered by preference
+import asyncio
+
 GEMINI_MODELS = [
-    "gemini-3.7-flash",
     "gemini-3.6-flash",
     "gemini-3.5-flash",
     "gemini-3.5-flash-lite",
-    "gemini-flash-latest",
-    "gemini-flash-lite-latest",
-    "gemini-pro-latest"
+    "gemini-flash-lite-latest"
 ]
 
 class AISpecRow(BaseModel):
@@ -60,7 +59,10 @@ Guidelines:
         
         last_exception = None
         
-        for model in GEMINI_MODELS:
+        import asyncio
+        for i, model in enumerate(GEMINI_MODELS):
+            if i > 0:
+                await asyncio.sleep(2)  # Prevent hitting burst rate limits
             try:
                 logger.info(f"Attempting AI generation with model: {model}")
                 response = client.models.generate_content(
@@ -69,7 +71,7 @@ Guidelines:
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                         response_schema=AIResponseSchema,
-                        tools=[{"google_search": {}}], # Enable Google Search Grounding
+                        
                         temperature=0.7
                     ),
                 )
