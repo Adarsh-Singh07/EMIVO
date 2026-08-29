@@ -371,12 +371,12 @@ export default function CheckoutPage() {
     setPlacing(true);
     setPlaceError("");
 
-    if (paymentMethod === "ONLINE") {
-      toast.error("Online payments are unavailable. Please try Cash on Delivery.");
-      setPaymentMethod("COD");
-      setPlacing(false);
-      return;
-    }
+    // if (paymentMethod === "ONLINE") {
+    //   toast.error("Online payments are unavailable. Please try Cash on Delivery.");
+    //   setPaymentMethod("COD");
+    //   setPlacing(false);
+    //   return;
+    // }
 
     // Fresh key per attempt; persisted so an ambiguous failure can be retried
     // safely (see readIdempotencyKey).
