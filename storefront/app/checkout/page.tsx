@@ -285,6 +285,7 @@ export default function CheckoutPage() {
           order_id: order.id,
           idempotency_key: newIdempotencyKey(),
         });
+        setPendingPayment({ order, paymentId: init.payment.id });
         const co = init.checkout;
 
         if (co.provider === "easebuzz") {
