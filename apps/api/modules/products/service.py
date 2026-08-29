@@ -59,7 +59,6 @@ class ProductService:
             category_id=data.category_id,
             specs=[s.model_dump() for s in data.specs] if data.specs else None,
             tags=data.tags,
-            options=data.options,
             slug=await self._unique_slug(data.name),
         )
 
@@ -129,16 +128,6 @@ class ProductService:
             product.specs = [s.model_dump() for s in data.specs] if data.specs else []
         if "tags" in provided:
             product.tags = data.tags
-        if "options" in provided:
-            product.options = data.options
-        if data.featured is not None:
-            product.featured = data.featured
-        if data.specs is not None:
-            product.specs = [s.model_dump() for s in data.specs]
-        if data.tags is not None:
-            product.tags = data.tags
-        if data.options is not None:
-            product.options = data.options
 
         await self.repository.update(product)
         await self.session.commit()
