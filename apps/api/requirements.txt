@@ -20,3 +20,4 @@ boto3
 aiobotocore
 pgvector
 google-genai
+python-multipart==0.0.9
