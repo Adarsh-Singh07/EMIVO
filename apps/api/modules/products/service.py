@@ -47,7 +47,7 @@ class ProductService:
             name=data.name,
             description=data.description,
             price=data.price,
-            sku=data.sku,
+            sku=data.sku if data.sku else f"SKU-{__import__('uuid').uuid4().hex[:8].upper()}", 
             mrp=data.mrp if data.mrp is not None else data.price,
             sale_price=data.sale_price,
             offer_name=data.offer_name,
@@ -57,6 +57,8 @@ class ProductService:
             status=ProductStatus(data.status) if data.status else ProductStatus.ACTIVE,
             featured=data.featured,
             category_id=data.category_id,
+            return_policy=getattr(data, "return_policy", None),
+            warranty_info=getattr(data, "warranty_info", None),
             specs=[s.model_dump() for s in data.specs] if data.specs else None,
             tags=data.tags,
             slug=await self._unique_slug(data.name),
@@ -156,7 +158,7 @@ class ProductService:
         variant = ProductVariant(
             product_id=product.id,
             name=data.name,
-            sku=data.sku,
+            sku=data.sku if data.sku else f"SKU-{__import__('uuid').uuid4().hex[:8].upper()}", 
             price=data.price
         )
         await self.repository.create_variant(variant)

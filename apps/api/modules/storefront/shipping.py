@@ -1,7 +1,7 @@
 import httpx
 from core.config import settings
 
-async def get_delhivery_estimate(destination_pincode: str) -> dict:
+async def get_delhivery_estimate(destination_pincode: str, is_store_cod_enabled: bool = True) -> dict:
     if not settings.delhivery_api_key.get_secret_value() or not settings.delhivery_origin_pincode:
         return {"serviceable": True, "estimated_days": "3-5", "message": "Standard Delivery"}
 
@@ -37,7 +37,7 @@ async def get_delhivery_estimate(destination_pincode: str) -> dict:
                 return {
                     "serviceable": True,
                     "estimated_days": eta,
-                    "cod_available": dc.get("cod") == "Y",
+                    "cod_available": is_store_cod_enabled and (dc.get("cod") == "Y"),
                     "prepaid_available": dc.get("pre_paid") == "Y",
                     "message": f"Delivery to {dc.get('city', 'your location')}"
                 }
