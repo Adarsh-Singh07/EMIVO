@@ -19,3 +19,4 @@ redis>=5.0.0
 boto3
 aiobotocore
 pgvector
+google-genai
