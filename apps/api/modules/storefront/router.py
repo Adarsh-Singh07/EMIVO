@@ -1,3 +1,5 @@
+from fastapi import Depends
+from core.database import get_db_session
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
