@@ -292,6 +292,7 @@ export default function CheckoutPage() {
           // EaseBuzz integration: directly redirect the browser to the hosted checkout page
           if (co.checkout_url) {
             window.location.href = co.checkout_url;
+            await new Promise(() => {}); // block to prevent UI flicker while redirecting
             return;
           }
           throw new Error("Missing checkout_url for EaseBuzz payment");
