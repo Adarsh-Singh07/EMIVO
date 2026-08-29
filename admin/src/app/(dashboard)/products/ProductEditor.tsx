@@ -606,7 +606,17 @@ export function ProductEditor({ productId }: { productId?: string }) {
                 </select>
               </div>
               <div className="sm:col-span-2">
-                <label className={labelClass}>Description</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-sm font-semibold text-neutral-700">Description</label>
+                  <button
+                    type="button"
+                    onClick={handleAIGenerate}
+                    disabled={aiLoading}
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-500 hover:to-indigo-500 transition-colors disabled:opacity-50 shadow-sm"
+                  >
+                    {aiLoading ? "Generating..." : "✨ Generate AI Description & Specs"}
+                  </button>
+                </div>
                 <textarea
                   rows={4}
                   className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
