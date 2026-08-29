@@ -393,13 +393,13 @@ export default function CheckoutPage() {
         idempotency_key: key,
       });
 
-      if (response.payment_required && response.payment_id) {
+      if (response.payment_required) {
         // Track the order immediately; while payment is open/completed we keep
         // pendingPayment set so the UI shows the retry state until the
         // verify-success call confirms.
         setPlacedOrder(response.order);
-        setPendingPayment({ order: response.order, paymentId: response.payment_id });
-        await startPayment(response.order, response.payment_id, false);
+        setPendingPayment({ order: response.order, paymentId: response.payment_id || "" });
+        await startPayment(response.order, response.payment_id || "", false);
       } else {
         setPlacedOrder(response.order);
         setAppliedCoupon(null);
