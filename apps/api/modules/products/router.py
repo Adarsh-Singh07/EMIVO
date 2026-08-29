@@ -9,6 +9,7 @@ from modules.products.schemas import (
     ProductVariantCreate, ProductVariantResponse, ProductVariantUpdate,
     ProductMediaCreate, ProductMediaResponse,
     CategoryCreate, CategoryResponse, CategoryUpdate,
+    AIGenerateRequest, AIGenerateResponse,
 )
 from modules.products.service import ProductService
 
@@ -33,6 +34,29 @@ async def get_public_product_service(
 # --------------------------------------------------------------------------
 # Admin CRUD (staff) — storefront catalog endpoints live in modules/storefront
 # --------------------------------------------------------------------------
+
+
+from modules.products.ai_service import AIProductService
+
+@router.post("/ai/generate", response_model=AIGenerateResponse)
+async def generate_ai_details(
+    payload: AIGenerateRequest,
+    current_user: User = Depends(require_roles(STAFF))
+) -> Any:
+    ai_service = AIProductService()
+    try:
+        result = await ai_service.generate_product_details(
+            name=payload.name,
+            brand=payload.brand,
+            existing_desc=payload.existing_description
+        )
+        return AIGenerateResponse(
+            description=result["description"],
+            specs=result["specs"]
+        )
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 async def create_product(

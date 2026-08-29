@@ -146,6 +146,8 @@ export function ProductEditor({ productId }: { productId?: string }) {
   const [draftMedia, setDraftMedia] = useState<DraftMedia[]>([]);
   const [mediaUrlInput, setMediaUrlInput] = useState("");
   const [uploading, setUploading] = useState(false);
+  // AI Generation
+  const [aiLoading, setAiLoading] = useState(false);
 
   // Variants
   const [variants, setVariants] = useState<any[]>([]);
@@ -208,6 +210,42 @@ export function ProductEditor({ productId }: { productId?: string }) {
         .catch(() => setCategories([]));
     }
   }, [isEdit, loadProduct]);
+
+  // ------------------------- AI Generation ------------------------- //
+  const handleAIGenerate = async () => {
+    if (!name.trim()) {
+      toast.error("Please enter a product name first.");
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const res = await apiClient.post<{ description: string; specs: Array<{ name: string; value: string }> }>(
+        "/products/ai/generate",
+        { name: name.trim(), brand: brand.trim() || undefined, existing_description: description.trim() || undefined }
+      );
+      
+      // Update Description
+      if (res.description) {
+        setDescription(res.description);
+        toast.success("Description updated by AI!");
+      }
+      
+      // Update Specs
+      if (res.specs && res.specs.length > 0) {
+        const newSpecs = res.specs.map((s, i) => ({
+          key: `ai-${Date.now()}-${i}`,
+          name: s.name,
+          value: s.value,
+        }));
+        setSpecs((prev) => [...prev, ...newSpecs]);
+        toast.success("Specs added by AI!");
+      }
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "AI generation failed");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   // ------------------------- media helpers ------------------------- //
 

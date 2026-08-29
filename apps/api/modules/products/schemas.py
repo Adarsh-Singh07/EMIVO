@@ -161,3 +161,12 @@ class ProductResponse(ProductBase):
 
 
 
+
+class AIGenerateRequest(BaseModel):
+    name: str
+    brand: Optional[str] = None
+    existing_description: Optional[str] = None
+
+class AIGenerateResponse(BaseModel):
+    description: str
+    specs: List[SpecRow]
