@@ -281,14 +281,13 @@ class EasebuzzProvider(BasePaymentProvider):
             "surl": surl,
             "furl": furl,
             "hash": request_hash,
-            # optional — helps EaseBuzz pre-fill
-            "udf1": str(notes.get("order_id", ""))[:255],
-            "udf2": str(notes.get("user_id", ""))[:255],
         }
 
         initiate_url = f"{self._base_url}/payment/initiateLink"
+        with open("/tmp/easebuzz_payload.txt", "w") as pf:
+            pf.write(str(payload))
 
-        logger.info(
+        print("PAYLOAD:", payload); logger.info(
             "EaseBuzz: initiating payment txnid=%s amount_inr=%s",
             txnid,
             amount_inr,
