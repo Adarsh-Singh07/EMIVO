@@ -54,6 +54,7 @@ Additionally, search for and provide accurate technical specifications for this 
 Guidelines:
 - Return valid JSON matching the schema.
 - The description should be compelling, highlighting key features.
+- Do NOT include 'Tags:', 'Keywords:', or any comma-separated tags in the description.
 - Specs should be factual (e.g., RAM, Storage, Dimensions, Warranty, etc.).
 """
         

@@ -472,7 +472,10 @@ export default function ProductDetail({
           {tab === "description" && (
             <div className="space-y-4 text-neutral-600">
               {product.description ? (
-                <p className="whitespace-pre-line leading-relaxed">{product.description}</p>
+                <div 
+                  className="leading-relaxed text-neutral-600 [&>p]:mb-4 [&>ul]:list-disc [&>ul]:pl-5 [&>ul]:mb-4 [&>h2]:text-xl [&>h2]:font-bold [&>h2]:mb-2 [&>h2]:text-neutral-900 [&>h3]:text-lg [&>h3]:font-semibold [&>h3]:mb-2 [&>h3]:text-neutral-800" 
+                  dangerouslySetInnerHTML={{ __html: product.description }} 
+                />
               ) : (
                 <p>{product.tagline}</p>
               )}
