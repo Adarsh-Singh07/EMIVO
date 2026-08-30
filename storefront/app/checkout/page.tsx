@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   MapPin,
   CreditCard,
@@ -76,6 +76,15 @@ export default function CheckoutPage() {
   const { lines, subtotal, loading: cartLoading, reload: reloadCart } = useCart();
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  useEffect(() => {
+    if (searchParams.get("error") === "payment_cancelled") {
+      toast.error("Payment was cancelled or failed. Please try again.");
+      // optionally clean up the URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [searchParams]);
 
   /* ---------------- Auth guard ---------------- */
   useEffect(() => {
@@ -285,7 +294,6 @@ export default function CheckoutPage() {
           order_id: order.id,
           idempotency_key: newIdempotencyKey(),
         });
-        setPendingPayment({ order, paymentId: init.payment.id });
         const co = init.checkout;
 
         if (co.provider === "easebuzz") {
@@ -349,7 +357,7 @@ export default function CheckoutPage() {
           }
         });
       } catch (err) {
-        setPendingPayment({ order, paymentId });
+        // DO NOT set pending payment here either. Just show the error and let them retry.
         toast.error("Online payment is facing issues. Please try Cash on Delivery (COD).");
         setPaymentMethod("COD");
         setPlacing(false);
@@ -395,11 +403,10 @@ export default function CheckoutPage() {
       });
 
       if (response.payment_required) {
-        // Track the order immediately; while payment is open/completed we keep
-        // pendingPayment set so the UI shows the retry state until the
-        // verify-success call confirms.
-        setPlacedOrder(response.order);
-        setPendingPayment({ order: response.order, paymentId: response.payment_id || "" });
+        // DO NOT set placedOrder or pendingPayment here to avoid flickering 
+        // to the "Payment not completed" screen while we wait for the 
+        // payment gateway URL (which takes 2-3s). We will stay on the 
+        // loading spinner instead!
         await startPayment(response.order, response.payment_id || "", false);
       } else {
         setPlacedOrder(response.order);
