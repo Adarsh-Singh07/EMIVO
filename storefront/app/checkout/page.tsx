@@ -4,6 +4,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+
+function CheckoutErrorListener() {
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("error") === "payment_cancelled") {
+      toast.error("Payment was cancelled or failed. Please try again.");
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [searchParams]);
+  return null;
+}
 import {
   MapPin,
   CreditCard,
@@ -73,18 +85,18 @@ type AppliedCoupon = {
 /* ------------------------------------------------------------------ */
 
 export default function CheckoutPage() {
+  return (
+    <Suspense fallback={null}>
+      <CheckoutContent />
+    </Suspense>
+  );
+}
+
+function CheckoutContent() {
   const { lines, subtotal, loading: cartLoading, reload: reloadCart } = useCart();
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  
-  useEffect(() => {
-    if (searchParams.get("error") === "payment_cancelled") {
-      toast.error("Payment was cancelled or failed. Please try again.");
-      // optionally clean up the URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, [searchParams]);
+
 
   /* ---------------- Auth guard ---------------- */
   useEffect(() => {
