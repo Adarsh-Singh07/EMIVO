@@ -247,8 +247,9 @@ async def easebuzz_return(
             status_code=303,
         )
     else:
+        # Redirect back to checkout so the user can easily retry
         return RedirectResponse(
-            url=f"{cfg.storefront_url}/account/orders?payment=failed",
+            url=f"{cfg.storefront_url}/checkout?error=payment_cancelled",
             status_code=303,
         )
 

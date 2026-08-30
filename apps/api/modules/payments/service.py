@@ -294,7 +294,7 @@ class PaymentService:
         )
         order = await self.order_repository.get_by_id(payment.order_id)
         if order and order.status == OrderStatus.PENDING:
-            order.status = OrderStatus.CANCELLED
+            order.status = OrderStatus.PAYMENT_FAILED
             order.notes = (order.notes or "") + f"\n[payment failed: {reason}]".strip()
             await self.order_repository.update(order)
             await self.inventory.release_for_order(order)
