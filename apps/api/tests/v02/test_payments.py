@@ -218,7 +218,7 @@ async def test_failed_webhook_releases_reservation(client):
     assert r.json()["handled"]["failed"] is True
 
     order_after = (await client.get(f"/api/v1/orders/{order['id']}", headers=buyer["headers"])).json()
-    assert order_after["status"] == "CANCELLED"
+    assert order_after["status"] == "PAYMENT_FAILED"
 
     products_after = await get_store_products(client)
     stock_after = next(p for p in products_after["items"] if p["id"] == order["items"][0]["product_id"])["stock"]
