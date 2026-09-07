@@ -44,7 +44,10 @@ function OrdersSection({ canSeeOrders }: { canSeeOrders: boolean }) {
     setLoading(true);
     import("@/lib/store-api")
       .then(({ storeApi }) => storeApi.listOrders({ page: 1, page_size: 5 }))
-      .then((data) => setOrders(data.items as any || []))
+      .then((data) => {
+        const filtered = (data.items as any || []).filter((o: any) => o.status !== "PENDING");
+        setOrders(filtered);
+      })
       .catch((err) => setError(err?.message || "Failed to load orders"))
       .finally(() => setLoading(false));
   }, [canSeeOrders]);

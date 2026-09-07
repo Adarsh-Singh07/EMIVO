@@ -105,11 +105,9 @@ export default function RootLayout({
           <WishlistProvider>
             <CartProvider>
               <Header />
-              <main className="min-h-screen pb-28 lg:pb-0">{children}</main>
+              <main className="min-h-screen pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">{children}</main>
               <Footer />
               <MobileBottomNav />
-              {/* Spacer on mobile so the fixed bottom nav never covers footer or page content */}
-              <div className="h-[calc(env(safe-area-inset-bottom)+5rem)] lg:hidden" aria-hidden />
               
         
         <PwaInstallPrompt />

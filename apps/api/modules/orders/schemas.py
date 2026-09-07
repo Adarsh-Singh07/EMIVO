@@ -138,6 +138,9 @@ class OrderResponseV2(OrderResponse):
     shipped_at: Optional[datetime] = None
     delivered_at: Optional[datetime] = None
     payment_status: Optional[str] = None
+    # Payment transaction details (populated from payments table join)
+    payment_txnid: Optional[str] = None       # EaseBuzz txnid or provider reference
+    payment_provider_id: Optional[str] = None  # Provider payment ID (easepayid etc.)
 
 
 class CheckoutResponse(BaseModel):

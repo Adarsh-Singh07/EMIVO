@@ -195,6 +195,7 @@ export interface OrderV2 {
     | "DELIVERED"
     | "CANCELLED"
     | "REFUNDED"
+    | "PAYMENT_FAILED"
     | string;
   subtotal: number;
   tax_total?: number;
@@ -204,6 +205,8 @@ export interface OrderV2 {
   currency: string;
   payment_method?: "COD" | "ONLINE" | string;
   payment_status?: string;
+  payment_txnid?: string | null;       // EaseBuzz txnid / provider reference
+  payment_provider_id?: string | null; // Provider payment ID
   coupon_code?: string | null;
   tracking_number?: string | null;
   tracking_url?: string | null;

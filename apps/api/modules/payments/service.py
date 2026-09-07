@@ -268,6 +268,45 @@ class PaymentService:
             order.status = OrderStatus.CONFIRMED
             await self.order_repository.update(order)
             await self.inventory.commit_for_order(order)
+
+            # Fetch user info for the confirmation email
+            res = await self.db.execute(
+                text("SELECT email, first_name FROM users WHERE id = :uid"),
+                {"uid": str(order.user_id)},
+            )
+            user_row = res.mappings().first()
+            user_email = user_row["email"] if user_row else None
+            user_first_name = user_row["first_name"] if user_row else None
+
+            # Fetch order items for the confirmation email
+            from modules.orders.models import OrderItem
+            from sqlalchemy import select as _select
+            items_res = await self.db.execute(
+                _select(OrderItem).where(OrderItem.order_id == order.id)
+            )
+            order_items = list(items_res.scalars().all())
+
+            # "Order Confirmed" email for ONLINE payments fires here (not at checkout)
+            self.db.add(OutboxEvent(
+                tenant_id=order.business_id,
+                type="order.created",
+                payload={
+                    "order_id": str(order.id),
+                    "order_number": order.order_number,
+                    "user_id": str(order.user_id),
+                    "email": user_email,
+                    "first_name": user_first_name,
+                    "total": order.total,
+                    "payment_method": "ONLINE",
+                    "items": [
+                        {"name": oi.product_name, "qty": oi.quantity, "unit_price": oi.unit_price}
+                        for oi in order_items
+                    ],
+                    "shipping_address": order.shipping_address,
+                },
+            ))
+
+            # Also emit payment.captured for payment-specific notification
             self.db.add(OutboxEvent(
                 tenant_id=order.business_id,
                 type="payment.captured",
@@ -277,6 +316,7 @@ class PaymentService:
                     "user_id": str(order.user_id),
                     "payment_id": str(payment.id),
                     "amount": payment.amount,
+                    "provider_payment_id": provider_payment_id,
                 },
             ))
 

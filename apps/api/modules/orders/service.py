@@ -273,24 +273,29 @@ class OrderService:
         await self.inventory.reserve_for_order(order, order_items)
 
         # ---- Domain event for notifications ----------------------------------
-        self.session.add(OutboxEvent(
-            tenant_id=business_id,
-            type="order.created",
-            payload={
-                "order_id": str(order.id),
-                "order_number": order_number,
-                "user_id": str(current_user.id),
-                "email": current_user.email,
-                "first_name": current_user.first_name,
-                "total": total,
-                "payment_method": data.payment_method,
-                "items": [
-                    {"name": i.product_name, "qty": i.quantity, "unit_price": i.unit_price}
-                    for i in order_items
-                ],
-                "shipping_address": shipping_address,
-            },
-        ))
+        # For COD orders: notify immediately (order is confirmed at placement).
+        # For ONLINE orders: do NOT notify here — the email fires only after
+        # payment is captured in payments/service.py:_capture(). This prevents
+        # sending "Order Confirmed" emails before the user has actually paid.
+        if data.payment_method == "COD":
+            self.session.add(OutboxEvent(
+                tenant_id=business_id,
+                type="order.created",
+                payload={
+                    "order_id": str(order.id),
+                    "order_number": order_number,
+                    "user_id": str(current_user.id),
+                    "email": current_user.email,
+                    "first_name": current_user.first_name,
+                    "total": total,
+                    "payment_method": data.payment_method,
+                    "items": [
+                        {"name": i.product_name, "qty": i.quantity, "unit_price": i.unit_price}
+                        for i in order_items
+                    ],
+                    "shipping_address": shipping_address,
+                },
+            ))
 
         await self.session.commit()
 
@@ -439,7 +444,34 @@ class OrderService:
             page_size=page_size
         )
 
-        items_resp = [OrderResponseV2.model_validate(o) for o in orders]
+        # Fetch payment txnid for all orders in one query
+        if orders:
+            order_ids = [str(o.id) for o in orders]
+            pmt_res = await self.session.execute(
+                text(
+                    "SELECT order_id, metadata_info->>'txnid' AS txnid, provider_payment_id "
+                    "FROM payments WHERE order_id = ANY(:ids) "
+                    "ORDER BY created_at DESC"
+                ),
+                {"ids": order_ids},
+            )
+            # Build lookup: order_id → (txnid, provider_payment_id)
+            payment_map: dict[str, tuple] = {}
+            for row in pmt_res.mappings():
+                oid = str(row["order_id"])
+                if oid not in payment_map:  # keep most recent
+                    payment_map[oid] = (row["txnid"], row["provider_payment_id"])
+        else:
+            payment_map = {}
+
+        items_resp = []
+        for o in orders:
+            resp = OrderResponseV2.model_validate(o)
+            txnid, provider_id = payment_map.get(str(o.id), (None, None))
+            resp.payment_txnid = txnid
+            resp.payment_provider_id = provider_id
+            items_resp.append(resp)
+
         has_next = (page * page_size) < total
         has_prev = page > 1
 

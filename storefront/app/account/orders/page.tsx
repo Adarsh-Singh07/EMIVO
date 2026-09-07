@@ -435,10 +435,29 @@ function OrderDetail({
             </div>
           </div>
         )}
+        {order.status?.toUpperCase() === "PAYMENT_FAILED" && (
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-100">
+            <Ban className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-700">Payment failed</p>
+              <p className="text-xs text-red-500 mt-0.5">
+                Your payment could not be processed. No money was charged. You can try again below.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Actions */}
       <div className="flex flex-wrap gap-3">
+        {order.status?.toUpperCase() === "PAYMENT_FAILED" && (
+          <Link
+            href="/shop"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-neutral-950 text-white text-sm font-semibold hover:bg-neutral-800 transition-colors"
+          >
+            <CreditCard className="w-4 h-4" /> Shop Again
+          </Link>
+        )}
         {canCancel && (
           <button
             onClick={() => setShowCancelModal(true)}
@@ -447,12 +466,14 @@ function OrderDetail({
             <Ban className="w-4 h-4" /> Cancel Order
           </button>
         )}
-        <Link
-          href={`/order-tracking?order=${order.order_number || order.id}`}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-neutral-200 text-neutral-700 text-sm font-medium hover:bg-neutral-50 transition-colors"
-        >
-          <Truck className="w-4 h-4" /> Track Order
-        </Link>
+        {!["PAYMENT_FAILED"].includes(order.status?.toUpperCase()) && (
+          <Link
+            href={`/order-tracking?order=${order.order_number || order.id}`}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-neutral-200 text-neutral-700 text-sm font-medium hover:bg-neutral-50 transition-colors"
+          >
+            <Truck className="w-4 h-4" /> Track Order
+          </Link>
+        )}
         <a
           href="mailto:support@elektrix.in"
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-neutral-200 text-neutral-700 text-sm font-medium hover:bg-neutral-50 transition-colors"
@@ -460,6 +481,35 @@ function OrderDetail({
           <PhoneCall className="w-4 h-4" /> Get Help
         </a>
       </div>
+
+      {/* Transaction details */}
+      {(order.payment_txnid || order.payment_provider_id) && (
+        <div className="border border-neutral-200 rounded-2xl p-5 bg-white mt-4">
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <CreditCard className="w-4 h-4 text-neutral-500" /> Payment Details
+          </h3>
+          <div className="space-y-2 text-sm">
+            {order.payment_txnid && (
+              <div className="flex items-center justify-between">
+                <span className="text-neutral-500">Transaction ID</span>
+                <span className="font-mono font-semibold text-neutral-800 text-xs">{order.payment_txnid}</span>
+              </div>
+            )}
+            {order.payment_provider_id && order.payment_provider_id !== order.payment_txnid && (
+              <div className="flex items-center justify-between">
+                <span className="text-neutral-500">Provider Ref</span>
+                <span className="font-mono font-semibold text-neutral-800 text-xs">{order.payment_provider_id}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <span className="text-neutral-500">Method</span>
+              <span className="font-medium text-neutral-700">
+                {order.payment_method === "COD" ? "Cash on Delivery" : "Online Payment (EaseBuzz)"}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showCancelModal && (
         <CancelModal
@@ -560,7 +610,11 @@ export default function CustomerOrdersPage() {
     setFetching(true);
     storeApi
       .listOrders({ page: 1, page_size: 50 })
-      .then((data) => setOrders((data.items || []).filter((o: OrderV2) => o.status !== "PAYMENT_FAILED" && o.status !== "PENDING")))
+      .then((data) => setOrders(
+        // Only hide bare PENDING (payment not yet initiated).
+        // PAYMENT_FAILED orders ARE shown so the user can retry.
+        (data.items || []).filter((o: OrderV2) => o.status !== "PENDING")
+      ))
       .catch((err) =>
         setError(err instanceof Error ? err.message : "Failed to load orders")
       )
