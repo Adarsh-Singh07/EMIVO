@@ -560,7 +560,7 @@ export default function CustomerOrdersPage() {
     setFetching(true);
     storeApi
       .listOrders({ page: 1, page_size: 50 })
-      .then((data) => setOrders((data.items || []).filter((o: OrderV2) => o.status !== "PAYMENT_FAILED")))
+      .then((data) => setOrders((data.items || []).filter((o: OrderV2) => o.status !== "PAYMENT_FAILED" && o.status !== "PENDING")))
       .catch((err) =>
         setError(err instanceof Error ? err.message : "Failed to load orders")
       )

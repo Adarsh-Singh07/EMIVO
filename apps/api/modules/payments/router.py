@@ -1,5 +1,8 @@
 from typing import Optional
 
+import logging
+logger = logging.getLogger(__name__)
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Query, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
