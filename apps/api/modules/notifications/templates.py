@@ -21,7 +21,7 @@ def _shell(title: str, body_html: str, cta_url: str = "", cta_label: str = "") -
       <div style="font-size:14px;line-height:1.7;color:#3f3f46">{body_html}</div>
       {cta}
       <div style="margin-top:32px;padding-top:20px;border-top:1px solid #e4e4e7;font-size:12px;color:#a1a1aa">
-        ELEKTRIX · APANA ENTERPRISES · support@elektrix.in<br/>
+        ELEKTRIX · M/S APANA ENTERPRISES · support@elektrix.in<br/>
         This is an automated message about your ELEKTRIX order.
       </div>
     </div>
