@@ -244,17 +244,12 @@ async def easebuzz_return(
         callback_data=callback_data,
     )
 
-    if eb_status == "SUCCESS":
-        return RedirectResponse(
-            url=f"{cfg.storefront_url}/account/orders?payment=success",
-            status_code=303,
-        )
-    # Failure: land the buyer on the order itself — it carries the Retry
-    # Payment button (2-hour window) instead of a dead-empty checkout.
+    # Land the buyer on the /pay page for this order — it polls live status
+    # and shows success / retry / reorder accordingly.
     order_number = (result or {}).get("order_number")
     if order_number:
         return RedirectResponse(
-            url=f"{cfg.storefront_url}/order-tracking?orderId={order_number}&payment=failed",
+            url=f"{cfg.storefront_url}/pay/{order_number}",
             status_code=303,
         )
     return RedirectResponse(

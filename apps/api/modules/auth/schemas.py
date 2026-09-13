@@ -1,7 +1,10 @@
 from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
+
+from modules.users.schemas import UserResponse as UsersMeResponse
 import re
+from typing import Optional
 
 def validate_password_strength(v: str) -> str:
     if len(v) < 8:
@@ -46,6 +49,10 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     expires_in: int
+    # The authenticated user rides along with the tokens so the client can
+    # finish login in a single round-trip (no follow-up /users/me call).
+    # Same shape as GET /users/me so clients can use either interchangeably.
+    user: Optional["UsersMeResponse"] = None
 
 
 class RefreshTokenRequest(BaseModel):

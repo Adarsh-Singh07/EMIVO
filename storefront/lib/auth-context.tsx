@@ -102,22 +102,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await apiClient.post<{
       access_token: string;
       refresh_token: string;
+      user?: User;
     }>("/auth/login", { email, password }, true);
     setTokens(data.access_token, data.refresh_token);
 
-    // Guest-cart merge and profile fetch are independent — run them in
-    // parallel (each API hop costs ~1s; sequential chaining doubled login).
-    await Promise.all([
-      (async () => {
-        try {
-          const sessionId = getCartSessionId();
-          if (sessionId) await storeApi.mergeCart(sessionId);
-        } catch {
-          /* best-effort */
-        }
-      })(),
-      apiClient.get<User>("/users/me").then(setUser),
-    ]);
+    // The login response carries the user — sign-in completes in ONE
+    // network round-trip. The guest-cart merge is best-effort and runs in
+    // the background; it must not delay the user entering the app.
+    if (data.user) setUser(data.user);
+    else setUser(await apiClient.get<User>("/users/me"));
+    (async () => {
+      try {
+        const sessionId = getCartSessionId();
+        if (sessionId) await storeApi.mergeCart(sessionId);
+      } catch {
+        /* best-effort */
+      }
+    })();
   }, []);
 
   const register = useCallback(
@@ -174,20 +175,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await apiClient.post<{
       access_token: string;
       refresh_token: string;
+      user?: User;
     }>("/auth/otp/verify", { email: email ?? null, phone: phone ?? null, code }, true);
     setTokens(data.access_token, data.refresh_token);
 
-    await Promise.all([
-      (async () => {
-        try {
-          const sessionId = getCartSessionId();
-          if (sessionId) await storeApi.mergeCart(sessionId);
-        } catch {
-          /* best-effort */
-        }
-      })(),
-      apiClient.get<User>("/users/me").then(setUser),
-    ]);
+    if (data.user) setUser(data.user);
+    else setUser(await apiClient.get<User>("/users/me"));
+    (async () => {
+      try {
+        const sessionId = getCartSessionId();
+        if (sessionId) await storeApi.mergeCart(sessionId);
+      } catch {
+        /* best-effort */
+      }
+    })();
   }, []);
 
   const logout = useCallback(async () => {

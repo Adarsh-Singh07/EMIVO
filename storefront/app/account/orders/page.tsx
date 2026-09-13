@@ -268,7 +268,10 @@ function OrderDetail({
       results.forEach((res) => {
         if (res.status === "fulfilled" && res.value) {
           const prod: any = res.value;
-          meta[prod.id] = { img: prod.img || prod.images?.[0]?.url, slug: prod.slug || prod.id };
+          meta[prod.id] = {
+            img: prod.image || prod.img || prod.images?.[0]?.url,
+            slug: prod.slug || prod.id,
+          };
         }
       });
       setProductMeta(meta);

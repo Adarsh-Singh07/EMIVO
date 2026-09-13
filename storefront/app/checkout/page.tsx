@@ -442,11 +442,14 @@ function CheckoutContent() {
       });
 
       if (response.payment_required) {
-        // DO NOT set placedOrder or pendingPayment here to avoid flickering 
-        // to the "Payment not completed" screen while we wait for the 
-        // payment gateway URL (which takes 2-3s). We will stay on the 
-        // loading spinner instead!
-        await startPayment(response.order, response.payment_id || "", false);
+        // Hand off to the dedicated /pay page IMMEDIATELY: the buyer leaves
+        // the checkout the moment they click Pay. That page owns the whole
+        // lifecycle — gateway handoff, live status polling, retry/reorder.
+        sessionStorage.removeItem(IDEM_KEY_STORAGE);
+        reloadCart();
+        router.push(`/pay/${encodeURIComponent(response.order.id)}?placed=1`);
+        setPlacing(false);
+        return;
       } else {
         setPlacedOrder(response.order);
         setAppliedCoupon(null);
@@ -646,8 +649,7 @@ function CheckoutContent() {
         <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
           <button
             onClick={() => {
-              setRetryingPayment(true);
-              startPayment(pendingPayment.order, pendingPayment.paymentId, true);
+              router.push(`/pay/${encodeURIComponent(pendingPayment.order.id)}`);
             }}
             disabled={retryingPayment}
             className="h-12 inline-flex items-center justify-center gap-2 px-8 bg-neutral-950 text-white rounded-full text-sm font-medium hover:bg-neutral-800 disabled:opacity-60"

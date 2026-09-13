@@ -472,6 +472,11 @@ export const storeApi = {
     return fetchApi<OrderV2>(`/orders/track/${encodeURIComponent(orderNumber)}`);
   },
 
+  /** Ownership-checked fetch by order UUID (used by the /pay page). */
+  getOrder(orderId: string): Promise<OrderV2> {
+    return fetchApi<OrderV2>(`/orders/${encodeURIComponent(orderId)}`);
+  },
+
 
   cancelOrder(orderId: string, reason?: string): Promise<OrderV2> {
     return fetchApi<OrderV2>(`/orders/${encodeURIComponent(orderId)}/cancel`, {

@@ -153,6 +153,7 @@ class AuthService:
             access_token=access_token,
             refresh_token=refresh_token,
             expires_in=settings.jwt_expiration_minutes * 60,
+            user=user,
         )
 
     async def refresh_token(self, refresh_token: str) -> TokenResponse:
