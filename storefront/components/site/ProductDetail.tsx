@@ -30,6 +30,7 @@ import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 import { inr } from "@/lib/format";
 import { type Product } from "@/lib/products";
+import DOMPurify from "dompurify";
 
 const TABS = [
   { id: "description", label: "Description" },
@@ -472,9 +473,11 @@ export default function ProductDetail({
           {tab === "description" && (
             <div className="space-y-4 text-neutral-600">
               {product.description ? (
-                <div 
-                  className="leading-relaxed text-neutral-600 [&>p]:mb-4 [&>ul]:list-disc [&>ul]:pl-5 [&>ul]:mb-4 [&>h2]:text-xl [&>h2]:font-bold [&>h2]:mb-2 [&>h2]:text-neutral-900 [&>h3]:text-lg [&>h3]:font-semibold [&>h3]:mb-2 [&>h3]:text-neutral-800" 
-                  dangerouslySetInnerHTML={{ __html: product.description }} 
+                <div
+                  className="leading-relaxed text-neutral-600 [&>p]:mb-4 [&>ul]:list-disc [&>ul]:pl-5 [&>ul]:mb-4 [&>h2]:text-xl [&>h2]:font-bold [&>h2]:mb-2 [&>h2]:text-neutral-900 [&>h3]:text-lg [&>h3]:font-semibold [&>h3]:mb-2 [&>h3]:text-neutral-800"
+                  // WYSIWYG HTML from the admin editor — sanitize before
+                  // injecting to block stored XSS on every product page.
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(product.description) }}
                 />
               ) : (
                 <p>{product.tagline}</p>
