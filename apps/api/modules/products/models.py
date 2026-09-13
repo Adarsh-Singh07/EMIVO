@@ -30,6 +30,9 @@ class Product(Base):
     mrp = Column(Integer, nullable=True)  # list price (paise); price/mrp drives discount display
     sale_price = Column(Integer, nullable=True)  # festival offer price (paise), active only within offer window
     offer_name = Column(String(100), nullable=True) # e.g. "Diwali Dhamaka", "Festival Offer"
+    # Flash-sale items release reserved stock IMMEDIATELY when a payment
+    # fails (no 30-minute hold) — flash stock must return to sale instantly.
+    is_flash_sale = Column(Boolean, nullable=False, server_default="false", default=False)
     offer_starts_at = Column(DateTime(timezone=True), nullable=True)
     offer_ends_at = Column(DateTime(timezone=True), nullable=True)
     brand = Column(String(120), nullable=True)

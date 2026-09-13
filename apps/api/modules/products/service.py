@@ -119,7 +119,8 @@ class ProductService:
         # Optional-clearable fields: explicit null in the payload clears them
         provided = data.model_fields_set
         for field in ("mrp", "sale_price", "offer_name", "offer_starts_at", "offer_ends_at",
-                      "category_id", "warranty_info", "return_policy", "brand", "featured"):
+                      "category_id", "warranty_info", "return_policy", "brand", "featured",
+                      "is_flash_sale"):
             if field in provided:
                 setattr(product, field, getattr(data, field))
         

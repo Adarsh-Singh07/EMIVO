@@ -420,7 +420,25 @@ class PaymentService:
             # Stock intentionally STAYS reserved: the buyer has a 2-hour
             # retry window (see OrderService.apply_payment_window — stock
             # returns to the pool after 30 minutes, the order is cancelled
-            # after 2 hours).
+            # after 2 hours). FLASH-SALE items are the exception: their
+            # stock goes straight back on sale — no hold, ever.
+            from sqlalchemy import select as _select
+            from modules.orders.models import OrderItem
+            from modules.products.models import Product
+            items_res = await self.db.execute(
+                _select(OrderItem).where(OrderItem.order_id == order.id)
+            )
+            ordered_ids = [i.product_id for i in items_res.scalars().all()]
+            if ordered_ids:
+                flash_res = await self.db.execute(
+                    _select(Product.id).where(
+                        Product.id.in_(ordered_ids), Product.is_flash_sale.is_(True)
+                    ).limit(1)
+                )
+                if flash_res.first() is not None:
+                    await self.inventory.release_for_order(order)
+                    order.stock_released_at = datetime.now(timezone.utc)
+                    await self.order_repository.update(order)
             self.db.add(OutboxEvent(
                 tenant_id=order.business_id,
                 type="payment.failed",

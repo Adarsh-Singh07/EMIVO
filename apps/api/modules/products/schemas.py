@@ -113,6 +113,7 @@ class ProductBase(BaseModel):
     tags: Optional[List[str]] = None
     options: Optional[List[dict]] = None
     variants: Optional[List[ProductVariantUpdate]] = None
+    is_flash_sale: Optional[bool] = None
 
 
 class ProductCreate(ProductBase):
@@ -149,6 +150,7 @@ class ProductUpdate(BaseModel):
 class ProductResponse(ProductBase):
     id: str
     business_id: str
+    is_flash_sale: bool = False
     slug: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None

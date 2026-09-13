@@ -137,6 +137,7 @@ export function ProductEditor({ productId }: { productId?: string }) {
   const [offerEnds, setOfferEnds] = useState(""); // datetime-local
   const [status, setStatus] = useState("DRAFT");
   const [featured, setFeatured] = useState(false);
+  const [isFlashSale, setIsFlashSale] = useState(false);
   const [initialStock, setInitialStock] = useState("");
   const [tagsText, setTagsText] = useState("");
   const [specs, setSpecs] = useState<SpecRowState[]>([]);
@@ -174,6 +175,7 @@ export function ProductEditor({ productId }: { productId?: string }) {
       setSalePrice(paiseToRupeeInput(p.sale_price));
       setHasOffer(p.sale_price != null && p.sale_price > 0);
       setOfferName(p.offer_name || "");
+      setIsFlashSale((p as any).is_flash_sale === true);
       setOfferStarts(isoToLocalInput(p.offer_starts_at));
       setOfferEnds(isoToLocalInput(p.offer_ends_at));
       setStatus((p.status || "DRAFT").toUpperCase());
@@ -366,6 +368,7 @@ export function ProductEditor({ productId }: { productId?: string }) {
     const salePaise = hasOffer ? rupeesToPaise(salePrice) : null;
     payload.sale_price = salePaise ?? null;
     payload.offer_name = hasOffer ? (offerName.trim() || null) : null;
+    payload.is_flash_sale = isFlashSale;
     payload.offer_starts_at = hasOffer ? localInputToIso(offerStarts) : null;
     payload.offer_ends_at = hasOffer ? localInputToIso(offerEnds) : null;
     payload.category_id = categoryId || null;
@@ -821,6 +824,15 @@ export function ProductEditor({ productId }: { productId?: string }) {
                 <p className="mt-0.5 text-xs text-neutral-500">Highlight this product on the storefront.</p>
               </div>
               <input type="checkbox" checked={featured} onChange={(e) => setFeatured(e.target.checked)} className="h-5 w-5 accent-amber-500" />
+            </label>
+            <label className="flex cursor-pointer items-center justify-between mt-4 pt-4 border-t border-neutral-100">
+              <div>
+                <span className="text-sm font-bold text-neutral-900">Flash sale</span>
+                <p className="mt-0.5 text-xs text-neutral-500">
+                  On a failed payment, this product&apos;s stock returns to sale immediately (no 30-min hold).
+                </p>
+              </div>
+              <input type="checkbox" checked={isFlashSale} onChange={(e) => setIsFlashSale(e.target.checked)} className="h-5 w-5 accent-red-500" />
             </label>
           </section>
 
