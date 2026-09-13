@@ -16,8 +16,8 @@ pyotp # MFA
 google-generativeai
 arq>=0.25.0
 redis>=5.0.0
-boto3
-aiobotocore
+boto3==1.43.75        # pinned: unpinned aiobotocore/boto3 made pip backtrack ~40 versions and blew the deploy build window
+aiobotocore==3.9.1      # pins botocore/s3transfer/aiohttp transitively
 pgvector
 google-genai
 python-multipart==0.0.32

@@ -22,6 +22,9 @@ jobs:
           username: ${{ secrets.VPS_SSH_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_SSH_PORT || '22' }}
+          # Docker builds of api+workers (pip resolving unpinned deps) ran
+          # past the 10-minute default and silently killed every deploy.
+          command_timeout: 60m
           script: |
             cd /opt/elektrix
             bash infra/scripts/deploy_vps.sh
