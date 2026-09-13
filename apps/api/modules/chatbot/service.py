@@ -81,7 +81,7 @@ async def build_context(session: AsyncSession, user_id: str, user_name: str) -> 
 
     cat_res = await session.execute(text("""
         SELECT p.name, p.price, p.slug,
-               COALESCE(p.short_description, left(p.description, 90), '') AS blurb
+               COALESCE(left(p.description, 90), '') AS blurb
         FROM products p
         WHERE p.business_id = :bid AND p.status = 'ACTIVE'
         ORDER BY p.created_at DESC LIMIT 15
