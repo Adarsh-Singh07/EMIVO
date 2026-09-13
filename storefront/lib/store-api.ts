@@ -477,6 +477,23 @@ export const storeApi = {
     return fetchApi<OrderV2>(`/orders/${encodeURIComponent(orderId)}`);
   },
 
+  // ---- Support tickets ----
+  createTicket(payload: { category: string; subject: string; description: string; order_id?: string }): Promise<{ id: string; subject: string; status: string }> {
+    return fetchApi(`/support/tickets`, { method: "POST", body: JSON.stringify(payload) });
+  },
+  listTickets(): Promise<Array<{ id: string; subject: string; category: string; status: string; order_number?: string; updated_at: string }>> {
+    return fetchApi(`/support/tickets`);
+  },
+  getTicket(id: string): Promise<{ id: string; subject: string; status: string; messages: Array<{ id: string; sender: string; body: string; created_at: string }> }> {
+    return fetchApi(`/support/tickets/${encodeURIComponent(id)}`);
+  },
+  replyTicket(id: string, body: string): Promise<unknown> {
+    return fetchApi(`/support/tickets/${encodeURIComponent(id)}/messages`, { method: "POST", body: JSON.stringify({ body }) });
+  },
+  chat(message: string): Promise<{ reply: string; ticket?: { id: string; subject: string } | null }> {
+    return fetchApi(`/support/chat`, { method: "POST", body: JSON.stringify({ message }) });
+  },
+
 
   cancelOrder(orderId: string, reason?: string): Promise<OrderV2> {
     return fetchApi<OrderV2>(`/orders/${encodeURIComponent(orderId)}/cancel`, {

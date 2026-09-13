@@ -165,13 +165,35 @@ class PaymentService:
         active = await self.repository.get_active_for_order(order.id)
         if active and active.id != getattr(payment_in, "id", None):
             meta = active.metadata_info or {}
-            if meta.get("checkout_url") or meta.get("payment_session_id") or active.provider_order_id:
-                await self.repository.log_event(
-                    active.id, "payment_session_resumed",
-                    {"idempotency_key": payment_in.idempotency_key},
-                )
-                await self.db.commit()
-                return active
+            # Reconcile with Easebuzz BEFORE reopening: the gateway session may
+            # already be dead ('transaction failed' page), or the payment may
+            # have succeeded without our callback hearing about it.
+            if (self.provider.name == "easebuzz" and meta.get("txnid")
+                    and active.status == PaymentStatus.CREATED):
+                try:
+                    fetched = await self.provider.fetch_payment(meta["txnid"])
+                    g_status = str(fetched.get("status", "")).upper()
+                except Exception:
+                    g_status = ""
+                if g_status == "SUCCESS":
+                    settled = fetched.get("raw", {}) or {}
+                    settled_paise = _amount_str_to_paise(settled.get("amount"))
+                    if settled_paise is None or settled_paise == order.total:
+                        await self._capture(active, settled.get("easepayid") or meta["txnid"],
+                                            source="easebuzz_status_api")
+                        raise DomainException("Payment already completed", code="ALREADY_PAID", status_code=409)
+                if g_status in ("FAILED", "FAILURE", "BOUNCED", "USERCANCEL"):
+                    await self._fail(active, f"gateway_{g_status.lower()}", meta["txnid"])
+                    active = None  # fall through to a fresh attempt below
+            if active and active.status in (PaymentStatus.CREATED, PaymentStatus.PENDING):
+                meta = active.metadata_info or {}
+                if meta.get("checkout_url") or meta.get("payment_session_id") or active.provider_order_id:
+                    await self.repository.log_event(
+                        active.id, "payment_session_resumed",
+                        {"idempotency_key": payment_in.idempotency_key},
+                    )
+                    await self.db.commit()
+                    return active
             # Active but never reached the gateway (no session data) — retire
             # it and fall through to a fresh attempt.
             await self.repository.update_status(

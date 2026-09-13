@@ -17,7 +17,7 @@ def _shell(title: str, body_html: str, cta_url: str = "", cta_label: str = "") -
   <div style="max-width:560px;margin:0 auto;padding:24px 16px">
     <div style="background:#fff;border-radius:12px;padding:32px;border:1px solid #e4e4e7">
       <div style="font-size:20px;font-weight:800;color:{PRIMARY};letter-spacing:2px;margin-bottom:20px">ELEKTRIX</div>
-      <h2 style="margin:0 0 16px;font-size:20px;color:#18181b">{title}</h2>
+      <img src="https://elektrix.in/branding/icon.png" alt="ELEKTRIX" style="width:56px;height:56px;border-radius:12px;margin:0 auto 8px;display:block;" /><h2 style="margin:0 0 16px;font-size:20px;color:#18181b">{title}</h2>
       <div style="font-size:14px;line-height:1.7;color:#3f3f46">{body_html}</div>
       {cta}
       <div style="margin-top:32px;padding-top:20px;border-top:1px solid #e4e4e7;font-size:12px;color:#a1a1aa">

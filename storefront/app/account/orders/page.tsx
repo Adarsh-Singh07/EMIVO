@@ -32,7 +32,7 @@ import PaymentRetryActions from "@/components/site/PaymentRetryActions";
 
 /* ── Status presentation ─────────────────────────────────────────── */
 const STATUS_STYLES: Record<string, { bg: string; text: string; border: string; label: string }> = {
-  PENDING:           { bg: "bg-amber-50",    text: "text-amber-700",   border: "border-amber-200",   label: "Order Placed" },
+  PENDING:           { bg: "bg-amber-50",    text: "text-amber-700",   border: "border-amber-200",   label: "Payment Pending" },
   PAYMENT_PENDING:   { bg: "bg-orange-50",   text: "text-orange-700",  border: "border-orange-200",  label: "Payment Pending" },
   CONFIRMED:         { bg: "bg-blue-50",     text: "text-blue-700",    border: "border-blue-200",    label: "Confirmed" },
   PROCESSING:        { bg: "bg-indigo-50",   text: "text-indigo-700",  border: "border-indigo-200",  label: "Processing" },

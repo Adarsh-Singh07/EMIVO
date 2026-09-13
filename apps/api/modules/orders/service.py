@@ -574,6 +574,19 @@ class OrderService:
         order = await self.get_order(order_id)
         target_status = status_update.status
 
+        # Guard: never confirm an ONLINE order that has no captured payment —
+        # otherwise staff can ship goods for an unpaid/failed checkout.
+        if target_status == OrderStatus.CONFIRMED and (order.payment_method or "").upper() == "ONLINE":
+            pay = (await self.session.execute(text(
+                "SELECT status FROM payments WHERE order_id = :oid "
+                "AND status = 'SUCCESS' LIMIT 1"
+            ), {"oid": order.id})).first()
+            if not pay:
+                raise DomainException(
+                    "Cannot confirm: no successful payment for this online order.",
+                    code="PAYMENT_NOT_CAPTURED", status_code=409,
+                )
+
         if target_status != order.status:
             allowed = VALID_TRANSITIONS.get(order.status, set())
             if target_status not in allowed:

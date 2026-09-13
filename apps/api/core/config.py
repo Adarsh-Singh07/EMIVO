@@ -105,6 +105,13 @@ class Settings(BaseSettings):
     resend_api_key: SecretStr = Field(default=SecretStr(""))
     email_from: str = Field(default="ELEKTRIX <support@elektrix.in>")
 
+    # AI support chatbot — comma-separated Gemini models tried IN ORDER on
+    # 429/5xx, so one exhausted quota never breaks the chat.
+    gemini_chat_models: str = Field(
+        default="gemini-2.0-flash-lite,gemini-2.0-flash,gemini-1.5-flash,gemini-1.5-flash-8b"
+    )
+    chatbot_daily_message_limit: int = Field(default=30)
+
     # SMS for OTP login. "console" only logs codes and refuses to operate in
     # prod; switch to "msg91" and set the auth key + DLT-approved OTP template
     # (with an #OTP# variable) to send real SMS.

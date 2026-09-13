@@ -158,9 +158,7 @@ export default function Header() {
           {/* Logo + tagline */}
           <Link href="/" className="flex flex-col items-start shrink-0 leading-none">
             <div className="flex items-center gap-1.5">
-              <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-neutral-950 text-white grid place-items-center font-bold text-[10px] sm:text-sm tracking-tighter">
-                EX
-              </div>
+              <img src="/branding/icon.png" alt="ELEKTRIX" className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg object-cover" />
               <span className="text-[16px] sm:text-2xl font-bold tracking-tight">ELEKTRIX</span>
             </div>
             <span className="hidden sm:block text-[10px] text-neutral-500 mt-0.5 ml-10">

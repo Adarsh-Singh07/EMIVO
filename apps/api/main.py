@@ -21,6 +21,9 @@ from modules.inventory.router import router as inventory_router
 from modules.admin.router import router as admin_router
 from modules.media.router import router as media_router
 from modules.marketing.router import router as newsletter_router
+from modules.support.router import router as support_router
+from modules.admin.support_router import router as admin_support_router
+from modules.chatbot.router import router as chatbot_router
 from modules.catalogues.router import router as catalogues_router, admin_router as catalogues_admin_router
 from contextlib import asynccontextmanager
 from core.redis import lifespan_redis
@@ -123,6 +126,39 @@ async def health_diagnostics(
     disk_free_gb = round(disk.free / (1024 ** 3), 2)
     disk_total_gb = round(disk.total / (1024 ** 3), 2)
 
+    # Real CPU/memory readings (container cgroups with /proc fallback)
+    import glob
+    def _cgroup(name):
+        try:
+            v = int(open(f"/sys/fs/cgroup/{name}.max").read().strip().replace("max", "0"))
+            u = int(open(f"/sys/fs/cgroup/{name}.current").read().strip())
+            return round(u / v * 100, 1) if v else 0.0
+        except Exception:
+            return None
+    try:
+        load1, _, _ = os.getloadavg()
+        cpu_pct = _cgroup("cpu")
+        if cpu_pct is None:
+            cpu_pct = round(load1 / max(os.cpu_count(), 1) * 100, 1)
+        mem_used = mem_total = None
+        try:
+            cl = int(open("/sys/fs/cgroup/memory.max").read().strip().replace("max", "0"))
+            cu = int(open("/sys/fs/cgroup/memory.current").read().strip())
+            if cl:
+                mem_pct = round(cu / cl * 100, 1)
+                mem_total, mem_used = round(cl / 1e9, 2), round(cu / 1e9, 2)
+            else:
+                raise ValueError
+        except Exception:
+            info = {k: int(v) for k, v in
+                    (l.split(":") for l in open("/proc/meminfo") if ":" in l)}
+            total_kb = info.get("MemTotal", 0)
+            avail_kb = info.get("MemAvailable", 0)
+            mem_pct = round((total_kb - avail_kb) / total_kb * 100, 1) if total_kb else 0.0
+            mem_total, mem_used = round(total_kb / 1e6, 2), round((total_kb - avail_kb) / 1e6, 2)
+    except Exception:
+        cpu_pct, mem_pct, mem_total, mem_used = 0.0, 0.0, 0.0, 0.0
+
     provider = settings.payment_provider
     return {
         "status": "healthy" if (db_status == "healthy" and redis_status == "healthy") else "degraded",
@@ -135,6 +171,10 @@ async def health_diagnostics(
         "pid": os.getpid(),
         "system": {
             "cpus": os.cpu_count(),
+            "cpu_load_pct": cpu_pct,
+            "memory_used_gb": mem_used,
+            "memory_total_gb": mem_total,
+            "memory_pct": mem_pct,
             "disk_free_gb": disk_free_gb,
             "disk_total_gb": disk_total_gb,
         },
@@ -188,6 +228,9 @@ app.include_router(newsletter_router)
 app.include_router(catalogues_router, prefix="/api/v1/store")
 app.include_router(catalogues_admin_router, prefix="/api/v1/admin")
 app.include_router(routers_settings.router, prefix="/api/v1")
+app.include_router(support_router)
+app.include_router(admin_support_router)
+app.include_router(chatbot_router)
 
 if __name__ == "__main__":
     import uvicorn

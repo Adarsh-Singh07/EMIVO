@@ -134,7 +134,7 @@ async def expire_stale_orders(ctx) -> int:
     order lists honest without anyone having to open the order first."""
     from datetime import datetime, timedelta, timezone
     from sqlalchemy import select
-    from sqlalchemy.ext.asyncio import async_sessionmaker
+    from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
     from core.database import engine
     from modules.orders.models import Order, OrderStatus
     from modules.orders.service import OrderService

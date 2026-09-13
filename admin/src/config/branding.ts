@@ -20,9 +20,9 @@ export const BRAND_CONFIG = {
     contactPhone: "+91 80920 24066",
   },
   assets: {
-    iconLogo: "/branding/icon.svg",
-    wordmarkLogo: "/branding/wordmark.svg",
-    favicon: "/branding/icon.svg",
+    iconLogo: "/branding/icon.png",
+    wordmarkLogo: "/branding/wordmark.png",
+    favicon: "/branding/icon.png",
   },
   theme: {
     primaryGradient: "from-amber-500 via-orange-500 to-amber-600",

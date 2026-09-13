@@ -12,6 +12,7 @@ import { Toaster } from "sonner";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import CookieConsent from "@/components/site/CookieConsent";
 import LenisProvider from "@/components/site/LenisProvider";
+import SupportChatWidget from "@/components/site/SupportChatWidget";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -99,6 +100,7 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: toJsonLd(organizationJsonLd) }}
         />
+        <SupportChatWidget />
         <LenisProvider>
         <AuthProvider>
           <WishlistProvider>
