@@ -30,7 +30,7 @@ class InventoryRepository:
             """),
             {"pid": product_id, "qty": qty},
         )
-        return res.one_or_none()
+        return res.first()  # .first(): tolerate duplicate product inventory rows
 
     async def release(self, product_id: str, qty: int) -> Optional[Tuple[int, int]]:
         """Release a prior reservation (cancel/failure/expiry)."""
@@ -43,7 +43,7 @@ class InventoryRepository:
             """),
             {"pid": product_id, "qty": qty},
         )
-        return res.one_or_none()
+        return res.first()  # .first(): tolerate duplicate product inventory rows
 
     async def commit_sale(self, product_id: str, qty: int) -> Optional[Tuple[int, int]]:
         """Convert reserved units into sold units (payment captured / COD delivered):
@@ -60,7 +60,7 @@ class InventoryRepository:
             """),
             {"pid": product_id, "qty": qty},
         )
-        return res.one_or_none()
+        return res.first()  # .first(): tolerate duplicate product inventory rows
 
     async def restock(self, product_id: str, qty: int) -> Tuple[int, int]:
         res = await self.session.execute(
