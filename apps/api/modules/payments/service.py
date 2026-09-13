@@ -5,8 +5,8 @@ Guarantees:
     rejected if they mismatch); totals are computed by checkout, never trusted.
   - provider selection via PAYMENT_PROVIDER env (cashfree | mock); mock is
     only usable outside prod.
-  - webhook is the source of truth; the client verify endpoint applies the
-    same idempotent transition.
+  - the Easebuzz status API is the source of truth for capture; callbacks and
+    client verify requests are never accepted as proof of payment on their own.
   - captures commit reserved inventory and enqueue notifications; failures
     release reservations.
 """
@@ -33,6 +33,19 @@ from modules.payments.repository import PaymentRepository
 from modules.payments.schemas import PaymentCreate, PaymentResponse, PaginatedPaymentsResponse
 
 logger = logging.getLogger(__name__)
+
+
+def _amount_str_to_paise(value: Any) -> Optional[int]:
+    """Parse a provider amount string ('1499.00') into integer paise.
+
+    Returns None when the value is missing/unparseable so callers can skip
+    the check instead of failing open."""
+    if value is None:
+        return None
+    try:
+        return round(float(value) * 100)
+    except (TypeError, ValueError):
+        return None
 
 
 def get_provider() -> BasePaymentProvider:
@@ -219,6 +232,44 @@ class PaymentService:
                 raise DomainException(f"Payment not successful: {payment_status}", code="BAD_REQUEST", status_code=400)
             
             provider_payment_id = cf_payment.get("cf_payment_id", provider_payment_id)
+        elif self.provider.name == "easebuzz":
+            # Easebuzz: the status API is the ONLY source of truth. Client-
+            # supplied signatures/hashes prove nothing (the salt must be
+            # assumed known), so this path never captures from client input.
+            txnid = (payment.metadata_info or {}).get("txnid", "") or provider_order_id
+            if not txnid:
+                raise DomainException(
+                    "Missing Easebuzz txnid for verification",
+                    code="BAD_REQUEST", status_code=400,
+                )
+            fetched = await self.provider.fetch_payment(txnid)
+            provider_status = str(fetched.get("status", "")).upper()
+            if provider_status == "SUCCESS":
+                settled = fetched.get("raw", {}) or {}
+                settled_paise = _amount_str_to_paise(settled.get("amount"))
+                if settled_paise is not None and settled_paise != payment.amount:
+                    await self.repository.log_event(
+                        payment_id, "easebuzz_settled_amount_mismatch",
+                        {"settled_paise": settled_paise, "expected_paise": payment.amount},
+                    )
+                    await self.db.commit()
+                    raise DomainException(
+                        "Settled amount does not match the order total",
+                        code="BAD_REQUEST", status_code=400,
+                    )
+                provider_payment_id = settled.get("easepayid") or txnid
+                return await self._capture(payment, provider_payment_id, source="easebuzz_status_api")
+            if provider_status in ("FAILED", "FAILURE", "BOUNCED", "USERCANCEL"):
+                return await self._fail(
+                    payment, f"easebuzz_{provider_status.lower()}", txnid
+                )
+            # Pending / unknown / unverifiable: leave state untouched — the
+            # webhook or a later verification will resolve it. Never trust
+            # the client's claim.
+            raise DomainException(
+                f"Easebuzz payment not confirmed by status API (status={provider_status or 'unknown'})",
+                code="PAYMENT_PENDING", status_code=409,
+            )
         else:
             # Signature verification for mock/legacy providers
             payload = f"{payment.provider_order_id}|{provider_payment_id}"
@@ -586,10 +637,13 @@ class PaymentService:
             logger.warning("EaseBuzz callback missing txnid")
             return {"error": "missing_txnid"}
 
-        # Dedup: same txnid + status combination
+        # Dedup: same txnid + status combination. TTL is deliberately short —
+        # the payment-level idempotency below is the real guard, and a short
+        # TTL stops a forged callback from poisoning the key and blocking the
+        # genuine Easebuzz retry.
         dedup_key = f"eb:cb:seen:{txnid}:{status}"
         first_time = await redis_manager.client.set(
-            dedup_key, "1", nx=True, ex=7 * 24 * 3600
+            dedup_key, "1", nx=True, ex=3600
         )
         if not first_time:
             logger.info("EaseBuzz: duplicate callback for txnid=%s ignored", txnid)
@@ -626,7 +680,9 @@ class PaymentService:
             return {"terminal_state": payment.status.value}
 
         amount_str = callback_data.get("amount", "")
-        # Amount integrity: compare callback amount with stored amount
+        # Fast-fail: if the callback itself claims an amount that differs from
+        # the stored payment, reject before any state change. (The decisive
+        # check is the settled amount from the status API below.)
         if amount_str:
             try:
                 callback_amount_paise = round(float(amount_str) * 100)
@@ -646,39 +702,58 @@ class PaymentService:
             except (ValueError, TypeError):
                 pass
 
-        # Cross-verify with EaseBuzz status API (do not trust callback alone)
+        # Cross-verify with EaseBuzz status API — the ONLY source of truth for
+        # capture. The callback hash is treated as routing metadata only: the
+        # salt must be assumed known, so a valid hash never proves payment.
         try:
             fetched = await self.provider.fetch_payment(txnid)
             provider_status = str(fetched.get("status", "")).upper()
             logger.info("EaseBuzz status API: txnid=%s status=%s", txnid, provider_status)
         except Exception as exc:
             logger.error("EaseBuzz: status API fetch failed for txnid=%s: %s", txnid, exc)
-            # Fall back to callback status if API unavailable — log for manual review
-            provider_status = status
+            # Never fall back to the callback's own claim — park for review.
             await self.repository.log_event(
                 payment.id, "easebuzz_status_api_error",
                 {"txnid": txnid, "error": str(exc), "callback_status": status},
             )
+            await self.db.commit()
+            return {"pending_verification": True}
 
-        if provider_status == "SUCCESS" or status == "SUCCESS":
-            provider_payment_id = callback_data.get("easepayid") or callback_data.get("paymentId") or txnid
-            await self._capture(payment, provider_payment_id, source="easebuzz_callback")
+        if provider_status == "SUCCESS":
+            settled = fetched.get("raw", {}) or {}
+            settled_paise = _amount_str_to_paise(settled.get("amount"))
+            if settled_paise is not None and settled_paise != payment.amount:
+                logger.error(
+                    "EaseBuzz: SETTLED AMOUNT MISMATCH txnid=%s expected=%s got=%s — rejecting",
+                    txnid, payment.amount, settled_paise,
+                )
+                await self.repository.log_event(
+                    payment.id, "easebuzz_settled_amount_mismatch",
+                    {"settled_paise": settled_paise, "expected_paise": payment.amount},
+                )
+                await self.db.commit()
+                return {"amount_mismatch": True}
+            provider_payment_id = settled.get("easepayid") or txnid
+            await self._capture(payment, provider_payment_id, source="easebuzz_status_api")
             return {"captured": True}
-        elif provider_status in ("FAILED", "FAILURE", "BOUNCED") or status in ("FAILURE", "FAILED", "BOUNCED"):
+
+        if provider_status in ("FAILED", "FAILURE", "BOUNCED"):
             reason = callback_data.get("error_Message") or callback_data.get("field9") or "payment_failed"
             provider_payment_id = callback_data.get("easepayid") or txnid
             await self._fail(payment, reason, provider_payment_id)
             return {"failed": True}
-        elif status == "USERCANCEL":
-            reason = "user_cancelled"
-            await self._fail(payment, reason, txnid)
+
+        if provider_status == "USERCANCEL":
+            await self._fail(payment, "user_cancelled", txnid)
             return {"cancelled": True}
-        else:
-            logger.info("EaseBuzz: unhandled status=%s for txnid=%s", status, txnid)
-            await self.repository.log_event(
-                payment.id, "easebuzz_unhandled_status",
-                {"status": status, "provider_status": provider_status, "txnid": txnid},
-            )
-            await self.db.commit()
-            return {"unhandled": status}
+
+        # Pending / unknown / unverifiable → no state change. A genuine later
+        # callback or the reconciliation job will resolve it.
+        logger.info("EaseBuzz: unresolved status=%s (api=%s) txnid=%s — parked", status, provider_status, txnid)
+        await self.repository.log_event(
+            payment.id, "easebuzz_unresolved_status",
+            {"status": status, "provider_status": provider_status, "txnid": txnid},
+        )
+        await self.db.commit()
+        return {"pending": provider_status or "unknown"}
 

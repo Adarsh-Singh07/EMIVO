@@ -370,10 +370,15 @@ class EasebuzzProvider(BasePaymentProvider):
         This method satisfies the BasePaymentProvider contract; actual
         structured verification happens in verify_callback_hash().
         """
-        # This is kept for interface compatibility. The actual verification
-        # with structured fields happens in verify_callback_hash().
-        # For raw webhook payloads, we do a best-effort check.
-        return bool(signature)  # detailed verification is in verify_callback_hash()
+        # Client-supplied hashes are NEVER accepted as proof of payment: the
+        # salt must be assumed known, so any hash can be forged. Structured
+        # callback integrity goes through verify_callback_hash(), and capture
+        # decisions go through fetch_payment() (EaseBuzz status API).
+        logger.warning(
+            "Easebuzz: verify_signature called with client data — rejected "
+            "(hashes are not payment proof; use verify_callback_hash/fetch_payment)"
+        )
+        return False
 
     def verify_callback_hash(self, callback_data: dict[str, str]) -> bool:
         """
