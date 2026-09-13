@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 import Link from "next/link";
 import { inr, formatDate } from "@/lib/format";
+import PaymentRetryActions from "@/components/site/PaymentRetryActions";
 
 const STEPS = [
   { status: "PENDING", label: "Order placed" },
@@ -118,12 +119,14 @@ function OrderTrackingContent() {
             </div>
             <span
               className={`text-sm font-bold uppercase tracking-wider px-3 py-1 rounded-full border capitalize ${
-                isCancelled
+                order.status.toUpperCase() === "PAYMENT_FAILED"
+                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                  : isCancelled
                   ? "bg-red-50 text-red-700 border-red-200"
                   : "text-green-700 bg-green-50 border-green-200"
               }`}
             >
-              {order.status.toLowerCase()}
+              {order.status.toLowerCase().replace("_", " ")}
             </span>
           </div>
 
@@ -165,11 +168,13 @@ function OrderTrackingContent() {
             </div>
           )}
 
-          {isCancelled && (
+          {order.status.toUpperCase() === "PAYMENT_FAILED" ? (
+            <PaymentRetryActions order={order} onChanged={() => fetchOrder(order.order_number || orderNumberInput)} />
+          ) : isCancelled ? (
             <p className="text-sm text-red-600 text-center py-2">
               This order was {order.status.toLowerCase()}.
             </p>
-          )}
+          ) : null}
 
           {/* Tracking link */}
           {(order.tracking_number || order.tracking_url) && (

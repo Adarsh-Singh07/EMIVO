@@ -27,6 +27,7 @@ import { useAuth } from "@/lib/auth-context";
 import { storeApi, type OrderV2 } from "@/lib/store-api";
 import { inr, formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import PaymentRetryActions from "@/components/site/PaymentRetryActions";
 
 /* ── Status presentation ─────────────────────────────────────────── */
 const STATUS_STYLES: Record<string, { bg: string; text: string; border: string; label: string }> = {
@@ -436,28 +437,23 @@ function OrderDetail({
           </div>
         )}
         {order.status?.toUpperCase() === "PAYMENT_FAILED" && (
-          <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-100">
-            <Ban className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-red-700">Payment failed</p>
-              <p className="text-xs text-red-500 mt-0.5">
-                Your payment could not be processed. No money was charged. You can try again below.
-              </p>
-            </div>
-          </div>
+          <PaymentRetryActions
+            order={order}
+            onChanged={() => {
+              // Window expired server-side — refresh this order in place.
+              if (order.order_number) {
+                storeApi
+                  .trackOrder(order.order_number)
+                  .then((updated) => onCancelled(order.id, updated))
+                  .catch(() => {});
+              }
+            }}
+          />
         )}
       </div>
 
       {/* Actions */}
       <div className="flex flex-wrap gap-3">
-        {order.status?.toUpperCase() === "PAYMENT_FAILED" && (
-          <Link
-            href="/shop"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-neutral-950 text-white text-sm font-semibold hover:bg-neutral-800 transition-colors"
-          >
-            <CreditCard className="w-4 h-4" /> Shop Again
-          </Link>
-        )}
         {canCancel && (
           <button
             onClick={() => setShowCancelModal(true)}

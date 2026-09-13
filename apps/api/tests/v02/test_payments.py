@@ -189,37 +189,53 @@ async def test_refund_via_provider_and_restock(client, admin):
     assert stock["on_hand"] >= 1  # restocked
 
 
-async def test_failed_webhook_releases_reservation(client):
+async def test_failed_webhook_holds_stock_for_retry_window(client):
+    """New policy: a failed payment keeps the stock reserved for the buyer's
+    2-hour retry window; it returns to the pool 30 minutes in (lazily)."""
     buyer = await register_and_login(client, 600007)
     order = await _place_pending_online_order(client, buyer)
     init = (await _initiate(client, buyer, order)).json()
     payment = init["payment"]
 
-    products = await get_store_products(client)
-    stock_before = next(p for p in products["items"] if p["id"] == order["items"][0]["product_id"])["stock"]
-    assert stock_before["reserved"] >= 1
-
     body = {
         "type": "PAYMENT_FAILED_WEBHOOK",
         "data": {
-        
             "payment": {"cf_payment_id": "pay_mock_fail1", "payment_message": "insufficient funds", "payment_status": "FAILED"},
             "order": {"order_id": payment["provider_order_id"]}
         }
     }
     raw = json.dumps(body)
-    signature = "valid_mock_signature"
     r = await client.post("/api/v1/payments/webhook/cashfree", content=raw, headers={
         "Content-Type": "application/json",
-        "X-Webhook-Signature": signature,
+        "X-Webhook-Signature": "valid_mock_signature",
         "X-Webhook-Timestamp": "1234567890",
     })
     assert r.status_code == 200
     assert r.json()["handled"]["failed"] is True
 
+    # Immediately after failure: order PAYMENT_FAILED and stock STILL HELD
     order_after = (await client.get(f"/api/v1/orders/{order['id']}", headers=buyer["headers"])).json()
     assert order_after["status"] == "PAYMENT_FAILED"
 
-    products_after = await get_store_products(client)
-    stock_after = next(p for p in products_after["items"] if p["id"] == order["items"][0]["product_id"])["stock"]
-    assert stock_after["reserved"] == stock_before["reserved"] - 1
+    products_now = await get_store_products(client)
+    stock_now = next(p for p in products_now["items"] if p["id"] == order["items"][0]["product_id"])["stock"]
+    reserved_during_hold = stock_now["reserved"]
+
+    # 31 minutes later the lazy window logic returns the stock to the pool
+    from core.database import async_session_maker
+    from sqlalchemy import text
+    async with async_session_maker() as s:
+        await s.execute(text(
+            "UPDATE orders SET updated_at = now() - make_interval(mins => 31) WHERE id = :id"
+        ), {"id": order["id"]})
+        await s.commit()
+
+    order_31 = (await client.get(f"/api/v1/orders/{order['id']}", headers=buyer["headers"])).json()
+    assert order_31["status"] == "PAYMENT_FAILED"  # still retryable until 2h
+
+    products_31 = await get_store_products(client)
+    stock_31 = next(p for p in products_31["items"] if p["id"] == order["items"][0]["product_id"])["stock"]
+    # This order's reservation (qty 1) returned to the pool
+    assert stock_31["reserved"] == reserved_during_hold - order["items"][0]["quantity"]
+
+

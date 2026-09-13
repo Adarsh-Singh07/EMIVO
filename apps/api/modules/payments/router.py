@@ -238,7 +238,7 @@ async def easebuzz_return(
         )
 
     # Persist the callback via the webhook handler
-    await service.handle_easebuzz_callback(
+    result = await service.handle_easebuzz_callback(
         txnid=txnid,
         status=eb_status,
         callback_data=callback_data,
@@ -249,12 +249,18 @@ async def easebuzz_return(
             url=f"{cfg.storefront_url}/account/orders?payment=success",
             status_code=303,
         )
-    else:
-        # Redirect back to checkout so the user can easily retry
+    # Failure: land the buyer on the order itself — it carries the Retry
+    # Payment button (2-hour window) instead of a dead-empty checkout.
+    order_number = (result or {}).get("order_number")
+    if order_number:
         return RedirectResponse(
-            url=f"{cfg.storefront_url}/checkout?error=payment_cancelled",
+            url=f"{cfg.storefront_url}/order-tracking?orderId={order_number}&payment=failed",
             status_code=303,
         )
+    return RedirectResponse(
+        url=f"{cfg.storefront_url}/account/orders?payment=failed",
+        status_code=303,
+    )
 
 
 @router.post("/webhook/easebuzz")

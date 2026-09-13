@@ -178,6 +178,7 @@ export interface CheckoutPayload {
 export interface OrderItemV2 {
   product_id: string;
   product_name: string;
+  variant_id?: string | null;
   variant_name?: string | null;
   quantity: number;
   unit_price: number; // paise
@@ -215,6 +216,7 @@ export interface OrderV2 {
   shipping_address?: ShippingAddressInput & { name?: string; street?: string };
   items: OrderItemV2[];
   created_at: string;
+  updated_at?: string;
 }
 
 export interface CheckoutResponse {

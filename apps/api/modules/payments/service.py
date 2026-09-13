@@ -115,10 +115,44 @@ class PaymentService:
             return existing
 
         # 2. Order must exist, belong to this tenant, be awaiting payment,
-        #    and belong to the requesting customer.
+        #    and belong to the requesting customer. A PAYMENT_FAILED order
+        #    is retryable within its 2-hour window.
         order = await self.order_repository.get_by_id(payment_in.order_id)
         if not order:
             raise DomainException("Order not found", code="NOT_FOUND", status_code=404)
+
+        if order.status == OrderStatus.PAYMENT_FAILED:
+            from modules.orders.service import OrderService
+            await OrderService(self.db).apply_payment_window(order)
+            if order.status == OrderStatus.CANCELLED:
+                raise DomainException(
+                    "The payment retry window for this order has expired. Please reorder the items.",
+                    code="PAYMENT_WINDOW_EXPIRED", status_code=409,
+                )
+            if order.stock_released_at is not None:
+                # Stock went back to the pool after 30 minutes — try to take
+                # it again; if someone else bought it, the buyer reorders.
+                from sqlalchemy import select as _select
+                from modules.orders.models import OrderItem
+                items_res = await self.db.execute(
+                    _select(OrderItem).where(OrderItem.order_id == order.id)
+                )
+                try:
+                    await self.inventory.reserve_for_order(order, list(items_res.scalars().all()))
+                except DomainException as exc:
+                    if exc.code == "OUT_OF_STOCK":
+                        raise DomainException(
+                            "Some items in this order are sold out. You can reorder them from the order page while stock lasts.",
+                            code="STOCK_SOLD_OUT", status_code=409,
+                        )
+                    raise
+                order.stock_released_at = None
+
+            # The buyer is actively retrying — the order is awaiting payment
+            # again.
+            order.status = OrderStatus.PENDING
+            await self.order_repository.update(order)
+
         if order.status != OrderStatus.PENDING:
             raise DomainException(
                 f"Order is not awaiting payment (status={order.status.value})",
@@ -275,15 +309,10 @@ class PaymentService:
             payload = f"{payment.provider_order_id}|{provider_payment_id}"
             is_valid = await self.provider.verify_signature(payload, provider_signature)
             if not is_valid:
-                await self.repository.update_status(payment_id, PaymentStatus.FAILED, provider_payment_id)
-                await self.repository.log_event(
-                    payment_id, "signature_verification_failed",
-                    {"provider_payment_id": provider_payment_id},
-                )
-                order = await self.order_repository.get_by_id(payment.order_id)
-                if order:
-                    await self.inventory.release_for_order(order)
-                await self.db.commit()
+                # Route through _fail so the order lands in PAYMENT_FAILED
+                # with its stock held for the 2-hour retry window (same as
+                # every other failure path) instead of releasing immediately.
+                await self._fail(payment, "signature_verification_failed", provider_payment_id)
                 raise DomainException(
                     "Payment signature verification failed", code="BAD_REQUEST", status_code=400
                 )
@@ -315,7 +344,7 @@ class PaymentService:
         )
 
         order = await self.order_repository.get_by_id(payment.order_id)
-        if order and order.status == OrderStatus.PENDING:
+        if order and order.status in (OrderStatus.PENDING, OrderStatus.PAYMENT_FAILED):
             order.status = OrderStatus.CONFIRMED
             await self.order_repository.update(order)
             await self.inventory.commit_for_order(order)
@@ -388,7 +417,10 @@ class PaymentService:
             order.status = OrderStatus.PAYMENT_FAILED
             order.notes = (order.notes or "") + f"\n[payment failed: {reason}]".strip()
             await self.order_repository.update(order)
-            await self.inventory.release_for_order(order)
+            # Stock intentionally STAYS reserved: the buyer has a 2-hour
+            # retry window (see OrderService.apply_payment_window — stock
+            # returns to the pool after 30 minutes, the order is cancelled
+            # after 2 hours).
             self.db.add(OutboxEvent(
                 tenant_id=order.business_id,
                 type="payment.failed",
@@ -666,6 +698,8 @@ class PaymentService:
         if not payment:
             return {"payment_not_found": True}
 
+        order = await self.order_repository.get_by_id(payment.order_id)
+
         # Idempotency: already captured
         if payment.status == PaymentStatus.SUCCESS:
             logger.info("EaseBuzz: txnid=%s already captured — no-op", txnid)
@@ -735,13 +769,13 @@ class PaymentService:
                 return {"amount_mismatch": True}
             provider_payment_id = settled.get("easepayid") or txnid
             await self._capture(payment, provider_payment_id, source="easebuzz_status_api")
-            return {"captured": True}
+            return {"captured": True, "order_number": order.order_number if order else None}
 
         if provider_status in ("FAILED", "FAILURE", "BOUNCED"):
             reason = callback_data.get("error_Message") or callback_data.get("field9") or "payment_failed"
             provider_payment_id = callback_data.get("easepayid") or txnid
             await self._fail(payment, reason, provider_payment_id)
-            return {"failed": True}
+            return {"failed": True, "order_number": order.order_number if order else None}
 
         if provider_status == "USERCANCEL":
             await self._fail(payment, "user_cancelled", txnid)

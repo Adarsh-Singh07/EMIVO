@@ -382,6 +382,14 @@ function CheckoutContent() {
           }
         });
       } catch (err) {
+        // Retry-window errors: send the buyer to the order page where
+        // reorder lives — retrying here would just fail again.
+        if (err instanceof ApiError && (err.code === "STOCK_SOLD_OUT" || err.code === "PAYMENT_WINDOW_EXPIRED")) {
+          toast.error(err.message);
+          setPlacing(false);
+          router.push(`/order-tracking?orderId=${encodeURIComponent(order.order_number || order.id)}`);
+          return;
+        }
         // Keep the PENDING order + paymentId so the retry screen reuses the
         // SAME order. Never funnel the user back to the form: clicking Pay
         // again there would create a second order (new idempotency key) and

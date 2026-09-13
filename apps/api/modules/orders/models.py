@@ -56,6 +56,10 @@ class Order(Base, TimestampMixin, SoftDeleteMixin, TenantMixin):
     shipped_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     delivered_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     stock_committed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # Payment-retry window bookkeeping: when the reservation for a failed
+    # online payment was returned to the general pool (30 min after the
+    # failure). NULL while stock is still held for this order.
+    stock_released_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Store money fields as integers (minor units / cents / paise)
     subtotal: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

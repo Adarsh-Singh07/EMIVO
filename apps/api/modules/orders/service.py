@@ -54,6 +54,51 @@ class OrderService:
         self.inventory = InventoryService(session)
         self.cart_repo = CartRepository(session)
 
+    # ------------------------------------------------------------------ #
+    # Payment-retry window (failed ONLINE payments)                        #
+    #   0-30 min: stock stays reserved for this buyer; retry always works  #
+    #   30 min-2 h: stock returns to the pool; retry re-reserves if the    #
+    #               items are still available, otherwise "sold out"        #
+    #   > 2 h: order is cancelled; the buyer can reorder from the page     #
+    # ------------------------------------------------------------------ #
+
+    async def apply_payment_window(self, order: Order) -> None:
+        """Lazily advance a failed-payment order through its retry window.
+        Called on order reads and payment initiation — it mutates only when
+        a threshold has been crossed, so it is safe to call repeatedly."""
+        from datetime import timedelta
+
+        if order.status != OrderStatus.PAYMENT_FAILED or (order.payment_method or "").upper() == "COD":
+            return
+        failed_at = order.updated_at
+        if failed_at is None:
+            return
+        if failed_at.tzinfo is None:
+            failed_at = failed_at.replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        age = now - failed_at
+
+        changed = False
+        if age >= timedelta(hours=2):
+            if order.stock_released_at is None:
+                await self.inventory.release_for_order(order)
+                order.stock_released_at = now
+            order.status = OrderStatus.CANCELLED
+            order.notes = (order.notes or "").strip() + "\n[payment retry window expired]"
+            changed = True
+        elif age >= timedelta(minutes=30) and order.stock_released_at is None:
+            await self.inventory.release_for_order(order)
+            order.stock_released_at = now
+            changed = True
+
+        if changed:
+            await self.repository.update(order)
+            await self.session.commit()
+            # Reload server-side fields (updated_at onupdate) so the caller
+            # can serialize the object without triggering a lazy refresh
+            # outside the async context (MissingGreenlet).
+            await self.session.refresh(order)
+
     async def _get_current_business_id(self) -> str:
         res = await self.session.execute(
             text("SELECT NULLIF(current_setting('app.business_id', true), '')")
@@ -575,6 +620,7 @@ class OrderService:
             raise DomainException("Order not found", code="NOT_FOUND", status_code=404)
         if not is_staff and str(order.user_id) != str(user.id):
             raise DomainException("Order not found", code="NOT_FOUND", status_code=404)
+        await self.apply_payment_window(order)
         return order
 
     async def get_order_by_number(self, order_number: str, user: User, is_staff: bool) -> Order:
@@ -589,7 +635,9 @@ class OrderService:
         if not is_staff and str(order.user_id) != str(user.id):
             raise DomainException("Order not found", code="NOT_FOUND", status_code=404)
         fetched = await self.repository.get_by_id(order.id)
-        return fetched or order
+        order = fetched or order
+        await self.apply_payment_window(order)
+        return order
 
     async def delete_order(self, order_id: str) -> None:
         order = await self.get_order(order_id)
