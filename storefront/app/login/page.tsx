@@ -27,6 +27,7 @@ function LoginForm() {
   const [otpEmail, setOtpEmail] = useState("");
   const [otpPhone, setOtpPhone] = useState("");
   const [otpChannel, setOtpChannel] = useState<"email" | "phone">("email");
+  const [deliveredVia, setDeliveredVia] = useState<"email" | "sms">("email");
   const [otpCode, setOtpCode] = useState("");
   const [resendIn, setResendIn] = useState(0);
   const resendTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -80,15 +81,20 @@ function LoginForm() {
     }
     setIsLoading(true);
     try {
-      await requestOtp(otpChannel === "email" ? { email: id } : { phone: id });
+      const channel = await requestOtp(otpChannel === "email" ? { email: id } : { phone: id });
       setOtpStep("code");
+      setDeliveredVia(channel);
       setResendIn(60);
       if (!isResend) setOtpCode("");
-      toast.success(
-        otpChannel === "email"
-          ? `Code sent to ${id}. It expires in 10 minutes.`
-          : `Code sent to ${id}.`
-      );
+      if (otpChannel === "phone" && channel === "email") {
+        toast.success(`SMS is unavailable right now — we emailed the code to your account's email address instead.`);
+      } else {
+        toast.success(
+          otpChannel === "email"
+            ? `Code sent to ${id}. It expires in 10 minutes.`
+            : `Code sent to ${id}.`
+        );
+      }
     } catch (err: any) {
       setError(err?.message || "Could not send the code. Please try again.");
     } finally {
@@ -315,11 +321,20 @@ function LoginForm() {
         ) : (
           <form onSubmit={handleOtpVerify} className="space-y-4">
             <p className="text-sm text-neutral-500">
-              Enter the 6-digit code we sent to{" "}
-              <span className="font-medium text-neutral-900">
-                {otpChannel === "email" ? otpEmail : otpPhone}
-              </span>
-              .
+              {otpChannel === "phone" && deliveredVia === "email" ? (
+                <>
+                  SMS is unavailable — we sent a 6-digit code to your account&apos;s email address
+                  instead.
+                </>
+              ) : (
+                <>
+                  Enter the 6-digit code we sent to{" "}
+                  <span className="font-medium text-neutral-900">
+                    {otpChannel === "email" ? otpEmail : otpPhone}
+                  </span>
+                  .
+                </>
+              )}
             </p>
 
             <div>

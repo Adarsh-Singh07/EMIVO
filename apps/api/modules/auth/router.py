@@ -88,9 +88,11 @@ async def otp_request(
     service: AuthService = Depends(get_auth_service),
 ):
     """Send a one-time login code to the given email or phone. Always 202 —
-    never reveals whether an account exists. Resend is cooldown-limited."""
-    await service.request_otp(email=data.email, phone=data.phone)
-    return {"status": "sent"}
+    never reveals whether an account exists. Resend is cooldown-limited.
+    Phone requests fall back to the account's email when SMS is not
+    configured; the response names the channel used."""
+    channel = await service.request_otp(email=data.email, phone=data.phone)
+    return {"status": "sent", "channel": channel}
 
 
 @router.post("/otp/verify", response_model=TokenResponse)

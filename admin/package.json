@@ -31,5 +31,8 @@
     "@types/react": "^19.0.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": "22.x"
   }
 }

@@ -337,16 +337,19 @@ class AuthService:
 
         user = await self._find_user_by_identifier(email=email, phone=phone)
         if not user or user.deleted_at is not None or not user.is_active:
-            return  # silent success — no account enumeration
+            return "email"  # silent success — no account enumeration
 
-        # For phone delivery the SMS provider must be usable in this
-        # environment; check BEFORE consuming the resend cooldown so a
-        # misconfigured prod cannot be used to lock users out.
+        # Phone delivery: prefer the configured SMS provider; when SMS is not
+        # usable (e.g. not configured), fall back to the account's email so
+        # phone-OTP users are never locked out of login.
         sms_provider = None
+        deliver_via = "email"
         if phone:
             from modules.notifications.providers import get_sms_provider
             sms_provider = get_sms_provider()
-            if not sms_provider.usable:
+            if sms_provider.usable:
+                deliver_via = "sms"
+            elif not user.email:
                 raise DomainException(
                     "SMS login is not available right now. Please sign in with your password.",
                     code="SERVICE_UNAVAILABLE", status_code=503,
@@ -373,7 +376,14 @@ class AuthService:
         )
         await self.redis.expire(otp_key, self.OTP_TTL_SECONDS)
 
-        if email:
+        if deliver_via == "sms":
+            await sms_provider.send_otp(user.phone, code)
+        else:
+            # Email delivery — for email-OTP requests and for phone requests
+            # when SMS is unavailable. Goes through the outbox with
+            # best-effort immediate dispatch (the worker retries anyway).
+            from core.models import OutboxEvent
+
             self.session.add(OutboxEvent(
                 tenant_id=None,
                 type="auth.otp_login",
@@ -382,11 +392,13 @@ class AuthService:
                     "email": user.email,
                     "code": code,
                     "first_name": user.first_name,
+                    # Let the template explain why the code arrived when the
+                    # user asked for a phone code.
+                    "requested_phone": bool(phone) and deliver_via == "email",
+                    "phone_last4": (user.phone or "")[-4:] if phone else "",
                 },
             ))
             await self.session.commit()
-            # Best-effort immediate delivery; the outbox worker retries
-            # within seconds if this fails.
             from modules.notifications.service import NotificationService
             row = await self.session.execute(text(
                 "SELECT id FROM outbox_events "
@@ -399,8 +411,7 @@ class AuthService:
                     await NotificationService(self.session).process_outbox_event(str(event_id))
                 except Exception:
                     await self.session.rollback()
-        else:
-            await sms_provider.send_otp(user.phone, code)
+        return deliver_via
 
     async def verify_otp(
         self, email: str | None = None, phone: str | None = None, code: str = ""

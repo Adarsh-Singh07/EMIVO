@@ -46,7 +46,7 @@ interface AuthCtxValue {
   user: User | null;
   loading: boolean;
   login: (payload: LoginPayload) => Promise<void>;
-  requestOtp: (identifier: OtpIdentifier) => Promise<void>;
+  requestOtp: (identifier: OtpIdentifier) => Promise<"email" | "sms">;
   verifyOtp: (identifier: OtpIdentifier, code: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
@@ -145,10 +145,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   /** Send a one-time login code to the email or phone. The backend always
-   * reports success (202) — errors here are only network/validation issues. */
-  const requestOtp = useCallback(async ({ email, phone }: OtpIdentifier) => {
-    await apiClient.post("/auth/otp/request", { email: email ?? null, phone: phone ?? null }, true);
-  }, []);
+   * reports success (202) — errors here are only network/validation issues.
+   * Returns the channel the code was actually delivered through: phone
+   * requests fall back to the account's email when SMS is not configured. */
+  const requestOtp = useCallback(
+    async ({ email, phone }: OtpIdentifier): Promise<"email" | "sms"> => {
+      const res = await apiClient.post<{ channel?: "email" | "sms" }>(
+        "/auth/otp/request",
+        { email: email ?? null, phone: phone ?? null },
+        true
+      );
+      return res.channel === "sms" ? "sms" : "email";
+    },
+    []
+  );
 
   /** Exchange the one-time code for tokens, then finish the same post-login
    * steps as the password flow (guest-cart merge + profile fetch). */

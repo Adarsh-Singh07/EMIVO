@@ -96,17 +96,23 @@ async def test_otp_resend_cooldown(client):
     assert r.status_code == 429
 
 
-async def test_otp_phone_requires_usable_sms_provider(client):
+async def test_otp_phone_falls_back_to_email_when_sms_unconfigured(client):
     user = await register_and_login(client, 881005)
     phone = f"98765{uuid.uuid4().int % 100000:05d}"
     r = await client.put("/api/v1/users/me", headers=user["headers"], json={"phone": phone})
     assert r.status_code == 200, r.text
 
     # The console SMS provider refuses to operate (a code that only reaches
-    # the logs is not authentication) — the endpoint must say so, not leak
-    # the code into logs while pretending success.
+    # the logs is not authentication) — the request must still succeed by
+    # falling back to the account's email, and the response must say so.
     r = await client.post("/api/v1/auth/otp/request", json={"phone": phone})
-    assert r.status_code == 503
+    assert r.status_code == 202, r.text
+    assert r.json()["channel"] == "email"
+
+    # The code was delivered to the ACCOUNT's email via the outbox
+    code = await _latest_otp_code(user["email"])
+    r = await client.post("/api/v1/auth/otp/verify", json={"phone": phone, "code": code})
+    assert r.status_code == 200, r.text
 
 
 async def test_otp_phone_happy_path_with_real_provider(client, monkeypatch):

@@ -155,7 +155,16 @@ def welcome(p: dict, storefront_url: str) -> tuple[str, str]:
 
 def otp_login(p: dict, storefront_url: str) -> tuple[str, str]:
     code = p.get("code", "")
+    if p.get("requested_phone"):
+        intro = (
+            f"We couldn't send an SMS to your number ending in {p.get('phone_last4') or '****'} "
+            "right now, so your sign-in code is below. It works the same way."
+            "<br/><br/>"
+        )
+    else:
+        intro = ""
     body = (
+        f"{intro}"
         "Use this one-time code to sign in to your ELEKTRIX account:"
         f"<br/><br/><div style='font-size:32px;letter-spacing:8px;font-weight:bold;"
         f"color:#0f172a;text-align:center;padding:16px;background:#f3f4f6;"
