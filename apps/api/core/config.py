@@ -108,7 +108,10 @@ class Settings(BaseSettings):
     # AI support chatbot — comma-separated Gemini models tried IN ORDER on
     # 429/5xx, so one exhausted quota never breaks the chat.
     gemini_chat_models: str = Field(
-        default="gemini-2.0-flash-lite,gemini-2.0-flash,gemini-1.5-flash,gemini-1.5-flash-8b"
+        default=(
+            "gemini-flash-lite-latest,gemini-3.5-flash-lite,gemini-3.1-flash-lite,"
+            "gemini-3.6-flash,gemini-3.5-flash,gemini-flash-latest"
+        )
     )
     chatbot_daily_message_limit: int = Field(default=30)
 
