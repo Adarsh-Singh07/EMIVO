@@ -93,7 +93,7 @@ async def poll_outbox(ctx) -> int:
                 await session.execute(text("""
                     UPDATE outbox_events
                     SET status = 'processing'
-                    WHERE id = ANY(:ids::uuid[])
+                    WHERE id::text = ANY(:ids)
                 """), {"ids": event_ids})
                 await session.commit()
         # process each event in its own transaction/session
