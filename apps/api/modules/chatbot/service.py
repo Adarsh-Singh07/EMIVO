@@ -29,10 +29,16 @@ CUSTOMER DATA (their recent orders):
 
 
 async def build_user_context(session: AsyncSession, user_id: str) -> str:
-    # Set the RLS context — orders are invisible without the owner GUC.
-    await session.execute(
-        text("SELECT set_config('app.user_id', :uid, true)"), {"uid": user_id}
-    )
+    # Orders RLS is business-scoped (app.business_id); the query itself still
+    # filters to this exact user, so the assistant can only ever see THEIR rows.
+    from core.store import get_store_business_id
+    bid = await get_store_business_id(session)
+    await session.execute(text(
+        "SELECT set_config('app.business_id', :bid, true)"
+    ), {"bid": str(bid)})
+    await session.execute(text(
+        "SELECT set_config('app.user_id', :uid, true)"
+    ), {"uid": user_id})
     res = await session.execute(text("""
         SELECT o.order_number, o.status, o.payment_method, o.total, o.created_at,
                COALESCE(p.txnid, '') AS txnid, COALESCE(p.pay_status, '') AS pay_status
