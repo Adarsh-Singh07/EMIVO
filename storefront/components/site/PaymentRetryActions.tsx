@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { ApiError } from "@/lib/api-client";
 import { storeApi, type OrderV2 } from "@/lib/store-api";
 import { useCart } from "./CartProvider";
-import { isSafeRedirectUrl } from "@/lib/safe-redirect";
+import { isSafeRedirectUrl, openPaymentGateway } from "@/lib/safe-redirect";
 
 const RETRY_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 hours
 const STOCK_HOLD_MS = 30 * 60 * 1000; // 30 minutes
@@ -96,7 +96,7 @@ export default function PaymentRetryActions({
       });
       const url = init.checkout?.checkout_url;
       if (url && isSafeRedirectUrl(url)) {
-        window.location.href = url;
+        openPaymentGateway(url);
         return; // navigating away
       }
       throw new Error("Payment gateway did not return a checkout URL. Please try again.");

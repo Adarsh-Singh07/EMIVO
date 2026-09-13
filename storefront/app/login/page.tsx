@@ -81,19 +81,21 @@ function LoginForm() {
     }
     setIsLoading(true);
     try {
-      const channel = await requestOtp(otpChannel === "email" ? { email: id } : { phone: id });
+      const { channel, maskedEmail } = await requestOtp(
+        otpChannel === "email" ? { email: id } : { phone: id }
+      );
       setOtpStep("code");
       setDeliveredVia(channel);
       setResendIn(60);
       if (!isResend) setOtpCode("");
       if (otpChannel === "phone" && channel === "email") {
-        toast.success(`SMS is unavailable right now — we emailed the code to your account's email address instead.`);
-      } else {
         toast.success(
-          otpChannel === "email"
-            ? `Code sent to ${id}. It expires in 10 minutes.`
-            : `Code sent to ${id}.`
+          `SMS is unavailable — code sent to your account's email${maskedEmail ? ` (${maskedEmail})` : ""}.`
         );
+      } else if (channel === "email" && maskedEmail) {
+        toast.success(`Code sent to ${maskedEmail}. It expires in 10 minutes.`);
+      } else {
+        toast.success(`Code sent to ${id}.`);
       }
     } catch (err: any) {
       setError(err?.message || "Could not send the code. Please try again.");

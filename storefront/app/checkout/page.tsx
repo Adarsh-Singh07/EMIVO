@@ -37,7 +37,7 @@ import { storeApi, type Address, type OrderV2 } from "@/lib/store-api";
 import { ApiError } from "@/lib/api-client";
 import { toast } from "sonner";
 import { inr, formatDate } from "@/lib/format";
-import { isSafeRedirectUrl } from "@/lib/safe-redirect";
+import { isSafeRedirectUrl, openPaymentGateway } from "@/lib/safe-redirect";
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -276,6 +276,7 @@ function CheckoutContent() {
   const idemKeyRef = useRef<string>("");
   const [placing, setPlacing] = useState(false);
   const [placeError, setPlaceError] = useState("");
+  const [redirecting, setRedirecting] = useState(false);
   const [placedOrder, setPlacedOrder] = useState<OrderV2 | null>(null);
   const [pendingPayment, setPendingPayment] = useState<{ order: OrderV2; paymentId: string } | null>(null);
   const [retryingPayment, setRetryingPayment] = useState(false);
@@ -324,7 +325,8 @@ function CheckoutContent() {
             if (!isSafeRedirectUrl(co.checkout_url)) {
               throw new Error("Untrusted payment redirect URL — refusing to navigate");
             }
-            window.location.href = co.checkout_url;
+            setRedirecting(true);
+            openPaymentGateway(co.checkout_url);
             await new Promise(() => {}); // block to prevent UI flicker while redirecting
             return;
           }
@@ -502,6 +504,18 @@ function CheckoutContent() {
   }
 
   /* ---------------- Success screen ---------------- */
+  if (redirecting) {
+    return (
+      <div className="fixed inset-0 z-50 bg-white/95 grid place-items-center" role="status" aria-live="polite">
+        <div className="text-center px-6">
+          <Loader2 className="w-10 h-10 animate-spin text-neutral-900 mx-auto" />
+          <p className="mt-5 text-lg font-semibold tracking-tight">Contacting secure payment gateway…</p>
+          <p className="mt-1 text-sm text-neutral-500">This can take a few seconds. Don&apos;t close this page.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (placedOrder && !pendingPayment) {
     const o = placedOrder;
     return (

@@ -40,13 +40,14 @@ interface RegisterPayload {
   password: string;
   first_name: string;
   last_name: string;
+  phone: string;
 }
 
 interface AuthCtxValue {
   user: User | null;
   loading: boolean;
   login: (payload: LoginPayload) => Promise<void>;
-  requestOtp: (identifier: OtpIdentifier) => Promise<"email" | "sms">;
+  requestOtp: (identifier: OtpIdentifier) => Promise<{ channel: "email" | "sms"; maskedEmail?: string }>;
   verifyOtp: (identifier: OtpIdentifier, code: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
@@ -104,18 +105,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }>("/auth/login", { email, password }, true);
     setTokens(data.access_token, data.refresh_token);
 
-    // Best-effort: merge any guest (session) cart into the account right after
-    // login. Failure is non-fatal — the user's cart simply stays as-is.
-    try {
-      const sessionId = getCartSessionId();
-      if (sessionId) await storeApi.mergeCart(sessionId);
-    } catch {
-      /* best-effort */
-    }
-
-    // Fetch user profile after login
-    const me = await apiClient.get<User>("/users/me");
-    setUser(me);
+    // Guest-cart merge and profile fetch are independent — run them in
+    // parallel (each API hop costs ~1s; sequential chaining doubled login).
+    await Promise.all([
+      (async () => {
+        try {
+          const sessionId = getCartSessionId();
+          if (sessionId) await storeApi.mergeCart(sessionId);
+        } catch {
+          /* best-effort */
+        }
+      })(),
+      apiClient.get<User>("/users/me").then(setUser),
+    ]);
   }, []);
 
   const register = useCallback(
@@ -146,16 +148,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /** Send a one-time login code to the email or phone. The backend always
    * reports success (202) — errors here are only network/validation issues.
-   * Returns the channel the code was actually delivered through: phone
-   * requests fall back to the account's email when SMS is not configured. */
+   * Returns the delivery channel and a MASKED rendering of the destination
+   * email (phone requests fall back to the account's email when SMS is
+   * not configured). */
   const requestOtp = useCallback(
-    async ({ email, phone }: OtpIdentifier): Promise<"email" | "sms"> => {
-      const res = await apiClient.post<{ channel?: "email" | "sms" }>(
-        "/auth/otp/request",
-        { email: email ?? null, phone: phone ?? null },
-        true
-      );
-      return res.channel === "sms" ? "sms" : "email";
+    async ({
+      email,
+      phone,
+    }: OtpIdentifier): Promise<{ channel: "email" | "sms"; maskedEmail?: string }> => {
+      const res = await apiClient.post<{
+        channel?: "email" | "sms";
+        masked_email?: string;
+      }>("/auth/otp/request", { email: email ?? null, phone: phone ?? null }, true);
+      return {
+        channel: res.channel === "sms" ? "sms" : "email",
+        maskedEmail: res.masked_email,
+      };
     },
     []
   );
@@ -169,15 +177,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }>("/auth/otp/verify", { email: email ?? null, phone: phone ?? null, code }, true);
     setTokens(data.access_token, data.refresh_token);
 
-    try {
-      const sessionId = getCartSessionId();
-      if (sessionId) await storeApi.mergeCart(sessionId);
-    } catch {
-      /* best-effort */
-    }
-
-    const me = await apiClient.get<User>("/users/me");
-    setUser(me);
+    await Promise.all([
+      (async () => {
+        try {
+          const sessionId = getCartSessionId();
+          if (sessionId) await storeApi.mergeCart(sessionId);
+        } catch {
+          /* best-effort */
+        }
+      })(),
+      apiClient.get<User>("/users/me").then(setUser),
+    ]);
   }, []);
 
   const logout = useCallback(async () => {

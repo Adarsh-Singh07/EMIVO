@@ -27,3 +27,24 @@ export function safeNavigate(url: string): boolean {
   window.location.assign(url);
   return true;
 }
+
+/**
+ * Open a payment-gateway URL. In an installed PWA (standalone display),
+ * same-window cross-origin navigations can fail silently — handing off to
+ * the device browser always opens the gateway. Returns false if the URL
+ * was refused by the allow-list.
+ */
+export function openPaymentGateway(url: string): boolean {
+  if (!isSafeRedirectUrl(url)) return false;
+  const standalone =
+    typeof window !== "undefined" &&
+    (window.matchMedia?.("(display-mode: standalone)").matches ||
+      (window.navigator as unknown as { standalone?: boolean }).standalone === true);
+  if (standalone) {
+    const win = window.open(url, "_blank", "noopener");
+    if (win) return true;
+    // Popup blocked — fall back to same-window navigation.
+  }
+  window.location.assign(url);
+  return true;
+}

@@ -253,6 +253,31 @@ function OrderDetail({
   const st = statusStyle(order.status);
   const canCancel = CAN_CANCEL.has(order.status?.toUpperCase());
 
+  // Product cards: fetch each ordered product's live listing for its image
+  // and slug so buyers can tap through to the product page.
+  const [productMeta, setProductMeta] = useState<Record<string, { img?: string; slug?: string }>>({});
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const ids = Array.from(new Set((order.items || []).map((i: any) => i.product_id))).filter(Boolean);
+      const results = await Promise.allSettled(
+        ids.map((id) => storeApi.getProduct(id))
+      );
+      if (cancelled) return;
+      const meta: Record<string, { img?: string; slug?: string }> = {};
+      results.forEach((res) => {
+        if (res.status === "fulfilled" && res.value) {
+          const prod: any = res.value;
+          meta[prod.id] = { img: prod.img || prod.images?.[0]?.url, slug: prod.slug || prod.id };
+        }
+      });
+      setProductMeta(meta);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [order.id]);
+
   const handleCancel = async (reason: string) => {
     try {
       const updated = await storeApi.cancelOrder(order.id, reason);
@@ -312,28 +337,61 @@ function OrderDetail({
 
         {/* Items */}
         <div className="divide-y divide-neutral-100">
-          {(order.items || []).map((item: any) => (
-            <div
-              key={item.id || item.product_id}
-              className="p-5 sm:p-6 flex items-start gap-4"
-            >
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm leading-snug line-clamp-2">
-                  {item.product_name || "Product"}
-                </p>
-                {item.variant_name && (
-                  <p className="text-xs text-neutral-500 mt-0.5">{item.variant_name}</p>
+          {(order.items || []).map((item: any) => {
+            const meta = productMeta[item.product_id];
+            const href = meta?.slug ? `/product/${meta.slug}` : undefined;
+            const img = meta?.img;
+            return (
+              <div
+                key={item.id || item.product_id}
+                className="p-5 sm:p-6 flex items-start gap-4"
+              >
+                {href ? (
+                  <Link href={href} className="shrink-0" aria-label={item.product_name}>
+                    {img ? (
+                      <img
+                        src={img}
+                        alt={item.product_name}
+                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover border border-neutral-200"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-neutral-100 border border-neutral-200 grid place-items-center text-neutral-300">
+                        <Package className="w-6 h-6" />
+                      </div>
+                    )}
+                  </Link>
+                ) : (
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-neutral-100 border border-neutral-200 grid place-items-center text-neutral-300 shrink-0 animate-pulse">
+                    <Package className="w-6 h-6" />
+                  </div>
                 )}
-                <p className="text-xs text-neutral-500 mt-1">Qty: {item.quantity}</p>
+                <div className="flex-1 min-w-0">
+                  {href ? (
+                    <Link
+                      href={href}
+                      className="font-medium text-sm leading-snug line-clamp-2 hover:underline underline-offset-2"
+                    >
+                      {item.product_name || "Product"}
+                    </Link>
+                  ) : (
+                    <p className="font-medium text-sm leading-snug line-clamp-2">
+                      {item.product_name || "Product"}
+                    </p>
+                  )}
+                  {item.variant_name && (
+                    <p className="text-xs text-neutral-500 mt-0.5">{item.variant_name}</p>
+                  )}
+                  <p className="text-xs text-neutral-500 mt-1">Qty: {item.quantity}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="font-semibold text-sm">
+                    {inr(item.subtotal ?? item.unit_price * item.quantity)}
+                  </p>
+                  <p className="text-xs text-neutral-400">{inr(item.unit_price)} each</p>
+                </div>
               </div>
-              <div className="text-right shrink-0">
-                <p className="font-semibold text-sm">
-                  {inr(item.subtotal ?? item.unit_price * item.quantity)}
-                </p>
-                <p className="text-xs text-neutral-400">{inr(item.unit_price)} each</p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Price summary */}

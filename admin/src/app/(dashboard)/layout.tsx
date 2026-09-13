@@ -95,7 +95,11 @@ function NotificationBell() {
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Start collapsed on phones/tablets so the content (not the drawer) is
+  // what loads — the hamburger opens it as an overlay.
+  const [sidebarOpen, setSidebarOpen] = useState(
+    () => typeof window !== "undefined" && window.innerWidth >= 1024
+  );
 
   const userInitial = user?.first_name ? user.first_name[0].toUpperCase() : (user?.email ? user.email[0].toUpperCase() : "E");
   const userName = user ? `${user.first_name} ${user.last_name}`.trim() || user.email : "User";
@@ -105,6 +109,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <SmoothScrollProvider>
         <div className="flex min-h-screen w-full bg-neutral-50 font-sans text-neutral-900">
           {/* Sidebar */}
+          {sidebarOpen && (
+            <div
+              className="fixed inset-0 z-30 bg-neutral-950/40 lg:hidden"
+              onClick={() => setSidebarOpen(false)}
+              aria-hidden
+            />
+          )}
           <aside className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r border-neutral-200 bg-white transition-all duration-300 ease-in-out ${sidebarOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full overflow-hidden opacity-0'}`}>
             <div className="h-16 flex-shrink-0 flex items-center px-6 border-b border-neutral-200 w-64">
               <Link href="/dashboard" className="flex items-center gap-3">
