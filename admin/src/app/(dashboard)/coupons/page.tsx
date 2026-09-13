@@ -341,6 +341,7 @@ export default function CouponsPage() {
                         <Edit2 className="h-4 w-4" />
                       </button>
                       <button
+                        onClick={() => softDelete(c)}
                         disabled={busyId === c.id}
                         className="rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-red-50 hover:text-red-500 disabled:opacity-40"
                         title="Delete (soft)"

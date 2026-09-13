@@ -44,7 +44,10 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  // Only same-origin relative paths are honoured — absolute URLs would turn
+  // this page into an open redirect after login.
+  const rawTarget = searchParams.get("callbackUrl") || "/dashboard";
+  const callbackUrl = rawTarget.startsWith("/") && !rawTarget.startsWith("//") ? rawTarget : "/dashboard";
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

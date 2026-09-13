@@ -164,6 +164,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const forgotPassword = async (data: { phone?: string; email?: string }): Promise<void> => {
+    // Must actually hit the API — a stub leaves locked-out admins with no
+    // recovery path. The backend is anti-enumeration (always 200).
+    await fetchApi("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email: data.email ?? "", phone: data.phone }),
+    });
     toast.success("Password reset instructions sent if account exists");
   };
 
