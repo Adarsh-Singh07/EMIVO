@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.dependencies import require_staff, set_db_context
+from core.dependencies import require_staff, require_roles, set_db_context
 from modules.admin.schemas import (
     AdminUserList,
     DashboardStats,
@@ -12,8 +12,13 @@ from modules.admin.schemas import (
     AdminInviteRequest,
 )
 from modules.admin.service import AdminService
+from modules.users.models import RoleType
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
+
+# Inviting/revoking staff changes who controls the store — restricted to
+# owners/platform admins, NOT plain staff (privilege-escalation guard).
+_OWNER_ONLY = [Depends(require_roles([RoleType.PLATFORM_ADMIN, RoleType.OWNER]))]
 
 
 def _service(session: AsyncSession = Depends(set_db_context)) -> AdminService:
@@ -52,7 +57,7 @@ async def update_store_settings(
     festival banner content, storefront announcement."""
     return await service.update_settings(payload)
 
-@router.post("/users/invite", response_model=dict, dependencies=[Depends(require_staff)])
+@router.post("/users/invite", response_model=dict, dependencies=_OWNER_ONLY)
 async def invite_admin(
     payload: AdminInviteRequest,
     service: AdminService = Depends(_service),
@@ -60,7 +65,7 @@ async def invite_admin(
     await service.invite_admin(payload)
     return {"status": "success"}
 
-@router.delete("/users/{user_id}/revoke", status_code=204, dependencies=[Depends(require_staff)])
+@router.delete("/users/{user_id}/revoke", status_code=204, dependencies=_OWNER_ONLY)
 async def revoke_admin(
     user_id: str,
     service: AdminService = Depends(_service),

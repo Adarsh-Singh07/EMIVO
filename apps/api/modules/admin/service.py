@@ -6,6 +6,7 @@ from typing import Optional
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.exceptions import DomainException
 from core.store import get_store_business_id, get_store_settings
 from modules.admin.schemas import DashboardStats, StoreSettingsUpdate, AdminInviteRequest
 
@@ -217,15 +218,28 @@ class AdminService:
         """), {"bid": bid, "uid": user_id})).scalar()
         
         if not existing:
+            # Use a valid RoleType value. 'admin' is not a known role and is
+            # absent from the RLS staff check, so invited users would have
+            # been silently non-functional. Invites grant the LEAST privilege
+            # that still works: staff (owners can promote afterwards).
             await self.session.execute(text("""
                 INSERT INTO business_members (id, business_id, user_id, role)
-                VALUES (:id, :bid, :uid, 'admin')
+                VALUES (:id, :bid, :uid, 'staff')
             """), {"id": str(uuid.uuid4()), "bid": bid, "uid": user_id})
-            
+
         await self.session.commit()
 
     async def revoke_admin(self, user_id: str) -> None:
         bid = await get_store_business_id(self.session)
+        # Guard: never allow revoking the last owner or an owner record
+        # outright — ownership transfers must be deliberate.
+        role = (await self.session.execute(text("""
+            SELECT role FROM business_members WHERE business_id = :bid AND user_id = :uid LIMIT 1
+        """), {"bid": bid, "uid": user_id})).scalar()
+        if role == "owner":
+            raise DomainException(
+                "Owners cannot be revoked via this endpoint", code="FORBIDDEN", status_code=403
+            )
         await self.session.execute(text("""
             DELETE FROM business_members WHERE business_id = :bid AND user_id = :uid
         """), {"bid": bid, "uid": user_id})
