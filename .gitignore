@@ -48,3 +48,8 @@ next-env.d.ts
 .claude/
 .gemini/
 backups/
+
+# Internal (local-only) operational material: tools with DB access, internal
+# docs, logs. NEVER commit credentials or internal audit docs.
+internal/
+*.log
