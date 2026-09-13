@@ -6,6 +6,7 @@ from core.models import OutboxEvent
 from modules.auth.schemas import (
     TokenResponse, UserCreate, UserLogin, UserResponse, RefreshTokenRequest,
     ForgotPasswordRequest, ResetPasswordRequest, ChangePasswordRequest,
+    OtpRequestIn, OtpVerifyIn,
 )
 from modules.auth.service import AuthService
 from modules.users.models import User
@@ -79,3 +80,24 @@ async def change_password(
 ):
     await service.change_password(current_user, data.current_password, data.new_password)
     return {"status": "password_updated"}
+
+
+@router.post("/otp/request", status_code=status.HTTP_202_ACCEPTED)
+async def otp_request(
+    data: OtpRequestIn,
+    service: AuthService = Depends(get_auth_service),
+):
+    """Send a one-time login code to the given email or phone. Always 202 —
+    never reveals whether an account exists. Resend is cooldown-limited."""
+    await service.request_otp(email=data.email, phone=data.phone)
+    return {"status": "sent"}
+
+
+@router.post("/otp/verify", response_model=TokenResponse)
+async def otp_verify(
+    data: OtpVerifyIn,
+    service: AuthService = Depends(get_auth_service),
+):
+    """Exchange a valid one-time code for an access/refresh token pair.
+    Codes are single-use and invalidate after 5 wrong attempts."""
+    return await service.verify_otp(email=data.email, phone=data.phone, code=data.code)

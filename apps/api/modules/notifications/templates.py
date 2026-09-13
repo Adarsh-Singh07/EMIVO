@@ -153,6 +153,19 @@ def welcome(p: dict, storefront_url: str) -> tuple[str, str]:
     return "Welcome to ELEKTRIX ⚡", _shell("Welcome!", body, storefront_url, "Start shopping")
 
 
+def otp_login(p: dict, storefront_url: str) -> tuple[str, str]:
+    code = p.get("code", "")
+    body = (
+        "Use this one-time code to sign in to your ELEKTRIX account:"
+        f"<br/><br/><div style='font-size:32px;letter-spacing:8px;font-weight:bold;"
+        f"color:#0f172a;text-align:center;padding:16px;background:#f3f4f6;"
+        f"border-radius:8px;'>{code}</div><br/>"
+        "This code expires in <b>10 minutes</b> and can be used only once.<br/><br/>"
+        "If you didn't request it, ignore this email — your account stays secure."
+    )
+    return "Your ELEKTRIX sign-in code", _shell("One-time sign-in code", body)
+
+
 TEMPLATES = {
     "order.created": order_created,
     "payment.captured": payment_captured,
@@ -163,4 +176,5 @@ TEMPLATES = {
     "order.refunded": order_refunded,
     "auth.password_reset": password_reset,
     "auth.welcome": welcome,
+    "auth.otp_login": otp_login,
 }

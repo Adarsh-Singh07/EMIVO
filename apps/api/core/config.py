@@ -105,6 +105,14 @@ class Settings(BaseSettings):
     resend_api_key: SecretStr = Field(default=SecretStr(""))
     email_from: str = Field(default="ELEKTRIX <support@elektrix.in>")
 
+    # SMS for OTP login. "console" only logs codes and refuses to operate in
+    # prod; switch to "msg91" and set the auth key + DLT-approved OTP template
+    # (with an #OTP# variable) to send real SMS.
+    sms_provider: str = Field(default="console", pattern="^(console|msg91)$")
+    msg91_auth_key: SecretStr = Field(default=SecretStr(""))
+    msg91_otp_template_id: str = Field(default="")
+    msg91_sender_id: str = Field(default="ELEKTIX")
+
     # Storefront URL (links inside emails)
     storefront_url: str = Field(default="https://elektrix.in")
 

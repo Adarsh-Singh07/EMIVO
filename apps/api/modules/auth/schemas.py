@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 import re
 
 def validate_password_strength(v: str) -> str:
@@ -51,6 +51,35 @@ class RefreshTokenRequest(BaseModel):
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
+
+
+class OtpRequestIn(BaseModel):
+    """Request a one-time login code. Provide EXACTLY ONE of email/phone."""
+    email: EmailStr | None = None
+    phone: str | None = Field(
+        None, min_length=8, max_length=15, pattern=r"^\+?[0-9\s\-]{8,15}$"
+    )
+
+    @model_validator(mode="after")
+    def exactly_one_identifier(self):
+        if bool(self.email) == bool(self.phone):
+            raise ValueError("Provide exactly one of email or phone")
+        return self
+
+
+class OtpVerifyIn(BaseModel):
+    """Verify a one-time login code and receive tokens."""
+    email: EmailStr | None = None
+    phone: str | None = Field(
+        None, min_length=8, max_length=15, pattern=r"^\+?[0-9\s\-]{8,15}$"
+    )
+    code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+    @model_validator(mode="after")
+    def exactly_one_identifier(self):
+        if bool(self.email) == bool(self.phone):
+            raise ValueError("Provide exactly one of email or phone")
+        return self
 
 
 class ResetPasswordRequest(BaseModel):

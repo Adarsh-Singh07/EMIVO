@@ -29,6 +29,12 @@ interface LoginPayload {
   password: string;
 }
 
+/** Exactly one of email/phone — passwordless one-time-code login. */
+interface OtpIdentifier {
+  email?: string;
+  phone?: string;
+}
+
 interface RegisterPayload {
   email: string;
   password: string;
@@ -40,6 +46,8 @@ interface AuthCtxValue {
   user: User | null;
   loading: boolean;
   login: (payload: LoginPayload) => Promise<void>;
+  requestOtp: (identifier: OtpIdentifier) => Promise<void>;
+  verifyOtp: (identifier: OtpIdentifier, code: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -136,6 +144,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  /** Send a one-time login code to the email or phone. The backend always
+   * reports success (202) — errors here are only network/validation issues. */
+  const requestOtp = useCallback(async ({ email, phone }: OtpIdentifier) => {
+    await apiClient.post("/auth/otp/request", { email: email ?? null, phone: phone ?? null }, true);
+  }, []);
+
+  /** Exchange the one-time code for tokens, then finish the same post-login
+   * steps as the password flow (guest-cart merge + profile fetch). */
+  const verifyOtp = useCallback(async ({ email, phone }: OtpIdentifier, code: string) => {
+    const data = await apiClient.post<{
+      access_token: string;
+      refresh_token: string;
+    }>("/auth/otp/verify", { email: email ?? null, phone: phone ?? null, code }, true);
+    setTokens(data.access_token, data.refresh_token);
+
+    try {
+      const sessionId = getCartSessionId();
+      if (sessionId) await storeApi.mergeCart(sessionId);
+    } catch {
+      /* best-effort */
+    }
+
+    const me = await apiClient.get<User>("/users/me");
+    setUser(me);
+  }, []);
+
   const logout = useCallback(async () => {
     const refreshToken = getRefreshToken();
     try {
@@ -155,7 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchMe]);
 
   return (
-    <AuthCtx.Provider value={{ user, loading, login, register, logout, refreshUser }}>
+    <AuthCtx.Provider value={{ user, loading, login, requestOtp, verifyOtp, register, logout, refreshUser }}>
       {children}
     </AuthCtx.Provider>
   );

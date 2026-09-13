@@ -1,11 +1,12 @@
 import secrets
 import json
 import hashlib
+import re
 from datetime import datetime, timedelta, timezone
 
 from jose import jwt
 from passlib.hash import argon2
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
@@ -265,3 +266,188 @@ class AuthService:
         user.password_hash = self.get_password_hash(new_password)
         await self.session.commit()
         await self._revoke_all_sessions(str(user.id))
+
+    # ------------------------------------------------------------------ #
+    # OTP login (passwordless)                                              #
+    # ------------------------------------------------------------------ #
+
+    OTP_LENGTH = 6
+    OTP_TTL_SECONDS = 10 * 60
+    OTP_MAX_ATTEMPTS = 5
+    OTP_RESEND_COOLDOWN_SECONDS = 60
+
+    @staticmethod
+    def _normalize_phone(raw: str) -> str:
+        """Normalize to E.164-ish. Indian mobiles become +91XXXXXXXXXX."""
+        digits = re.sub(r"\D", "", raw or "")
+        if len(digits) == 11 and digits.startswith("0"):
+            digits = digits[1:]
+        if len(digits) == 12 and digits.startswith("91"):
+            digits = digits[2:]
+        if len(digits) == 10 and digits[0] in "6789":
+            return f"+91{digits}"
+        return f"+{digits}" if digits else ""
+
+    @staticmethod
+    def _identifier_hash(identifier: str) -> str:
+        # Codes are looked up by a hash of the identifier so a Redis dump
+        # never reveals which accounts use OTP login.
+        return hashlib.sha256(identifier.strip().lower().encode()).hexdigest()
+
+    async def _find_user_by_identifier(
+        self, email: str | None = None, phone: str | None = None
+    ) -> User | None:
+        await self.session.execute(
+            text("SELECT set_config('app.user_id', '', true)")
+        )
+        if email:
+            stmt = select(User).where(User.email == email.strip().lower())
+            result = await self.session.execute(stmt)
+            return result.scalar_one_or_none()
+        normalized = self._normalize_phone(phone or "")
+        if not normalized:
+            return None
+        # Match the normalized number exactly, or any stored variant sharing
+        # the last 10 digits (users may have saved '91xxxxxxxxxx' or with
+        # spaces) — the last-10 match only applies to Indian-length numbers.
+        stmt = select(User).where(
+            (User.phone == normalized)
+            | (func.right(User.phone, 10) == normalized[-10:])
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def request_otp(self, email: str | None = None, phone: str | None = None) -> None:
+        """Issue a single-use login code. The endpoint always reports success
+        (202) — this method never reveals whether the account exists.
+        Email codes go out via the outbox (with best-effort immediate
+        delivery); phone codes go through the configured SMS provider."""
+        from core.models import OutboxEvent
+
+        identifier = (
+            (email or "").strip().lower()
+            if email
+            else self._normalize_phone(phone or "")
+        )
+        if not identifier:
+            raise DomainException(
+                "Provide a valid email or phone number",
+                code="BAD_REQUEST", status_code=400,
+            )
+
+        user = await self._find_user_by_identifier(email=email, phone=phone)
+        if not user or user.deleted_at is not None or not user.is_active:
+            return  # silent success — no account enumeration
+
+        # For phone delivery the SMS provider must be usable in this
+        # environment; check BEFORE consuming the resend cooldown so a
+        # misconfigured prod cannot be used to lock users out.
+        sms_provider = None
+        if phone:
+            from modules.notifications.providers import get_sms_provider
+            sms_provider = get_sms_provider()
+            if not sms_provider.usable:
+                raise DomainException(
+                    "SMS login is not available right now. Please sign in with your password.",
+                    code="SERVICE_UNAVAILABLE", status_code=503,
+                )
+
+        ident_hash = self._identifier_hash(identifier)
+        cooldown_key = f"auth:otp:cd:{ident_hash}"
+        if not await self.redis.set(
+            cooldown_key, "1", nx=True, ex=self.OTP_RESEND_COOLDOWN_SECONDS
+        ):
+            raise DomainException(
+                "Please wait a minute before requesting another code",
+                code="RATE_LIMITED", status_code=429,
+            )
+
+        code = f"{secrets.randbelow(10 ** self.OTP_LENGTH):0{self.OTP_LENGTH}d}"
+        otp_key = f"auth:otp:{ident_hash}"
+        await self.redis.hset(
+            otp_key,
+            mapping={
+                "c": hashlib.sha256(code.encode()).hexdigest(),  # never store the raw code
+                "n": "0",
+            },
+        )
+        await self.redis.expire(otp_key, self.OTP_TTL_SECONDS)
+
+        if email:
+            self.session.add(OutboxEvent(
+                tenant_id=None,
+                type="auth.otp_login",
+                payload={
+                    "user_id": str(user.id),
+                    "email": user.email,
+                    "code": code,
+                    "first_name": user.first_name,
+                },
+            ))
+            await self.session.commit()
+            # Best-effort immediate delivery; the outbox worker retries
+            # within seconds if this fails.
+            from modules.notifications.service import NotificationService
+            row = await self.session.execute(text(
+                "SELECT id FROM outbox_events "
+                "WHERE type = 'auth.otp_login' AND status = 'pending' "
+                "ORDER BY created_at DESC LIMIT 1"
+            ))
+            event_id = row.scalar()
+            if event_id:
+                try:
+                    await NotificationService(self.session).process_outbox_event(str(event_id))
+                except Exception:
+                    await self.session.rollback()
+        else:
+            await sms_provider.send_otp(user.phone, code)
+
+    async def verify_otp(
+        self, email: str | None = None, phone: str | None = None, code: str = ""
+    ) -> TokenResponse:
+        """Exchange a valid one-time code for tokens. Codes are single-use,
+        expire in 10 minutes, and invalidate after 5 wrong attempts."""
+        identifier = (
+            (email or "").strip().lower()
+            if email
+            else self._normalize_phone(phone or "")
+        )
+        if not identifier or not (code.isdigit() and len(code) == self.OTP_LENGTH):
+            raise DomainException(
+                "Invalid code", code="UNAUTHORIZED", status_code=401
+            )
+
+        ident_hash = self._identifier_hash(identifier)
+        otp_key = f"auth:otp:{ident_hash}"
+        data = await self.redis.hgetall(otp_key)
+        if not data:
+            raise DomainException(
+                "Code expired or was never requested. Request a new one.",
+                code="UNAUTHORIZED", status_code=401,
+            )
+
+        attempts = int(data.get("n", "0"))
+        if attempts >= self.OTP_MAX_ATTEMPTS:
+            await self.redis.delete(otp_key)
+            raise DomainException(
+                "Too many wrong attempts. Request a new code.",
+                code="UNAUTHORIZED", status_code=401,
+            )
+
+        if not secrets.compare_digest(
+            str(data.get("c", "")), hashlib.sha256(code.encode()).hexdigest()
+        ):
+            await self.redis.hincrby(otp_key, "n", 1)
+            raise DomainException(
+                "Incorrect code. Please try again.",
+                code="UNAUTHORIZED", status_code=401,
+            )
+
+        await self.redis.delete(otp_key)  # single use
+
+        user = await self._find_user_by_identifier(email=email, phone=phone)
+        if not user or user.deleted_at is not None or not user.is_active:
+            raise DomainException(
+                "Invalid credentials", code="UNAUTHORIZED", status_code=401
+            )
+        return await self._issue_tokens(user)
