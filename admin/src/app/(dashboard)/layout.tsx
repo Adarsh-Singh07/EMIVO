@@ -155,7 +155,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           {/* Main Content */}
           <main className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${sidebarOpen ? 'lg:ml-64' : 'ml-0'}`}>
             {/* Topbar */}
-            <header className="sticky top-0 z-30 h-16 flex-shrink-0 border-b border-neutral-200 bg-white/80 backdrop-blur-md flex items-center justify-between px-6">
+            <header className="sticky top-0 z-30 h-14 sm:h-16 flex-shrink-0 border-b border-neutral-200 bg-white/80 backdrop-blur-md flex items-center justify-between px-3 sm:px-6">
               <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -182,7 +182,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             </header>
 
             {/* Page Content */}
-            <div className="flex-1 p-6 bg-neutral-50/50">
+            <div className="flex-1 p-3 sm:p-6 bg-neutral-50/50">
               <div className="mx-auto max-w-6xl">
                 <PageTransition>{children}</PageTransition>
               </div>

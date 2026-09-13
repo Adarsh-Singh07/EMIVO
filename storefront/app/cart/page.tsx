@@ -3,7 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from "lucide-react";
-import { useCart, displayShipping, FREE_SHIPPING_THRESHOLD } from "@/components/site/CartProvider";
+import { useCart } from "@/components/site/CartProvider";
+import { useStoreShippingConfig, computeShipping } from "@/lib/store-config";
 import { inr } from "@/lib/format";
 
 /** Skeleton for a cart line. */
@@ -23,7 +24,8 @@ function LineSkeleton() {
 export default function CartPage() {
   const { lines, loading, setQty, removeLine, subtotal, count } = useCart();
 
-  const shipping = displayShipping(subtotal);
+  const shipCfg = useStoreShippingConfig();
+  const shipping = computeShipping(subtotal, 0, shipCfg);
   const total = subtotal + shipping;
 
   if (loading && lines.length === 0) {
@@ -182,7 +184,7 @@ export default function CartPage() {
             </div>
             {shipping > 0 && (
               <p className="text-xs text-neutral-400">
-                Add {inr(FREE_SHIPPING_THRESHOLD - subtotal)} more for free shipping
+                Add {inr(shipCfg.freeShippingThresholdPaise - subtotal)} more for free shipping
               </p>
             )}
             <div className="flex justify-between border-t border-neutral-200 pt-3 text-base">

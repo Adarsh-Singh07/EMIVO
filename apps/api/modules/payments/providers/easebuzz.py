@@ -16,6 +16,7 @@ Security guarantees:
 import hashlib
 import logging
 import secrets
+import time
 from typing import Any, Optional
 import httpx
 
@@ -218,13 +219,18 @@ class EasebuzzProvider(BasePaymentProvider):
         return self._base_url
 
     def _txnid_from_receipt(self, receipt: str) -> str:
-        """Generate a clean transaction ID from our internal receipt/order reference.
-        EaseBuzz txnid: alphanumeric, max 25 chars."""
-        clean = receipt.replace("-", "")[:20]
-        # pad with random hex if too short
-        if len(clean) < 6:
-            clean = clean + secrets.token_hex(3)
-        return clean
+        """Transaction ID unique PER PAYMENT ATTEMPT.
+
+        EaseBuzz rejects a txnid it has already seen ('Duplicate transaction
+        id'), so retrying a failed payment for the same order must NEVER
+        reuse the id. Base comes from the order reference for traceability,
+        plus a time+random suffix for uniqueness. Alphanumeric, ≤25 chars."""
+        base = "".join(ch for ch in receipt if ch.isalnum())[:17]
+        suffix = f"{int(time.time()) % 100000:05d}{secrets.token_hex(2).upper()}"  # 9 chars
+        txnid = (base + suffix)[:25]
+        if len(txnid) < 6:
+            txnid = txnid + secrets.token_hex(3).upper()
+        return txnid
 
     # ------------------------------------------------------------------
     # BasePaymentProvider implementation

@@ -158,6 +158,28 @@ class PaymentService:
                 f"Order is not awaiting payment (status={order.status.value})",
                 code="BAD_REQUEST", status_code=400,
             )
+
+        # 3. Resume an ACTIVE payment session when one exists: a buyer who
+        #    accidentally closed the gateway and taps retry must land back in
+        #    the SAME session — never a second transaction for one order.
+        active = await self.repository.get_active_for_order(order.id)
+        if active and active.id != getattr(payment_in, "id", None):
+            meta = active.metadata_info or {}
+            if meta.get("checkout_url") or meta.get("payment_session_id") or active.provider_order_id:
+                await self.repository.log_event(
+                    active.id, "payment_session_resumed",
+                    {"idempotency_key": payment_in.idempotency_key},
+                )
+                await self.db.commit()
+                return active
+            # Active but never reached the gateway (no session data) — retire
+            # it and fall through to a fresh attempt.
+            await self.repository.update_status(
+                active.id, PaymentStatus.FAILED, active.provider_payment_id
+            )
+            await self.repository.log_event(
+                active.id, "payment_superseded", {"reason": "sessionless active payment"}
+            )
         if user_id != "system" and str(order.user_id) != str(user_id):
             raise DomainException("Not your order", code="FORBIDDEN", status_code=403)
 

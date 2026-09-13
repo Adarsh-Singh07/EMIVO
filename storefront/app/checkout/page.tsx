@@ -31,7 +31,8 @@ import {
   Package,
   ExternalLink,
 } from "lucide-react";
-import { useCart, displayShipping } from "@/components/site/CartProvider";
+import { useCart } from "@/components/site/CartProvider";
+import { useStoreShippingConfig, computeShipping } from "@/lib/store-config";
 import { useAuth } from "@/lib/auth-context";
 import { storeApi, type Address, type OrderV2 } from "@/lib/store-api";
 import { ApiError } from "@/lib/api-client";
@@ -282,7 +283,9 @@ function CheckoutContent() {
   const [retryingPayment, setRetryingPayment] = useState(false);
 
   const discount = appliedCoupon?.discount ?? 0;
-  const shipping = displayShipping(subtotal, discount);
+  const shipCfg = useStoreShippingConfig();
+  const shipping = computeShipping(subtotal, discount, shipCfg);
+  const belowMinOrder = shipCfg.minOrderPaise > 0 && subtotal < shipCfg.minOrderPaise;
   const totalBeforeFee = Math.max(0, subtotal - discount + shipping);
   const finalCodFee = paymentMethod === "COD" ? codFeePaise : 0;
   const total = totalBeforeFee + finalCodFee;
@@ -1249,10 +1252,16 @@ function CheckoutContent() {
             </div>
           )}
 
+          {step === 3 && belowMinOrder && (
+            <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              Minimum order value for delivery is <b>{inr(shipCfg.minOrderPaise)}</b> — add{" "}
+              <b>{inr(shipCfg.minOrderPaise - subtotal)}</b> more to continue.
+            </div>
+          )}
           {step === 3 ? (
             <button
               onClick={placeOrder}
-              disabled={placing || !addressReady}
+              disabled={placing || !addressReady || belowMinOrder}
               className="mt-5 w-full h-12 grid place-items-center bg-neutral-950 text-white rounded-full text-sm font-medium hover:bg-neutral-800 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {placing ? (

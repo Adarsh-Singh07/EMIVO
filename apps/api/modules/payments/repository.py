@@ -41,6 +41,23 @@ class PaymentRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_active_for_order(self, order_id: str) -> Optional[Payment]:
+        """Newest payment for this order still awaiting gateway completion
+        (CREATED/PENDING). Reused when a buyer re-enters the payment flow so
+        an accidental exit resumes the SAME session instead of minting a new
+        transaction id."""
+        stmt = (
+            select(Payment)
+            .where(
+                Payment.order_id == order_id,
+                Payment.status.in_([PaymentStatus.CREATED, PaymentStatus.PENDING]),
+            )
+            .order_by(Payment.created_at.desc())
+            .limit(1)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_by_idempotency_key(self, idempotency_key: str) -> Optional[Payment]:
         stmt = (
             select(Payment)

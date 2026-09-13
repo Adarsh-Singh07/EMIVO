@@ -112,3 +112,26 @@ async def test_retry_window_expires_after_2_hours(client):
 
     r = await client.get(f"/api/v1/orders/{order['id']}", headers=buyer["headers"])
     assert r.json()["status"] == "CANCELLED"
+
+
+
+
+async def test_retry_resumes_same_payment_session(client):
+    """Re-entering the payment flow for an order with an active payment must
+    RESUME that session (same payment id) — accidentally exiting the gateway
+    and tapping retry never mints a second transaction."""
+    from test_payments import _place_pending_online_order, _initiate
+    buyer = await register_and_login(client, 620001)
+    order = await _place_pending_online_order(client, buyer)
+
+    r1 = await _initiate(client, buyer, order)
+    assert r1.status_code == 201, r1.text
+    payment_id_1 = r1.json()["payment"]["id"]
+
+    # Second entry with a DIFFERENT idempotency key (e.g. page reload /
+    # retry tap) resumes the same session instead of creating a new payment.
+    r2 = await client.post("/api/v1/payments/initiate", headers=buyer["headers"], json={
+        "order_id": order["id"], "idempotency_key": f"retry-{uuid.uuid4().hex}",
+    })
+    assert r2.status_code in (200, 201), r2.text
+    assert r2.json()["payment"]["id"] == payment_id_1
