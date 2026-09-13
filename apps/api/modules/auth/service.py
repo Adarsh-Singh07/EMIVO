@@ -54,11 +54,20 @@ class AuthService:
         if result.scalar_one_or_none():
             raise DomainException("Email already registered", code="EMAIL_TAKEN")
 
+        phone = self._normalize_phone(data.phone)
+        if not await self.phone_available(phone):
+            raise DomainException(
+                "This mobile number is already registered on another account. "
+                "If this is your number, please contact support at support@elektrix.in.",
+                code="PHONE_IN_USE", status_code=409,
+            )
+
         user = User(
             email=data.email,
             password_hash=self.get_password_hash(data.password),
             first_name=data.first_name,
             last_name=data.last_name,
+            phone=phone,
             is_active=True,
             is_email_verified=False
         )
@@ -289,6 +298,30 @@ class AuthService:
         return f"+{digits}" if digits else ""
 
     @staticmethod
+    def _mask_email(email: str) -> str:
+        """a•••h@g•••.com — enough for the user to recognise their inbox
+        without exposing the address in API responses."""
+        local, _, domain = email.partition("@")
+        if len(local) <= 2:
+            masked_local = local[:1] + "•••"
+        else:
+            masked_local = f"{local[0]}•••{local[-1]}"
+        d, _, tld = domain.partition(".")
+        masked_domain = (d[0] + "•••" + d[-1] if len(d) > 2 else d) + (f".{tld}" if tld else "")
+        return f"{masked_local}@{masked_domain}"
+
+    async def phone_available(self, phone: str) -> bool:
+        """True when the mobile number is not registered on ANY account
+        (including soft-deleted ones — reuse requires contacting support)."""
+        normalized = self._normalize_phone(phone)
+        if not normalized or len(normalized) < 12:  # +91XXXXXXXXXX
+            return False
+        result = await self.session.execute(
+            select(User.id).where(User.phone == normalized).limit(1)
+        )
+        return result.scalar_one_or_none() is None
+
+    @staticmethod
     def _identifier_hash(identifier: str) -> str:
         # Codes are looked up by a hash of the identifier so a Redis dump
         # never reveals which accounts use OTP login.
@@ -337,7 +370,7 @@ class AuthService:
 
         user = await self._find_user_by_identifier(email=email, phone=phone)
         if not user or user.deleted_at is not None or not user.is_active:
-            return "email"  # silent success — no account enumeration
+            return {"channel": "email"}  # silent success — no account enumeration
 
         # Phone delivery: prefer the configured SMS provider; when SMS is not
         # usable (e.g. not configured), fall back to the account's email so
@@ -411,7 +444,12 @@ class AuthService:
                     await NotificationService(self.session).process_outbox_event(str(event_id))
                 except Exception:
                     await self.session.rollback()
-        return deliver_via
+        return {
+            "channel": deliver_via,
+            # Where the code actually went — masked so the user recognises
+            # the inbox without the address being exposed.
+            "masked_email": self._mask_email(user.email) if deliver_via == "email" else None,
+        }
 
     async def verify_otp(
         self, email: str | None = None, phone: str | None = None, code: str = ""

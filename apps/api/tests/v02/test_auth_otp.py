@@ -107,7 +107,9 @@ async def test_otp_phone_falls_back_to_email_when_sms_unconfigured(client):
     # falling back to the account's email, and the response must say so.
     r = await client.post("/api/v1/auth/otp/request", json={"phone": phone})
     assert r.status_code == 202, r.text
-    assert r.json()["channel"] == "email"
+    body = r.json()
+    assert body["channel"] == "email"
+    assert body["masked_email"] and "•••" in body["masked_email"]
 
     # The code was delivered to the ACCOUNT's email via the outbox
     code = await _latest_otp_code(user["email"])

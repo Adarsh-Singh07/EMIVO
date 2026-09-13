@@ -26,6 +26,9 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8)
+    # Mobile number is compulsory at signup and unique across accounts.
+    # Accepts 10-digit Indian mobiles (with/without +91 / 0); stored normalized.
+    phone: str = Field(..., min_length=10, max_length=15, pattern=r"^[0-9+\-\s]+$")
 
     @field_validator("password")
     @classmethod

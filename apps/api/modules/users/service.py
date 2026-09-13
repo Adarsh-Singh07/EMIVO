@@ -34,7 +34,16 @@ class UserService:
         if data.last_name is not None:
             user.last_name = data.last_name
         if data.phone is not None:
-            user.phone = data.phone
+            from modules.auth.service import AuthService
+            normalized = AuthService._normalize_phone(data.phone)
+            if normalized != (user.phone or ""):
+                if not await AuthService(self.session).phone_available(normalized):
+                    raise DomainException(
+                        "This mobile number is already registered on another account. "
+                        "If this is your number, please contact support at support@elektrix.in.",
+                        code="PHONE_IN_USE", status_code=409,
+                    )
+            user.phone = normalized or None
         if data.mfa_enabled is not None:
             user.mfa_enabled = data.mfa_enabled
         if data.addresses is not None:

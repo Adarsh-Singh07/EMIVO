@@ -24,6 +24,7 @@ RATE_RULES: list[tuple[str, int, int]] = [
     ("/api/v1/auth/register", 5, 300),
     ("/api/v1/auth/forgot-password", 5, 300),
     ("/api/v1/auth/reset-password", 10, 300),
+    ("/api/v1/auth/phone/available", 30, 60),
     ("/api/v1/auth/otp/request", 5, 300),
     ("/api/v1/auth/otp/verify", 10, 300),
     ("/api/v1/coupons/validate", 20, 60),

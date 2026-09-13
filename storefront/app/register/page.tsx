@@ -1,9 +1,10 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Mail, Lock, User, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, Smartphone, AlertCircle, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { API_URL } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 
@@ -15,9 +16,12 @@ function RegisterForm() {
     first_name: "",
     last_name: "",
     email: "",
+    phone: "",
     password: "",
     confirmPassword: "",
   });
+  const [phoneStatus, setPhoneStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
+  const phoneCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -25,12 +29,54 @@ function RegisterForm() {
   const update = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
+  const digits = form.phone.replace(/\D/g, "").replace(/^91/, "").replace(/^0/, "");
+  const phoneValid = /^[6-9]\d{9}$/.test(digits);
+
+  // Realtime availability: debounced check against the API while typing.
+  useEffect(() => {
+    if (phoneCheckTimer.current) clearTimeout(phoneCheckTimer.current);
+    if (!form.phone) {
+      setPhoneStatus("idle");
+      return;
+    }
+    if (!phoneValid) {
+      setPhoneStatus("invalid");
+      return;
+    }
+    setPhoneStatus("checking");
+    phoneCheckTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `${API_URL}/auth/phone/available?phone=${encodeURIComponent(digits)}`,
+          { cache: "no-store" }
+        );
+        const body = await res.json();
+        setPhoneStatus(body.available ? "available" : "taken");
+      } catch {
+        setPhoneStatus("idle"); // network hiccup — submit will re-validate
+      }
+    }, 450);
+    return () => {
+      if (phoneCheckTimer.current) clearTimeout(phoneCheckTimer.current);
+    };
+  }, [digits, phoneValid, form.phone]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
     if (!form.first_name || !form.email || !form.password) {
       setError("Please fill in all required fields");
+      return;
+    }
+    if (!phoneValid) {
+      setError("Enter a valid 10-digit Indian mobile number");
+      return;
+    }
+    if (phoneStatus === "taken") {
+      setError(
+        "This mobile number is already registered on another account. If this is your number, please contact support at support@elektrix.in."
+      );
       return;
     }
     if (form.password.length < 8) {
@@ -49,6 +95,7 @@ function RegisterForm() {
         password: form.password,
         first_name: form.first_name,
         last_name: form.last_name,
+        phone: digits,
       });
       toast.success("Account created! Welcome to ELEKTRIX.");
       router.push("/");
@@ -107,6 +154,47 @@ function RegisterForm() {
                 />
               </div>
             </div>
+
+          <div>
+            <label htmlFor="phone" className="block text-sm font-medium text-neutral-700 mb-1.5">
+              Mobile Number <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <Smartphone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+              <input
+                id="phone"
+                type="tel"
+                inputMode="numeric"
+                value={form.phone}
+                onChange={update("phone")}
+                placeholder="98765 43210"
+                maxLength={13}
+                className="w-full h-11 pl-10 pr-10 rounded-xl border border-neutral-300 text-sm outline-none focus:border-neutral-950 focus:ring-1 focus:ring-neutral-950 transition-colors"
+                required
+                disabled={isLoading}
+              />
+              {phoneStatus === "checking" && (
+                <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 animate-spin" />
+              )}
+              {phoneStatus === "available" && (
+                <CheckCircle2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-green-600" />
+              )}
+              {phoneStatus === "taken" && (
+                <XCircle className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
+              )}
+            </div>
+            {phoneStatus === "available" && (
+              <p className="mt-1 text-xs text-green-600">Mobile number is available</p>
+            )}
+            {phoneStatus === "taken" && (
+              <p className="mt-1 text-xs text-red-500">
+                Already registered on another account — contact support to reclaim it.
+              </p>
+            )}
+            {phoneStatus === "invalid" && form.phone && (
+              <p className="mt-1 text-xs text-neutral-400">Enter a 10-digit Indian mobile number</p>
+            )}
+          </div>
             <div>
               <label htmlFor="last_name" className="block text-sm font-medium text-neutral-700 mb-1.5">
                 Last Name

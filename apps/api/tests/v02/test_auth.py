@@ -23,6 +23,7 @@ async def test_register_duplicate_email_rejected(client):
     r = await client.post("/api/v1/auth/register", json={
         "email": user["email"], "password": "Passw0rd!123",
         "first_name": "Dup", "last_name": "User",
+        "phone": user["phone"],
     })
     assert r.status_code in (400, 409)
 
@@ -89,3 +90,29 @@ async def test_admin_roles_from_membership(client):
     admin = await admin_login(client)
     r = await client.get("/api/v1/admin/dashboard", headers=admin)
     assert r.status_code == 200
+
+
+async def test_register_duplicate_phone_rejected_and_availability(client):
+    """One mobile number = one account. Availability is checked in realtime
+    by the signup form and enforced server-side at registration."""
+    user = await register_and_login(client, 777005)
+
+    # Availability endpoint: taken number reports unavailable
+    r = await client.get("/api/v1/auth/phone/available", params={"phone": user["phone"]})
+    assert r.status_code == 200 and r.json()["available"] is False
+
+    # Free number reports available
+    r = await client.get(
+        "/api/v1/auth/phone/available", params={"phone": f"97{str(777005).zfill(8)}"}
+    )
+    assert r.status_code == 200 and r.json()["available"] is True
+
+    # Registration with the taken number is rejected with a support pointer
+    r = await client.post("/api/v1/auth/register", json={
+        "email": f"other{uuid.uuid4().hex[:6]}@example.com",
+        "password": "Passw0rd!123",
+        "first_name": "Other", "last_name": "User",
+        "phone": user["phone"],
+    })
+    assert r.status_code == 409
+    assert "support" in str(r.json()).lower()

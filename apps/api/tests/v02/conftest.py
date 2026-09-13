@@ -38,6 +38,8 @@ async def register_and_login(client: httpx.AsyncClient, n: int = 0, password: st
     r = await client.post("/api/v1/auth/register", json={
         "email": email, "password": password,
         "first_name": "Test", "last_name": f"Buyer{n}",
+        # Unique 10-digit mobile per test identity (9 + 9 digits from n)
+        "phone": f"9{str(abs(n))[-9:].zfill(9)}",
     })
     assert r.status_code == 201, r.text
     r = await client.post("/api/v1/auth/login", json={"email": email, "password": password})
@@ -45,6 +47,7 @@ async def register_and_login(client: httpx.AsyncClient, n: int = 0, password: st
     tokens = r.json()
     return {
         "email": email,
+        "phone": f"9{str(abs(n))[-9:].zfill(9)}",
         "password": password,
         "access_token": tokens["access_token"],
         "refresh_token": tokens["refresh_token"],
