@@ -37,6 +37,7 @@ import { storeApi, type Address, type OrderV2 } from "@/lib/store-api";
 import { ApiError } from "@/lib/api-client";
 import { toast } from "sonner";
 import { inr, formatDate } from "@/lib/format";
+import { isSafeRedirectUrl } from "@/lib/safe-redirect";
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -96,6 +97,15 @@ function CheckoutContent() {
   const { lines, subtotal, loading: cartLoading, reload: reloadCart } = useCart();
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+
+  // Surfaces the ?error=payment_cancelled toast on return from the gateway.
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get("error") === "payment_cancelled") {
+      toast.error("Payment was cancelled or failed. Please try again.");
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
 
   /* ---------------- Auth guard ---------------- */
@@ -311,6 +321,9 @@ function CheckoutContent() {
         if (co.provider === "easebuzz") {
           // EaseBuzz integration: directly redirect the browser to the hosted checkout page
           if (co.checkout_url) {
+            if (!isSafeRedirectUrl(co.checkout_url)) {
+              throw new Error("Untrusted payment redirect URL — refusing to navigate");
+            }
             window.location.href = co.checkout_url;
             await new Promise(() => {}); // block to prevent UI flicker while redirecting
             return;
@@ -369,9 +382,13 @@ function CheckoutContent() {
           }
         });
       } catch (err) {
-        // DO NOT set pending payment here either. Just show the error and let them retry.
-        toast.error("Online payment is facing issues. Please try Cash on Delivery (COD).");
-        setPaymentMethod("COD");
+        // Keep the PENDING order + paymentId so the retry screen reuses the
+        // SAME order. Never funnel the user back to the form: clicking Pay
+        // again there would create a second order (new idempotency key) and
+        // orphan the first PENDING order with its reserved stock.
+        setPendingPayment({ order, paymentId });
+        setPlacedOrder(order);
+        toast.error("Online payment is facing issues. You can retry payment from here.");
         setPlacing(false);
       } finally {
         if (isRetry) setRetryingPayment(false);
@@ -1094,7 +1111,7 @@ function CheckoutContent() {
                       <>
                         Pay in cash when your order arrives.
                         {codFeePaise > 0 && (
-                          <> A COD handling fee of <strong>₹{codFeePaise / 100}</strong> will be added.</>
+                          <> A COD handling fee of <strong>{inr(codFeePaise)}</strong> will be added.</>
                         )}
                       </>
                     )}

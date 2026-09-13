@@ -126,7 +126,10 @@ export async function fetchApi<T>(
             const h = new Headers(options.headers || {});
             h.set("Authorization", `Bearer ${newToken}`);
             fetch(`${API_URL}${endpoint}`, { ...options, headers: h })
-              .then((r) => r.json().then(resolve))
+              .then(async (r) => {
+                if (!r.ok) throw await toApiError(r);
+                resolve(r.json());
+              })
               .catch(reject);
           },
           reject,
@@ -166,7 +169,9 @@ export async function fetchApi<T>(
       } catch (refreshErr) {
         processQueue(refreshErr as Error, null);
         removeTokens();
-        if (typeof window !== "undefined") window.location.href = "/login";
+        // Do NOT hard-redirect here: the failed request may be on a public
+        // page with a merely stale token. Auth-guarded pages handle their
+        // own redirect (with ?next=). Callers get the error and can react.
         throw refreshErr;
       } finally {
         isRefreshing = false;
@@ -175,7 +180,6 @@ export async function fetchApi<T>(
 
     isRefreshing = false;
     removeTokens();
-    if (typeof window !== "undefined") window.location.href = "/login";
     throw new Error("Session expired. Please log in again.");
   }
 

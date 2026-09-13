@@ -471,8 +471,11 @@ export const storeApi = {
   },
 
 
-  cancelOrder(orderId: string): Promise<OrderV2> {
-    return fetchApi<OrderV2>(`/orders/${encodeURIComponent(orderId)}/cancel`, { method: "POST" });
+  cancelOrder(orderId: string, reason?: string): Promise<OrderV2> {
+    return fetchApi<OrderV2>(`/orders/${encodeURIComponent(orderId)}/cancel`, {
+      method: "POST",
+      body: reason ? JSON.stringify({ reason }) : undefined,
+    });
   },
 
   listOrders(params: { page?: number; page_size?: number; status?: string } = {}): Promise<{

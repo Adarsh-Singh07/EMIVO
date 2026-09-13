@@ -21,3 +21,12 @@ export const formatDate = (iso: string): string =>
     minute: "numeric",
     hour12: true,
   });
+
+/**
+ * Serialize structured data for a <script type="application/ld+json"> block.
+ * JSON.stringify alone leaves "<" literal, so a string containing
+ * "</script>" (e.g. a product name from the API) can break out of the tag;
+ * escaping it as \u003c keeps the JSON semantically identical and safe.
+ */
+export const toJsonLd = (data: unknown): string =>
+  JSON.stringify(data).replace(/</g, "\\u003c");

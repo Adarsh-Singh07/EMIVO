@@ -6,6 +6,7 @@ import { AuthProvider } from "@/lib/auth-context";
 import { WishlistProvider } from "@/lib/wishlist-context";
 import Header from "@/components/site/Header";
 import Footer from "@/components/site/Footer";
+import { toJsonLd } from "@/lib/format";
 import MobileBottomNav from "@/components/site/MobileBottomNav";
 import { Toaster } from "sonner";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
@@ -80,8 +81,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   themeColor: "#0a0a0a",
   // Extends the layout viewport into the notch/home-indicator area so the
   // mobile bottom nav can add `env(safe-area-inset-bottom)` padding on iPhones.
@@ -98,7 +97,7 @@ export default function RootLayout({
       <body className="font-sans antialiased bg-white text-neutral-900 overflow-x-hidden" suppressHydrationWarning>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: toJsonLd(organizationJsonLd) }}
         />
         <LenisProvider>
         <AuthProvider>

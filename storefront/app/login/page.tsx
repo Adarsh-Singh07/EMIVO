@@ -19,7 +19,10 @@ function LoginForm() {
   const [error, setError] = useState("");
 
   // v0.2 guards use ?next=…; the legacy ?callbackUrl=… keeps working.
-  const callbackUrl = searchParams.get("next") || searchParams.get("callbackUrl") || "/";
+  // Only same-origin relative paths are honoured — absolute URLs would turn
+  // this page into an open redirect after login.
+  const rawTarget = searchParams.get("next") || searchParams.get("callbackUrl") || "/";
+  const callbackUrl = rawTarget.startsWith("/") && !rawTarget.startsWith("//") ? rawTarget : "/";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

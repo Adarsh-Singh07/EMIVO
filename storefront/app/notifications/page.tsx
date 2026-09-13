@@ -6,6 +6,7 @@ import { Bell, CheckCheck, LogIn, ShieldAlert, ChevronRight } from "lucide-react
 import { useAuth } from "@/lib/auth-context";
 import { storeApi, type NotificationItem } from "@/lib/store-api";
 import { toast } from "sonner";
+import { safeNavigate } from "@/lib/safe-redirect";
 
 export default function NotificationsPage() {
   const { user, loading } = useAuth();
@@ -34,14 +35,14 @@ export default function NotificationsPage() {
 
   const markRead = async (n: NotificationItem) => {
     if (n.read_at) {
-      if (n.link) window.location.href = n.link;
+      if (n.link) safeNavigate(n.link);
       return;
     }
     try {
       await storeApi.markNotificationRead(n.id);
       setUnread((u) => Math.max(0, u - 1));
       setItems((prev) => prev.map((i) => (i.id === n.id ? { ...i, read_at: new Date().toISOString() } : i)));
-      if (n.link) window.location.href = n.link;
+      if (n.link) safeNavigate(n.link);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not mark as read");
     }

@@ -252,9 +252,9 @@ function OrderDetail({
   const st = statusStyle(order.status);
   const canCancel = CAN_CANCEL.has(order.status?.toUpperCase());
 
-  const handleCancel = async (_reason: string) => {
+  const handleCancel = async (reason: string) => {
     try {
-      const updated = await storeApi.cancelOrder(order.id);
+      const updated = await storeApi.cancelOrder(order.id, reason);
       toast.success("Order cancelled successfully");
       onCancelled(order.id, updated);
       setShowCancelModal(false);
