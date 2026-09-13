@@ -40,7 +40,10 @@ async def _owned_cart(
     if current_user:
         if cart.user_id and str(cart.user_id) != str(current_user.id):
             raise DomainException("Cart not found", code="NOT_FOUND", status_code=404)
-        if cart.user_id is None and not cart_session:
+        # Guest carts require the CORRECT session token, not merely any
+        # non-empty one (a truthiness-only check would let any authenticated
+        # user who learns a guest cart id read/mutate it with junk headers).
+        if cart.user_id is None and (not cart_session or cart.session_id != cart_session):
             raise DomainException("Cart not found", code="NOT_FOUND", status_code=404)
     else:
         if cart.user_id is not None:
@@ -48,6 +51,25 @@ async def _owned_cart(
         if not cart_session or cart.session_id != cart_session:
             raise DomainException("Cart not found", code="NOT_FOUND", status_code=404)
     return cart
+
+
+# Guest session tokens are client-generated, but must be opaque and have
+# minimum entropy: 16–64 chars of [A-Za-z0-9_-]. This rejects degenerate
+# values like "X-Cart-Session: 1" (trivially guessable / enumerable) while
+# staying compatible with existing clients ("guest-<hex>",
+# "crypto.randomUUID()").
+import re as _re
+_SESSION_RE = _re.compile(r"^[A-Za-z0-9_-]{16,64}$")
+
+
+def _validate_guest_session(session_id: Optional[str]) -> Optional[str]:
+    if session_id is None:
+        return None
+    if not _SESSION_RE.match(session_id):
+        raise DomainException(
+            "Invalid cart session token", code="BAD_REQUEST", status_code=400,
+        )
+    return session_id
 
 
 @router.get("", response_model=CartResponse)
@@ -59,7 +81,7 @@ async def get_or_create_cart(
 ) -> Any:
     """Get or create the active cart. Authenticated users get their server
     cart; guests get a session-scoped cart (X-Cart-Session header/query)."""
-    guest_session = session_id or x_cart_session
+    guest_session = _validate_guest_session(session_id or x_cart_session)
     user_id = str(current_user.id) if current_user else None
     if not user_id and not guest_session:
         raise DomainException(
@@ -78,7 +100,8 @@ async def merge_guest_cart(
     """Merge the guest session cart into the authenticated user's cart
     (called right after login). Quantities of identical products add up."""
     return await service.merge_guest_cart(
-        user_id=str(current_user.id), session_id=payload.session_id
+        user_id=str(current_user.id),
+        session_id=_validate_guest_session(payload.session_id),
     )
 
 
