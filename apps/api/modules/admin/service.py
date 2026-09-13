@@ -176,6 +176,7 @@ class AdminService:
                 "free_shipping_threshold_paise", current["free_shipping_threshold_paise"]
             ),
             "flat_shipping_paise": fields.get("flat_shipping_paise", current["flat_shipping_paise"]),
+            "min_order_paise": fields.get("min_order_paise", current.get("min_order_paise", 0)),
             "banner": banner,
             "announcement": fields.get("announcement", current.get("announcement")),
             "hero_slides": fields.get("hero_slides", current.get("hero_slides", [])),

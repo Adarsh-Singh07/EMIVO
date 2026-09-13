@@ -58,6 +58,7 @@ DEFAULT_STORE_SETTINGS: dict = {
     "cod_max_order_paise": None,
     "free_shipping_threshold_paise": None,
     "flat_shipping_paise": None,
+    "min_order_paise": None,
     "banner": None,                 # {title, subtitle, image_url, link, active}
     "announcement": None,           # header strip text
 }

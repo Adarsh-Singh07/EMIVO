@@ -43,6 +43,7 @@ class StoreSettingsUpdate(BaseModel):
     cod_max_order_paise: Optional[int] = None
     free_shipping_threshold_paise: Optional[int] = None
     flat_shipping_paise: Optional[int] = None
+    min_order_paise: Optional[int] = None
     banner_title: Optional[str] = None
     banner_subtitle: Optional[str] = None
     banner_image_url: Optional[str] = None
@@ -59,6 +60,7 @@ class StoreSettingsResponse(BaseModel):
     cod_max_order_paise: int
     free_shipping_threshold_paise: int
     flat_shipping_paise: int
+    min_order_paise: int = 0
     banner: Optional[dict] = None
     announcement: Optional[str] = None
     hero_slides: Optional[List[dict]] = None

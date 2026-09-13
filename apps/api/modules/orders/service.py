@@ -243,6 +243,15 @@ class OrderService:
                 variant_name=variant_name,
             ))
 
+        # ---- Minimum order value for delivery -------------------------------
+        min_order = int(store_cfg.get("min_order_paise") or 0)
+        if min_order and subtotal < min_order:
+            raise DomainException(
+                f"Minimum order value for delivery is ₹{min_order / 100:.0f} — add "
+                f"₹{(min_order - subtotal) / 100:.0f} more to check out.",
+                code="MIN_ORDER_NOT_MET", status_code=409,
+            )
+
         # ---- Shipping / COD rules ------------------------------------------
         free_threshold = store_cfg["free_shipping_threshold_paise"]
         flat_shipping = store_cfg["flat_shipping_paise"]

@@ -30,6 +30,7 @@ interface StoreSettings {
   cod_fee_paise: number;
   cod_max_order_paise: number;
   free_shipping_threshold_paise: number;
+  min_order_paise?: number;
   flat_shipping_paise: number;
   banner: StoreBanner | null;
   announcement: string | null;
@@ -98,6 +99,7 @@ export default function SettingsPage() {
   const [codMaxOrder, setCodMaxOrder] = useState("");
   const [freeShippingThreshold, setFreeShippingThreshold] = useState("");
   const [flatShipping, setFlatShipping] = useState("");
+  const [minOrder, setMinOrder] = useState("");
   const [bannerTitle, setBannerTitle] = useState("");
   const [bannerSubtitle, setBannerSubtitle] = useState("");
   const [bannerImage, setBannerImage] = useState("");
@@ -135,6 +137,7 @@ export default function SettingsPage() {
       setCodFee(paiseToRupeeInput(data.cod_fee_paise));
       setCodMaxOrder(paiseToRupeeInput(data.cod_max_order_paise));
       setFreeShippingThreshold(paiseToRupeeInput(data.free_shipping_threshold_paise));
+      setMinOrder(paiseToRupeeInput(data.min_order_paise ?? 0));
       setFlatShipping(paiseToRupeeInput(data.flat_shipping_paise));
       setBannerTitle(data.banner?.title || "");
       setBannerSubtitle(data.banner?.subtitle || "");
@@ -186,6 +189,7 @@ export default function SettingsPage() {
         cod_max_order_paise: rupeesToPaise(codMaxOrder) ?? 0,
         free_shipping_threshold_paise: rupeesToPaise(freeShippingThreshold) ?? 0,
         flat_shipping_paise: rupeesToPaise(flatShipping) ?? 0,
+        min_order_paise: rupeesToPaise(minOrder) ?? 0,
         banner_title: bannerTitle.trim() || null,
         banner_subtitle: bannerSubtitle.trim() || null,
         banner_image_url: bannerImage.trim() || null,
@@ -345,6 +349,13 @@ export default function SettingsPage() {
                   onChange={setFreeShippingThreshold}
                   placeholder="e.g. 999"
                   hint="Orders at or above this subtotal ship free (0 disables)."
+                />
+                <RupeeField
+                  label="Minimum order for delivery"
+                  value={minOrder}
+                  onChange={setMinOrder}
+                  placeholder="e.g. 199"
+                  hint="Orders below this subtotal cannot check out (0 disables)."
                 />
               </div>
             </div>

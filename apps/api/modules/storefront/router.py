@@ -112,6 +112,7 @@ async def store_config(session: AsyncSession = Depends(optional_db_context)):
         "cod_enabled": db_cfg.get("cod_enabled", settings.cod_enabled),
         "cod_fee_paise": db_cfg.get("cod_fee_paise", settings.cod_fee_paise),
         "flat_shipping_paise": db_cfg.get("flat_shipping_paise", settings.flat_shipping_paise),
+        "min_order_paise": db_cfg.get("min_order_paise", 0) or 0,
         "free_shipping_threshold_paise": db_cfg.get("free_shipping_threshold_paise", settings.free_shipping_threshold),
         "currency": "INR",
         "storefront_url": settings.storefront_url,
