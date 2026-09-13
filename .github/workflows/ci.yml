@@ -7,8 +7,12 @@ on:
     branches: [ "main", "staging" ]
 
 jobs:
+  # ---------------------------------------------------------------------
+  # SECURITY GATES — every push and PR is scanned for credentials,
+  # vulnerable dependencies and high-severity code smells.
+  # ---------------------------------------------------------------------
   secret-scan:
-    name: Secret Scanning (gitleaks)
+    name: Security · Secret Scanning (gitleaks, full history)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code with full history
@@ -16,10 +20,99 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Scan commits for secrets
+      - name: Scan all commits for secrets
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  credential-patterns:
+    name: Security · Credential Pattern Gate (DSNs, keys, tokens)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Scan tracked files for credential patterns
+        run: bash scripts/security/check_secrets.sh
+
+  sast-backend:
+    name: Security · Static Analysis (bandit, high severity)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install bandit
+        run: pip install bandit[toml]
+
+      - name: Scan backend for high-severity issues
+        run: bandit -r apps/api -x apps/api/tests -lll -q
+        # -lll = report HIGH severity only; medium/low findings are tracked
+        # in the codebase and reduced over time. Add skips with an inline
+        # '# nosec <id>' comment plus a justification.
+
+  audit-python-deps:
+    name: Security · Python Dependency Audit (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Audit requirements.txt (fails on known CVEs with fixes)
+        run: |
+          pip-audit -r apps/api/requirements.txt --progress-spinner off -f json -o audit.json || true
+          python3 -c "
+          import json
+          d = json.load(open('audit.json'))
+          fixable = []
+          for dep in d.get('dependencies', []):
+              for v in dep.get('vulns', []):
+                  if v.get('fix_versions'):
+                      fixable.append(f\"{dep['name']} {v['id']} -> fixed in {', '.join(v['fix_versions'])}\")
+          if fixable:
+              print('Vulnerable dependencies with available fixes:')
+              print('\n'.join(fixable))
+              raise SystemExit(1)
+          print('No fixable Python dependency vulnerabilities.')
+          "
+
+  audit-npm:
+    name: Security · NPM Dependency Audit (high+)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [ storefront, admin ]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+
+      - name: Audit dependencies (fails on high/critical)
+        working-directory: ${{ matrix.app }}
+        run: npm audit --omit=dev --audit-level=high
+
+  # ---------------------------------------------------------------------
+  # BUILD & TEST GATES
+  # ---------------------------------------------------------------------
   validate-docker:
     name: Validate Docker Compose Configurations
     runs-on: ubuntu-latest
