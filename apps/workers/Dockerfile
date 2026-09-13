@@ -17,4 +17,7 @@ COPY --from=builder /app /app
 
 ENV PYTHONPATH=/app/apps/api:/app/apps/workers
 
+RUN useradd --create-home --uid 10001 appuser && chown -R appuser:appuser /app
+USER appuser
+
 CMD ["arq", "apps.workers.main.WorkerSettings"]

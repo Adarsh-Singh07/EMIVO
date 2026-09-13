@@ -1,4 +1,7 @@
 #!/bin/bash
+# Fail fast on any error — a failed pull must never be reported as a
+# successful deployment.
+set -euo pipefail
 echo "Waiting for GitHub action to finish..."
 while gh run view 32775391288 --json status -q ".status" | grep -q "in_progress"; do
   sleep 10

@@ -5,9 +5,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-DB_CONTAINER=elektrix-db-1
+DB_CONTAINER=elektrix-test-db-1
 API_IMAGE="${API_IMAGE:-elektrix-api:v02test}"
-NET=elektrix_default
+NET=elektrix-test-net
 
 docker network create "$NET" || true
 echo "==> [0/6] building image"
