@@ -126,7 +126,7 @@ async def store_config(session: AsyncSession = Depends(optional_db_context)):
     }
 
 @router.get("/shipping-estimate")
-async def shipping_estimate(pincode: str = Query(..., min_length=6, max_length=6), session=Depends(get_db_session)):
+async def shipping_estimate(pincode: str = Query(..., min_length=6, max_length=6, pattern=r"^\d{6}$"), session=Depends(get_db_session)):
     from modules.storefront.shipping import get_delhivery_estimate
     from modules.orders.service import get_store_settings
     from core.config import settings
@@ -134,13 +134,20 @@ async def shipping_estimate(pincode: str = Query(..., min_length=6, max_length=6
     cod_enabled = db_cfg.get("cod_enabled", settings.cod_enabled)
     return await get_delhivery_estimate(pincode, is_store_cod_enabled=cod_enabled)
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 class ContactForm(BaseModel):
-    name: str
-    email: str
-    mobile: str
-    subject: str
-    message: str
+    # Bounded, validated fields — this endpoint is unauthenticated and emails
+    # attacker-chosen addresses, so without limits it is an open spam relay.
+    name: str = Field(..., min_length=1, max_length=100)
+    email: EmailStr
+    mobile: str = Field(..., min_length=6, max_length=20, pattern=r"^[0-9+\-\s()]+$")
+    subject: str = Field(..., min_length=1, max_length=200)
+    message: str = Field(..., min_length=1, max_length=5000)
+
+    def esc(self, v: str) -> str:
+        """HTML-escape before embedding user text into email bodies."""
+        from html import escape
+        return escape(v)
 
 @router.post("/contact")
 async def handle_contact_form(form: ContactForm):
@@ -149,30 +156,34 @@ async def handle_contact_form(form: ContactForm):
     
     provider = get_email_provider()
     
-    # 1. Send query to support
-    admin_subject = f"Support Request: {form.subject} (from {form.name})"
+    # 1. Send query to support (user text HTML-escaped — the support mailbox
+    # is rendered as HTML and must not become an injection target)
+    admin_subject = f"Support Request: {form.esc(form.subject)} (from {form.esc(form.name)})"
     admin_html = f"""
     <h2>New Contact Form Submission</h2>
-    <p><strong>Name:</strong> {form.name}</p>
-    <p><strong>Email:</strong> {form.email}</p>
-    <p><strong>Mobile:</strong> {form.mobile}</p>
-    <p><strong>Subject:</strong> {form.subject}</p>
+    <p><strong>Name:</strong> {form.esc(form.name)}</p>
+    <p><strong>Email:</strong> {form.esc(form.email)}</p>
+    <p><strong>Mobile:</strong> {form.esc(form.mobile)}</p>
+    <p><strong>Subject:</strong> {form.esc(form.subject)}</p>
     <h3>Message:</h3>
-    <p>{form.message}</p>
+    <p>{form.esc(form.message)}</p>
     """
     support_email = settings.email_from
     await provider.send_email(to_email=support_email, subject=admin_subject, html=admin_html)
     
-    # 2. Send confirmation to user
-    user_subject = f"We received your message: {form.subject}"
+    # 2. Send confirmation to the address the user typed. The subject and
+    # name are escaped and the body is fully template-controlled except for
+    # the escaped name — a verified user copy would be a spam relay, so this
+    # stays a fixed template.
+    user_subject = f"We received your message: {form.esc(form.subject)}"
     user_html = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">
         <div style="text-align: center; padding: 20px 0; border-bottom: 2px solid #f3f4f6;">
             <h1 style="color: #0f172a; margin: 0; font-size: 24px;">Apna Enterprises</h1>
         </div>
         <div style="padding: 30px 20px;">
-            <h2 style="font-size: 18px; color: #111;">Hi {form.name},</h2>
-            <p style="margin-bottom: 20px;">Thank you for contacting <strong>Apna Enterprises</strong>. We have received your message regarding "<strong>{form.subject}</strong>".</p>
+            <h2 style="font-size: 18px; color: #111;">Hi {form.esc(form.name)},</h2>
+            <p style="margin-bottom: 20px;">Thank you for contacting <strong>Apna Enterprises</strong>. We have received your message regarding "<strong>{form.esc(form.subject)}</strong>".</p>
             <p style="margin-bottom: 20px;">Our support team is reviewing your request and will get back to you within 24 hours.</p>
             <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
                 <p style="margin: 0; font-size: 14px; color: #4b5563;"><strong>For urgent queries:</strong><br>Please call us at +91 80920 24066</p>

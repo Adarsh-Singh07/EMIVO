@@ -14,7 +14,24 @@ from modules.media.schemas import PresignedUploadRequest, PresignedUploadRespons
 
 router = APIRouter(prefix="/api/v1/media", tags=["media"])
 
-ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".avif", ".gif", ".svg", ".ico", ".heic", ".heif"}
+# SVG is deliberately excluded: it can carry <script> payloads and is served
+# from the public R2 origin, making it a stored-XSS vector.
+ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".avif", ".gif", ".ico", ".heic", ".heif"}
+
+# Server-verified content types per extension — the client-supplied
+# content_type is honoured only when it matches, so text/html can never be
+# signed into the bucket under an image extension.
+ALLOWED_CONTENT_TYPES = {
+    ".png": {"image/png"},
+    ".jpg": {"image/jpeg"},
+    ".jpeg": {"image/jpeg"},
+    ".webp": {"image/webp"},
+    ".avif": {"image/avif"},
+    ".gif": {"image/gif"},
+    ".ico": {"image/x-icon", "image/vnd.microsoft.icon", "image/icon"},
+    ".heic": {"image/heic", "image/heif"},
+    ".heif": {"image/heic", "image/heif"},
+}
 
 
 @router.post(
@@ -41,9 +58,16 @@ async def create_presigned_upload(
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail=f"Unsupported file type '{ext}'")
 
+    content_type = (req.content_type or "").split(";")[0].strip().lower()
+    if content_type not in ALLOWED_CONTENT_TYPES[ext]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Content type '{content_type or 'missing'}' does not match extension '{ext}'",
+        )
+
     key = f"products/{int(time.time())}_{uuid.uuid4().hex}{ext}"
     upload_url = adapter.generate_presigned_upload_url(
-        bucket_name=bucket, object_name=key, content_type=req.content_type
+        bucket_name=bucket, object_name=key, content_type=content_type
     )
     if not upload_url:
         raise HTTPException(

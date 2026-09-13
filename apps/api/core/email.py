@@ -1,5 +1,6 @@
 import abc
 import smtplib
+import ssl
 import asyncio
 from email.message import EmailMessage
 from core.config import settings
@@ -30,7 +31,9 @@ class SMTPEmailProvider(EmailProvider):
         loop = asyncio.get_running_loop()
         def _send():
             with smtplib.SMTP(self.host, self.port) as server:
-                server.starttls()
+                # Verify the server certificate — an unverified context would
+                # let a MITM intercept SMTP credentials and email content.
+                server.starttls(context=ssl.create_default_context())
                 if self.user and self.password:
                     server.login(self.user, self.password)
                 server.send_message(msg)

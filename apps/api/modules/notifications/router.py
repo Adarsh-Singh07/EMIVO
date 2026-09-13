@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,7 +36,7 @@ def _service(session: AsyncSession = Depends(set_db_context)) -> NotificationSer
 @router.get("", response_model=NotificationListResponse)
 async def list_notifications(
     unread_only: bool = False,
-    limit: int = 30,
+    limit: int = Query(30, ge=1, le=100),
     service: NotificationService = Depends(_service),
     current_user: User = Depends(get_current_user),
 ):

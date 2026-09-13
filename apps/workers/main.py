@@ -74,12 +74,28 @@ async def poll_outbox(ctx) -> int:
         async with maker() as session:
             rows = (await session.execute(text("""
                 SELECT id FROM outbox_events
-                WHERE status = 'pending' AND attempts < 5
+                WHERE (status = 'pending'
+                       OR (status = 'processing' AND created_at < now() - interval '10 minutes'))
+                  AND attempts < 5
                 ORDER BY created_at ASC
                 LIMIT :lim
                 FOR UPDATE SKIP LOCKED
             """), {"lim": OUTBOX_BATCH})).fetchall()
             event_ids = [str(r[0]) for r in rows]
+            if event_ids:
+                # Persist the claim INSIDE the locking transaction. Without
+                # this, the row locks vanish when the session closes and a
+                # second worker polling in the same window re-claims (and
+                # re-sends) the same events — duplicate emails/notifications.
+                # There is no updated_at column, so stale 'processing' rows
+                # (crashed worker) are re-claimable via created_at age; the
+                # dispatch path is at-least-once by design.
+                await session.execute(text("""
+                    UPDATE outbox_events
+                    SET status = 'processing'
+                    WHERE id = ANY(:ids::uuid[])
+                """), {"ids": event_ids})
+                await session.commit()
         # process each event in its own transaction/session
         for eid in event_ids:
             try:
