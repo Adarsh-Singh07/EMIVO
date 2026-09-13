@@ -18,7 +18,6 @@ const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
   display: "swap",
-  preload: false,
 });
 
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://elektrix.in";
@@ -94,32 +93,43 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
-      <body className="font-sans antialiased bg-white text-neutral-900 overflow-x-hidden" suppressHydrationWarning>
+    <html lang="en" className={inter.variable}>
+      <body className="font-sans antialiased bg-white text-neutral-900 overflow-x-hidden">
+        <a
+          href="#main-content"
+          className="skip-link bg-neutral-950 text-white text-sm font-semibold px-4 py-2.5 rounded-lg shadow-lg"
+        >
+          Skip to main content
+        </a>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: toJsonLd(organizationJsonLd) }}
         />
-        <SupportChatWidget />
         <LenisProvider>
         <AuthProvider>
+        <SupportChatWidget />
           <WishlistProvider>
             <CartProvider>
               <Header />
-              <main className="min-h-screen pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">{children}</main>
+              <main
+                id="main-content"
+                tabIndex={-1}
+                className="min-h-screen pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0 focus:outline-none"
+              >
+                {children}
+              </main>
               <Footer />
               <MobileBottomNav />
-              
-        
-        <PwaInstallPrompt />
-        <Toaster
+
+              <PwaInstallPrompt />
+              <Toaster
                 position="bottom-right"
                 richColors
                 expand={false}
                 toastOptions={{
                   duration: 2500,
                   closeButton: true,
-                  className: "mb-[calc(env(safe-area-inset-bottom)+3.5rem)] lg:mb-0",
+                  className: "mb-[calc(env(safe-area-inset-bottom)+3.5rem)] md:mb-0",
                   style: {
                     pointerEvents: "auto",
                   },

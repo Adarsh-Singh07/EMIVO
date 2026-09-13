@@ -17,7 +17,7 @@ import { inr } from "@/lib/format";
 export default function SearchBox({
   autoFocus = false,
   onNavigate,
-  placeholder = "Search for Mobiles, Laptops, Audio & more",
+  placeholder = "Search products",
   className = "",
 }: {
   autoFocus?: boolean;

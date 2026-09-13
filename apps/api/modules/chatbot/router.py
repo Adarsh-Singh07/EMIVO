@@ -16,6 +16,8 @@ router = APIRouter(prefix="/api/v1/support/chat", tags=["Support"])
 
 class ChatIn(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
+    history: list[dict] = Field(default_factory=list, max_length=20)
+    user_name: str = Field("", max_length=100)
 
 
 class ChatOut(BaseModel):
@@ -41,13 +43,31 @@ async def chat(
         )
 
     from modules.chatbot.service import ask_gemini
+    name = (payload.user_name or user.first_name or "").strip()[:100]
     try:
-        reply, ticket_action = await ask_gemini(session, str(user.id), payload.message)
+        reply, ticket_action, cancel_number = await ask_gemini(
+            session, str(user.id), name or "there", payload.message, payload.history
+        )
     except Exception:
         raise DomainException(
             "The assistant is unavailable right now — please raise a ticket instead.",
             code="CHATBOT_UNAVAILABLE", status_code=503,
         )
+
+    # Execute a CONFIRMED cancellation server-side: ownership + state machine
+    # + stock release all go through the same customer-cancel path as the UI.
+    if cancel_number:
+        from modules.orders.service import OrderService
+        try:
+            order = await OrderService(session).cancel_order_by_number(
+                cancel_number, user, reason="cancelled via support assistant"
+            )
+            reply += (
+                f"\n\n✅ Done — order {order.order_number} ({order.total / 100:.0f} ₹) is cancelled "
+                "and any reserved stock has been released."
+            )
+        except DomainException as exc:
+            reply += f"\n\n⚠️ I couldn't cancel {cancel_number}: {exc.message}"
 
     ticket = None
     if ticket_action:

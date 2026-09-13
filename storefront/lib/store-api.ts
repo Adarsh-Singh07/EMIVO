@@ -490,8 +490,11 @@ export const storeApi = {
   replyTicket(id: string, body: string): Promise<unknown> {
     return fetchApi(`/support/tickets/${encodeURIComponent(id)}/messages`, { method: "POST", body: JSON.stringify({ body }) });
   },
-  chat(message: string): Promise<{ reply: string; ticket?: { id: string; subject: string } | null }> {
-    return fetchApi(`/support/chat`, { method: "POST", body: JSON.stringify({ message }) });
+  chat(message: string, ctx?: { user_name?: string; history?: Array<{ role: string; text: string }> }): Promise<{ reply: string; ticket?: { id: string; subject: string } | null }> {
+    return fetchApi(`/support/chat`, {
+      method: "POST",
+      body: JSON.stringify({ message, user_name: ctx?.user_name, history: ctx?.history }),
+    });
   },
 
 

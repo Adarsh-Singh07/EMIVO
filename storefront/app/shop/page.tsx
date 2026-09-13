@@ -247,13 +247,14 @@ function ShopContent() {
         </div>
       )}
 
-      {/* Category chips */}
-      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-6">
+      {/* Category chips — horizontal scroll with edge-fade affordance (S1) */}
+      <div className="flex gap-2 overflow-x-auto no-scrollbar scroll-fade-x pb-2 mb-6 snap-x">
         {categoryChips.map((c) => (
           <Link
             key={c.slug || "all"}
             href={c.slug ? `/shop?category=${c.slug}` : "/shop"}
-            className={`shrink-0 px-4 h-9 inline-flex items-center rounded-full border text-sm font-medium transition-colors ${
+            aria-current={category === c.slug ? "true" : undefined}
+            className={`shrink-0 px-4 h-9 inline-flex items-center rounded-full border text-sm font-medium transition-colors snap-start ${
               category === c.slug
                 ? "border-neutral-950 bg-neutral-950 text-white"
                 : "border-neutral-200 text-neutral-600 hover:border-neutral-400"
@@ -365,12 +366,13 @@ function ShopContent() {
           </div>
 
           {/* Mobile sort chips */}
-          <div className="lg:hidden flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-4">
+          <div className="lg:hidden flex gap-2 overflow-x-auto no-scrollbar scroll-fade-x pb-2 mb-4 snap-x">
             {SORT_OPTIONS.map((o) => (
               <button
                 key={o.value}
                 onClick={() => setParam({ sort: o.value === "relevance" ? null : o.value })}
-                className={`shrink-0 px-3.5 h-9 rounded-full border text-sm font-medium ${
+                aria-pressed={sort === o.value}
+                className={`shrink-0 px-3.5 h-9 rounded-full border text-sm font-medium snap-start ${
                   sort === o.value
                     ? "border-neutral-950 bg-neutral-950 text-white"
                     : "border-neutral-200 text-neutral-600"
@@ -388,16 +390,48 @@ function ShopContent() {
               ))}
             </div>
           ) : products.length === 0 ? (
-            <div className="text-center py-20 border border-dashed border-neutral-200 rounded-3xl text-neutral-500">
-              <SlidersHorizontal className="w-10 h-10 mx-auto mb-4 text-neutral-300" />
-              <p>No products match your filters.</p>
-              <button
-                onClick={() => router.push("/shop")}
-                className="mt-6 h-10 px-6 inline-flex items-center gap-2 bg-neutral-950 text-white rounded-full text-xs font-semibold hover:bg-neutral-800"
-              >
-                <X className="w-3.5 h-3.5" /> Clear filters
-              </button>
-            </div>
+            q ? (
+              /* Search-specific empty state (S4): acknowledge the query and
+                 offer concrete next steps instead of a generic filters message */
+              <div className="text-center py-16 border border-dashed border-neutral-200 rounded-3xl text-neutral-500">
+                <Search className="w-10 h-10 mx-auto mb-4 text-neutral-300" />
+                <p className="text-neutral-900 font-semibold">
+                  No results for &quot;{q}&quot;
+                </p>
+                <p className="text-sm mt-2 max-w-sm mx-auto">
+                  Check the spelling or try a more general term — for example
+                  &quot;mixer&quot; instead of &quot;mixer grinder 500W&quot;.
+                </p>
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+                  {["mobiles", "laptops", "audio", "appliances"].map((cat) => (
+                    <Link
+                      key={cat}
+                      href={`/shop?category=${cat}`}
+                      className="h-9 px-4 inline-flex items-center rounded-full border border-neutral-200 text-xs font-medium text-neutral-700 capitalize hover:border-neutral-400"
+                    >
+                      {cat}
+                    </Link>
+                  ))}
+                </div>
+                <button
+                  onClick={() => router.push("/shop")}
+                  className="mt-6 h-10 px-6 inline-flex items-center gap-2 bg-neutral-950 text-white rounded-full text-xs font-semibold hover:bg-neutral-800"
+                >
+                  <X className="w-3.5 h-3.5" /> Clear search &amp; filters
+                </button>
+              </div>
+            ) : (
+              <div className="text-center py-20 border border-dashed border-neutral-200 rounded-3xl text-neutral-500">
+                <SlidersHorizontal className="w-10 h-10 mx-auto mb-4 text-neutral-300" />
+                <p>No products match your filters.</p>
+                <button
+                  onClick={() => router.push("/shop")}
+                  className="mt-6 h-10 px-6 inline-flex items-center gap-2 bg-neutral-950 text-white rounded-full text-xs font-semibold hover:bg-neutral-800"
+                >
+                  <X className="w-3.5 h-3.5" /> Clear filters
+                </button>
+              </div>
+            )
           ) : (
             <>
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 md:gap-6">
@@ -406,27 +440,52 @@ function ShopContent() {
                 ))}
               </div>
 
-              {/* Pagination */}
+              {/* Pagination — numbered when it fits, always with accessible
+                  labels and disabled states (S3) */}
               {(hasPrev || hasNext) && (
-                <div className="mt-10 flex items-center justify-center gap-3">
+                <nav aria-label="Pagination" className="mt-10 flex items-center justify-center gap-2 sm:gap-3">
                   <button
                     onClick={() => setParam({ page: String(page - 1) }, true)}
                     disabled={!hasPrev}
-                    className="h-11 px-5 inline-flex items-center gap-1.5 rounded-full border border-neutral-200 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:border-neutral-400"
+                    aria-label="Previous page"
+                    className="h-11 px-4 sm:px-5 inline-flex items-center gap-1.5 rounded-full border border-neutral-200 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:border-neutral-400"
                   >
-                    <ChevronLeft className="w-4 h-4" /> Previous
+                    <ChevronLeft className="w-4 h-4" /> <span className="hidden sm:inline">Previous</span>
                   </button>
-                  <span className="text-sm text-neutral-500">
-                    Page {page} of {totalPages}
-                  </span>
+
+                  {totalPages <= 7 ? (
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, k) => k + 1).map((p) => (
+                        <button
+                          key={p}
+                          onClick={() => p !== page && setParam({ page: String(p) }, true)}
+                          aria-label={`Page ${p}`}
+                          aria-current={p === page ? "page" : undefined}
+                          className={`w-9 h-9 rounded-full text-sm font-medium ${
+                            p === page
+                              ? "bg-neutral-950 text-white"
+                              : "text-neutral-600 hover:bg-neutral-100"
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-sm text-neutral-500" aria-current="page">
+                      Page {page} of {totalPages}
+                    </span>
+                  )}
+
                   <button
                     onClick={() => setParam({ page: String(page + 1) }, true)}
                     disabled={!hasNext}
-                    className="h-11 px-5 inline-flex items-center gap-1.5 rounded-full border border-neutral-200 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:border-neutral-400"
+                    aria-label="Next page"
+                    className="h-11 px-4 sm:px-5 inline-flex items-center gap-1.5 rounded-full border border-neutral-200 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:border-neutral-400"
                   >
-                    Next <ChevronRight className="w-4 h-4" />
+                    <span className="hidden sm:inline">Next</span> <ChevronRight className="w-4 h-4" />
                   </button>
-                </div>
+                </nav>
               )}
             </>
           )}

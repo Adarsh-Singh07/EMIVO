@@ -49,6 +49,22 @@ const FEATURES = [
 // ISR: revalidate frequently so banner/coupon changes reflect quickly.
 export const revalidate = 30;
 
+/**
+ * V4: a festival banner may declare an optional display window
+ * (`starts_at` / `ends_at`, ISO dates set from Admin → Store Settings).
+ * Outside the window (or once past `ends_at`) the banner auto-hides, so
+ * seasonal promos can never go stale on the storefront.
+ */
+function isBannerInWindow(banner: Record<string, any> | undefined): boolean {
+  if (!banner) return true;
+  const now = Date.now();
+  const start = banner.starts_at ? Date.parse(banner.starts_at) : null;
+  const end = banner.ends_at ? Date.parse(banner.ends_at) : null;
+  if (start && Number.isFinite(start) && now < start) return false;
+  if (end && Number.isFinite(end) && now > end) return false;
+  return true;
+}
+
 
 export default async function Home() {
   const [categories, config, coupons, catalogues] = await Promise.all([
@@ -58,13 +74,21 @@ export default async function Home() {
     fetchCatalogues(),
   ]);
 
+  const showBanner =
+    !!config?.banner_active &&
+    !!config?.banner_image &&
+    isBannerInWindow({
+      starts_at: config?.banner_starts_at,
+      ends_at: config?.banner_ends_at,
+    });
+
   return (
     <div>
       {/* 1. Hero slider with auto-rotation */}
       <HeroSlider slides={config?.hero_slides} />
 
       {/* Festival Banner */}
-      {config?.banner_active && config?.banner_image && (
+      {showBanner && (
         <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mt-6">
           <Link href={config.banner_link || "/shop"} className="block relative w-full h-32 md:h-48 lg:h-64 rounded-2xl overflow-hidden group">
             <img src={config.banner_image} alt={config.banner_title || "Festival Offer"} className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" />
@@ -175,8 +199,8 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* 5. Brand marquee */}
-      <section className="py-6 border-y border-neutral-100 overflow-hidden">
+      {/* 5. Brand marquee — purely decorative; hidden from screen readers */}
+      <section className="py-6 border-y border-neutral-100 overflow-hidden" aria-hidden="true">
         <div className="flex w-max animate-marquee">
           {[0, 1].map((copy) => (
             <div key={copy} className="flex items-center gap-16 pr-16">

@@ -48,13 +48,87 @@ textarea {
   font-size: 16px;
 }
 
-/* Hide scrollbar for horizontal category scrollers */
-.no-scrollbar::-webkit-scrollbar {
+/*
+ * Keyboard focus visibility (A1). A 2px neutral-950 ring everywhere, flipped
+ * to white inside dark surfaces (footer, announcement ribbon, hero, modals).
+ * Applied via :focus-visible only, so mouse/touch users see no extra outline.
+ */
+:focus-visible {
+  outline: 2px solid var(--color-neutral-950);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.bg-neutral-950 :focus-visible,
+footer :focus-visible,
+.dark-surface :focus-visible {
+  outline-color: #fff;
+}
+
+/* Skip-to-content link (A2) — hidden until keyboard-focused */
+.skip-link {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 100;
+  transform: translateY(-200%);
+  transition: transform 150ms ease;
+}
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+/* Single scrollbar-hide utility (merged former .no-scrollbar duplicate) */
+.scrollbar-hide,
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+.scrollbar-hide,
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/*
+ * Edge-fade affordance for horizontally scrollable chip/strip rows (S1):
+ * hints that more content exists off-screen. Safe with no-scrollbar rows.
+ */
+.scroll-fade-x {
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 16px,
+    #000 calc(100% - 16px),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 16px,
+    #000 calc(100% - 16px),
+    transparent 100%
+  );
+}
+@media (min-width: 1024px) {
+  /* On desktop most of these rows fit; drop the fade so full labels never dim */
+  .lg\:scroll-fade-x-none {
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
+}
+
+/*
+ * Invisible hit-area expansion for small icon buttons (A6): keeps the visual
+ * control compact while guaranteeing a ~44px touch target.
+ */
+.tap-target {
+  position: relative;
+}
+.tap-target::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: inherit;
 }
 
 /* Marquee announcement bar / brand strip */
@@ -101,11 +175,24 @@ textarea {
   }
 }
 
-/* Hide scrollbar for horizontal scroll elements */
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+/*
+ * Reduced motion (A5): stop the marquee, crossfades and pulses; keep
+ * opacity-only fade-ins minimal. Lenis smooth-scroll is disabled separately
+ * in LenisProvider via the same media query.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+  .animate-marquee {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

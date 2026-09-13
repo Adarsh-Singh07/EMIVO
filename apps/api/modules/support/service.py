@@ -14,8 +14,8 @@ class SupportService:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    def _bind(self, user_id: Optional[str]) -> None:
-        self.session.execute(
+    async def _bind(self, user_id: Optional[str]) -> None:
+        await self.session.execute(
             text("SELECT set_config('app.user_id', :uid, true)"),
             {"uid": user_id or ""},
         )
@@ -23,7 +23,7 @@ class SupportService:
     async def create_ticket(self, user_id: str, category: str, subject: str,
                             description: str, order_id: Optional[str] = None,
                             order_number: Optional[str] = None) -> SupportTicket:
-        self._bind(user_id)
+        await self._bind(user_id)
         ticket = SupportTicket(
             user_id=str(user_id), order_id=order_id, order_number=order_number,
             category=category, subject=subject.strip()[:200],
@@ -38,7 +38,7 @@ class SupportService:
         return ticket
 
     async def add_message(self, ticket_id: str, user_id: str, sender: str, body: str) -> SupportTicket:
-        self._bind(user_id)
+        await self._bind(user_id)
         ticket = (await self.session.execute(
             text("SELECT * FROM support_tickets WHERE id = :id"), {"id": ticket_id}
         )).first()
@@ -53,7 +53,7 @@ class SupportService:
         return await self.get_ticket(ticket_id, user_id)
 
     async def get_ticket(self, ticket_id: str, user_id: str) -> SupportTicket:
-        self._bind(user_id)
+        await self._bind(user_id)
         ticket = await self.session.get(SupportTicket, ticket_id)
         if not ticket:
             raise DomainException("Ticket not found", code="NOT_FOUND", status_code=404)
@@ -61,7 +61,7 @@ class SupportService:
 
     async def list_tickets(self, user_id: str, status: Optional[str] = None,
                            page: int = 1, page_size: int = 20) -> Tuple[List[SupportTicket], int]:
-        self._bind(user_id)
+        await self._bind(user_id)
         cond = "AND status = :st" if status else ""
         params = {"off": (page - 1) * page_size, "lim": page_size, **({"st": status} if status else {})}
         rows = (await self.session.execute(text(

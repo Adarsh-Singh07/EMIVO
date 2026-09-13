@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { LifeBuoy, Loader2, MessageCircle, Send, X } from "lucide-react";
 import { storeApi } from "@/lib/store-api";
+import { useAuth } from "@/lib/auth-context";
 
 type Msg = { from: "you" | "bot"; text: string; ticket?: { id: string; subject: string } };
 
@@ -16,8 +17,34 @@ export default function SupportChatWidget() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
+
+  // Greet the customer by name when they open the assistant.
+  useEffect(() => {
+    if (open && msgs.length === 1 && user) {
+      setMsgs((m) => [
+        { ...m[0], text: `Hi ${user.first_name}! 👋 I can help with your orders and payments — status, retries, cancellations, refunds, or product suggestions. What do you need?` },
+      ]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, user]);
 
   useEffect(() => { bodyRef.current?.scrollTo({ top: 999999, behavior: "smooth" }); }, [msgs, open]);
+
+  /** Render bot text with clickable product links. */
+  const renderText = (text: string) => {
+    const parts = text.split(/(https:\/\/elektrix\.in\/product\/[^\s)]+)/g);
+    return parts.map((part, i) =>
+      part.startsWith("https://elektrix.in/product/") ? (
+        <Link key={i} href={part.replace(/^https:\/\/elektrix\.in/, "")}
+          className="underline underline-offset-2 font-medium text-blue-600" target="_blank">
+          {part.replace("https://elektrix.in/product/", "").replace(/-/g, " ")}
+        </Link>
+      ) : (
+        <span key={i}>{part}</span>
+      )
+    );
+  };
 
   const send = async () => {
     const text = input.trim();
@@ -26,7 +53,10 @@ export default function SupportChatWidget() {
     setMsgs((m) => [...m, { from: "you", text }]);
     setBusy(true);
     try {
-      const res = await storeApi.chat(text);
+      const res = await storeApi.chat(text, {
+        user_name: user?.first_name || "",
+        history: msgs.slice(-6).map((m) => ({ role: m.from === "you" ? "user" : "assistant", text: m.text })),
+      });
       setMsgs((m) => [...m, { from: "bot", text: res.reply, ticket: res.ticket ?? undefined }]);
     } catch (err: any) {
       setMsgs((m) => [...m, { from: "bot", text: err?.message || "I'm unavailable right now — please raise a ticket from the Support page." }]);
@@ -62,7 +92,7 @@ export default function SupportChatWidget() {
             {msgs.map((m, i) => (
               <div key={i} className={`flex ${m.from === "you" ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm ${m.from === "you" ? "bg-neutral-950 text-white rounded-br-sm" : "bg-neutral-100 text-neutral-900 rounded-bl-sm"}`}>
-                  <p className="whitespace-pre-wrap">{m.text}</p>
+                  <p className="whitespace-pre-wrap">{m.from === "bot" ? renderText(m.text) : m.text}</p>
                   {m.ticket && (
                     <Link href="/support" onClick={() => setOpen(false)} className="mt-2 inline-block text-xs font-semibold text-blue-600 underline underline-offset-2">
                       View ticket #{m.ticket.id.slice(0, 8)} →

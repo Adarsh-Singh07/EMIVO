@@ -45,7 +45,7 @@ export default function MobileBottomNav() {
   return (
     <nav
       aria-label="Mobile navigation"
-      className="fixed inset-x-0 bottom-0 z-50 lg:hidden w-full max-w-full overflow-x-clip border-t border-neutral-200 bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]"
+      className="fixed inset-x-0 bottom-0 z-50 md:hidden w-full max-w-full overflow-x-clip border-t border-neutral-200 bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]"
     >
       <div className="grid w-full grid-cols-5 min-w-0">
         {LEFT_ITEMS.map(renderItem)}

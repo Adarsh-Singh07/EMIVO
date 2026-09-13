@@ -110,7 +110,7 @@ export default function ProductCard({ product }: { product: Product }) {
           onClick={handleWishlist}
           aria-label={wished ? "Remove from wishlist" : "Add to wishlist"}
           aria-pressed={wished}
-          className={`absolute top-2 right-2 z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-full grid place-items-center shadow-sm transition-colors ${
+          className={`tap-target absolute top-2 right-2 z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-full grid place-items-center shadow-sm transition-colors ${
             wished ? "bg-red-500 text-white" : "bg-white/90 text-neutral-700 hover:text-red-500"
           }`}
         >
@@ -126,7 +126,7 @@ export default function ProductCard({ product }: { product: Product }) {
             }}
             aria-label={comparing ? "Go to compare" : "Add to compare"}
             aria-pressed={comparing}
-            className={`h-7 sm:h-8 ${comparing ? "px-2" : "w-7 sm:w-8"} rounded-full flex items-center justify-center gap-1 shadow-sm transition-colors ${
+            className={`tap-target h-7 sm:h-8 ${comparing ? "px-2" : "w-7 sm:w-8"} rounded-full flex items-center justify-center gap-1 shadow-sm transition-colors ${
               comparing ? "bg-neutral-950 text-white" : "bg-white text-neutral-700"
             }`}
           >
@@ -136,7 +136,7 @@ export default function ProductCard({ product }: { product: Product }) {
           <Link
             href={href}
             aria-label="Quick view"
-            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full grid place-items-center bg-white text-neutral-700 shadow-sm"
+            className="tap-target w-7 h-7 sm:w-8 sm:h-8 rounded-full grid place-items-center bg-white text-neutral-700 shadow-sm"
           >
             <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
           </Link>

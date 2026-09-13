@@ -680,6 +680,21 @@ class OrderService:
         await self.apply_payment_window(order)
         return order
 
+    async def cancel_order_by_number(self, order_number: str, user: User, reason: str = "") -> Order:
+        """Customer-initiated cancellation via the support assistant:
+        ownership-checked, same state machine as the UI cancel endpoint."""
+        from modules.orders.schemas import OrderStatusUpdate
+        order = await self.get_order_by_number(order_number, user, is_staff=False)
+        if order.status in (OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DELIVERED,
+                            OrderStatus.CANCELLED, OrderStatus.REFUNDED):
+            raise DomainException(
+                f"Cannot cancel order in {order.status.value} state",
+                code="INVALID_TRANSITION", status_code=400,
+            )
+        return await self.update_order_status(
+            order.id, OrderStatusUpdate(status=OrderStatus.CANCELLED, reason=reason or None)
+        )
+
     async def delete_order(self, order_id: str) -> None:
         order = await self.get_order(order_id)
         order.deleted_at = datetime.now(timezone.utc)

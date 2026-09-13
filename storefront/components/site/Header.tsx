@@ -43,25 +43,46 @@ const NAV_LINKS = [
 /**
  * Black announcement ribbon. Scrolls as a marquee on EVERY viewport —
  * mobile included — instead of sitting still or being clipped away.
- * The two identical copies make the translateX(-50%) loop seamless.
+ * The two identical copies make the translateX(-50%) loop seamless; the
+ * second copy is hidden from assistive tech and unfocusable (A4) so screen
+ * readers announce the announcement once.
  */
 function TopRibbon() {
-  const copy = (
-    <div className="flex items-center gap-6 pr-6 whitespace-nowrap">
+  const renderCopy = (hidden: boolean) => (
+    <div
+      className="flex items-center gap-6 pr-6 whitespace-nowrap"
+      aria-hidden={hidden || undefined}
+    >
       <span>
         Enjoy free shipping on orders over ₹999!{" "}
-        <Link href="/shop" className="underline underline-offset-2 font-medium">
+        <Link
+          href="/shop"
+          tabIndex={hidden ? -1 : undefined}
+          className="underline underline-offset-2 font-medium"
+        >
           Shop Now
         </Link>
       </span>
       <span className="opacity-50">•</span>
-      <Link href="/order-tracking" className="opacity-80 hover:opacity-100">
+      <Link
+        href="/order-tracking"
+        tabIndex={hidden ? -1 : undefined}
+        className="opacity-80 hover:opacity-100"
+      >
         Order Tracking
       </Link>
-      <Link href="/about" className="opacity-80 hover:opacity-100">
+      <Link
+        href="/about"
+        tabIndex={hidden ? -1 : undefined}
+        className="opacity-80 hover:opacity-100"
+      >
         About Us
       </Link>
-      <Link href="/faq" className="opacity-80 hover:opacity-100">
+      <Link
+        href="/faq"
+        tabIndex={hidden ? -1 : undefined}
+        className="opacity-80 hover:opacity-100"
+      >
         FAQ
       </Link>
       <span className="opacity-50">•</span>
@@ -70,10 +91,10 @@ function TopRibbon() {
   );
 
   return (
-    <div className="bg-neutral-950 text-white text-xs overflow-hidden">
-      <div className="flex w-max animate-marquee">
-        {copy}
-        {copy}
+    <div className="bg-neutral-950 text-white text-xs overflow-hidden dark-surface">
+      <div className="flex w-max animate-marquee" aria-label="Announcements">
+        {renderCopy(false)}
+        <div aria-hidden="true">{renderCopy(true)}</div>
       </div>
     </div>
   );
@@ -91,6 +112,7 @@ export default function Header() {
   const [pincode, setPincode] = useState(DEFAULT_PINCODE);
   const [pincodeDraft, setPincodeDraft] = useState(DEFAULT_PINCODE);
   const [pinOpen, setPinOpen] = useState(false);
+  const [pinError, setPinError] = useState("");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -123,9 +145,10 @@ export default function Header() {
       setPincode(v);
       localStorage.setItem("elektrix-pincode", v);
       setPinOpen(false);
+      setPinError("");
       toast.success(`Delivering to ${v}`);
     } else {
-      toast.error("Enter a valid 6-digit pincode");
+      setPinError("Please enter a valid 6-digit pincode (e.g. 841508).");
     }
   };
 
@@ -151,6 +174,7 @@ export default function Header() {
             className="lg:hidden p-2 -ml-1"
             onClick={() => setMobileOpen((v) => !v)}
             aria-label="Menu"
+            aria-expanded={mobileOpen}
           >
             {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -161,7 +185,7 @@ export default function Header() {
               <img src="/branding/icon.png" alt="ELEKTRIX" className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg object-cover" />
               <span className="text-[16px] sm:text-2xl font-bold tracking-tight">ELEKTRIX</span>
             </div>
-            <span className="hidden sm:block text-[10px] text-neutral-500 mt-0.5 ml-10">
+            <span className="hidden lg:block text-[10px] text-neutral-500 mt-0.5 ml-10">
               India&apos;s Premium Electronics Store
             </span>
           </Link>
@@ -171,6 +195,7 @@ export default function Header() {
             onClick={() => setPinOpen((v) => !v)}
             className="hidden lg:flex flex-col items-start text-left shrink-0"
             aria-label="Change delivery pincode"
+            aria-expanded={pinOpen}
           >
             <span className="text-[11px] text-neutral-500">Delivering to</span>
             <span className="text-sm font-semibold flex items-center gap-1">
@@ -208,6 +233,7 @@ export default function Header() {
                   onClick={() => setUserMenuOpen((v) => !v)}
                   className="flex items-center gap-2 p-2 hover:bg-neutral-100 rounded-full"
                   aria-label="Account menu"
+                  aria-expanded={userMenuOpen}
                 >
                   <div className="w-7 h-7 rounded-full bg-neutral-950 text-white grid place-items-center text-xs font-bold">
                     {(displayName?.[0] || "U").toUpperCase()}
@@ -293,21 +319,25 @@ export default function Header() {
               aria-label={`Wishlist (${wishlist.count} items)`}
             >
               <Heart className="w-5 h-5" />
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-neutral-950 text-white text-[10px] grid place-items-center">
-                {wishlist.count}
-              </span>
+              {wishlist.count > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-neutral-950 text-white text-[10px] grid place-items-center">
+                  {wishlist.count}
+                </span>
+              )}
             </Link>
 
             {/* Cart */}
             <button
               onClick={() => setDrawerOpen(true)}
               className="relative p-2 hover:bg-neutral-100 rounded-full hidden lg:block"
-              aria-label="Cart"
+              aria-label={`Cart (${count} items)`}
             >
               <ShoppingBag className="w-5 h-5" />
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-neutral-950 text-white text-[10px] grid place-items-center">
-                {count}
-              </span>
+              {count > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-neutral-950 text-white text-[10px] grid place-items-center">
+                  {count}
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -328,7 +358,7 @@ export default function Header() {
         </button>
 
         {/* Desktop category nav */}
-        <nav className="hidden lg:block border-t border-neutral-100">
+        <nav aria-label="Primary" className="hidden lg:block border-t border-neutral-100">
           <div className="max-w-[1400px] mx-auto px-4 h-11 flex items-center gap-7 text-sm">
             {NAV_LINKS.map((l) => (
               <Link
@@ -352,12 +382,20 @@ export default function Header() {
               <div className="flex gap-2 mt-3">
                 <input
                   value={pincodeDraft}
-                  onChange={(e) => setPincodeDraft(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  onChange={(e) => {
+                    setPincodeDraft(e.target.value.replace(/\D/g, "").slice(0, 6));
+                    if (pinError) setPinError("");
+                  }}
+                  onKeyDown={(e) => e.key === "Enter" && applyPincode()}
                   inputMode="numeric"
                   maxLength={6}
                   placeholder="Enter 6-digit pincode"
                   aria-label="Pincode"
-                  className="flex-1 min-w-0 h-10 rounded-lg border border-neutral-300 px-3 text-sm outline-none focus:border-neutral-950"
+                  aria-invalid={!!pinError || undefined}
+                  aria-describedby={pinError ? "header-pincode-error" : undefined}
+                  className={`flex-1 min-w-0 h-10 rounded-lg border px-3 text-sm outline-none focus:border-neutral-950 ${
+                    pinError ? "border-red-400" : "border-neutral-300"
+                  }`}
                 />
                 <button
                   onClick={applyPincode}
@@ -366,9 +404,15 @@ export default function Header() {
                   Apply
                 </button>
               </div>
-              <p className="text-[11px] text-neutral-400 mt-2">
-                Enter pincode to check delivery options
-              </p>
+              {pinError ? (
+                <p id="header-pincode-error" role="alert" className="text-[11px] text-red-600 mt-2">
+                  {pinError}
+                </p>
+              ) : (
+                <p className="text-[11px] text-neutral-400 mt-2">
+                  Enter pincode to check delivery options
+                </p>
+              )}
             </div>
           </>
         )}
@@ -391,7 +435,7 @@ export default function Header() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <nav className="flex-1 flex flex-col p-4 gap-4 text-[15px] font-medium overflow-y-auto">
+            <nav aria-label="Mobile menu" className="flex-1 flex flex-col p-4 gap-4 text-[15px] font-medium overflow-y-auto">
               
               {NAV_LINKS.map((l) => (
                 <Link key={l.label} href={l.href} onClick={() => setMobileOpen(false)}>

@@ -13,8 +13,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: "Product not found — ELEKTRIX" };
   }
 
+  // Meta descriptions must be plain text — product.description is WYSIWYG HTML.
+  const plainDescription = product.description
+    ?.replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   const description =
-    product.description?.slice(0, 160) ||
+    plainDescription?.slice(0, 160) ||
     `${product.name} by ${product.brand} at ELEKTRIX — genuine products, fast delivery with Easy Replacement.`;
 
   return {
@@ -48,32 +53,22 @@ export default async function ProductPage({ params }: PageProps) {
 
   if (!product) notFound();
 
+  const plainDescription = product.description
+    ?.replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
     image: product.images.slice(0, 4),
-    description: product.description || product.tagline,
+    description: plainDescription || product.tagline,
     sku: product.sku || product.id,
     brand: { "@type": "Brand", name: product.brand },
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: "4.8",
-      reviewCount: "24"
-    },
-    review: [
-      {
-        "@type": "Review",
-        reviewRating: {
-          "@type": "Rating",
-          ratingValue: "5"
-        },
-        author: {
-          "@type": "Person",
-          name: "Verified Buyer"
-        }
-      }
-    ],
+    // No aggregateRating/review markup: the platform has no review system
+    // yet, and fabricated ratings in structured data violate search-engine
+    // structured-data policies.
     offers: {
       "@type": "Offer",
       url: `${process.env.NEXT_PUBLIC_STOREFRONT_URL || 'https://elektrix.in'}/product/${product.slug}`,

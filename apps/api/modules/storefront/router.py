@@ -121,6 +121,10 @@ async def store_config(session: AsyncSession = Depends(optional_db_context)):
         "banner_subtitle": (db_cfg.get("banner") or {}).get("subtitle"),
         "banner_image": (db_cfg.get("banner") or {}).get("image_url"),
         "banner_link": (db_cfg.get("banner") or {}).get("link"),
+        # Optional display window (ISO dates) — the storefront auto-hides the
+        # banner outside it, so seasonal promos can't go stale.
+        "banner_starts_at": (db_cfg.get("banner") or {}).get("starts_at"),
+        "banner_ends_at": (db_cfg.get("banner") or {}).get("ends_at"),
         "announcement": db_cfg.get("announcement"),
         "hero_slides": db_cfg.get("hero_slides", []),
         "promo_tiles": db_cfg.get("promo_tiles", []),

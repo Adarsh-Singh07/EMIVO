@@ -494,6 +494,17 @@ function fallbackImage(seed: string, index: number): string {
 /* Mappers                                                             */
 /* ------------------------------------------------------------------ */
 
+/** Strip HTML, then take the first sentence clipped at a word boundary (V6). */
+function deriveTagline(description: string | undefined, fallback: string): string {
+  if (!description) return fallback;
+  const text = description.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  if (!text) return fallback;
+  const firstSentence = text.split(/[.\n]/)[0]?.trim() || text;
+  if (firstSentence.length <= 90) return firstSentence;
+  const clipped = firstSentence.slice(0, 90).replace(/\s+\S*$/, "");
+  return `${clipped || firstSentence.slice(0, 90)}…`;
+}
+
 /** Map a v0.2 StoreProduct (paise) to the UI Product shape (paise). */
 export function mapStoreProduct(p: StoreProduct): Product {
   const images =
@@ -526,7 +537,7 @@ export function mapStoreProduct(p: StoreProduct): Product {
     images,
     img: images[0],
     imgHover: images[1] || images[0],
-    tagline: p.description ? p.description.replace(/<[^>]*>/g, ' ').trim().split(/[.\n]/)[0]?.slice(0, 90) : p.name,
+    tagline: deriveTagline(p.description, p.name),
     highlights: [],
     description: p.description || undefined,
     specs: p.specs || undefined,

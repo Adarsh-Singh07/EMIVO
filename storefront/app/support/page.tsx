@@ -108,7 +108,15 @@ function SupportContent() {
                 <select value={form.order_id} onChange={(e) => setForm({ ...form, order_id: e.target.value })}
                   className="h-11 px-3 rounded-xl border border-neutral-300 text-sm outline-none focus:border-neutral-950">
                   <option value="">No specific order</option>
-                  {orders.map((o) => <option key={o.id} value={o.id}>{o.order_number || o.id.slice(0, 8)} — {o.status}</option>)}
+                  {orders.map((o) => {
+                    const prod = o.items?.[0]?.product_name || "Order";
+                    const more = (o.items?.length || 0) > 1 ? ` +${o.items.length - 1} more` : "";
+                    return (
+                      <option key={o.id} value={o.id}>
+                        {prod}{more} — {o.order_number || o.id.slice(0, 8)} · {new Date(o.created_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
               <input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })}
