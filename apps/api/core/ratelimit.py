@@ -28,6 +28,7 @@ RATE_RULES: list[tuple[str, int, int]] = [
     ("/api/v1/orders/checkout", 10, 60),
     ("/api/v1/newsletter/subscribe", 5, 300),
     ("/api/v1/store/products/search", 60, 60),
+    ("/api/v1/store/contact", 3, 300),
     ("/api/v1/payments/webhook", 120, 60),
 ]
 
@@ -72,13 +73,23 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     @staticmethod
     def _identity(request: Request) -> str:
-        # Prefer authenticated user id; fall back to client IP
+        # Prefer authenticated user id; fall back to client IP.
         auth = request.headers.get("authorization", "")
         if auth.startswith("Bearer "):
             # Hash the token so raw tokens never land in Redis keys/logs
             import hashlib
 
             return "u:" + hashlib.sha256(auth[7:].encode()).hexdigest()[:24]
+        # X-Real-IP is set by our nginx to $remote_addr. The FIRST
+        # X-Forwarded-For entry is client-controlled and must never be used
+        # as an identity (rate-limit bypass via header spoofing) — if we ever
+        # fall back to XFF, only the LAST entry (appended by our own proxy)
+        # is trustworthy.
+        real_ip = request.headers.get("x-real-ip", "").strip()
+        if real_ip:
+            return "ip:" + real_ip
         forwarded = request.headers.get("x-forwarded-for", "")
-        ip = forwarded.split(",")[0].strip() or (request.client.host if request.client else "unknown")
-        return "ip:" + ip
+        ip = forwarded.split(",")[-1].strip() if forwarded else ""
+        if ip:
+            return "ip:" + ip
+        return "ip:" + (request.client.host if request.client else "unknown")
