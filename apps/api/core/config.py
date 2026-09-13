@@ -105,6 +105,8 @@ class Settings(BaseSettings):
     resend_api_key: SecretStr = Field(default=SecretStr(""))
     email_from: str = Field(default="ELEKTRIX <support@elektrix.in>")
 
+    # AI support chatbot
+    gemini_api_key: SecretStr = Field(default=SecretStr(""))
     # AI support chatbot — comma-separated Gemini models tried IN ORDER on
     # 429/5xx, so one exhausted quota never breaks the chat.
     gemini_chat_models: str = Field(
