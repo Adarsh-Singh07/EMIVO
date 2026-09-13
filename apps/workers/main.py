@@ -128,9 +128,49 @@ async def shutdown(ctx):
 redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 
+async def expire_stale_orders(ctx) -> int:
+    """Cancel unpaid/failed ONLINE orders past their 2-hour payment window and
+    return their stock to the pool. Keeps the admin dashboard and customer
+    order lists honest without anyone having to open the order first."""
+    from datetime import datetime, timedelta, timezone
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+    from core.database import engine
+    from modules.orders.models import Order, OrderStatus
+    from modules.orders.service import OrderService
+
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    count = 0
+    async with maker() as session:
+        svc = OrderService(session)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=2)
+        rows = (await session.execute(
+            select(Order).where(
+                Order.deleted_at.is_(None),
+                Order.status.in_([OrderStatus.PENDING, OrderStatus.PAYMENT_FAILED]),
+                Order.payment_method == "ONLINE",
+                Order.updated_at < cutoff,
+            ).limit(200)
+        )).scalars().all()
+        for order in rows:
+            try:
+                before = order.status
+                await svc.apply_payment_window(order)
+                if order.status != before:
+                    count += 1
+            except Exception as exc:
+                logger.warning("expire_stale_orders: order %s failed: %s", order.id, exc)
+    if count:
+        logger.info("expire_stale_orders: cancelled %s stale orders", count)
+    return count
+
+
 class WorkerSettings:
-    functions = [process_outbox_event]
-    cron_jobs = [cron(poll_outbox, second={0, 10, 20, 30, 40, 50}, run_at_startup=True)]  # every 10 seconds
+    functions = [process_outbox_event, expire_stale_orders]
+    cron_jobs = [
+        cron(poll_outbox, second={0, 10, 20, 30, 40, 50}, run_at_startup=True),  # every 10 seconds
+        cron(expire_stale_orders, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # every 5 min
+    ]
     on_startup = startup
     on_shutdown = shutdown
     redis_settings = RedisSettings.from_dsn(redis_url)

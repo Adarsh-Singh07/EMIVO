@@ -68,6 +68,25 @@ class OrderService:
         a threshold has been crossed, so it is safe to call repeatedly."""
         from datetime import timedelta
 
+        # Stale unpaid ONLINE orders: 2 hours after placement, cancel + release
+        if order.status == OrderStatus.PENDING:
+            if (order.payment_method or "").upper() != "ONLINE":
+                return
+            created = order.created_at
+            if created is not None:
+                if created.tzinfo is None:
+                    created = created.replace(tzinfo=timezone.utc)
+                if datetime.now(timezone.utc) - created >= timedelta(hours=2):
+                    if order.stock_released_at is None:
+                        await self.inventory.release_for_order(order)
+                        order.stock_released_at = datetime.now(timezone.utc)
+                    order.status = OrderStatus.CANCELLED
+                    order.notes = (order.notes or "").strip() + "\n[unpaid order expired after 2 hours]"
+                    await self.repository.update(order)
+                    await self.session.commit()
+                    await self.session.refresh(order)
+            return
+
         if order.status != OrderStatus.PAYMENT_FAILED or (order.payment_method or "").upper() == "COD":
             return
         failed_at = order.updated_at
