@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -249,6 +250,7 @@ function OrderDetail({
   onBack: () => void;
   onCancelled: (id: string, updated: OrderV2) => void;
 }) {
+  const router = useRouter();
   const [showCancelModal, setShowCancelModal] = useState(false);
   const st = statusStyle(order.status);
   const canCancel = CAN_CANCEL.has(order.status?.toUpperCase());
@@ -268,8 +270,9 @@ function OrderDetail({
       results.forEach((res) => {
         if (res.status === "fulfilled" && res.value) {
           const prod: any = res.value;
+          const firstImg = Array.isArray(prod.images) ? prod.images[0] : undefined;
           meta[prod.id] = {
-            img: prod.image || prod.img || prod.images?.[0]?.url,
+            img: prod.image || prod.img || (typeof firstImg === "string" ? firstImg : firstImg?.url),
             slug: prod.slug || prod.id,
           };
         }
@@ -497,6 +500,23 @@ function OrderDetail({
             </div>
           </div>
         )}
+        {order.status?.toUpperCase() === "PENDING" && (order.payment_method || "").toUpperCase() === "ONLINE" && (
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-100">
+            <Ban className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-amber-700">Payment not completed yet</p>
+              <p className="text-xs text-amber-600/80 mt-0.5">
+                This order is saved but needs payment. Complete it now — stock is held for 2 hours from placement.
+              </p>
+              <button
+                onClick={() => router.push(`/pay/${encodeURIComponent(order.id)}`)}
+                className="mt-2.5 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-neutral-950 text-white text-xs font-semibold hover:bg-neutral-800"
+              >
+                <CreditCard className="w-3.5 h-3.5" /> Complete Payment
+              </button>
+            </div>
+          </div>
+        )}
         {order.status?.toUpperCase() === "PAYMENT_FAILED" && (
           <PaymentRetryActions
             order={order}
@@ -667,11 +687,7 @@ export default function CustomerOrdersPage() {
     setFetching(true);
     storeApi
       .listOrders({ page: 1, page_size: 50 })
-      .then((data) => setOrders(
-        // Only hide bare PENDING (payment not yet initiated).
-        // PAYMENT_FAILED orders ARE shown so the user can retry.
-        (data.items || []).filter((o: OrderV2) => o.status !== "PENDING")
-      ))
+      .then((data) => setOrders(data.items || []))
       .catch((err) =>
         setError(err instanceof Error ? err.message : "Failed to load orders")
       )
