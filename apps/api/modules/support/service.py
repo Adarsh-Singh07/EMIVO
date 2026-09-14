@@ -28,6 +28,13 @@ class SupportService:
                             description: str, order_id: Optional[str] = None,
                             order_number: Optional[str] = None) -> SupportTicket:
         await self._bind(user_id)
+        # Human-facing incident number: INC<DDMMYY><3-digit daily sequence>
+        from datetime import datetime as _dt, timezone as _tz
+        day = _dt.now(_tz.utc).strftime("%d%m%y")
+        cnt = (await self.session.execute(text(
+            "SELECT count(*) FROM support_tickets WHERE ticket_number LIKE :p"
+        ), {"p": f"INC{day}%"})).scalar() or 0
+        candidate = f"INC{day}{int(cnt) + 1:03d}"
         ticket = SupportTicket(
             user_id=str(user_id), order_id=order_id, order_number=order_number,
             category=category, subject=subject.strip()[:200], ticket_number=candidate,
