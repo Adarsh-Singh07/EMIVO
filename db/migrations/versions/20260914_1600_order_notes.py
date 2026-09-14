@@ -33,7 +33,7 @@ def upgrade():
             "CREATE INDEX ix_order_notes_order ON order_notes(order_id)",
         ]
 
-    # Staff-only RLS: elektrix_is_staff() reads app.role, so customer and
+    # Staff-only RLS: NULLIF(current_setting('app.role', true), '') IN ('platform_admin', 'owner', 'staff') reads app.role, so customer and
     # anonymous sessions see nothing even though orders themselves are
     # readable by their owners.
     stmts += [
@@ -42,11 +42,11 @@ def upgrade():
         "DROP POLICY IF EXISTS order_notes_staff_all ON order_notes",
         """CREATE POLICY order_notes_staff_all ON order_notes FOR ALL
             USING (
-                elektrix_is_staff()
+                NULLIF(current_setting('app.role', true), '') IN ('platform_admin', 'owner', 'staff')
                 AND business_id::text = NULLIF(current_setting('app.business_id', true), '')
             )
             WITH CHECK (
-                elektrix_is_staff()
+                NULLIF(current_setting('app.role', true), '') IN ('platform_admin', 'owner', 'staff')
                 AND business_id::text = NULLIF(current_setting('app.business_id', true), '')
             )""",
         """DO $$ BEGIN

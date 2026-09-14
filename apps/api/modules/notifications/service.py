@@ -123,7 +123,15 @@ class NotificationService:
                     email, subject, html, from_address=from_address, reply_to=reply_to
                 )
 
-        # 2. In-app
+        # 2. WhatsApp (optional, env-gated; order.* events only)
+        if event_type.startswith("order."):
+            try:
+                from modules.notifications.whatsapp import maybe_send_order_whatsapp
+                await maybe_send_order_whatsapp(self.session, event_type, payload)
+            except Exception:
+                logger.warning("whatsapp dispatch failed for %s", event_type, exc_info=True)
+
+        # 3. In-app
         if event_type in IN_APP and user_id:
             title_tpl, body_tpl = IN_APP[event_type]
             self.session.add(Notification(

@@ -12,6 +12,8 @@ import asyncio
 import os
 import structlog
 from arq import cron
+
+from apps.workers.inbound import email_inbound  # noqa: E402
 from arq.connections import RedisSettings
 from typing import Any, Dict
 
@@ -399,7 +401,7 @@ async def weekly_digest(ctx) -> int:
 
 class WorkerSettings:
     functions = [process_outbox_event, expire_stale_orders, cart_reminders, low_stock_alert,
-                 flash_sale_sync, weekly_digest]
+                 flash_sale_sync, weekly_digest, email_inbound]
     cron_jobs = [
         cron(poll_outbox, second={0, 10, 20, 30, 40, 50}, run_at_startup=True),  # every 10 seconds
         cron(expire_stale_orders, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # every 5 min
@@ -407,7 +409,8 @@ class WorkerSettings:
         cron(cart_reminders, minute=25, second=0),  # every hour at :25
         cron(low_stock_alert, minute=40, second=0),  # every hour at :40
         # Monday 09:00 IST (03:30 UTC). arq weekday: 0 = Monday.
-        cron(weekly_digest, day_of_week=0, hour=3, minute=30, second=0),
+        cron(weekly_digest, weekday=0, hour=3, minute=30, second=0),  # 0 = Monday
+        cron(email_inbound, minute={5, 15, 25, 35, 45, 55}),  # every 10 min
     ]
     on_startup = startup
     on_shutdown = shutdown

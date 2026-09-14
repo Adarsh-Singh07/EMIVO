@@ -112,6 +112,13 @@ class Settings(BaseSettings):
     email_smtp_user: str = Field(default="")
     email_smtp_password: SecretStr = Field(default=SecretStr(""))
     email_smtp_ssl: bool = Field(default=True)
+    # Inbound email -> support tickets (worker IMAP poller, off by default).
+    email_imap_enabled: bool = Field(default=False)
+    email_imap_host: str = Field(default="imap.larksuite.com")
+    email_imap_port: int = Field(default=993)
+    # Comma-separated inbox aliases the poller watches (mail to other
+    # addresses in the same mailbox is left alone).
+    email_imap_monitored: str = Field(default="support@elektrix.in")
 
     # AI support chatbot
     gemini_api_key: SecretStr = Field(default=SecretStr(""))
@@ -132,6 +139,12 @@ class Settings(BaseSettings):
     msg91_auth_key: SecretStr = Field(default=SecretStr(""))
     msg91_otp_template_id: str = Field(default="")
     msg91_sender_id: str = Field(default="ELEKTIX")
+    # WhatsApp order updates (optional). Requires WHATSAPP_ENABLED=true plus
+    # the MSG91 auth key and approved WABA template names, e.g.
+    # MSG91_WHATSAPP_TEMPLATES="order.shipped=ship_tpl,order.delivered=del_tpl"
+    whatsapp_enabled: bool = Field(default=False)
+    msg91_whatsapp_from: str = Field(default="")
+    msg91_whatsapp_templates: str = Field(default="")
 
     # Storefront URL (links inside emails)
     storefront_url: str = Field(default="https://elektrix.in")

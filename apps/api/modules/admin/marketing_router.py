@@ -86,7 +86,8 @@ SEGMENTS = {
 
 
 def _segment_sql(key: str, select_clause: str, extra_where: str = "") -> str:
-    return f"SELECT {select_clause} {SEGMENTS[key][2]} {_CUSTOMER_SQL} {extra_where}"
+    # Each fragment ends inside a WHERE; the customer exclusion joins with AND.
+    return f"SELECT {select_clause} {SEGMENTS[key][2]} AND {_CUSTOMER_SQL} {extra_where}"
 
 
 class SegmentInfo(BaseModel):
@@ -160,9 +161,9 @@ async def _ensure_coupon(session: AsyncSession, spec: CouponSpec, bid: str) -> N
         text("""
             INSERT INTO coupons (id, business_id, code, discount_type, discount_value,
                                  min_order_amount, start_date, end_date, is_active,
-                                 per_user_limit, usage_limit)
-            VALUES (gen_random_uuid()::text, :bid, :code, :dtype::discounttype, :dvalue,
-                    :minorder, now(), :end, true, 1, NULL)
+                                 per_user_limit, usage_limit, usage_count)
+            VALUES (gen_random_uuid()::text, :bid, :code, CAST(:dtype AS discounttype), :dvalue,
+                    :minorder, now(), :end, true, 1, NULL, 0)
         """),
         {"bid": bid, "code": spec.code, "dtype": spec.discount_type,
          "dvalue": spec.discount_value, "minorder": spec.min_order_amount,
