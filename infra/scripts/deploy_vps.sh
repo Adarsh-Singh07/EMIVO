@@ -73,6 +73,18 @@ check() {
 check "api live"    api.elektrix.in    /health/live
 check "api ready"   api.elektrix.in    /health/ready
 check "api catalog" api.elektrix.in    /api/v1/store/products?page_size=1
+check_retry() {
+    # Cold containers can exceed the curl timeout on their very first render;
+    # retry a few times before declaring a regression.
+    local name="$1" host="$2" path="${3:-/}" attempt
+    for attempt in 1 2 3 4; do
+        if curl -sk -f -H "Host: $host" --max-time 30 "https://localhost$path" -o /dev/null; then
+            echo "  OK   $name ($host$path)"; return 0
+        fi
+        echo "  ...  $name attempt $attempt failed — retrying in 10s"; sleep 10
+    done
+    echo "  FAIL $name ($host$path)"; return 1
+}
 check "storefront"  elektrix.in        /
 check "admin"       admin.elektrix.in  /
 
@@ -86,7 +98,7 @@ try:
 except Exception:
     print('')" || true)
 if [ -n "$PDP_SLUG" ]; then
-    check "storefront PDP (/product/$PDP_SLUG)" elektrix.in "/product/$PDP_SLUG"
+    check_retry "storefront PDP (/product/$PDP_SLUG)" elektrix.in "/product/$PDP_SLUG" || FAIL=1
 else
     echo "  SKIP storefront PDP (no product slug resolved)"
 fi
