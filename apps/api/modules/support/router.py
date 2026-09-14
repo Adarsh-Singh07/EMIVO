@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.database import get_db_session
+from core.dependencies import set_db_context
 from core.dependencies import get_current_user, require_staff
 from modules.support.schemas import TicketCreate, TicketMessageCreate, TicketOut, TicketStatusUpdate
 from modules.support.service import SupportService
@@ -11,7 +11,7 @@ from modules.users.models import User
 router = APIRouter(prefix="/api/v1/support", tags=["Support"])
 
 
-def _service(session: AsyncSession = Depends(get_db_session)) -> SupportService:
+def _service(session: AsyncSession = Depends(set_db_context)) -> SupportService:
     return SupportService(session)
 
 

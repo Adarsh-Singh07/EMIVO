@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
-from core.database import get_db_session
+from core.dependencies import set_db_context
 from core.dependencies import get_current_user
 from core.exceptions import DomainException
 from core.redis import redis_manager
@@ -28,7 +28,7 @@ class ChatOut(BaseModel):
 @router.post("", response_model=ChatOut)
 async def chat(
     payload: ChatIn,
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(set_db_context),
     user: User = Depends(get_current_user),
 ):
     # Daily per-user cap so the API key can't be drained by scripting.

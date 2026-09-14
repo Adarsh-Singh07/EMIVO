@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.database import get_db_session
+from core.dependencies import set_db_context, require_staff as _rs
 from core.dependencies import require_staff
 from modules.support.schemas import TicketMessageCreate, TicketOut, TicketStatusUpdate
 from modules.support.service import SupportService
@@ -12,7 +12,7 @@ from modules.users.models import User
 router = APIRouter(prefix="/api/v1/admin/support", tags=["Support"])
 
 
-def _service(session: AsyncSession = Depends(get_db_session)) -> SupportService:
+def _service(session: AsyncSession = Depends(set_db_context)) -> SupportService:
     return SupportService(session)
 
 
@@ -64,11 +64,11 @@ async def email_customer(ticket_id: str, payload: TicketMessageCreate,
 @router.patch("/tickets/{ticket_id}/status", response_model=TicketOut, dependencies=[Depends(require_staff)])
 async def set_status(ticket_id: str, payload: TicketStatusUpdate,
                      service: SupportService = Depends(_service), staff: User = Depends(require_staff)):
+    from sqlalchemy import text
     await service.add_message(
         ticket_id, str(staff.id), "admin",
-        f"[status] {payload.status}" if payload.status == "resolved" else f"[status] {payload.status}",
+        f"[status] {payload.status}", role="platform_admin", commit=False,
     )
-    from sqlalchemy import text
     await service.session.execute(
         text("UPDATE support_tickets SET status = :s WHERE id = :id"),
         {"s": payload.status, "id": ticket_id},

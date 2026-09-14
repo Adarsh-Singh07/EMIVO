@@ -48,7 +48,7 @@ class SupportService:
         await self.session.refresh(ticket)
         return ticket
 
-    async def add_message(self, ticket_id: str, user_id: str, sender: str, body: str, role: Optional[str] = None) -> SupportTicket:
+    async def add_message(self, ticket_id: str, user_id: str, sender: str, body: str, role: Optional[str] = None, commit: bool = True) -> SupportTicket:
         await self._bind(user_id, role)
         ticket = (await self.session.execute(
             text("SELECT * FROM support_tickets WHERE id = :id"), {"id": ticket_id}
@@ -60,7 +60,8 @@ class SupportService:
             await self.session.execute(text(
                 "UPDATE support_tickets SET status = 'open' WHERE id = :id AND status = 'resolved'"
             ), {"id": ticket_id})
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
         return await self.get_ticket(ticket_id, user_id)
 
     async def get_ticket(self, ticket_id: str, user_id: str, role: Optional[str] = None) -> SupportTicket:

@@ -33,7 +33,7 @@ export default function AdminSupportPage() {
     setLoading(false);
   }, [statusFilter, selected]);
 
-  useEffect(() => { load(); const t = setInterval(load, 10_000); return () => clearInterval(t); }, [load]);
+  useEffect(() => { load(); const t = setInterval(load, 3_000); return () => clearInterval(t); }, [load]);
 
   const send = async () => {
     if (!selected || !reply.trim()) return;
@@ -43,6 +43,20 @@ export default function AdminSupportPage() {
       setReply("");
       setSelected(await apiClient.get<Ticket>(`/admin/support/tickets/${selected.id}`));
     } catch (e: any) { toast.error(e?.message || "Failed to send"); }
+    finally { setBusy(false); }
+  };
+
+  /** Sends the typed reply to the customer by EMAIL too (and logs it on the
+   * ticket thread so there's a full record of what was emailed). */
+  const emailCustomer = async () => {
+    if (!selected || !reply.trim()) return;
+    setBusy(true);
+    try {
+      await apiClient.post(`/admin/support/tickets/${selected.id}/email`, { body: reply.trim() });
+      toast.success("Email sent to customer");
+      setReply("");
+      setSelected(await apiClient.get<Ticket>(`/admin/support/tickets/${selected.id}`));
+    } catch (e: any) { toast.error(e?.message || "Failed to send email"); }
     finally { setBusy(false); }
   };
 
@@ -118,8 +132,13 @@ export default function AdminSupportPage() {
                 <input value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Reply to customer…"
                   onKeyDown={(e) => e.key === "Enter" && send()}
                   className="flex-1 h-10 px-4 rounded-full border border-neutral-300 text-sm outline-none focus:border-neutral-900" />
-                <button onClick={send} disabled={busy || !reply.trim()} className="h-10 w-10 grid place-items-center rounded-full bg-neutral-950 text-white disabled:opacity-40 shrink-0">
+                <button onClick={send} disabled={busy || !reply.trim()} title="Send in chat"
+                  className="h-10 w-10 grid place-items-center rounded-full bg-neutral-950 text-white disabled:opacity-40 shrink-0">
                   <Send className="w-4 h-4" />
+                </button>
+                <button onClick={emailCustomer} disabled={busy || !reply.trim()} title="Also email this reply to the customer"
+                  className="h-10 px-4 grid place-items-center rounded-full border border-neutral-300 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-40 shrink-0">
+                  Email
                 </button>
               </div>
             </div>

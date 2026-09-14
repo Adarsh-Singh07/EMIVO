@@ -14,6 +14,9 @@ const nextConfig: NextConfig = {
   // Allow next/image to serve optimized images from these domains.
   // media.elektrix.in = Cloudflare R2 CDN (product images)
   images: {
+    // Vercel's image optimizer currently 400s every remote source for this
+    // deployment — serve original URLs directly (R2/unsplash are 200).
+    unoptimized: true,
     remotePatterns: [
       { protocol: "https", hostname: "raw.githubusercontent.com" },
       { protocol: "https", hostname: "images.unsplash.com" },

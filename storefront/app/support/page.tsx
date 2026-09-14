@@ -39,7 +39,7 @@ function SupportContent() {
       const pre = searchParams.get("order");
       if (pre) setForm((f) => ({ ...f, order_id: pre }));
     }).catch(() => {});
-    const t = setInterval(load, 10_000);
+    const t = setInterval(load, 3_000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
