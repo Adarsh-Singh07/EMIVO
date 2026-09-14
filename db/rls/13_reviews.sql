@@ -12,4 +12,6 @@ CREATE POLICY product_reviews_owner_write ON product_reviews
     USING ((user_id)::text = NULLIF(current_setting('app.user_id', true), ''))
     WITH CHECK ((user_id)::text = NULLIF(current_setting('app.user_id', true), ''));
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON product_reviews TO emivo_app;
+DO $$ BEGIN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON product_reviews TO emivo_app;
+EXCEPTION WHEN OTHERS THEN NULL; END $$;

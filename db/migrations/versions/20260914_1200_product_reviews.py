@@ -46,8 +46,11 @@ def upgrade():
         """CREATE POLICY product_reviews_owner_write ON product_reviews FOR ALL
             USING ((user_id)::text = NULLIF(current_setting('app.user_id', true), ''))
             WITH CHECK ((user_id)::text = NULLIF(current_setting('app.user_id', true), ''))""",
-        # Defensive grant (role may not exist in fresh test envs yet)
-        "GRANT SELECT, INSERT, UPDATE, DELETE ON product_reviews TO emivo_app",
+        # Grants are defensive: the emivo_app role may not exist yet when
+        # migrations run (test env creates it in the RLS step after this).
+        """DO $$ BEGIN
+            GRANT SELECT, INSERT, UPDATE, DELETE ON product_reviews TO emivo_app;
+        EXCEPTION WHEN OTHERS THEN NULL; END $$;"""
     ]
     for s in stmts:
         conn.execute(sa.text(s))
