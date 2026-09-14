@@ -73,6 +73,8 @@ class CatalogService:
                 for v in (d.get("variants") or [])
             ],
             stock=stock,
+            rating_avg=d.get("rating_avg"),
+            rating_count=int(d.get("rating_count") or 0),
             created_at=d.get("created_at"),
         )
 
@@ -130,9 +132,14 @@ class CatalogService:
         SELECT p.id, p.name, p.slug, p.description, p.brand, p.return_policy, p.warranty_info, p.sku, p.price, p.mrp,
                p.sale_price, p.offer_name, p.status, p.featured, p.specs, p.tags, p.category_id,
                p.created_at, c.name AS category_name, c.slug AS category_slug,
-               {EFFECTIVE_PRICE_SQL} AS effective_price
+               {EFFECTIVE_PRICE_SQL} AS effective_price,
+               rr.rating_avg AS rating_avg, rr.rating_count AS rating_count
         FROM products p
         LEFT JOIN categories c ON c.id = p.category_id
+        LEFT JOIN LATERAL (
+            SELECT ROUND(AVG(rating)::numeric, 2)::float AS rating_avg, COUNT(*) AS rating_count
+            FROM product_reviews WHERE product_id = p.id
+        ) rr ON true
     """
 
     async def list_products(

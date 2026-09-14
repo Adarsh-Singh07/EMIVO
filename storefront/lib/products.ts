@@ -545,6 +545,8 @@ export function mapStoreProduct(p: StoreProduct): Product {
     sku: p.sku || undefined,
     onOffer: p.on_offer,
     offerName: (p as any).offer_name,
+    rating: (p as any).rating_avg ?? undefined,
+    reviews: (p as any).rating_count ?? undefined,
     createdAt: p.created_at || undefined,
   };
 }

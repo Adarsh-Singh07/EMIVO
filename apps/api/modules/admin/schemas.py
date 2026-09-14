@@ -49,6 +49,10 @@ class StoreSettingsUpdate(BaseModel):
     banner_image_url: Optional[str] = None
     banner_link: Optional[str] = None
     banner_active: Optional[bool] = None
+    # Optional ISO dates (YYYY-MM-DD) — the storefront hides the banner
+    # outside this window so seasonal promos self-expire.
+    banner_starts_at: Optional[str] = None
+    banner_ends_at: Optional[str] = None
     announcement: Optional[str] = None
     hero_slides: Optional[List[dict]] = None
     promo_tiles: Optional[List[dict]] = None

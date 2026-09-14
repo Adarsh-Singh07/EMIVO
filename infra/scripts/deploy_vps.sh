@@ -76,6 +76,21 @@ check "api catalog" api.elektrix.in    /api/v1/store/products?page_size=1
 check "storefront"  elektrix.in        /
 check "admin"       admin.elektrix.in  /
 
+# PDP smoke (regression guard: an SSR crash — e.g. DOMPurify on the server —
+# returns 500 on every product route). Resolve a live slug and require a 200.
+PDP_SLUG=$(curl -sk --max-time 20 -H "Host: api.elektrix.in" "https://localhost/api/v1/store/products?page_size=1" \
+    | python3 -c "import sys,json
+try:
+    d=json.load(sys.stdin); items=d.get('items') if isinstance(d,dict) else d
+    print((items[0].get('slug') or '') if isinstance(items,list) and items else '')
+except Exception:
+    print('')" || true)
+if [ -n "$PDP_SLUG" ]; then
+    check "storefront PDP (/product/$PDP_SLUG)" elektrix.in "/product/$PDP_SLUG"
+else
+    echo "  SKIP storefront PDP (no product slug resolved)"
+fi
+
 if [ "$FAIL" = "1" ]; then
     echo "=== SMOKE FAILED — rolling back to $PREVIOUS_COMMIT ==="
     git reset --hard "$PREVIOUS_COMMIT"

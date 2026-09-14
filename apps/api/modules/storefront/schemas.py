@@ -64,6 +64,10 @@ class StoreProduct(BaseModel):
     variants: List[StoreVariant] = []
     stock: Optional[StockInfo] = None
 
+    # Live review aggregates (product_reviews table; None/0 when no reviews)
+    rating_avg: Optional[float] = None
+    rating_count: int = 0
+
     created_at: Optional[datetime] = None
 
 

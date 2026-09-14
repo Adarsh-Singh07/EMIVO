@@ -57,7 +57,25 @@ export interface StoreProduct {
   images?: string[];
   variants?: StoreVariant[];
   stock?: StoreStock | null;
+  rating_avg?: number | null;
+  rating_count?: number;
   created_at?: string;
+}
+
+export interface ProductReview {
+  id: string;
+  rating: number;
+  title?: string | null;
+  body?: string | null;
+  verified_purchase: boolean;
+  author_name?: string | null;
+  created_at: string;
+}
+
+export interface ProductReviewsResponse {
+  summary: { average: number | null; count: number };
+  items: ProductReview[];
+  mine: ProductReview | null;
 }
 
 export interface StoreCategory {
@@ -350,6 +368,31 @@ export const storeApi = {
   getRelated(slugOrId: string, limit = 8): Promise<StoreProduct[]> {
     return fetchApi<StoreProduct[]>(
       `/store/products/${encodeURIComponent(slugOrId)}/related?limit=${limit}`
+    );
+  },
+
+  /* ----- Product reviews ----- */
+
+  getProductReviews(slugOrId: string): Promise<ProductReviewsResponse> {
+    return fetchApi<ProductReviewsResponse>(
+      `/store/products/${encodeURIComponent(slugOrId)}/reviews`
+    );
+  },
+
+  upsertProductReview(
+    slugOrId: string,
+    data: { rating: number; title?: string; body?: string }
+  ): Promise<ProductReview> {
+    return fetchApi<ProductReview>(
+      `/store/products/${encodeURIComponent(slugOrId)}/reviews`,
+      { method: "PUT", body: JSON.stringify(data) }
+    );
+  },
+
+  deleteProductReview(slugOrId: string): Promise<void> {
+    return fetchApi<void>(
+      `/store/products/${encodeURIComponent(slugOrId)}/reviews`,
+      { method: "DELETE" }
     );
   },
 

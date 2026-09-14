@@ -162,6 +162,7 @@ class AdminService:
             "banner_title": "title", "banner_subtitle": "subtitle",
             "banner_image_url": "image_url", "banner_link": "link",
             "banner_active": "active",
+            "banner_starts_at": "starts_at", "banner_ends_at": "ends_at",
         }
         for key, value in fields.items():
             if key in banner_field_map:

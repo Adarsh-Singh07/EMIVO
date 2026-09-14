@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import PincodeChecker from "./PincodeChecker";
 import ProductCard from "./ProductCard";
+import ProductReviews from "./ProductReviews";
 import { useCart } from "./CartProvider";
 import { useWishlist } from "@/lib/wishlist-context";
 import { COMPARE_MAX, toggleCompare, useCompareIds, pushRecent } from "@/lib/compare";
@@ -284,6 +285,33 @@ export default function ProductDetail({
 
           <p className="text-neutral-600 mt-3">{product.tagline}</p>
 
+          {/* Live rating summary (hidden when no reviews exist — no fake stars) */}
+          {typeof product.rating === "number" && !!product.reviews && product.reviews > 0 && (
+            <button
+              type="button"
+              onClick={() => setTab("reviews")}
+              className="mt-3 inline-flex items-center gap-2 text-sm"
+              aria-label={`Rated ${product.rating} out of 5 from ${product.reviews} reviews — jump to reviews`}
+            >
+              <span className="inline-flex items-center gap-0.5">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <Star
+                    key={n}
+                    className={`w-4 h-4 ${
+                      n <= Math.round(product.rating!)
+                        ? "fill-amber-400 text-amber-400"
+                        : "text-neutral-300"
+                    }`}
+                  />
+                ))}
+              </span>
+              <span className="font-semibold">{product.rating.toFixed(1)}</span>
+              <span className="text-neutral-500 underline underline-offset-2">
+                {product.reviews} review{product.reviews === 1 ? "" : "s"}
+              </span>
+            </button>
+          )}
+
           <div className="flex items-end gap-3 mt-5">
             <span className="text-3xl font-semibold">{inr(displayPrice)}</span>
             {product.mrp > displayPrice && (
@@ -541,14 +569,7 @@ export default function ProductDetail({
             </div>
           )}
 
-          {tab === "reviews" && (
-            <div className="space-y-4">
-              <p className="text-sm text-neutral-500">
-                No reviews have been written for this product yet. Purchased it? Your feedback
-                helps other shoppers.
-              </p>
-            </div>
-          )}
+          {tab === "reviews" && <ProductReviews slug={product.slug} />}
         </div>
       </div>
 

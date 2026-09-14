@@ -23,6 +23,8 @@ interface StoreBanner {
   image_url?: string | null;
   link?: string | null;
   active?: boolean;
+  starts_at?: string | null;
+  ends_at?: string | null;
 }
 
 interface StoreSettings {
@@ -105,6 +107,8 @@ export default function SettingsPage() {
   const [bannerImage, setBannerImage] = useState("");
   const [bannerLink, setBannerLink] = useState("");
   const [bannerActive, setBannerActive] = useState(false);
+  const [bannerStartsAt, setBannerStartsAt] = useState("");
+  const [bannerEndsAt, setBannerEndsAt] = useState("");
   const [announcement, setAnnouncement] = useState("");
   const [heroSlides, setHeroSlides] = useState<any[]>([]);
   const [promoTiles, setPromoTiles] = useState<any[]>([]);
@@ -144,6 +148,8 @@ export default function SettingsPage() {
       setBannerImage(data.banner?.image_url || "");
       setBannerLink(data.banner?.link || "");
       setBannerActive(!!data.banner?.active);
+      setBannerStartsAt(data.banner?.starts_at || "");
+      setBannerEndsAt(data.banner?.ends_at || "");
       setAnnouncement(data.announcement || "");
       setHeroSlides(data.hero_slides || []);
       setPromoTiles(data.promo_tiles || []);
@@ -195,6 +201,8 @@ export default function SettingsPage() {
         banner_image_url: bannerImage.trim() || null,
         banner_link: bannerLink.trim() || null,
         banner_active: bannerActive,
+        banner_starts_at: bannerStartsAt || null,
+        banner_ends_at: bannerEndsAt || null,
         announcement: announcement.trim() || null,
         hero_slides: heroSlides,
         promo_tiles: promoTiles,
@@ -387,6 +395,14 @@ export default function SettingsPage() {
                 <div>
                   <label className={labelClass}>Link</label>
                   <input className={inputClass} value={bannerLink} onChange={(e) => setBannerLink(e.target.value)} placeholder="/shop or https://..." />
+                </div>
+                <div>
+                  <label className={labelClass}>Starts on (optional)</label>
+                  <input type="date" className={inputClass} value={bannerStartsAt} onChange={(e) => setBannerStartsAt(e.target.value)} />
+                </div>
+                <div>
+                  <label className={labelClass}>Ends on (optional — banner auto-hides after this date)</label>
+                  <input type="date" className={inputClass} value={bannerEndsAt} onChange={(e) => setBannerEndsAt(e.target.value)} />
                 </div>
               </div>
               {bannerImage && (
