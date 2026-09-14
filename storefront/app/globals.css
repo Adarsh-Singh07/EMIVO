@@ -77,16 +77,17 @@ footer :focus-visible,
   transform: translateY(0);
 }
 
-/* Single scrollbar-hide utility (merged former .no-scrollbar duplicate) */
-.scrollbar-hide,
-.no-scrollbar::-webkit-scrollbar,
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
+/* Single scrollbar-hide utility (merged former .no-scrollbar duplicate).
+ * display:none applies to the ::-webkit-scrollbar PSEUDO-ELEMENT only —
+ * never to the strip container itself. */
 .scrollbar-hide,
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 
 /*
