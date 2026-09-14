@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Shipping Policy | ELEKTRIX",
+  title: "Shipping Policy",
   description: "Shipping Policy for ELEKTRIX",
 };
 

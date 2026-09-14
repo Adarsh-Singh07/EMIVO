@@ -361,7 +361,6 @@ function CheckoutContent() {
             return;
           }
           if (result.redirect) {
-             console.log("Payment will be redirected");
              return;
           }
           if (result.paymentDetails) {

@@ -428,7 +428,7 @@ export default function Header() {
           />
           
           {/* Drawer */}
-          <div className="absolute inset-y-0 left-0 w-4/5 max-w-sm bg-white shadow-xl animate-in slide-in-from-left flex flex-col">
+          <div className="absolute inset-y-0 left-0 w-4/5 max-w-sm bg-white shadow-xl drawer-in flex flex-col">
             <div className="p-4 border-b border-neutral-100 flex items-center justify-between shrink-0">
               <span className="font-bold text-lg tracking-tight">MENU</span>
               <button onClick={() => setMobileOpen(false)} className="p-2 -mr-2 text-neutral-500 hover:text-neutral-900">

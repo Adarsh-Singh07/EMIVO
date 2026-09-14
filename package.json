@@ -11,6 +11,7 @@
     "typecheck:storefront": "cd storefront && npm run typecheck",
     "typecheck:admin": "cd admin && npm run typecheck",
     "build:storefront": "cd storefront && npm run build",
-    "build:admin": "cd admin && npm run build"
+    "build:admin": "cd admin && npm run build",
+    "check": "npm run typecheck:storefront && npm run typecheck:admin && bash scripts/security/check_secrets.sh && docker compose --env-file .env.example -f compose.dev.yaml config -q && docker compose --env-file .env.example -f compose.prod.vm1.yaml config -q"
   }
 }

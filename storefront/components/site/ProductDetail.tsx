@@ -431,7 +431,7 @@ export default function ProductDetail({
             {orderedOrderId ? (
               <Link
                 href={`/order-tracking?order=${orderedOrderId}`}
-                className="flex-1 h-16 inline-flex items-center justify-center gap-2 bg-blue-600 text-white rounded-2xl text-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                className="flex-1 h-16 inline-flex items-center justify-center gap-2 bg-neutral-950 text-white rounded-2xl text-lg font-semibold hover:bg-neutral-800 transition-colors shadow-sm"
               >
                 <Truck className="w-5 h-5" /> Track Your Order
               </Link>
@@ -494,7 +494,7 @@ export default function ProductDetail({
               <RotateCcw className="w-5 h-5 text-neutral-400 shrink-0" /> {product.return_policy || "Easy Replacement on Damaged/Defective Delivery"}
             </div>
             <div className="flex items-center gap-2 text-xs text-neutral-600 shrink-0 snap-start">
-              <ShieldCheck className="w-5 h-5 text-neutral-400 shrink-0" /> {product.warranty_info || "1-year warranty"}
+              <ShieldCheck className="w-5 h-5 text-neutral-400 shrink-0" /> {product.warranty_info || "Brand warranty"}
             </div>
           </div>
         </div>

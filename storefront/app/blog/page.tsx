@@ -1,12 +1,19 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { ArrowRight } from "lucide-react";
 import { POSTS } from "@/lib/blog";
+
+export const metadata: Metadata = {
+  title: "Blog",
+  description:
+    "Buying guides and explainers for smartphones, laptops and audio — pick the right electronics for your needs and budget.",
+};
 
 export default function BlogPage() {
   return (
     <div className="max-w-[1100px] mx-auto px-4 sm:px-6 lg:px-8 py-16">
       <p className="text-xs uppercase tracking-[0.2em] text-neutral-500 mb-3">The ELEKTRIX Journal</p>
-      <h1 className="text-4xl font-semibold tracking-tight mb-10">Buying guides, reviews &amp; tech news</h1>
+      <h1 className="text-4xl font-semibold tracking-tight mb-10">Buying guides &amp; explainers</h1>
 
       <div className="space-y-6">
         {POSTS.map((p) => (

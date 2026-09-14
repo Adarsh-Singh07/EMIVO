@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Globe, MessageCircle, Send, Rss, Mail, Phone, MapPin } from "lucide-react";
+import { Mail, Phone, MapPin } from "lucide-react";
 import NewsletterForm from "./NewsletterForm";
 
 export default function Footer() {
@@ -98,18 +98,6 @@ export default function Footer() {
           <h4 className="text-white font-semibold mb-4">Newsletter</h4>
           <p className="text-sm text-neutral-400 mb-1">Deals, drops and restocks — no spam.</p>
           <NewsletterForm />
-          <div className="flex gap-3 mt-6">
-            {[Globe, MessageCircle, Send, Rss].map((Ic, k) => (
-              <a
-                key={k}
-                className="w-9 h-9 rounded-full bg-neutral-900 hover:bg-neutral-800 grid place-items-center"
-                href="#"
-                aria-label="Social link"
-              >
-                <Ic className="w-4 h-4" />
-              </a>
-            ))}
-          </div>
         </div>
       </div>
 

@@ -18,7 +18,7 @@ const FAQS = [
   },
   {
     q: "What is your return policy?",
-    a: "You get 10 days from delivery for no-questions returns on unopened products. Opened products can be returned if they arrive defective or damaged — we'll arrange a replacement or refund.",
+    a: "Every order is delivered with an open-box inspection — check the product at your doorstep before accepting. Once accepted, returns aren't accepted, but manufacturing defects are covered by the manufacturer's warranty through their authorised service centres. Orders can be cancelled any time before they go out for delivery. Full details are on our Return Policy page.",
   },
   {
     q: "How do coupon codes work?",

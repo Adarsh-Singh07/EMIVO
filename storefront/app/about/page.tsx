@@ -1,11 +1,18 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Truck, BadgePercent, ShieldCheck, RotateCcw } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "About Us",
+  description:
+    "ELEKTRIX is a Gopalganj-based electronics store selling genuine mobiles, laptops, appliances, audio and wearables with brand warranty, open-box delivery and honest pricing.",
+};
 
 const VALUES = [
   { icon: Truck, title: "Fast Delivery", desc: "Same-day dispatch and 1–3 day delivery across India." },
   { icon: BadgePercent, title: "Honest Pricing", desc: "Genuine deals on premium electronics, every day." },
   { icon: ShieldCheck, title: "100% Genuine", desc: "Every product sourced from authorised distributors." },
-  { icon: RotateCcw, title: "Open Box Delivery", desc: "No returns after delivery." },
+  { icon: RotateCcw, title: "Open-Box Delivery", desc: "Inspect your order at the doorstep before you accept it." },
 ];
 
 export default function AboutPage() {

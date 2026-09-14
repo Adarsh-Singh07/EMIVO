@@ -110,8 +110,6 @@ interface StaticProduct {
   price: number; // rupees in the seed data — converted to paise on mapping
   mrp: number;
   discount: number;
-  rating: number;
-  reviews: number;
   inStock: boolean;
   colors: string[];
   img: string;
@@ -120,7 +118,9 @@ interface StaticProduct {
   highlights: string[];
 }
 
-const GH = "https://raw.githubusercontent.com/Adarsh-Singh07/EMIVO/demo/public/images/fynode";
+// Local copies of the fallback product images (public/images/fynode) — no
+// external dependency on GitHub raw availability or rate limits.
+const GH = "/images/fynode";
 
 export const CATEGORIES: Category[] = [
   { slug: "mobiles", name: "Mobiles", icon: "Smartphone" },
@@ -171,8 +171,6 @@ const STATIC_PRODUCTS: StaticProduct[] = [
     price: 119900,
     mrp: 134900,
     discount: 11,
-    rating: 4.7,
-    reviews: 328,
     inStock: true,
     colors: ["#1a1a1a", "#e5e5e5", "#f5deb3"],
     img: "https://images.unsplash.com/photo-1716882173326-04d822f142a8?crop=entropy&cs=srgb&fm=jpg&q=85&w=900",
@@ -193,8 +191,6 @@ const STATIC_PRODUCTS: StaticProduct[] = [
     price: 99900,
     mrp: 114900,
     discount: 13,
-    rating: 4.8,
-    reviews: 512,
     inStock: true,
     colors: ["#1a1a1a", "#c9c9c9", "#d6ceb8"],
     img: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?crop=entropy&cs=srgb&fm=jpg&q=85&w=900",
@@ -215,8 +211,6 @@ const STATIC_PRODUCTS: StaticProduct[] = [
     price: 42990,
     mrp: 69990,
     discount: 39,
-    rating: 4.4,
-    reviews: 214,
     inStock: true,
     colors: ["#111111"],
     img: "https://images.unsplash.com/photo-1577979749830-f1d742b96791?crop=entropy&cs=srgb&fm=jpg&q=85&w=900",
@@ -237,8 +231,6 @@ const STATIC_PRODUCTS: StaticProduct[] = [
     price: 26990,
     mrp: 34990,
     discount: 23,
-    rating: 4.8,
-    reviews: 421,
     inStock: true,
     colors: ["#111111", "#e6dcc6", "#5c5c5c"],
     img: `${GH}/01-2.jpg`,
@@ -259,8 +251,6 @@ const STATIC_PRODUCTS: StaticProduct[] = [
     price: 8519,
     mrp: 10277,
     discount: 14,
-    rating: 4.3,
-    reviews: 96,
     inStock: true,
     colors: ["#8a5a2b", "#000000", "#e0e0e0"],
     img: `${GH}/01-37.jpg`,
@@ -281,8 +271,6 @@ const STATIC_PRODUCTS: StaticProduct[] = [
     price: 12499,
     mrp: 14399,
     discount: 13,
-    rating: 4.5,
-    reviews: 173,
     inStock: true,
     colors: ["#e07a2b", "#111111"],
     img: `${GH}/01-3.jpg`,
@@ -303,8 +291,6 @@ const STATIC_PRODUCTS: StaticProduct[] = [
     price: 8999,
     mrp: 12999,
     discount: 30,
-    rating: 4.6,
-    reviews: 621,
     inStock: true,
     colors: ["#000000", "#ee1111", "#00aaff"],
     img: `${GH}/04-1.jpg`,
@@ -325,8 +311,6 @@ const STATIC_PRODUCTS: StaticProduct[] = [
     price: 21990,
     mrp: 24990,
     discount: 12,
-    rating: 4.7,
-    reviews: 812,
     inStock: true,
     colors: ["#ffffff", "#111111"],
     img: `${GH}/03-1.jpg`,
@@ -347,8 +331,6 @@ const STATIC_PRODUCTS: StaticProduct[] = [
     price: 6499,
     mrp: 9499,
     discount: 32,
-    rating: 4.2,
-    reviews: 158,
     inStock: true,
     colors: ["#111111", "#ee1111"],
     img: `${GH}/01-28.jpg`,
@@ -369,8 +351,6 @@ const STATIC_PRODUCTS: StaticProduct[] = [
     price: 89900,
     mrp: 99900,
     discount: 10,
-    rating: 4.7,
-    reviews: 244,
     inStock: true,
     colors: ["#222222", "#c9a066"],
     img: `${GH}/03-26.jpg`,
@@ -391,8 +371,6 @@ const STATIC_PRODUCTS: StaticProduct[] = [
     price: 5999,
     mrp: 8999,
     discount: 33,
-    rating: 4.4,
-    reviews: 88,
     inStock: true,
     colors: ["#000000"],
     img: `${GH}/01-41.jpg`,
@@ -413,8 +391,6 @@ const STATIC_PRODUCTS: StaticProduct[] = [
     price: 7499,
     mrp: 9899,
     discount: 24,
-    rating: 4.0,
-    reviews: 62,
     inStock: true,
     colors: ["#8a5a2b", "#f5deb3"],
     img: `${GH}/01-49.jpg`,
@@ -435,8 +411,6 @@ const STATIC_PRODUCTS: StaticProduct[] = [
     price: 10785,
     mrp: 21499,
     discount: 50,
-    rating: 4.5,
-    reviews: 141,
     inStock: true,
     colors: ["#0e2148", "#c0c0c0"],
     img: `${GH}/01-50.jpg`,
@@ -457,8 +431,6 @@ const STATIC_PRODUCTS: StaticProduct[] = [
     price: 4499,
     mrp: 6499,
     discount: 31,
-    rating: 4.1,
-    reviews: 79,
     inStock: true,
     colors: ["#111111", "#8a8a8a"],
     img: `${GH}/01-51.jpg`,
@@ -562,10 +534,8 @@ function mapStaticProduct(p: StaticProduct): Product {
     price: p.price * 100,
     mrp: p.mrp * 100,
     discount: p.discount,
-    rating: p.rating,
-    reviews: p.reviews,
     inStock: p.inStock,
-    stockAvailable: p.inStock ? 25 : 0,
+    stockAvailable: null,
     colors: p.colors,
     images: [p.img, p.imgHover],
     img: p.img,

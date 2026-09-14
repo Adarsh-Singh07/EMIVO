@@ -166,6 +166,70 @@ footer :focus-visible,
   transition: opacity 700ms ease, transform 700ms ease;
 }
 
+/*
+ * Minimal typographic base for long-form pages (About, FAQ, policy pages).
+ * These pages used Tailwind's `prose` classes without the typography plugin
+ * installed, so headings/paragraphs rendered with no rhythm. This restores
+ * the intended hierarchy without adding a dependency.
+ */
+.prose > * + * {
+  margin-top: 1em;
+}
+.prose h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  color: var(--color-neutral-900);
+}
+.prose h3 {
+  font-size: 1.075rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--color-neutral-800);
+}
+.prose p,
+.prose ul,
+.prose ol {
+  line-height: 1.7;
+}
+.prose ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+.prose ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+.prose li + li {
+  margin-top: 0.375rem;
+}
+.prose strong {
+  color: var(--color-neutral-900);
+}
+.prose a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Mobile menu drawer entrance (Header). `animate-in slide-in-from-left`
+ * came from tailwindcss-animate, which was never installed, so the drawer
+ * previously just popped in with no transition. */
+@keyframes drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.drawer-in {
+  animation: drawer-in 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
 /* Hero content entrance */
 @keyframes fadeIn {
   from {

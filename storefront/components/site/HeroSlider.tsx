@@ -31,7 +31,7 @@ export default function HeroSlider({ slides = HERO_SLIDES }: { slides?: any[] })
     return () => clearInterval(t);
   }, [n]);
 
-    const onTouchStart = (e: React.TouchEvent) => setTouchStart(e.targetTouches[0].clientX);
+  const onTouchStart = (e: React.TouchEvent) => setTouchStart(e.targetTouches[0].clientX);
   const onTouchMove = (e: React.TouchEvent) => setTouchEnd(e.targetTouches[0].clientX);
   const onTouchEndHandler = () => {
     if (!touchStart || !touchEnd) return;
@@ -56,18 +56,37 @@ export default function HeroSlider({ slides = HERO_SLIDES }: { slides?: any[] })
       onTouchEnd={onTouchEndHandler}
     >
       <div className="relative bg-neutral-950 dark-surface">
-        <Link href={s.link || "#"} className="block absolute inset-0 group">
-        <img
-          key={`bg-${s.id}`}
-          src={s.img}
-          alt=""
-          fetchPriority={i === 0 ? "high" : "auto"}
-          loading={i === 0 ? "eager" : "lazy"}
-          className="absolute inset-0 w-full h-full object-cover animate-[fadeIn_0.7s_ease]"
-        />
-        {/* Legibility overlay — darker on the text side (V5) */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/70 to-black/30" />
-      </Link>
+        {/*
+         * Slide links are admin-configured and optional. When absent, render a
+         * plain div instead of an <a href="#"> dead link wrapping the hero.
+         */}
+        {s.link ? (
+          <Link href={s.link} className="block absolute inset-0 group">
+            <img
+              key={`bg-${s.id}`}
+              src={s.img}
+              alt=""
+              fetchPriority={i === 0 ? "high" : "auto"}
+              loading={i === 0 ? "eager" : "lazy"}
+              className="absolute inset-0 w-full h-full object-cover animate-[fadeIn_0.7s_ease]"
+            />
+            {/* Legibility overlay — darker on the text side (V5) */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/70 to-black/30" />
+          </Link>
+        ) : (
+          <div className="absolute inset-0">
+            <img
+              key={`bg-${s.id}`}
+              src={s.img}
+              alt=""
+              fetchPriority={i === 0 ? "high" : "auto"}
+              loading={i === 0 ? "eager" : "lazy"}
+              className="absolute inset-0 w-full h-full object-cover animate-[fadeIn_0.7s_ease]"
+            />
+            {/* Legibility overlay — darker on the text side (V5) */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/70 to-black/30" />
+          </div>
+        )}
 
         {/* Content — md+ keeps a 80px inline inset so the carousel arrows
             (44px + 16px offset) can never cover headline, price or CTAs (M3) */}
@@ -86,12 +105,14 @@ export default function HeroSlider({ slides = HERO_SLIDES }: { slides?: any[] })
                 <span className="text-white/70 line-through text-[13px] sm:text-base">{inr(s.mrp)}</span>
               </div>
               <div className="mt-6 flex flex-wrap items-center gap-3">
-                <Link
-                  href={s.link}
-                  className="inline-flex items-center gap-2 h-10 px-5 sm:h-12 sm:px-6 rounded-full bg-white text-neutral-950 text-[13px] sm:text-sm font-medium hover:bg-neutral-100"
-                >
-                  {s.cta} <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                </Link>
+                {s.link && (
+                  <Link
+                    href={s.link}
+                    className="inline-flex items-center gap-2 h-10 px-5 sm:h-12 sm:px-6 rounded-full bg-white text-neutral-950 text-[13px] sm:text-sm font-medium hover:bg-neutral-100"
+                  >
+                    {s.cta} <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  </Link>
+                )}
                 <Link
                   href="/shop"
                   className="inline-flex items-center gap-2 h-10 px-5 sm:h-12 sm:px-6 rounded-full border border-white/60 text-white text-[13px] sm:text-sm font-medium hover:bg-white/10"

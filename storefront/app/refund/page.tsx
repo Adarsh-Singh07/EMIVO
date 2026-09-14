@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Return Policy | ELEKTRIX",
+  title: "Return Policy",
   description: "Return Policy for ELEKTRIX — Easy Replacement on Damaged/Defective Delivery.",
 };
 

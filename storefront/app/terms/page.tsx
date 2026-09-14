@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Terms & Conditions | ELEKTRIX",
+  title: "Terms & Conditions",
   description: "Terms and Conditions for ELEKTRIX",
 };
 

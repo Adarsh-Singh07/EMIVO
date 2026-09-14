@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Convenience-only pre-push validation for ELEKTRIX.
+#
+# NOT a security boundary — GitHub Actions CI is the source of truth and
+# validates every push regardless of this hook. Skip it with:
+#   git push --no-verify
+#
+# Activated per clone with (one-time, after checkout):
+#   git config core.hooksPath .githooks
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+echo "==> pre-push convenience check (npm run check)"
+echo "    bypass with: git push --no-verify"
+npm run check

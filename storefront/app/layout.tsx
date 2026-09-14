@@ -50,20 +50,35 @@ const organizationJsonLd = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: "ELEKTRIX — Premium Electronics Store",
+  title: {
+    default: "ELEKTRIX — Premium Electronics Store",
+    template: "%s — ELEKTRIX",
+  },
   applicationName: "ELEKTRIX",
   description:
-    "Shop the latest electronics and manage your autonomous commerce operations at ELEKTRIX.",
-  keywords: ["electronics", "laptops", "mobiles", "audio", "elektrix", "autonomous commerce"],
+    "Shop genuine smartphones, laptops, appliances, audio and wearables at ELEKTRIX. Brand warranty, no-cost EMI and fast delivery across India.",
+  keywords: ["electronics", "laptops", "mobiles", "audio", "wearables", "elektrix"],
   openGraph: {
-    title: "ELEKTRIX",
-    description: "Shop the latest electronics and manage your autonomous commerce operations at ELEKTRIX.",
+    title: "ELEKTRIX — Premium Electronics Store",
+    description:
+      "Shop genuine smartphones, laptops, appliances, audio and wearables at ELEKTRIX. Brand warranty, no-cost EMI and fast delivery across India.",
     siteName: "ELEKTRIX",
     type: "website",
+    images: [
+      {
+        url: "/icons/icon-512.png",
+        width: 512,
+        height: 512,
+        alt: "ELEKTRIX",
+      },
+    ],
   },
   twitter: {
-    card: "summary_large_image",
-    title: "ELEKTRIX",
+    card: "summary",
+    title: "ELEKTRIX — Premium Electronics Store",
+    description:
+      "Shop genuine smartphones, laptops, appliances, audio and wearables at ELEKTRIX. Brand warranty, no-cost EMI and fast delivery across India.",
+    images: ["/icons/icon-512.png"],
   },
   // PWA — installable app with standalone display, icons and manifest.
   manifest: "/manifest.webmanifest?v=3",

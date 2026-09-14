@@ -135,7 +135,7 @@ export default function ProductCard({ product }: { product: Product }) {
           </button>
           <Link
             href={href}
-            aria-label="Quick view"
+            aria-label={`View ${product.name}`}
             className="tap-target w-7 h-7 sm:w-8 sm:h-8 rounded-full grid place-items-center bg-white text-neutral-700 shadow-sm"
           >
             <Eye className="w-3 h-3 sm:w-3.5 sm:h-3.5" />

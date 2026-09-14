@@ -8,31 +8,36 @@ export interface BlogPost {
   body: string[];
 }
 
+/**
+ * Buying guides written for ELEKTRIX customers. Deliberately no first-person
+ * "we tested / we measured" claims — these are spec- and use-case-based guides,
+ * not lab reviews, and must not read as fabricated editorial testing.
+ */
 export const POSTS: BlogPost[] = [
   {
     slug: "iphone-16-pro-review",
-    title: "iPhone 16 Pro review: titanium, AI and a camera that keeps up",
-    excerpt: "Two weeks with Apple's flagship — is the A18 Pro worth the upgrade?",
+    title: "iPhone 16 Pro: what the titanium redesign and A18 Pro actually change",
+    excerpt: "The headline upgrades explained — and who should genuinely consider upgrading.",
     date: "Jul 28, 2026",
-    category: "Reviews",
+    category: "Guides",
     readMins: 6,
     body: [
-      "After two weeks with the iPhone 16 Pro as my daily driver, the headline is simple: this is the most complete iPhone Apple has shipped. The titanium frame shaves real weight, the A18 Pro feels effortless in everything from photo processing to on-device AI, and the camera system finally keeps up with what the hardware promises.",
-      "The 48MP Fusion camera is the star. Low-light shots that used to look muddy now come out clean and detailed, and the new 5x telephoto makes portrait photography genuinely fun. Battery life comfortably clears a full day even with the always-on display and heavy camera use.",
-      "Is it worth upgrading? If you're on a 14 Pro or older, absolutely. If you're on a 15 Pro, the camera and AI improvements are nice but not essential. Either way, it's the phone to beat this year.",
+      "The iPhone 16 Pro's most talked-about changes are easy to summarise: a lighter titanium frame, the A18 Pro chip built for on-device AI, and a 48MP Fusion camera system with a longer reach on the telephoto end. Here's what each of those means in day-to-day use.",
+      "The A18 Pro's advantage shows up in sustained tasks — photo processing, on-device AI features and gaming — where the 6-core GPU and faster neural engine do the heavy lifting. The 48MP Fusion camera pairs a larger main sensor with a 5x telephoto, so low-light shots keep more detail and portraits hold up at longer zoom than earlier Pro models.",
+      "Who should upgrade? If you're coming from an iPhone 14 Pro or older, the combined jump in camera, chip and display tech is significant. If you're on a 15 Pro, you already have most of this experience — the 16 Pro refines it rather than redefines it. Choose on camera zoom and battery needs, not the model number.",
     ],
   },
   {
     slug: "best-anc-headphones-2026",
-    title: "Best noise-cancelling headphones in 2026",
-    excerpt: "Sony, Bose and JBL go head to head in our annual ANC shootout.",
+    title: "How to choose noise-cancelling headphones in 2026",
+    excerpt: "ANC, battery life and comfort compared across Sony, Bose and JBL — without the jargon.",
     date: "Jul 15, 2026",
     category: "Guides",
     readMins: 8,
     body: [
-      "We tested nine pairs of over-ear ANC headphones across a month of commutes, flights and open-plan offices. Three stood out.",
-      "The Sony WH-1000XM5 remains the class leader — its noise cancellation is the quietest we've measured, and the 30-hour battery plus speak-to-chat make it the most practical daily companion. The Bose range counters with better comfort for long sessions and a more neutral sound signature.",
-      "For budget buyers, the active noise-cancelling RW75 is a knockout at its price, cutting train and office hum with surprising effectiveness. Our full recommendation matrix is below — every one of these is in stock at ELEKTRIX.",
+      "Noise-cancelling headphones are the most spec-heavy category in audio, but only three things really separate them: how well the ANC handles your environment, how long the battery lasts, and whether you can wear them for hours without fatigue.",
+      "For commuting and flights, prioritise ANC depth — the Sony WH-1000XM5 is the benchmark here, with adaptive noise sensing and a 30-hour battery that covers long-haul travel. For long work sessions, comfort and a neutral sound signature matter more; that's where Bose's over-ear lineup is strongest. On a budget, hybrid ANC models like the RW75 cut steady low-frequency hum (trains, offices, fans) at a fraction of the flagship price.",
+      "Quick checklist before you buy: ear cushion material (memory foam lasts longer), multipoint pairing if you switch between phone and laptop, a detachable or included cable for zero-latency wired use, and quick-charge support. Every model we stock lists these specs on its product page.",
     ],
   },
   {
