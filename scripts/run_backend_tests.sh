@@ -89,5 +89,6 @@ docker run --rm --network "$NET" \
   -e ADMIN_INITIAL_PASSWORD="TestAdminPass123!" \
   -e PYTHONPATH=/app/apps/api \
   -v "$(pwd)/apps/api/tests:/app/apps/api/tests" \
+  -v "$(pwd)/apps/workers:/app/apps/workers:ro" \
   --workdir /app \
   "$API_IMAGE" python -m pytest apps/api/tests/v02 -q

@@ -131,10 +131,13 @@ redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 async def cart_reminders(ctx) -> int:
     """Abandoned-cart reminders: 30 minutes after leaving items in the cart
     ('stock won't wait') and again 3 days later. One send per stage per cart;
-    guest carts (no user) and empty carts are skipped."""
+    guest carts (no user) and empty carts are skipped.
+
+    Redis goes through ctx["redis"] (ARQ's own connection) — the singleton
+    redis_manager is never connected inside the worker process.
+    """
     from datetime import datetime, timedelta, timezone
     from sqlalchemy import text
-    from sqlalchemy.ext.asyncio import async_sessionmaker
     from core.database import engine
     from core.models import OutboxEvent
 
@@ -142,12 +145,16 @@ async def cart_reminders(ctx) -> int:
     sent = 0
     async with maker() as session:
         # Stage windows: 30-45 minutes and 3d-3d2h after last cart activity.
+        # cart_items carries no denormalized product columns — join products
+        # for the display name and price.
         rows = (await session.execute(text("""
             SELECT c.id, c.user_id, c.updated_at,
                    COALESCE(u.email, '') AS email, COALESCE(u.first_name, '') AS first_name,
-                   (SELECT json_agg(json_build_object('name', ci.product_name,
-                                                      'unit_price', ci.unit_price))
-                    FROM cart_items ci WHERE ci.cart_id = c.id) AS items
+                   (SELECT json_agg(json_build_object('name', p.name,
+                                                      'unit_price', p.price))
+                    FROM cart_items ci
+                    JOIN products p ON p.id = ci.product_id
+                    WHERE ci.cart_id = c.id) AS items
             FROM carts c
             JOIN users u ON u.id = c.user_id AND u.deleted_at IS NULL AND u.is_active
             WHERE c.updated_at < now() - interval '30 minutes'
@@ -160,7 +167,7 @@ async def cart_reminders(ctx) -> int:
             age = datetime.now(timezone.utc) - r["updated_at"].replace(tzinfo=timezone.utc)
             stage = "30m" if age < timedelta(hours=1) else "3d"
             dedup = f"cartrem:{r['id']}:{stage}"
-            first = await redis_manager.client.set(dedup, "1", nx=True, ex=14 * 86400)
+            first = await ctx["redis"].set(dedup, "1", nx=True, ex=14 * 86400)
             if not first:
                 continue
             session.add(OutboxEvent(
@@ -218,12 +225,92 @@ async def expire_stale_orders(ctx) -> int:
     return count
 
 
+async def low_stock_alert(ctx) -> int:
+    """Notify staff when a product's available stock (on_hand - reserved)
+    drops to its inventory row's low_stock_threshold. Alerts once per drop,
+    escalates when the level falls further, and goes quiet for 24h after any
+    alert (restocking resets the cycle once the key expires). Delivery:
+    email digest to the admin@ alias + in-app notifications for staff users.
+    Returns the number of products alerted in this run."""
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+    from core.database import engine
+    from core.models import OutboxEvent
+    from modules.notifications.models import Notification
+
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    async with maker() as session:
+        rows = (await session.execute(text("""
+            SELECT i.id AS inventory_id, (i.on_hand - i.reserved) AS available,
+                   i.low_stock_threshold, p.name AS product_name, p.sku
+            FROM inventory i
+            JOIN products p ON p.id = i.product_id
+            WHERE (i.on_hand - i.reserved) <= i.low_stock_threshold
+              AND p.status = 'ACTIVE'
+        """))).mappings().all()
+
+        # Redis dedupe: key per inventory row holds the last alerted level.
+        # No key -> first alert; key present and level fell further -> escalate;
+        # level unchanged or higher -> quiet (restock clears via key expiry).
+        alerted = []
+        for r in rows:
+            key = f"lowstock:{r['inventory_id']}"
+            prev = await ctx["redis"].get(key)
+            if prev is not None and r["available"] >= int(prev):
+                continue
+            await ctx["redis"].set(key, str(r["available"]), ex=86400)
+            alerted.append(r)
+
+        if not alerted:
+            return 0
+
+        from modules.notifications.aliases import ADMIN_INBOX
+        items = [
+            {"name": r["product_name"], "sku": r["sku"] or "",
+             "available": r["available"], "threshold": r["low_stock_threshold"]}
+            for r in alerted
+        ]
+        session.add(OutboxEvent(
+            tenant_id=None,
+            type="inventory.low_stock",
+            # Dispatcher reads payload["email"] — the staff digest lands in
+            # the admin@ inbox; from-address routing maps inventory.* to the
+            # admin@ alias (modules/notifications/service.py).
+            payload={"email": ADMIN_INBOX, "items": items, "count": len(items)},
+        ))
+
+        # In-app notifications for every staff member of the store tenant.
+        from core.store import get_store_business_id
+        bid = await get_store_business_id(session)
+        staff_ids = (await session.execute(text("""
+            SELECT DISTINCT u.id FROM users u
+            JOIN business_members bm ON bm.user_id = u.id
+            WHERE u.is_active AND u.deleted_at IS NULL
+              AND bm.role IN ('platform_admin', 'owner', 'staff')
+              AND bm.business_id = :bid
+        """), {"bid": str(bid)})).scalars().all()
+        names = ", ".join(i["name"] for i in items[:3]) + ("…" if len(items) > 3 else "")
+        for uid in staff_ids:
+            session.add(Notification(
+                user_id=str(uid),
+                type="inventory.low_stock",
+                title="Low stock alert",
+                body=f"{len(items)} product(s) at or below their low-stock threshold: {names}",
+                link="/inventory",
+                data={"items": items},
+            ))
+        await session.commit()
+    logger.info("low_stock_alert: alerted on %s product(s)", len(alerted))
+    return len(alerted)
+
+
 class WorkerSettings:
-    functions = [process_outbox_event, expire_stale_orders, cart_reminders]
+    functions = [process_outbox_event, expire_stale_orders, cart_reminders, low_stock_alert]
     cron_jobs = [
         cron(poll_outbox, second={0, 10, 20, 30, 40, 50}, run_at_startup=True),  # every 10 seconds
         cron(expire_stale_orders, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # every 5 min
         cron(cart_reminders, minute=25, second=0),  # every hour at :25
+        cron(low_stock_alert, minute=40, second=0),  # every hour at :40
     ]
     on_startup = startup
     on_shutdown = shutdown

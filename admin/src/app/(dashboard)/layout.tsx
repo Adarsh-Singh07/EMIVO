@@ -16,6 +16,7 @@ import {
   Menu,
   LifeBuoy,
   Landmark,
+  Timer,
 } from "lucide-react";
 import Link from "next/link";
 import { ReactNode, useEffect, useState } from "react";
@@ -48,6 +49,7 @@ const NAV_SECTIONS: Array<{
       { href: "/inventory", label: "Inventory", icon: Boxes },
       { href: "/coupons", label: "Coupons", icon: Tag },
       { href: "/bank-offers", label: "Bank Offers", icon: Landmark },
+      { href: "/abandoned-carts", label: "Abandoned Carts", icon: Timer },
       { href: "/support", label: "Support Box", icon: LifeBuoy },
     ],
   },

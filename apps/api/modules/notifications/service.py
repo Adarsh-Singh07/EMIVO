@@ -100,15 +100,19 @@ class NotificationService:
                 email = await self._user_email(str(user_id))
             if email:
                 # Sender routing: support-desk mail goes out as support@,
-                # everything else (OTP, order/payment events, cart reminders)
-                # as no-reply@ with Reply-To pointing at the support desk.
+                # internal staff digests as admin@, everything else (OTP,
+                # order/payment events, cart reminders) as no-reply@ with
+                # Reply-To pointing at the support desk.
                 from modules.notifications.aliases import (
+                    ALIAS_ADMIN,
                     ALIAS_SUPPORT,
                     ALIAS_TRANSACTIONAL,
                     REPLY_TO_SUPPORT,
                 )
                 if event_type.startswith("support."):
                     from_address, reply_to = ALIAS_SUPPORT, None
+                elif event_type.startswith("inventory."):
+                    from_address, reply_to = ALIAS_ADMIN, None
                 else:
                     from_address, reply_to = ALIAS_TRANSACTIONAL, REPLY_TO_SUPPORT
                 subject, html = TEMPLATES[event_type](payload, settings.storefront_url)

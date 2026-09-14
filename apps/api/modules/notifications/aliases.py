@@ -26,3 +26,6 @@ REPLY_TO_SUPPORT = "support@elektrix.in"
 
 # Inbound destination for the public contact form.
 CONTACT_INBOX = "contact@elektrix.in"
+
+# Inbound destination for automated staff digests (low-stock alerts etc.).
+ADMIN_INBOX = "admin@elektrix.in"

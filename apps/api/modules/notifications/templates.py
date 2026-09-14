@@ -286,6 +286,35 @@ def otp_login(p: dict, storefront_url: str) -> tuple[str, str]:
     return "Your ELEKTRIX sign-in code", _shell("One-time sign-in code", body)
 
 
+def low_stock_alert(p: dict, storefront_url: str) -> tuple[str, str]:
+    """Internal staff digest — delivered to the admin@ alias by the worker."""
+    items = p.get("items", [])
+    rows = "".join(
+        f"<tr>"
+        f"<td style='padding:8px 12px;color:#18181b;'>{i.get('name','')}"
+        + (f" <span style='color:#9ca3af;font-size:12px;'>({i['sku']})</span>" if i.get("sku") else "")
+        + "</td>"
+        f"<td style='padding:8px 12px;text-align:center;font-weight:bold;color:#b91c1c;'>{i.get('available',0)}</td>"
+        f"<td style='padding:8px 12px;text-align:center;color:#6b7280;'>{i.get('threshold',0)}</td>"
+        f"</tr>"
+        for i in items[:20]
+    )
+    body = (
+        f"<b>{p.get('count', len(items))}</b> product(s) are at or below their low-stock "
+        "threshold and need restocking:<br/><br/>"
+        "<table width='100%' cellpadding='0' cellspacing='0' "
+        "style='border-collapse:collapse;background:#f9fafb;border-radius:8px;'>"
+        "<tr style='color:#6b7280;font-size:12px;text-transform:uppercase;'>"
+        "<th style='padding:8px 12px;text-align:left;'>Product</th>"
+        "<th style='padding:8px 12px;'>Available</th>"
+        "<th style='padding:8px 12px;'>Threshold</th>"
+        f"</tr>{rows}</table><br/>"
+        f"Restock soon so listings don't go dark — <a href='{storefront_url}/shop' "
+        "style='color:#b45309;'>check the storefront</a> to see what customers see."
+    )
+    return "Low stock alert: restock needed", _shell("Low stock alert", body)
+
+
 TEMPLATES = {
     "order.created": order_created,
     "payment.captured": payment_captured,
@@ -298,4 +327,5 @@ TEMPLATES = {
     "auth.welcome": welcome,
     "auth.otp_login": otp_login,
     "cart.reminder": cart_reminder,
+    "inventory.low_stock": low_stock_alert,
 }
