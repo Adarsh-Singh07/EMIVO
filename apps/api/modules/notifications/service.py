@@ -105,12 +105,15 @@ class NotificationService:
                 # Reply-To pointing at the support desk.
                 from modules.notifications.aliases import (
                     ALIAS_ADMIN,
+                    ALIAS_MARKETING,
                     ALIAS_SUPPORT,
                     ALIAS_TRANSACTIONAL,
                     REPLY_TO_SUPPORT,
                 )
                 if event_type.startswith("support."):
                     from_address, reply_to = ALIAS_SUPPORT, None
+                elif event_type.startswith("marketing."):
+                    from_address, reply_to = ALIAS_MARKETING, None
                 elif event_type.startswith("inventory.") or event_type.startswith("admin."):
                     from_address, reply_to = ALIAS_ADMIN, None
                 else:

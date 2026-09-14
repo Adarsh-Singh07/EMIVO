@@ -348,6 +348,46 @@ def weekly_digest(p: dict, storefront_url: str) -> tuple[str, str]:
     return "Your weekly ELEKTRIX recap", _shell("Weekly recap", body)
 
 
+
+
+def marketing_broadcast(p: dict, storefront_url: str) -> tuple[str, str]:
+    """Campaign mail from the hello@ alias: custom copy + optional coupon."""
+    name = p.get("first_name") or "there"
+    coupon = p.get("coupon")
+    coupon_html = ""
+    if coupon:
+        value = (
+            f"{coupon['discount_value']}% OFF"
+            if coupon["discount_type"] == "PERCENTAGE"
+            else f"₹{round(coupon['discount_value'] / 100):,} OFF"
+        )
+        min_order = (
+            f" on orders above ₹{round(coupon['min_order_amount'] / 100):,}"
+            if coupon.get("min_order_amount") else ""
+        )
+        coupon_html = (
+            "<br/><br/>Use this code at checkout:"
+            f"<br/><div style='font-size:28px;letter-spacing:6px;font-weight:bold;"
+            f"color:#b45309;text-align:center;padding:14px;background:#fffbeb;"
+            f"border:2px dashed #f59e0b;border-radius:8px;'>{coupon['code']}</div>"
+            f"<p style='text-align:center;color:#6b7280;font-size:13px;'>"
+            f"{value}{min_order} &mdash; valid for a limited time.</p>"
+        )
+    body = (
+        f"Hi {name},<br/><br/>"
+        f"{p.get('message', '').replace(chr(10), '<br/>')}"
+        f"{coupon_html}"
+        f"<br/><br/><a href='{storefront_url}/shop' "
+        "style='display:inline-block;background:#18181b;color:#ffffff;"
+        "padding:12px 28px;border-radius:999px;font-weight:bold;"
+        "text-decoration:none;'>Shop now</a>"
+    )
+    return p.get("subject") or "A little something from ELEKTRIX", _shell(
+        p.get("subject") or "A little something from ELEKTRIX", body,
+        f"{storefront_url}/shop", "Shop now",
+    )
+
+
 TEMPLATES = {
     "order.created": order_created,
     "payment.captured": payment_captured,
@@ -362,4 +402,5 @@ TEMPLATES = {
     "cart.reminder": cart_reminder,
     "inventory.low_stock": low_stock_alert,
     "admin.weekly_digest": weekly_digest,
+    "marketing.broadcast": marketing_broadcast,
 }
