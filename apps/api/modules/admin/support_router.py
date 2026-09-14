@@ -39,6 +39,28 @@ async def reply(ticket_id: str, payload: TicketMessageCreate,
     return await service.add_message(ticket_id, str(staff.id), "admin", payload.body, role="platform_admin")
 
 
+@router.post("/tickets/{ticket_id}/email", dependencies=[Depends(require_staff)])
+async def email_customer(ticket_id: str, payload: TicketMessageCreate,
+                         service: SupportService = Depends(_service), staff: User = Depends(require_staff)):
+    """Send the reply as EMAIL to the customer too (Resend/SMTP), and log it
+    on the ticket."""
+    from core.models import OutboxEvent
+    t = await service.get_ticket(ticket_id, str(staff.id), role="platform_admin")
+    email = (await service.session.execute(text(
+        "SELECT email FROM users WHERE id = :uid"
+    ), {"uid": t.user_id})).scalar()
+    if not email:
+        raise DomainException("Customer email not found", code="NOT_FOUND", status_code=404)
+    service.session.add(OutboxEvent(
+        tenant_id=None, type="support.ticket_email",
+        payload={"email": email, "subject": f"[{t.ticket_number or 'Ticket'}] {t.subject}",
+                 "first_name": "", "reply": payload.body,
+                 "ticket_number": t.ticket_number or ""},
+    ))
+    await service.session.commit()
+    return {"status": "email_queued", "to": email}
+
+
 @router.patch("/tickets/{ticket_id}/status", response_model=TicketOut, dependencies=[Depends(require_staff)])
 async def set_status(ticket_id: str, payload: TicketStatusUpdate,
                      service: SupportService = Depends(_service), staff: User = Depends(require_staff)):

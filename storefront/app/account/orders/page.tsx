@@ -22,8 +22,7 @@ import {
   Loader2,
   ExternalLink,
   Ban,
-  Tag,
-} from "lucide-react";
+  Tag,, LifeBuoy } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { storeApi, type OrderV2 } from "@/lib/store-api";
 import { inr, formatDate } from "@/lib/format";
@@ -552,10 +551,10 @@ function OrderDetail({
           </Link>
         )}
         <a
-          href="mailto:support@elektrix.in"
+          href={`/support?order=${encodeURIComponent(order.id)}`}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-neutral-200 text-neutral-700 text-sm font-medium hover:bg-neutral-50 transition-colors"
         >
-          <PhoneCall className="w-4 h-4" /> Get Help
+          <LifeBuoy className="w-4 h-4" /> Get Help
         </a>
       </div>
 

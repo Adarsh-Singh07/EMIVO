@@ -127,36 +127,32 @@ async def health_diagnostics(
     disk_free_gb = round(disk.free / (1024 ** 3), 2)
     disk_total_gb = round(disk.total / (1024 ** 3), 2)
 
-    # Real CPU/memory readings (container cgroups with /proc fallback)
-    import glob
-    def _cgroup(name):
-        try:
-            v = int(open(f"/sys/fs/cgroup/{name}.max").read().strip().replace("max", "0"))
-            u = int(open(f"/sys/fs/cgroup/{name}.current").read().strip())
-            return round(u / v * 100, 1) if v else 0.0
-        except Exception:
-            return None
+    # HOST-level VPS metrics: /proc + loadavg reflect the whole machine even
+    # from inside the container; disk via statvfs on the app volume.
+    import time as _time
     try:
         load1, _, _ = os.getloadavg()
-        cpu_pct = _cgroup("cpu")
-        if cpu_pct is None:
-            cpu_pct = round(load1 / max(os.cpu_count(), 1) * 100, 1)
-        mem_used = mem_total = None
-        try:
-            cl = int(open("/sys/fs/cgroup/memory.max").read().strip().replace("max", "0"))
-            cu = int(open("/sys/fs/cgroup/memory.current").read().strip())
-            if cl:
-                mem_pct = round(cu / cl * 100, 1)
-                mem_total, mem_used = round(cl / 1e9, 2), round(cu / 1e9, 2)
-            else:
-                raise ValueError
-        except Exception:
-            info = {k: int(v) for k, v in
-                    (l.split(":") for l in open("/proc/meminfo") if ":" in l)}
-            total_kb = info.get("MemTotal", 0)
-            avail_kb = info.get("MemAvailable", 0)
-            mem_pct = round((total_kb - avail_kb) / total_kb * 100, 1) if total_kb else 0.0
-            mem_total, mem_used = round(total_kb / 1e6, 2), round((total_kb - avail_kb) / 1e6, 2)
+        cpu_pct = round(load1 / max(os.cpu_count(), 1) * 100, 1)
+        info = {}
+        for line in open("/proc/meminfo"):
+            k, _, v = line.partition(":")
+            info[k.strip()] = float(v.strip().split()[0])
+        total_kb = info.get("MemTotal", 0)
+        avail_kb = info.get("MemAvailable", 0)
+        mem_pct = round((total_kb - avail_kb) / total_kb * 100, 1) if total_kb else 0.0
+        mem_total = round(total_kb / 1e6, 2)
+        mem_used = round((total_kb - avail_kb) / 1e6, 2)
+        # per-core busy sample from /proc/stat (250ms window)
+        def cpu_times():
+            fields = open("/proc/stat").readline().split()[1:]
+            vals = [int(x) for x in fields]
+            return sum(vals), vals[3] + (vals[4] if len(vals) > 4 else 0)
+        t0, i0 = cpu_times()
+        _time.sleep(0.25)
+        t1, i1 = cpu_times()
+        busy = (t1 - t0) - (i1 - i0)
+        if t1 > t0:
+            cpu_pct = round(busy / (t1 - t0) * 100, 1)
     except Exception:
         cpu_pct, mem_pct, mem_total, mem_used = 0.0, 0.0, 0.0, 0.0
 
@@ -173,9 +169,12 @@ async def health_diagnostics(
         "system": {
             "cpus": os.cpu_count(),
             "cpu_load_pct": cpu_pct,
+            "cpu_percent": cpu_pct,
             "memory_used_gb": mem_used,
             "memory_total_gb": mem_total,
             "memory_pct": mem_pct,
+            "memory_percent": mem_pct,
+            "memory_mb": round(mem_used * 1000, 0),
             "disk_free_gb": disk_free_gb,
             "disk_total_gb": disk_total_gb,
         },
