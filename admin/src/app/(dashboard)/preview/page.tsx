@@ -123,7 +123,7 @@ export default function DeveloperPreviewPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-neutral-900">
-              {telemetry?.system?.cpus ? `${telemetry.system.cpus} Cores` : "12 Cores"}
+              {telemetry?.system?.cpus ? `${telemetry.system.cpus} Cores` : "—"}
             </div>
             <p className="text-xs text-neutral-500 mt-1">
               Disk Free: {telemetry?.system?.disk_free_gb ? `${telemetry.system.disk_free_gb} GB` : "107 GB"}

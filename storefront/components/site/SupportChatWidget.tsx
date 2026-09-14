@@ -74,7 +74,7 @@ export default function SupportChatWidget() {
       </button>
 
       {open && (
-        <div className="fixed bottom-36 right-4 sm:bottom-24 sm:right-6 z-50 w-[calc(100vw-2rem)] max-w-sm h-[60vh] max-h-[560px] rounded-3xl border border-neutral-200 bg-white shadow-2xl flex flex-col overflow-hidden">
+        <div className="fixed bottom-32 right-3 sm:bottom-24 sm:right-6 z-50 w-[86vw] max-w-[360px] h-[54vh] max-h-[520px] rounded-3xl border border-neutral-200 bg-white shadow-2xl flex flex-col overflow-hidden">
           <div className="p-4 border-b border-neutral-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <LifeBuoy className="w-5 h-5 text-neutral-900" />

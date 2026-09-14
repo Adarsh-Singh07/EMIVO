@@ -101,9 +101,17 @@ class Settings(BaseSettings):
     delhivery_origin_pincode: str = Field(default="")
     delhivery_environment: str = Field(default="prod") # "prod" or "sandbox"
 
-    # Transactional email (Resend). EMAIL_FROM must be a verified sender.
+    # Transactional email. Provider: "resend" (default) or "smtp" (Lark Mail
+    # or any SMTP server — set EMAIL_SMTP_* below and restart).
+    email_provider: str = Field(default="resend", pattern="^(resend|smtp)$")
     resend_api_key: SecretStr = Field(default=SecretStr(""))
     email_from: str = Field(default="ELEKTRIX <support@elektrix.in>")
+    # SMTP (Lark Mail): e.g. EMAIL_SMTP_HOST=smtp.larksuite.com EMAIL_SMTP_PORT=465
+    email_smtp_host: str = Field(default="")
+    email_smtp_port: int = Field(default=465)
+    email_smtp_user: str = Field(default="")
+    email_smtp_password: SecretStr = Field(default=SecretStr(""))
+    email_smtp_ssl: bool = Field(default=True)
 
     # AI support chatbot
     gemini_api_key: SecretStr = Field(default=SecretStr(""))

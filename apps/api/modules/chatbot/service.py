@@ -36,14 +36,23 @@ RULES:
    CANCEL_ORDER: <order_number>
    If they ask to cancel multiple/unclear orders, ask which one. Never emit CANCEL_ORDER
    without a prior explicit confirmation from the customer.
-7. TICKETS: if the customer wants a refund, human agent, or to file a complaint, end with
-   RAISE_TICKET: <one-line summary>.
+7. TICKETS — TWO-STEP ONLY:
+   Step 1: when the customer wants to complain / report an issue / reach a human, do NOT
+   raise anything yet. Ask for the missing details (what happened, which order, expected
+   outcome) and confirm with a summary: "Shall I raise ticket '<summary>'?" If they already
+   have an OPEN ticket for the same issue (THEIR OPEN TICKETS below), do NOT raise another —
+   refer them to that ticket number.
+   Step 2: ONLY when the customer explicitly confirms (yes / raise it / confirm), output on
+   the LAST line: RAISE_TICKET: <one-line summary>
 
 CUSTOMER'S RECENT ORDERS (newest first):
 {orders}
 
 CATALOG (for suggestions/comparisons — name | price | link):
 {catalog}
+
+THEIR OPEN TICKETS:
+{tickets}
 
 CONVERSATION SO FAR:
 {history}
@@ -92,7 +101,16 @@ async def build_context(session: AsyncSession, user_id: str, user_name: str) -> 
     ]
     catalog_block = "\n".join(cat_lines) or "- Catalog temporarily unavailable."
 
-    return orders_block, catalog_block, user_name
+    await session.execute(text("SELECT set_config('app.user_id', :uid, true)"), {"uid": user_id})
+    tk = await session.execute(text(
+        "SELECT ticket_number, subject, status FROM support_tickets "
+        "WHERE status IN ('open','in_progress') ORDER BY updated_at DESC LIMIT 5"
+    ))
+    tickets_block = "\n".join(
+        f"- {r['ticket_number']} | {r['subject']} | {r['status']}" for r in tk.mappings()
+    ) or "- None open."
+
+    return orders_block, catalog_block, tickets_block, user_name
 
 
 async def ask_gemini(session: AsyncSession, user_id: str, user_name: str,
@@ -100,14 +118,15 @@ async def ask_gemini(session: AsyncSession, user_id: str, user_name: str,
     """Returns (reply, ticket_action|None, cancel_order_number|None)."""
     from google import genai
 
-    orders_block, catalog_block, _ = await build_context(session, user_id, user_name)
+    orders_block, catalog_block, tickets_block, _ = await build_context(session, user_id, user_name)
     hist = ""
     for h in (history or [])[-6:]:
         who = "CUSTOMER" if h.get("role") == "user" else "YOU"
         hist += f"{who}: {h.get('text', '')}\n"
 
     prompt = SYSTEM_PROMPT.format(name=user_name or "there", orders=orders_block,
-                                  catalog=catalog_block, history=hist or "(new conversation)")
+                                  catalog=catalog_block, tickets=tickets_block,
+                                  history=hist or "(new conversation)")
     prompt += f"CUSTOMER'S LATEST MESSAGE:\n{message}"
 
     client = genai.Client(api_key=settings.gemini_api_key.get_secret_value())

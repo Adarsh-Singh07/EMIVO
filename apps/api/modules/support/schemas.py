@@ -26,6 +26,7 @@ class TicketMessageOut(BaseModel):
 
 class TicketOut(BaseModel):
     id: str
+    ticket_number: Optional[str] = None
     order_id: Optional[str] = None
     order_number: Optional[str] = None
     category: str

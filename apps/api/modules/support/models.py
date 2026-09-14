@@ -15,6 +15,7 @@ class SupportTicket(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    ticket_number: Mapped[Optional[str]] = mapped_column(String(20), unique=True)
     order_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     order_number: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     category: Mapped[str] = mapped_column(String(30), nullable=False)  # order|payment|product|delivery|other

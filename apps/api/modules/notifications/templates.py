@@ -6,27 +6,66 @@ PRIMARY = "#6d28d9"
 
 
 def _shell(title: str, body_html: str, cta_url: str = "", cta_label: str = "") -> str:
+    logo = "https://elektrix.in/branding/icon.png"
+    wordmark = "https://elektrix.in/branding/wordmark.png"
     cta = (
-        f'<div style="margin:28px 0"><a href="{cta_url}" style="background:{PRIMARY};color:#fff;'
-        'padding:12px 26px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block">'
-        f"{cta_label}</a></div>"
-        if cta_url
-        else ""
+        f'<a href="{cta_url}" style="display:inline-block;background:#0a0a0a;color:#ffffff;'
+        f'text-decoration:none;padding:14px 36px;border-radius:999px;font-weight:600;font-size:14px;">'
+        f'{cta_label}</a>' if cta_url else ""
     )
-    return f"""<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f4f5;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif">
-  <div style="max-width:560px;margin:0 auto;padding:24px 16px">
-    <div style="background:#fff;border-radius:12px;padding:32px;border:1px solid #e4e4e7">
-      <div style="font-size:20px;font-weight:800;color:{PRIMARY};letter-spacing:2px;margin-bottom:20px">ELEKTRIX</div>
-      <img src="https://elektrix.in/branding/icon.png" alt="ELEKTRIX" style="width:56px;height:56px;border-radius:12px;margin:0 auto 8px;display:block;" /><h2 style="margin:0 0 16px;font-size:20px;color:#18181b">{title}</h2>
-      <div style="font-size:14px;line-height:1.7;color:#3f3f46">{body_html}</div>
-      {cta}
-      <div style="margin-top:32px;padding-top:20px;border-top:1px solid #e4e4e7;font-size:12px;color:#a1a1aa">
-        ELEKTRIX · M/S APANA ENTERPRISES · support@elektrix.in<br/>
-        This is an automated message about your ELEKTRIX order.
-      </div>
-    </div>
-  </div>
+    return f"""<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#f4f4f5;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<div style="display:none;max-height:0;overflow:hidden">{title}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px;">
+<tr><td align="center">
+  <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+    <!-- Header -->
+    <tr><td style="background:#0a0a0a;border-radius:16px 16px 0 0;padding:22px 32px;" align="center">
+      <img src="{logo}" alt="ELEKTRIX" width="44" height="44" style="border-radius:10px;display:inline-block;vertical-align:middle;" />
+      <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:3px;vertical-align:middle;margin-left:10px;">ELEKTRIX</span>
+    </td></tr>
+    <!-- Body -->
+    <tr><td style="background:#ffffff;padding:36px 32px;">
+      <h2 style="margin:0 0 18px;font-size:21px;color:#0a0a0a;">{title}</h2>
+      <div style="font-size:15px;line-height:1.65;color:#3f3f46;">{body_html}</div>
+      {('' if not cta else '<div style="text-align:center;margin:30px 0 6px;">' + cta + '</div>')}
+    </td></tr>
+    <!-- Footer -->
+    <tr><td style="background:#18181b;border-radius:0 0 16px 16px;padding:24px 32px;text-align:center;">
+      <p style="margin:0;font-size:12px;color:#a1a1aa;line-height:1.6;">
+        Questions? We're here to help —
+        <a href="https://elektrix.in/support" style="color:#ffffff;text-decoration:underline;">Support</a> &nbsp;·&nbsp;
+        <a href="https://elektrix.in/account/orders" style="color:#ffffff;text-decoration:underline;">My Orders</a>
+      </p>
+      <p style="margin:10px 0 0;font-size:11px;color:#71717a;">
+        Apna Enterprises | DS1, 109, Near Indian Petrol Pump, Vijayipur, Gopalganj, Bihar - 841508<br/>
+        You're receiving this email because you have an ELEKTRIX account.
+      </p>
+    </td></tr>
+  </table>
+</td></tr></table>
 </body></html>"""
+
+
+def _order_table(items: list) -> str:
+    rows = "".join(
+        f"<tr>"
+        f"<td style='padding:10px 8px;border-bottom:1px solid #e4e4e7;color:#18181b;'>{i.get('name','')}</td>"
+        f"<td style='padding:10px 8px;border-bottom:1px solid #e4e4e7;text-align:center;color:#52525b;'>{i.get('qty','')}</td>"
+        f"<td style='padding:10px 8px;border-bottom:1px solid #e4e4e7;text-align:right;color:#18181b;'>₹{i.get('unit_price', 0) / 100:,.0f}</td>"
+        f"</tr>"
+        for i in items
+    )
+    return (
+        "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' "
+        "style='margin:18px 0;border:1px solid #e4e4e7;border-radius:12px;'>"
+        "<tr style='background:#fafafa;'>"
+        "<th style='padding:10px 8px;text-align:left;font-size:12px;color:#71717a;text-transform:uppercase;'>Product</th>"
+        "<th style='padding:10px 8px;text-align:center;font-size:12px;color:#71717a;text-transform:uppercase;'>Qty</th>"
+        "<th style='padding:10px 8px;text-align:right;font-size:12px;color:#71717a;text-transform:uppercase;'>Price</th>"
+        "</tr>" + rows + "</table>"
+    )
+
 
 
 def _rupees(paise: int) -> str:
@@ -42,21 +81,6 @@ def _items_table(items: list) -> str:
         for i in items
     )
     return f"<table style='width:100%;border-collapse:collapse;margin:16px 0;font-size:14px'>{rows}</table>"
-
-
-def order_created(p: dict, storefront_url: str) -> tuple[str, str]:
-    name = p.get("first_name") or "there"
-    total = _rupees(p.get("total", 0))
-    pay = "Cash on Delivery" if p.get("payment_method") == "COD" else "Online Payment"
-    body = (
-        f"Hi {name}, thanks for your order!<br/><br/>"
-        f"Your order <b>{p.get('order_number','')}</b> has been placed ({pay})."
-        f"{_items_table(p.get('items', []))}"
-        f"<div style='font-size:16px'><b>Total: {total}</b></div><br/>"
-        "We'll notify you as your order progresses."
-    )
-    subject = f"Order confirmed · {p.get('order_number','')}"
-    return subject, _shell("Order confirmed 🎉", body, f"{storefront_url}/account/orders", "Track order")
 
 
 def payment_captured(p: dict, storefront_url: str) -> tuple[str, str]:
@@ -81,6 +105,93 @@ def payment_failed(p: dict, storefront_url: str) -> tuple[str, str]:
         f"Payment failed · {p.get('order_number','')}",
         _shell("Payment failed", body, f"{storefront_url}/cart", "Try again"),
     )
+
+
+def order_created(p: dict, storefront_url: str) -> tuple[str, str]:
+    name = p.get("first_name") or "there"
+    items = p.get("items", [])
+    body = (
+        f"Hi {name}, thanks for shopping with us!"
+        f"<br/><br/>Your order <b>{p.get('order_number','')}</b> is confirmed"
+        f" ({'Cash on Delivery' if p.get('payment_method') == 'COD' else 'online payment'})."
+        f"{_order_table(items) if items else ''}"
+        f"<div style='font-size:17px;text-align:right'><b>Total: {_rupees(p.get('total', 0))}</b></div>"
+        "<br/>We're getting it ready — you'll get updates at every step."
+    )
+    subject = f"Order confirmed: {p.get('order_number', '')} — thanks, {name}!"
+    return subject, _shell("Your order is confirmed", body,
+                           f"{storefront_url}/account/orders", "Track your order")
+
+
+def payment_captured(p: dict, storefront_url: str) -> tuple[str, str]:
+    body = (
+        f"We've received your payment for order <b>{p.get('order_number','')}</b> —"
+        f" <b>{_rupees(p.get('total', 0))}</b>. Your order is now being prepared."
+    )
+    subject = f"Payment received — order {p.get('order_number', '')} is being prepared"
+    return subject, _shell("Payment successful", body,
+                           f"{storefront_url}/account/orders", "View order")
+
+
+def order_shipped(p: dict, storefront_url: str) -> tuple[str, str]:
+    body = (
+        f"Good news! Order <b>{p.get('order_number','')}</b> has shipped."
+        + (f"<br/>Tracking: <b>{p.get('tracking_number','')}</b>" if p.get('tracking_number') else "")
+        + "<br/><br/>You can follow it every step of the way."
+    )
+    subject = f"Your order {p.get('order_number', '')} has shipped 🚚"
+    return subject, _shell("On its way", body,
+                           f"{storefront_url}/account/orders", "Track shipment")
+
+
+def order_delivered(p: dict, storefront_url: str) -> tuple[str, str]:
+    body = (
+        f"Order <b>{p.get('order_number','')}</b> has been delivered. Enjoy!"
+        "<br/><br/>If anything's not right, our support team is one tap away."
+    )
+    subject = f"Delivered: order {p.get('order_number', '')}"
+    return subject, _shell("Delivered", body, f"{storefront_url}/account/orders", "View order")
+
+
+def order_cancelled(p: dict, storefront_url: str) -> tuple[str, str]:
+    body = (
+        f"Order <b>{p.get('order_number','')}</b> has been cancelled as requested."
+        " Any reserved stock has been released. No further charges apply."
+    )
+    subject = f"Order {p.get('order_number', '')} cancelled"
+    return subject, _shell("Order cancelled", body, storefront_url, "Continue shopping")
+
+
+def payment_failed(p: dict, storefront_url: str) -> tuple[str, str]:
+    body = (
+        f"The payment for order <b>{p.get('order_number','')}</b> didn't go through —"
+        " <b>no money was charged</b>."
+        "<br/><br/>Your items are reserved. You can retry the payment from My Orders"
+        " within 2 hours."
+    )
+    subject = f"Action needed: payment for order {p.get('order_number', '')} didn't go through"
+    return subject, _shell("Payment failed", body,
+                           f"{storefront_url}/account/orders", "Retry payment")
+
+
+def cart_reminder(p: dict, storefront_url: str) -> tuple[str, str]:
+    name = p.get("first_name") or "there"
+    items = p.get("items", [])
+    rows = "".join(
+        f"<li style='margin:4px 0;color:#18181b;'>{i.get('name','')} — {_rupees(i.get('unit_price', 0))}</li>"
+        for i in items[:5]
+    )
+    body = (
+        f"Hi {name}, you left something in your cart!"
+        f"<ul style='padding-left:18px;margin:14px 0;'>{rows}</ul>"
+        + ("These are popular items — stock isn't guaranteed to wait for you."
+           if p.get("stage") == "3d" else
+           "Popular items can sell out — don't wait too long!")
+    )
+    subject = ("Still thinking it over? Your cart is waiting" if p.get("stage") == "3d"
+               else "You left items in your cart")
+    return subject, _shell("Your cart is waiting", body, f"{storefront_url}/cart", "Return to cart")
+
 
 
 def order_shipped(p: dict, storefront_url: str) -> tuple[str, str]:
@@ -186,4 +297,5 @@ TEMPLATES = {
     "auth.password_reset": password_reset,
     "auth.welcome": welcome,
     "auth.otp_login": otp_login,
+    "cart.reminder": cart_reminder,
 }

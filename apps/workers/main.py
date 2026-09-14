@@ -128,6 +128,59 @@ async def shutdown(ctx):
 redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 
+async def cart_reminders(ctx) -> int:
+    """Abandoned-cart reminders: 30 minutes after leaving items in the cart
+    ('stock won't wait') and again 3 days later. One send per stage per cart;
+    guest carts (no user) and empty carts are skipped."""
+    from datetime import datetime, timedelta, timezone
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+    from core.database import engine
+    from core.models import OutboxEvent
+
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    sent = 0
+    async with maker() as session:
+        # Stage windows: 30-45 minutes and 3d-3d2h after last cart activity.
+        rows = (await session.execute(text("""
+            SELECT c.id, c.user_id, c.updated_at,
+                   COALESCE(u.email, '') AS email, COALESCE(u.first_name, '') AS first_name,
+                   (SELECT json_agg(json_build_object('name', ci.product_name,
+                                                      'unit_price', ci.unit_price))
+                    FROM cart_items ci WHERE ci.cart_id = c.id) AS items
+            FROM carts c
+            JOIN users u ON u.id = c.user_id AND u.deleted_at IS NULL AND u.is_active
+            WHERE c.updated_at < now() - interval '30 minutes'
+              AND ( (c.updated_at > now() - interval '45 minutes')
+                 OR (c.updated_at < now() - interval '3 days'
+                     AND c.updated_at > now() - interval '3 days 2 hours') )
+              AND EXISTS (SELECT 1 FROM cart_items ci WHERE ci.cart_id = c.id)
+        """))).mappings().all()
+        for r in rows:
+            age = datetime.now(timezone.utc) - r["updated_at"].replace(tzinfo=timezone.utc)
+            stage = "30m" if age < timedelta(hours=1) else "3d"
+            dedup = f"cartrem:{r['id']}:{stage}"
+            first = await redis_manager.client.set(dedup, "1", nx=True, ex=14 * 86400)
+            if not first:
+                continue
+            session.add(OutboxEvent(
+                tenant_id=None,
+                type="cart.reminder",
+                payload={
+                    "user_id": r["user_id"],
+                    "email": r["email"],
+                    "first_name": r["first_name"],
+                    "items": r["items"] or [],
+                    "stage": stage,
+                },
+            ))
+            sent += 1
+        await session.commit()
+    if sent:
+        logger.info("cart_reminders: queued %s reminder emails", sent)
+    return sent
+
+
 async def expire_stale_orders(ctx) -> int:
     """Cancel unpaid/failed ONLINE orders past their 2-hour payment window and
     return their stock to the pool. Keeps the admin dashboard and customer
@@ -166,10 +219,11 @@ async def expire_stale_orders(ctx) -> int:
 
 
 class WorkerSettings:
-    functions = [process_outbox_event, expire_stale_orders]
+    functions = [process_outbox_event, expire_stale_orders, cart_reminders]
     cron_jobs = [
         cron(poll_outbox, second={0, 10, 20, 30, 40, 50}, run_at_startup=True),  # every 10 seconds
         cron(expire_stale_orders, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # every 5 min
+        cron(cart_reminders, minute=25, second=0),  # every hour at :25
     ]
     on_startup = startup
     on_shutdown = shutdown

@@ -23,20 +23,20 @@ async def all_tickets(
     service: SupportService = Depends(_service),
     staff: User = Depends(require_staff),
 ):
-    tickets, _ = await service.list_tickets(str(staff.id), status=status, page=page, page_size=100)
+    tickets, _ = await service.list_tickets(str(staff.id), status=status, page=page, page_size=100, role="platform_admin")
     return tickets
 
 
 @router.get("/tickets/{ticket_id}", response_model=TicketOut, dependencies=[Depends(require_staff)])
 async def get_ticket(ticket_id: str, service: SupportService = Depends(_service),
                      staff: User = Depends(require_staff)):
-    return await service.get_ticket(ticket_id, str(staff.id))
+    return await service.get_ticket(ticket_id, str(staff.id), role="platform_admin")
 
 
 @router.post("/tickets/{ticket_id}/messages", response_model=TicketOut, dependencies=[Depends(require_staff)])
 async def reply(ticket_id: str, payload: TicketMessageCreate,
                 service: SupportService = Depends(_service), staff: User = Depends(require_staff)):
-    return await service.add_message(ticket_id, str(staff.id), "admin", payload.body)
+    return await service.add_message(ticket_id, str(staff.id), "admin", payload.body, role="platform_admin")
 
 
 @router.patch("/tickets/{ticket_id}/status", response_model=TicketOut, dependencies=[Depends(require_staff)])
@@ -52,4 +52,4 @@ async def set_status(ticket_id: str, payload: TicketStatusUpdate,
         {"s": payload.status, "id": ticket_id},
     )
     await service.session.commit()
-    return await service.get_ticket(ticket_id, str(staff.id))
+    return await service.get_ticket(ticket_id, str(staff.id), role="platform_admin")

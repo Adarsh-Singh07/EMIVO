@@ -69,7 +69,56 @@ class MockEmailProvider(NotificationProvider):
         return True
 
 
+class SmtpEmailProvider(NotificationProvider):
+    """Any SMTP server (Lark Mail, Gmail, Zoho…). Uses SSL on 465 by default;
+    set EMAIL_SMTP_SSL=false for STARTTLS (587)."""
+
+    def __init__(self, host: str, port: int, user: str, password: str, from_address: str, use_ssl: bool):
+        self._host, self._port = host, port
+        self._user, self._password = user, password
+        self._from = from_address
+        self._ssl = use_ssl
+
+    async def send_email(self, to_email: str, subject: str, html: str, text: str = "") -> bool:
+        import asyncio
+        import smtplib
+        import ssl as _ssl
+        from email.message import EmailMessage
+
+        msg = EmailMessage()
+        msg["From"] = self._from
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg.set_content(text or "Please enable HTML to view this email.")
+        msg.add_alternative(html, subtype="html")
+
+        def _send():
+            if self._ssl:
+                server = smtplib.SMTP_SSL(self._host, self._port,
+                                          context=_ssl.create_default_context())
+            else:
+                server = smtplib.SMTP(self._host, self._port)
+            with server:
+                if not self._ssl:
+                    server.starttls(context=_ssl.create_default_context())
+                if self._user and self._password:
+                    server.login(self._user, self._password)
+                server.send_message(msg)
+
+        await asyncio.get_running_loop().run_in_executor(None, _send)
+        return True
+
+
 def get_email_provider() -> NotificationProvider:
+    if settings.email_provider == "smtp":
+        if settings.email_smtp_host and settings.email_smtp_user:
+            return SmtpEmailProvider(
+                host=settings.email_smtp_host, port=settings.email_smtp_port,
+                user=settings.email_smtp_user,
+                password=settings.email_smtp_password.get_secret_value(),
+                from_address=settings.email_from, use_ssl=settings.email_smtp_ssl,
+            )
+        logger.warning("EMAIL_PROVIDER=smtp but host/user missing — falling back")
     key = settings.resend_api_key.get_secret_value()
     if key:
         return ResendEmailProvider(api_key=key, from_address=settings.email_from)

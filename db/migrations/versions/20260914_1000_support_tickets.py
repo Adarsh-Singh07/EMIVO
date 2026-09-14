@@ -31,6 +31,8 @@ def upgrade():
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
             )""",
             "CREATE INDEX ix_support_tickets_user ON support_tickets(user_id)",
+            "ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS ticket_number VARCHAR(20)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_support_tickets_number ON support_tickets(ticket_number)",
             """CREATE TABLE support_ticket_messages (
                 id VARCHAR(36) PRIMARY KEY,
                 ticket_id VARCHAR(36) NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,

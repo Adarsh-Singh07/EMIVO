@@ -8,9 +8,11 @@ import { toast } from "sonner";
 import { storeApi } from "@/lib/store-api";
 import { useAuth } from "@/lib/auth-context";
 import { formatDate } from "@/lib/format";
+import { useSearchParams } from "next/navigation";
 
 function SupportContent() {
   const { user, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
   const [tickets, setTickets] = useState<Array<any>>([]);
   const [selected, setSelected] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -32,7 +34,11 @@ function SupportContent() {
   useEffect(() => {
     if (!user) { setLoading(false); return; }
     load();
-    storeApi.listOrders({ page: 1, page_size: 20 }).then((d) => setOrders(d.items || [])).catch(() => {});
+    storeApi.listOrders({ page: 1, page_size: 20 }).then((d) => {
+      setOrders(d.items || []);
+      const pre = searchParams.get("order");
+      if (pre) setForm((f) => ({ ...f, order_id: pre }));
+    }).catch(() => {});
     const t = setInterval(load, 10_000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -140,7 +146,7 @@ function SupportContent() {
                     className="w-full text-left p-4 rounded-2xl border border-neutral-200 bg-white hover:border-neutral-300 flex items-center justify-between">
                     <div className="min-w-0">
                       <p className="font-medium text-sm truncate">{t.subject}</p>
-                      <p className="text-xs text-neutral-400 mt-0.5">{t.category} · {formatDate(t.updated_at)}</p>
+                      <p className="text-xs text-neutral-400 mt-0.5">{t.ticket_number || t.id.slice(0, 8)} · {t.category} · {formatDate(t.updated_at)}</p>
                     </div>
                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0 ${t.status === "resolved" ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>{t.status.replace("_", " ")}</span>
                   </button>
@@ -154,7 +160,7 @@ function SupportContent() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="font-semibold">{selected.subject}</p>
-                <p className="text-xs text-neutral-400">{selected.category}{selected.order_number ? ` · ${selected.order_number}` : ""} · {selected.status}</p>
+                <p className="text-xs text-neutral-400">{selected.ticket_number} · {selected.category}{selected.order_number ? ` · ${selected.order_number}` : ""} · {selected.status}</p>
               </div>
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${selected.status === "resolved" ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>{selected.status.replace("_", " ")}</span>
             </div>
