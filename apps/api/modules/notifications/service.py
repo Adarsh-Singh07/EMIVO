@@ -99,8 +99,22 @@ class NotificationService:
             if not email and user_id:
                 email = await self._user_email(str(user_id))
             if email:
+                # Sender routing: support-desk mail goes out as support@,
+                # everything else (OTP, order/payment events, cart reminders)
+                # as no-reply@ with Reply-To pointing at the support desk.
+                from modules.notifications.aliases import (
+                    ALIAS_SUPPORT,
+                    ALIAS_TRANSACTIONAL,
+                    REPLY_TO_SUPPORT,
+                )
+                if event_type.startswith("support."):
+                    from_address, reply_to = ALIAS_SUPPORT, None
+                else:
+                    from_address, reply_to = ALIAS_TRANSACTIONAL, REPLY_TO_SUPPORT
                 subject, html = TEMPLATES[event_type](payload, settings.storefront_url)
-                await self.email_provider.send_email(email, subject, html)
+                await self.email_provider.send_email(
+                    email, subject, html, from_address=from_address, reply_to=reply_to
+                )
 
         # 2. In-app
         if event_type in IN_APP and user_id:

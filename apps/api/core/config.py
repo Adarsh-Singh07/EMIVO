@@ -105,7 +105,7 @@ class Settings(BaseSettings):
     # or any SMTP server — set EMAIL_SMTP_* below and restart).
     email_provider: str = Field(default="resend", pattern="^(resend|smtp)$")
     resend_api_key: SecretStr = Field(default=SecretStr(""))
-    email_from: str = Field(default="ELEKTRIX <support@elektrix.in>")
+    email_from: str = Field(default="ELEKTRIX <no-reply@elektrix.in>")
     # SMTP (Lark Mail): e.g. EMAIL_SMTP_HOST=smtp.larksuite.com EMAIL_SMTP_PORT=465
     email_smtp_host: str = Field(default="")
     email_smtp_port: int = Field(default=465)

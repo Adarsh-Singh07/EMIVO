@@ -14,7 +14,13 @@ logger = logging.getLogger(__name__)
 class NotificationProvider(ABC):
     @abstractmethod
     async def send_email(
-        self, to_email: str, subject: str, html: str, text: str = ""
+        self,
+        to_email: str,
+        subject: str,
+        html: str,
+        text: str = "",
+        from_address: str | None = None,
+        reply_to: str | None = None,
     ) -> bool:
         pass
 
@@ -30,13 +36,23 @@ class ResendEmailProvider(NotificationProvider):
         self.api_key = api_key
         self.from_address = from_address
 
-    async def send_email(self, to_email: str, subject: str, html: str, text: str = "") -> bool:
+    async def send_email(
+        self,
+        to_email: str,
+        subject: str,
+        html: str,
+        text: str = "",
+        from_address: str | None = None,
+        reply_to: str | None = None,
+    ) -> bool:
         payload = {
-            "from": self.from_address,
+            "from": from_address or self.from_address,
             "to": [to_email],
             "subject": subject,
             "html": html,
         }
+        if reply_to:
+            payload["reply_to"] = reply_to
         if text:
             payload["text"] = text
         try:
@@ -64,8 +80,18 @@ class MockEmailProvider(NotificationProvider):
     """Logs instead of sending — used when no API key is configured or in
     non-prod environments so flows remain testable."""
 
-    async def send_email(self, to_email: str, subject: str, html: str, text: str = "") -> bool:
-        logger.info("email (mock) to=%s subject=%s", to_email, subject)
+    async def send_email(
+        self,
+        to_email: str,
+        subject: str,
+        html: str,
+        text: str = "",
+        from_address: str | None = None,
+        reply_to: str | None = None,
+    ) -> bool:
+        logger.info(
+            "email (mock) to=%s subject=%s from=%s", to_email, subject, from_address or "default"
+        )
         return True
 
 
@@ -79,16 +105,26 @@ class SmtpEmailProvider(NotificationProvider):
         self._from = from_address
         self._ssl = use_ssl
 
-    async def send_email(self, to_email: str, subject: str, html: str, text: str = "") -> bool:
+    async def send_email(
+        self,
+        to_email: str,
+        subject: str,
+        html: str,
+        text: str = "",
+        from_address: str | None = None,
+        reply_to: str | None = None,
+    ) -> bool:
         import asyncio
         import smtplib
         import ssl as _ssl
         from email.message import EmailMessage
 
         msg = EmailMessage()
-        msg["From"] = self._from
+        msg["From"] = from_address or self._from
         msg["To"] = to_email
         msg["Subject"] = subject
+        if reply_to:
+            msg["Reply-To"] = reply_to
         msg.set_content(text or "Please enable HTML to view this email.")
         msg.add_alternative(html, subtype="html")
 

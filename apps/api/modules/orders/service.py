@@ -756,10 +756,13 @@ class OrderService:
         user = await user_service.get_user(order.user_id)
         if user:
             provider = get_email_provider()
+            from modules.notifications.aliases import ALIAS_TRANSACTIONAL, REPLY_TO_SUPPORT
             await provider.send_email(
                 to_email=user.email,
                 subject=f"Your order {order.order_number} has been shipped!",
-                html=f"<p>Hi {user.name}, your order is on the way. Tracking number: {awb}</p>"
+                html=f"<p>Hi {user.name}, your order is on the way. Tracking number: {awb}</p>",
+                from_address=ALIAS_TRANSACTIONAL,
+                reply_to=REPLY_TO_SUPPORT,
             )
             
         from modules.orders.schemas import OrderResponseV2

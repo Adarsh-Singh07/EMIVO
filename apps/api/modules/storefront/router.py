@@ -173,8 +173,21 @@ async def handle_contact_form(form: ContactForm):
     <h3>Message:</h3>
     <p>{form.esc(form.message)}</p>
     """
-    support_email = settings.email_from
-    await provider.send_email(to_email=support_email, subject=admin_subject, html=admin_html)
+    from modules.notifications.aliases import (
+        ALIAS_SUPPORT,
+        ALIAS_TRANSACTIONAL,
+        CONTACT_INBOX,
+    )
+    # Submissions land in the contact@ inbox; Reply-To is the customer so
+    # staff can answer by simply hitting reply. Sent as no-reply@ (it is an
+    # automated relay of the form, not a reply).
+    await provider.send_email(
+        to_email=CONTACT_INBOX,
+        subject=admin_subject,
+        html=admin_html,
+        from_address=ALIAS_TRANSACTIONAL,
+        reply_to=form.email,
+    )
     
     # 2. Send confirmation to the address the user typed. The subject and
     # name are escaped and the body is fully template-controlled except for
@@ -200,7 +213,11 @@ async def handle_contact_form(form: ContactForm):
         </div>
     </div>
     """
-    await provider.send_email(to_email=form.email, subject=user_subject, html=user_html)
+    # Confirmation comes from the support desk identity — the mail promises a
+    # human reply within 24 hours, so it should wear that sender.
+    await provider.send_email(
+        to_email=form.email, subject=user_subject, html=user_html, from_address=ALIAS_SUPPORT
+    )
     
     return {"status": "ok"}
 
