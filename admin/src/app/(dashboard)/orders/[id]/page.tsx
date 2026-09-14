@@ -33,6 +33,13 @@ interface OrderItem {
   subtotal: number;
 }
 
+interface OrderNote {
+  id: string;
+  body: string;
+  created_at: string | null;
+  author_name: string | null;
+}
+
 interface ShippingAddress {
   full_name?: string;
   phone?: string;
@@ -111,6 +118,10 @@ export default function OrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [transitioning, setTransitioning] = useState(false);
+  // Staff-only internal notes
+  const [notes, setNotes] = useState<OrderNote[]>([]);
+  const [newNote, setNewNote] = useState("");
+  const [noteSaving, setNoteSaving] = useState(false);
 
   // Ship modal
   const [shipOpen, setShipOpen] = useState(false);
@@ -137,6 +148,7 @@ export default function OrderDetailPage() {
       ]);
       setOrder(o);
       setPayments(p?.items || []);
+      apiClient.get<OrderNote[]>(`/orders/${id}/notes`).then(setNotes).catch(() => setNotes([]));
     } catch (err) {
       setError(err instanceof ApiError ? `${err.message}${err.code ? ` (${err.code})` : ""}` : "Failed to load order");
     } finally {
@@ -147,6 +159,21 @@ export default function OrderDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const addNote = async () => {
+    if (!newNote.trim()) return;
+    setNoteSaving(true);
+    try {
+      await apiClient.post(`/orders/${id}/notes`, { body: newNote.trim() });
+      setNotes(await apiClient.get<OrderNote[]>(`/orders/${id}/notes`));
+      setNewNote("");
+      toast.success("Note added");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to add note");
+    } finally {
+      setNoteSaving(false);
+    }
+  };
 
   const shipWithDelhivery = async () => {
     setTransitioning(true);
@@ -375,6 +402,40 @@ export default function OrderDetailPage() {
                 ))}
               </ul>
             )}
+          </section>
+
+          {/* Internal notes (staff-only) */}
+          <section className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+            <h2 className="mb-1 text-base font-bold text-neutral-900">Internal Notes</h2>
+            <p className="mb-3 text-xs text-neutral-400">Visible to staff only — customers never see these.</p>
+            {notes.length > 0 ? (
+              <ul className="mb-4 space-y-3">
+                {notes.map((n) => (
+                  <li key={n.id} className="rounded-xl bg-neutral-50 border border-neutral-100 px-4 py-3">
+                    <p className="text-sm text-neutral-800 whitespace-pre-wrap">{n.body}</p>
+                    <p className="mt-1 text-[11px] text-neutral-400">
+                      {n.author_name || "Staff"}{n.created_at ? ` · ${new Date(n.created_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}` : ""}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mb-4 text-sm text-neutral-400">No internal notes yet.</p>
+            )}
+            <textarea
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              placeholder="e.g. customer called — reshipping on Monday"
+              className="min-h-[70px] w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+            <button
+              onClick={addNote}
+              disabled={noteSaving || !newNote.trim()}
+              className="mt-2 inline-flex items-center gap-2 rounded-xl bg-neutral-950 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-50"
+            >
+              {noteSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Add note
+            </button>
           </section>
         </div>
 

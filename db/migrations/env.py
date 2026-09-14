@@ -14,7 +14,7 @@ from core.models import Base
 from modules.businesses.models import Business
 from modules.users.models import User
 from modules.products.models import Product, ProductVariant, ProductMedia, Category
-from modules.orders.models import Order, OrderItem
+from modules.orders.models import Order, OrderItem, OrderNote
 from modules.customers.models import Customer
 from modules.carts.models import Cart, CartItem
 from modules.coupons.models import Coupon, CouponUsage

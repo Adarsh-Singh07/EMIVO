@@ -63,6 +63,8 @@ class CatalogService:
             discount_percent=max(discount, 0),
             on_offer=effective < d["price"],
             offer_name=d.get("offer_name"),
+            is_flash_sale=bool(d.get("is_flash_sale")),
+            offer_ends_at=d.get("offer_ends_at"),
             status=str(d.get("status") or "ACTIVE"),
             featured=bool(d.get("featured")),
             specs=d.get("specs"),
@@ -131,6 +133,7 @@ class CatalogService:
     _BASE_SELECT = f"""
         SELECT p.id, p.name, p.slug, p.description, p.brand, p.return_policy, p.warranty_info, p.sku, p.price, p.mrp,
                p.sale_price, p.offer_name, p.status, p.featured, p.specs, p.tags, p.category_id,
+               p.is_flash_sale, p.offer_ends_at,
                p.created_at, c.name AS category_name, c.slug AS category_slug,
                {EFFECTIVE_PRICE_SQL} AS effective_price,
                rr.rating_avg AS rating_avg, rr.rating_count AS rating_count

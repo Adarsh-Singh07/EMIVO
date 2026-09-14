@@ -71,6 +71,8 @@ export interface Product {
   sku?: string;
   onOffer?: boolean;
   offerName?: string | null;
+  isFlashSale?: boolean;
+  offerEndsAt?: string | null;
   createdAt?: string;
 }
 
@@ -517,6 +519,8 @@ export function mapStoreProduct(p: StoreProduct): Product {
     sku: p.sku || undefined,
     onOffer: p.on_offer,
     offerName: (p as any).offer_name,
+    isFlashSale: (p as any).is_flash_sale === true,
+    offerEndsAt: (p as any).offer_ends_at ?? null,
     rating: (p as any).rating_avg ?? undefined,
     reviews: (p as any).rating_count ?? undefined,
     createdAt: p.created_at || undefined,

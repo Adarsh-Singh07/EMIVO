@@ -112,3 +112,20 @@ class OrderItem(Base, TimestampMixin):
     variant_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     order: Mapped["Order"] = relationship("Order", back_populates="items")
+
+class OrderNote(Base, TimestampMixin, TenantMixin):
+    """Staff-only internal note on an order (visible in the admin order
+    detail page, never exposed to the customer via any API)."""
+
+    __tablename__ = "order_notes"
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    order_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    author_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)

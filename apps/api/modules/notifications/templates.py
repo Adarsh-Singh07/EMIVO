@@ -315,6 +315,39 @@ def low_stock_alert(p: dict, storefront_url: str) -> tuple[str, str]:
     return "Low stock alert: restock needed", _shell("Low stock alert", body)
 
 
+
+
+def weekly_digest(p: dict, storefront_url: str) -> tuple[str, str]:
+    """Internal staff digest — delivered to the admin@ alias by the worker."""
+    def _rupees(v):
+        return f"₹{round(v / 100):,}"
+
+    rows = [
+        ("Orders placed", str(p.get("orders", 0))),
+        ("Revenue (excl. pending/cancelled)", _rupees(p.get("revenue", 0))),
+        ("Cancelled orders", str(p.get("cancelled", 0))),
+        ("New customers", str(p.get("new_customers", 0))),
+        ("Failed payments", str(p.get("failed_payments", 0))),
+        ("Abandoned-cart value", _rupees(p.get("abandoned_value", 0))),
+        ("Open support tickets", str(p.get("tickets", 0))),
+        ("Low-stock products", str(p.get("low_stock", 0))),
+    ]
+    trs = "".join(
+        f"<tr><td style='padding:8px 12px;color:#6b7280;'>{k}</td>"
+        f"<td style='padding:8px 12px;text-align:right;font-weight:bold;color:#18181b;'>{v}</td></tr>"
+        for k, v in rows
+    )
+    body = (
+        "Here is how ELEKTRIX did over the last 7 days:"
+        f"<br/><br/><table width='100%' cellpadding='0' cellspacing='0' "
+        "style='border-collapse:collapse;background:#f9fafb;border-radius:8px;'>"
+        f"{trs}</table><br/>"
+        f"<a href='{storefront_url}' style='color:#b45309;'>View the storefront</a> "
+        "&middot; manage ops in the admin panel."
+    )
+    return "Your weekly ELEKTRIX recap", _shell("Weekly recap", body)
+
+
 TEMPLATES = {
     "order.created": order_created,
     "payment.captured": payment_captured,
@@ -328,4 +361,5 @@ TEMPLATES = {
     "auth.otp_login": otp_login,
     "cart.reminder": cart_reminder,
     "inventory.low_stock": low_stock_alert,
+    "admin.weekly_digest": weekly_digest,
 }

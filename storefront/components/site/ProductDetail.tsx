@@ -25,6 +25,7 @@ import PincodeChecker from "./PincodeChecker";
 import ProductCard from "./ProductCard";
 import ProductReviews from "./ProductReviews";
 import BankOfferBadge from "./BankOfferBadge";
+import FlashSaleCountdown from "./FlashSaleCountdown";
 import { useCart } from "./CartProvider";
 import { useWishlist } from "@/lib/wishlist-context";
 import { COMPARE_MAX, toggleCompare, useCompareIds, pushRecent } from "@/lib/compare";
@@ -331,6 +332,11 @@ export default function ProductDetail({
                 {product.offerName || "Festival Offer"} Active
               </span>
             </div>
+          )}
+
+          {/* Flash sale countdown */}
+          {!selectedVariant && product.isFlashSale && product.offerEndsAt && (
+            <FlashSaleCountdown endsAt={product.offerEndsAt} />
           )}
 
           {/* Bank card offers eligible for this product */}

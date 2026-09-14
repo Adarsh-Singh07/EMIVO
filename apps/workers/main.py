@@ -304,13 +304,110 @@ async def low_stock_alert(ctx) -> int:
     return len(alerted)
 
 
+async def flash_sale_sync(ctx) -> int:
+    """Keep products.is_flash_sale true exactly inside the offer window
+    (sale_price + offer_starts_at + offer_ends_at all set). The flag drives
+    immediate stock release on cancel, so it must track the window even if
+    the window was edited after the fact."""
+    from sqlalchemy import text
+    from core.database import engine
+
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    async with maker() as session:
+        res = await session.execute(text("""
+            WITH turn_on AS (
+                UPDATE products SET is_flash_sale = true, updated_at = now()
+                WHERE is_flash_sale = false
+                  AND sale_price IS NOT NULL AND sale_price > 0
+                  AND offer_starts_at IS NOT NULL AND offer_ends_at IS NOT NULL
+                  AND now() >= offer_starts_at AND now() <= offer_ends_at
+                RETURNING 1
+            ), turn_off AS (
+                UPDATE products SET is_flash_sale = false, updated_at = now()
+                WHERE is_flash_sale = true
+                  AND (
+                    sale_price IS NULL OR sale_price <= 0
+                    OR offer_starts_at IS NULL OR offer_ends_at IS NULL
+                    OR now() < offer_starts_at OR now() > offer_ends_at
+                  )
+                RETURNING 1
+            )
+            SELECT (SELECT COUNT(*) FROM turn_on) + (SELECT COUNT(*) FROM turn_off) AS changed
+        """))
+        changed = res.scalar() or 0
+        await session.commit()
+    if changed:
+        logger.info("flash_sale_sync: toggled %s product(s)", changed)
+    return changed
+
+
+async def weekly_digest(ctx) -> int:
+    """Monday-morning business digest to the admin@ inbox: last-7-day orders,
+    revenue, new customers, abandoned-cart value and low-stock count."""
+    from sqlalchemy import text
+    from core.database import engine
+    from core.models import OutboxEvent
+    from modules.notifications.aliases import ADMIN_INBOX
+
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+    async with maker() as session:
+        m = (await session.execute(text("""
+            SELECT
+              (SELECT COUNT(*) FROM orders
+                WHERE created_at > now() - interval '7 days' AND deleted_at IS NULL) AS orders,
+              (SELECT COALESCE(SUM(total), 0) FROM orders
+                WHERE created_at > now() - interval '7 days' AND deleted_at IS NULL
+                  AND status NOT IN ('PENDING', 'PAYMENT_FAILED', 'CANCELLED')) AS revenue,
+              (SELECT COUNT(*) FROM orders
+                WHERE created_at > now() - interval '7 days' AND deleted_at IS NULL
+                  AND status = 'CANCELLED') AS cancelled,
+              (SELECT COUNT(*) FROM users
+                WHERE created_at > now() - interval '7 days' AND is_active) AS new_customers,
+              (SELECT COUNT(*) FROM payments
+                WHERE created_at > now() - interval '7 days' AND status = 'FAILED') AS failed_payments,
+              (SELECT COALESCE(SUM(c.subtotal), 0) FROM carts c
+                WHERE c.updated_at < now() - interval '30 minutes'
+                  AND c.updated_at > now() - interval '7 days'
+                  AND EXISTS (SELECT 1 FROM cart_items ci WHERE ci.cart_id = c.id)) AS abandoned_value,
+              (SELECT COUNT(*) FROM inventory i
+                JOIN products p ON p.id = i.product_id AND p.status = 'ACTIVE'
+                WHERE (i.on_hand - i.reserved) <= i.low_stock_threshold) AS low_stock,
+              (SELECT COUNT(*) FROM support_tickets
+                WHERE created_at > now() - interval '7 days') AS tickets
+        """))).mappings().one()
+
+        # Nothing worth reporting — stay quiet rather than sending empty mail.
+        if not m["orders"] and not m["new_customers"]:
+            return 0
+
+        session.add(OutboxEvent(
+            tenant_id=None,
+            type="admin.weekly_digest",
+            payload={
+                "email": ADMIN_INBOX,
+                "orders": m["orders"], "revenue": int(m["revenue"]),
+                "cancelled": m["cancelled"], "new_customers": m["new_customers"],
+                "failed_payments": m["failed_payments"],
+                "abandoned_value": int(m["abandoned_value"] or 0),
+                "low_stock": m["low_stock"], "tickets": m["tickets"],
+            },
+        ))
+        await session.commit()
+    logger.info("weekly_digest: queued admin digest")
+    return 1
+
+
 class WorkerSettings:
-    functions = [process_outbox_event, expire_stale_orders, cart_reminders, low_stock_alert]
+    functions = [process_outbox_event, expire_stale_orders, cart_reminders, low_stock_alert,
+                 flash_sale_sync, weekly_digest]
     cron_jobs = [
         cron(poll_outbox, second={0, 10, 20, 30, 40, 50}, run_at_startup=True),  # every 10 seconds
         cron(expire_stale_orders, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),  # every 5 min
+        cron(flash_sale_sync, minute={0, 10, 20, 30, 40, 50}),  # every 10 min
         cron(cart_reminders, minute=25, second=0),  # every hour at :25
         cron(low_stock_alert, minute=40, second=0),  # every hour at :40
+        # Monday 09:00 IST (03:30 UTC). arq weekday: 0 = Monday.
+        cron(weekly_digest, day_of_week=0, hour=3, minute=30, second=0),
     ]
     on_startup = startup
     on_shutdown = shutdown

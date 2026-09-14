@@ -111,7 +111,7 @@ class NotificationService:
                 )
                 if event_type.startswith("support."):
                     from_address, reply_to = ALIAS_SUPPORT, None
-                elif event_type.startswith("inventory."):
+                elif event_type.startswith("inventory.") or event_type.startswith("admin."):
                     from_address, reply_to = ALIAS_ADMIN, None
                 else:
                     from_address, reply_to = ALIAS_TRANSACTIONAL, REPLY_TO_SUPPORT

@@ -54,6 +54,8 @@ class StoreProduct(BaseModel):
     discount_percent: int = 0     # vs MRP, for display
     on_offer: bool = False
     offer_name: Optional[str] = None
+    is_flash_sale: bool = False
+    offer_ends_at: Optional[datetime] = None
 
     status: str = "ACTIVE"
     featured: bool = False

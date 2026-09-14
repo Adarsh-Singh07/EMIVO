@@ -177,3 +177,70 @@ async def ship_order_delhivery(
 ) -> Any:
     """Create a Delhivery shipment for the order and mark it shipped."""
     return await service.create_delhivery_shipment(order_id)
+
+# ---------------------------------------------------------------------------
+# Staff-only internal notes (never exposed on customer-facing endpoints)
+# ---------------------------------------------------------------------------
+
+@router.get("/{order_id}/notes", dependencies=[Depends(require_staff)])
+async def list_order_notes(
+    order_id: str,
+    session: AsyncSession = Depends(set_db_context),
+):
+    from sqlalchemy import text
+
+    res = await session.execute(
+        text("""
+            SELECT n.id, n.body, n.created_at,
+                   COALESCE(NULLIF(u.first_name, '') || ' ' || NULLIF(u.last_name, ''),
+                            split_part(u.email, '@', 1)) AS author_name
+            FROM order_notes n
+            LEFT JOIN users u ON u.id = n.author_id
+            WHERE n.order_id = :oid
+            ORDER BY n.created_at ASC
+        """),
+        {"oid": order_id},
+    )
+    return [
+        {"id": r.id, "body": r.body, "created_at": r.created_at, "author_name": r.author_name}
+        for r in res
+    ]
+
+
+@router.post("/{order_id}/notes", status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(require_staff)])
+async def add_order_note(
+    order_id: str,
+    payload: dict,
+    session: AsyncSession = Depends(set_db_context),
+    current_user: User = Depends(get_current_user),
+):
+    from uuid import uuid4 as _uuid4
+
+    from fastapi import HTTPException
+    from sqlalchemy import text
+
+    body = (payload or {}).get("body", "").strip()
+    if not body:
+        raise HTTPException(status_code=422, detail="Note body is required")
+    if len(body) > 5000:
+        raise HTTPException(status_code=422, detail="Note too long (max 5000 chars)")
+
+    if not (await session.execute(
+        text("SELECT 1 FROM orders WHERE id = :oid"), {"oid": order_id}
+    )).scalar():
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    from core.store import get_store_business_id
+    bid = await get_store_business_id(session)
+    note_id = str(_uuid4())
+    await session.execute(
+        text("""
+            INSERT INTO order_notes (id, order_id, business_id, author_id, body)
+            VALUES (:id, :oid, :bid, :aid, :body)
+        """),
+        {"id": note_id, "oid": order_id, "bid": str(bid),
+         "aid": str(current_user.id), "body": body},
+    )
+    await session.commit()
+    return {"id": note_id, "body": body}
