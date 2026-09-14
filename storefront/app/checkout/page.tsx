@@ -32,6 +32,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useCart } from "@/components/site/CartProvider";
+import BankOfferHint from "@/components/site/BankOfferHint";
 import { useStoreShippingConfig, computeShipping } from "@/lib/store-config";
 import { useAuth } from "@/lib/auth-context";
 import { storeApi, type Address, type OrderV2 } from "@/lib/store-api";
@@ -1065,6 +1066,9 @@ function CheckoutContent() {
                   )}
                 </div>
               )}
+
+              {/* Bank card offers relevant to the current cart */}
+              <BankOfferHint productIds={lines.map((l) => l.product_id)} />
 
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
                 <button

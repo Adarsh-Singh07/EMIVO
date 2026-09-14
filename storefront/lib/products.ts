@@ -791,6 +791,36 @@ export async function getActiveCoupons(): Promise<any[]> {
   }
 }
 
+export interface BankOffer {
+  id: string;
+  bank_name: string;
+  card_type: "CREDIT" | "DEBIT" | "ALL";
+  discount_text: string;
+  poster_url?: string | null;
+  link?: string | null;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  position?: number;
+  is_active?: boolean;
+  product_ids: string[];
+}
+
+/** Active, in-window bank offers. Empty product_ids = sitewide. */
+export function isBankOfferEligible(offer: BankOffer, productId: string): boolean {
+  return !offer.product_ids || offer.product_ids.length === 0 || offer.product_ids.includes(productId);
+}
+
+export async function fetchBankOffers(): Promise<BankOffer[]> {
+  try {
+    const res = await fetch(`${API_BASE}/store/bank-offers`, { next: { revalidate: 60 } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchCatalogues(): Promise<any[]> {
   try {
     const res = await fetch(`${API_BASE}/store/catalogues`, { next: { revalidate: 30 } });

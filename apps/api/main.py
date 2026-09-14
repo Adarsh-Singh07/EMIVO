@@ -26,6 +26,7 @@ from modules.reviews.router import router as product_reviews_router
 from modules.admin.support_router import router as admin_support_router
 from modules.chatbot.router import router as chatbot_router
 from modules.catalogues.router import router as catalogues_router, admin_router as catalogues_admin_router
+from modules.bank_offers.router import router as bank_offers_router, admin_router as bank_offers_admin_router
 from contextlib import asynccontextmanager
 from core.redis import lifespan_redis
 from core.exceptions import DomainException, domain_exception_handler, unhandled_exception_handler
@@ -227,6 +228,8 @@ app.include_router(media_router)
 app.include_router(newsletter_router)
 app.include_router(catalogues_router, prefix="/api/v1/store")
 app.include_router(catalogues_admin_router, prefix="/api/v1/admin")
+app.include_router(bank_offers_router, prefix="/api/v1/store")
+app.include_router(bank_offers_admin_router, prefix="/api/v1/admin")
 app.include_router(routers_settings.router, prefix="/api/v1")
 app.include_router(support_router)
 app.include_router(product_reviews_router)

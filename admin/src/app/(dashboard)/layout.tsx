@@ -15,6 +15,7 @@ import {
   Boxes,
   Menu,
   LifeBuoy,
+  Landmark,
 } from "lucide-react";
 import Link from "next/link";
 import { ReactNode, useEffect, useState } from "react";
@@ -46,6 +47,7 @@ const NAV_SECTIONS: Array<{
       { href: "/products/catalogues", label: "Homepage Catalogues", icon: Package },
       { href: "/inventory", label: "Inventory", icon: Boxes },
       { href: "/coupons", label: "Coupons", icon: Tag },
+      { href: "/bank-offers", label: "Bank Offers", icon: Landmark },
       { href: "/support", label: "Support Box", icon: LifeBuoy },
     ],
   },

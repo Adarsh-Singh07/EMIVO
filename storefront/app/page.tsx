@@ -18,6 +18,7 @@ import HeroSlider from "@/components/site/HeroSlider";
 import NewsletterForm from "@/components/site/NewsletterForm";
 import RecentlyViewedStrip from "@/components/site/RecentlyViewedStrip";
 import CouponStrip from "@/components/site/CouponStrip";
+import BankOfferStrip from "@/components/site/BankOfferStrip";
 import CatalogueStrip from "@/components/site/CatalogueStrip";
 import {
   CATEGORIES,
@@ -26,6 +27,7 @@ import {
   getActiveCoupons,
   fetchStoreConfigServer,
   fetchCatalogues,
+  fetchBankOffers,
   PROMO_TILES,
 } from "@/lib/products";
 
@@ -67,11 +69,12 @@ function isBannerInWindow(banner: Record<string, any> | undefined): boolean {
 
 
 export default async function Home() {
-  const [categories, config, coupons, catalogues] = await Promise.all([
+  const [categories, config, coupons, catalogues, bankOffers] = await Promise.all([
     getCategories(),
     fetchStoreConfigServer(),
     getActiveCoupons(),
     fetchCatalogues(),
+    fetchBankOffers(),
   ]);
 
   const showBanner =
@@ -103,6 +106,9 @@ export default async function Home() {
 
       {/* Active Coupons */}
       <CouponStrip coupons={coupons || []} />
+
+      {/* Bank card offers */}
+      <BankOfferStrip offers={bankOffers || []} />
 
 
 

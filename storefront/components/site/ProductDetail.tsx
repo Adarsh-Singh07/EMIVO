@@ -24,6 +24,7 @@ import {
 import PincodeChecker from "./PincodeChecker";
 import ProductCard from "./ProductCard";
 import ProductReviews from "./ProductReviews";
+import BankOfferBadge from "./BankOfferBadge";
 import { useCart } from "./CartProvider";
 import { useWishlist } from "@/lib/wishlist-context";
 import { COMPARE_MAX, toggleCompare, useCompareIds, pushRecent } from "@/lib/compare";
@@ -331,6 +332,9 @@ export default function ProductDetail({
               </span>
             </div>
           )}
+
+          {/* Bank card offers eligible for this product */}
+          {!selectedVariant && <BankOfferBadge productId={product.id} />}
 
           {/* Stock badge */}
           <p className="mt-2">

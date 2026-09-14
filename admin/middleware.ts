@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PROTECTED_PREFIXES = ["/dashboard", "/orders", "/products", "/inventory", "/coupons", "/customers", "/users", "/settings", "/analytics", "/businesses", "/health", "/preview"];
+const PROTECTED_PREFIXES = ["/dashboard", "/orders", "/products", "/inventory", "/coupons", "/bank-offers", "/customers", "/users", "/settings", "/analytics", "/businesses", "/health", "/preview"];
 const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/health", "/robots.txt", "/sitemap.xml", "/_next", "/favicon.ico", "/icons"];
 
 // Roles allowed to see ANY admin page — must mirror apps/api RoleType +
