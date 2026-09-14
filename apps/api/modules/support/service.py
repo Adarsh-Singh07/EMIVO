@@ -35,7 +35,7 @@ class SupportService:
         from datetime import datetime as _dt, timezone as _tz
         day = _dt.now(_tz.utc).strftime("%d%m%y")
         candidate = None
-        for seq in range(int(cnt) + 1, int(cnt) + 60):
+        for seq in range(1, 60):
             trial = f"INC{day}{seq:03d}"
             if not (await self.session.execute(text(
                 "SELECT 1 FROM support_tickets WHERE ticket_number = :t"
