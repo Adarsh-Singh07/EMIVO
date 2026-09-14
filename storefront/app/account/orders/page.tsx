@@ -22,7 +22,9 @@ import {
   Loader2,
   ExternalLink,
   Ban,
-  Tag,, LifeBuoy } from "lucide-react";
+  Tag,
+  LifeBuoy,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { storeApi, type OrderV2 } from "@/lib/store-api";
 import { inr, formatDate } from "@/lib/format";
