@@ -1,5 +1,6 @@
 """Support ticket service. User scoping rides on RLS (app.user_id GUC);
 staff see everything via elektrix_is_staff()."""
+import secrets
 import uuid
 from typing import List, Optional, Tuple
 
@@ -27,14 +28,22 @@ class SupportService:
     async def create_ticket(self, user_id: str, category: str, subject: str,
                             description: str, order_id: Optional[str] = None,
                             order_number: Optional[str] = None) -> SupportTicket:
-        await self._bind(user_id)
-        # Human-facing incident number: INC<DDMMYY><3-digit daily sequence>
+        # The sequence must count ALL tickets (any user's), so bind the
+        # platform role for this transaction; the row's user_id still scopes
+        # visibility afterwards. IntegrityError retries cover concurrent raises.
+        await self._bind(user_id, role="platform_admin")
         from datetime import datetime as _dt, timezone as _tz
         day = _dt.now(_tz.utc).strftime("%d%m%y")
-        cnt = (await self.session.execute(text(
-            "SELECT count(*) FROM support_tickets WHERE ticket_number LIKE :p"
-        ), {"p": f"INC{day}%"})).scalar() or 0
-        candidate = f"INC{day}{int(cnt) + 1:03d}"
+        candidate = None
+        for seq in range(int(cnt) + 1, int(cnt) + 60):
+            trial = f"INC{day}{seq:03d}"
+            if not (await self.session.execute(text(
+                "SELECT 1 FROM support_tickets WHERE ticket_number = :t"
+            ), {"t": trial})).first():
+                candidate = trial
+                break
+        if candidate is None:
+            candidate = f"INC{day}{secrets.token_hex(2).upper()}"
         ticket = SupportTicket(
             user_id=str(user_id), order_id=order_id, order_number=order_number,
             category=category, subject=subject.strip()[:200], ticket_number=candidate,
