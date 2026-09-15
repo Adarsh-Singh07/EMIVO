@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { Search, Loader2 } from "lucide-react";
 import { storeApi, type SearchSuggestion } from "@/lib/store-api";
 import { inr } from "@/lib/format";
+import { track } from "@/lib/analytics";
 
 export default function SearchBox({
   autoFocus = false,
@@ -67,6 +68,7 @@ export default function SearchBox({
     e.preventDefault();
     const q = query.trim();
     if (!q) return;
+    track("search", { search_term: q });
     setOpen(false);
     onNavigate?.();
     router.push(`/shop?q=${encodeURIComponent(q)}`);

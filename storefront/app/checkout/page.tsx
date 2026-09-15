@@ -39,6 +39,7 @@ import { storeApi, type Address, type OrderV2 } from "@/lib/store-api";
 import { ApiError } from "@/lib/api-client";
 import { toast } from "sonner";
 import { inr, formatDate } from "@/lib/format";
+import { track } from "@/lib/analytics";
 import { isSafeRedirectUrl, openPaymentGateway } from "@/lib/safe-redirect";
 
 /* ------------------------------------------------------------------ */
@@ -108,6 +109,13 @@ function CheckoutContent() {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
+
+  // begin_checkout — buyer reached the checkout step with a non-empty cart.
+  useEffect(() => {
+    if (lines.length > 0) {
+      track("begin_checkout", { currency: "INR", value: subtotal / 100, items: lines.length });
+    }
+  }, [lines.length, subtotal]);
 
 
   /* ---------------- Auth guard ---------------- */
@@ -383,6 +391,11 @@ function CheckoutContent() {
                toast.info("Your payment is being verified. Please check your order history later.");
             } else {
                toast.success("Payment successful — order confirmed!");
+               track("purchase", {
+                 transaction_id: fresh.order_number || fresh.id,
+                 currency: "INR",
+                 value: total / 100,
+               });
             }
           }
         });
@@ -459,6 +472,11 @@ function CheckoutContent() {
         sessionStorage.removeItem(IDEM_KEY_STORAGE);
         reloadCart();
         toast.success("Order placed successfully!");
+        track("purchase", {
+          transaction_id: response.order.order_number || response.order.id,
+          currency: "INR",
+          value: total / 100,
+        });
       }
     } catch (err) {
       const apiErr = err as ApiError;

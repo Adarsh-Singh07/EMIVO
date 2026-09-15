@@ -32,6 +32,7 @@ import { COMPARE_MAX, toggleCompare, useCompareIds, pushRecent } from "@/lib/com
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 import { inr } from "@/lib/format";
+import { track, itemParams } from "@/lib/analytics";
 import { type Product } from "@/lib/products";
 
 const TABS = [
@@ -61,6 +62,17 @@ export default function ProductDetail({
     // so if the user hits the browser Back button after checkout, they see accurate stock.
     router.refresh();
   }, [router]);
+
+  // view_item — product detail viewed (fires only when analytics is configured).
+  useEffect(() => {
+    track("view_item", itemParams({
+      id: product.id,
+      name: product.name,
+      brand: product.brand,
+      price: product.price,
+      category: product.categoryName || product.category,
+    }));
+  }, [product.id, product.name, product.brand, product.price, product.categoryName, product.category]);
 
   const [activeImg, setActiveImg] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);

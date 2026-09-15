@@ -13,6 +13,7 @@ import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import CookieConsent from "@/components/site/CookieConsent";
 import LenisProvider from "@/components/site/LenisProvider";
 import SupportChatWidget from "@/components/site/SupportChatWidget";
+import Analytics from "@/components/site/Analytics";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -30,6 +31,12 @@ const organizationJsonLd = {
   logo: `${SITE_URL}/icons/icon-192.png`,
   description:
     "India's premium electronics store — mobiles, laptops, appliances, audio and wearables.",
+  sameAs: [
+    "https://x.com/elektrix_in",
+    "https://www.linkedin.com/company/elektrix-in/",
+    "https://www.facebook.com/share/1HaVFzFU7k/",
+    "https://www.instagram.com/elektrix.in/",
+  ],
   contactPoint: {
     "@type": "ContactPoint",
     telephone: "+91-80920-24066",
@@ -45,6 +52,22 @@ const organizationJsonLd = {
     addressRegion: "Bihar",
     postalCode: "841508",
     addressCountry: "IN",
+  },
+};
+
+// Enables a sitelinks search box in branded search results.
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "ELEKTRIX",
+  url: SITE_URL,
+  potentialAction: {
+    "@type": "SearchAction",
+    target: {
+      "@type": "EntryPoint",
+      urlTemplate: `${SITE_URL}/shop?q={search_term_string}`,
+    },
+    "query-input": "required name=search_term_string",
   },
 };
 
@@ -120,6 +143,11 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: toJsonLd(organizationJsonLd) }}
         />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: toJsonLd(websiteJsonLd) }}
+        />
+        <Analytics />
         <LenisProvider>
         <AuthProvider>
         <SupportChatWidget />

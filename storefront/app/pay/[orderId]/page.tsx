@@ -29,6 +29,7 @@ import {
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api-client";
 import { storeApi, type OrderV2 } from "@/lib/store-api";
+import { track } from "@/lib/analytics";
 import { useCart } from "@/components/site/CartProvider";
 import { inr } from "@/lib/format";
 import { openPaymentGateway } from "@/lib/safe-redirect";
@@ -57,6 +58,20 @@ function PayPageInner() {
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollStart = useRef(0);
   const gatewayOpened = useRef(false);
+  const purchaseTracked = useRef<string | null>(null);
+
+  // purchase — fires exactly once per order when payment is confirmed,
+  // regardless of whether confirmation arrives via initial load or polling.
+  useEffect(() => {
+    if (phase === "confirmed" && order && purchaseTracked.current !== order.id) {
+      purchaseTracked.current = order.id;
+      track("purchase", {
+        transaction_id: order.order_number || order.id,
+        currency: "INR",
+        value: order.total / 100,
+      });
+    }
+  }, [phase, order]);
 
   const stopPolling = () => {
     if (pollTimer.current) clearInterval(pollTimer.current);

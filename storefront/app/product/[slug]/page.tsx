@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const product = await getApiProductById(slug);
   if (!product) {
-    return { title: "Product not found — ELEKTRIX" };
+    return { title: "Product not found" };
   }
 
   // Meta descriptions must be plain text — product.description is WYSIWYG HTML.
@@ -18,18 +18,29 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     ?.replace(/<[^>]*>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+
+  // Buy-intent title: "Buy <Brand> <Name> Online at Best Price" — brand is
+  // omitted when the product name already starts with it, to avoid stuffing.
+  const brandPrefix =
+    product.brand &&
+    !product.name.toLowerCase().startsWith(product.brand.toLowerCase())
+      ? `${product.brand} `
+      : "";
+  const priceInr = Math.round(product.price / 100).toLocaleString("en-IN");
   const description =
-    plainDescription?.slice(0, 160) ||
-    `${product.name} by ${product.brand} at ELEKTRIX — genuine products, fast delivery with Easy Replacement.`;
+    plainDescription?.slice(0, 150) ||
+    `Buy ${brandPrefix}${product.name} online at ELEKTRIX for ₹${priceInr}. ${
+      product.inStock ? "In stock" : "Check availability"
+    } — genuine product with brand warranty and fast delivery across India.`;
 
   return {
-    title: `${product.name} — ELEKTRIX`,
+    title: `Buy ${brandPrefix}${product.name} Online at Best Price`,
     description,
     alternates: {
       canonical: `/product/${product.slug}`,
     },
     openGraph: {
-      title: product.name,
+      title: `${brandPrefix}${product.name}`,
       description,
       images: [{ url: product.img, alt: product.name }],
       type: "website",
@@ -37,7 +48,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
     twitter: {
       card: "summary_large_image",
-      title: product.name,
+      title: `${brandPrefix}${product.name}`,
       description,
       images: [product.img],
     },
@@ -116,11 +127,36 @@ export default async function ProductPage({ params }: PageProps) {
     },
   };
 
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: `${process.env.NEXT_PUBLIC_STOREFRONT_URL || 'https://elektrix.in'}/` },
+      { "@type": "ListItem", position: 2, name: "Shop", item: `${process.env.NEXT_PUBLIC_STOREFRONT_URL || 'https://elektrix.in'}/shop` },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: product.categoryName || product.category,
+        item: `${process.env.NEXT_PUBLIC_STOREFRONT_URL || 'https://elektrix.in'}/shop?category=${product.category}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 4,
+        name: product.name,
+        item: `${process.env.NEXT_PUBLIC_STOREFRONT_URL || 'https://elektrix.in'}/product/${product.slug}`,
+      },
+    ],
+  };
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: toJsonLd(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: toJsonLd(breadcrumbJsonLd) }}
       />
       <ProductDetail product={product} related={related} />
     </>

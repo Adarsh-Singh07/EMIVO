@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 import { storeApi, type Cart, type CartItem } from "@/lib/store-api";
+import { track, itemParams } from "@/lib/analytics";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -263,6 +264,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         });
         cartIdRef.current = updated?.id ?? cartId;
         setCart(updated);
+        // E-commerce event — only fires when a provider is configured.
+        track("add_to_cart", itemParams({ ...product, quantity: qty }));
         return true;
       } catch (err) {
         // Rollback the optimistic state and surface the real error.
