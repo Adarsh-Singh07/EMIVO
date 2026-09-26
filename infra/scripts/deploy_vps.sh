@@ -38,6 +38,9 @@ echo "=== [3/9] Database backup (pre-migration) ==="
 mkdir -p backups
 TS=$(date +%Y%m%d_%H%M%S)
 PGPASS=$(echo "$SYNC_DATABASE_URL" | sed -E 's|postgresql://[^:]+:([^@]+)@.*|\1|')
+# The URI carries the password percent-encoded (e.g. @ as %40); libpq's
+# PGPASSFILE/PGPASS needs the decoded value.
+PGPASS=$(printf '%b' "${PGPASS//%/\\x}")
 docker run --rm -e PGPASSWORD="$PGPASS" -v "$PWD/backups:/backups" postgres:17-alpine \
     pg_dump "${SYNC_DATABASE_URL}" --no-owner --no-privileges -Fc \
     -f "/backups/pre_deploy_${TS}.dump" && echo "  backup: backups/pre_deploy_${TS}.dump"

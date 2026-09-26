@@ -8,6 +8,7 @@ import logging
 import re
 from typing import Optional
 
+import httpx
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -129,16 +130,44 @@ async def ask_gemini(session: AsyncSession, user_id: str, user_name: str,
                                   history=hist or "(new conversation)")
     prompt += f"CUSTOMER'S LATEST MESSAGE:\n{message}"
 
-    client = genai.Client(api_key=settings.gemini_api_key.get_secret_value())
     reply, last_err = None, None
-    for model in [m.strip() for m in settings.gemini_chat_models.split(",") if m.strip()]:
+
+    # Primary: Agnes AI (OpenAI-compatible). Falls back to the Gemini chain.
+    agnes_key = settings.agnes_api_key.get_secret_value()
+    if agnes_key:
         try:
-            resp = client.models.generate_content(model=model, contents=prompt)
-            reply = (resp.text or "").strip()
-            break
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    f"{settings.agnes_base_url.rstrip('/')}/chat/completions",
+                    headers={"Authorization": f"Bearer {agnes_key}"},
+                    json={
+                        "model": settings.agnes_chat_model,
+                        "messages": [{"role": "user", "content": prompt}],
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                text_out = (data.get("choices") or [{}])[0].get("message", {}).get("content", "")
+                reply = (text_out or "").strip()
+                if not reply:
+                    raise ValueError("empty completion from Agnes AI")
         except Exception as exc:
-            logger.warning("chatbot model %s failed: %s", model, str(exc)[:150])
+            logger.warning("chatbot Agnes AI (%s) failed: %s",
+                           settings.agnes_chat_model, str(exc)[:150])
             last_err = exc
+            reply = None
+
+    if reply is None:
+        from google import genai
+        client = genai.Client(api_key=settings.gemini_api_key.get_secret_value())
+        for model in [m.strip() for m in settings.gemini_chat_models.split(",") if m.strip()]:
+            try:
+                resp = client.models.generate_content(model=model, contents=prompt)
+                reply = (resp.text or "").strip()
+                break
+            except Exception as exc:
+                logger.warning("chatbot model %s failed: %s", model, str(exc)[:150])
+                last_err = exc
     if reply is None:
         raise last_err or RuntimeError("no chat models configured")
 

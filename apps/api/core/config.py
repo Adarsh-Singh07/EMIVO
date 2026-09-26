@@ -134,6 +134,12 @@ class Settings(BaseSettings):
         )
     )
     chatbot_daily_message_limit: int = Field(default=30)
+    # Primary chatbot provider: Agnes AI (OpenAI-compatible endpoint). When
+    # AGNES_API_KEY is set it is tried FIRST; the Gemini chain above is the
+    # fallback. Leave AGNES_API_KEY empty to use Gemini only.
+    agnes_api_key: SecretStr = Field(default=SecretStr(""))
+    agnes_base_url: str = Field(default="https://apihub.agnes-ai.com/v1")
+    agnes_chat_model: str = Field(default="agnes-3.0-flash")
 
     # SMS for OTP login. "console" only logs codes and refuses to operate in
     # prod; switch to "msg91" and set the auth key + DLT-approved OTP template
