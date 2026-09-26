@@ -83,18 +83,6 @@ def _items_table(items: list) -> str:
     return f"<table style='width:100%;border-collapse:collapse;margin:16px 0;font-size:14px'>{rows}</table>"
 
 
-def payment_captured(p: dict, storefront_url: str) -> tuple[str, str]:
-    body = (
-        f"Your payment of <b>{_rupees(p.get('amount', 0))}</b> for order "
-        f"<b>{p.get('order_number','')}</b> was received. Your order is confirmed and "
-        "will be processed shortly."
-    )
-    return (
-        f"Payment received · {p.get('order_number','')}",
-        _shell("Payment successful", body, f"{storefront_url}/account/orders", "View order"),
-    )
-
-
 def payment_failed(p: dict, storefront_url: str) -> tuple[str, str]:
     body = (
         f"We couldn't process the payment for order <b>{p.get('order_number','')}</b> "
@@ -126,7 +114,7 @@ def order_created(p: dict, storefront_url: str) -> tuple[str, str]:
 def payment_captured(p: dict, storefront_url: str) -> tuple[str, str]:
     body = (
         f"We've received your payment for order <b>{p.get('order_number','')}</b> —"
-        f" <b>{_rupees(p.get('total', 0))}</b>. Your order is now being prepared."
+        f" <b>{_rupees(p.get('amount', 0))}</b>. Your order is now being prepared."
     )
     subject = f"Payment received — order {p.get('order_number', '')} is being prepared"
     return subject, _shell("Payment successful", body,

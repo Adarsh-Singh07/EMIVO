@@ -329,7 +329,33 @@ function OrderDetail({
                     <CreditCard className="w-3.5 h-3.5" />
                     {order.payment_method === "COD"
                       ? "Cash on Delivery"
-                      : "Online Payment"}
+                      : "Online Payment (Easebuzz)"}
+                  </span>
+                )}
+                {order.payment_status && (
+                  <span className="flex items-center gap-1">
+                    <span
+                      className={`inline-block h-2 w-2 rounded-full ${
+                        ["SUCCESS", "CONFIRMED"].includes(order.payment_status.toUpperCase())
+                          ? "bg-green-500"
+                          : ["CREATED", "PENDING", "INITIATED"].includes(order.payment_status.toUpperCase())
+                            ? "bg-amber-400"
+                            : order.payment_status.toUpperCase() === "REFUNDED"
+                              ? "bg-blue-400"
+                              : "bg-red-400"
+                      }`}
+                    />
+                    Payment {order.payment_status.toLowerCase()}
+                  </span>
+                )}
+                {order.payment_txnid && (
+                  <span className="flex items-center gap-1 font-mono" title="Transaction ID">
+                    Txn: {order.payment_txnid}
+                  </span>
+                )}
+                {order.payment_provider_id && (
+                  <span className="flex items-center gap-1 font-mono" title="Gateway payment ID">
+                    ID: {order.payment_provider_id}
                   </span>
                 )}
               </div>

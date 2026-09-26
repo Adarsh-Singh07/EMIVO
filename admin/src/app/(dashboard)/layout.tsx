@@ -20,7 +20,7 @@ import {
   Megaphone,
 } from "lucide-react";
 import Link from "next/link";
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useState, useRef, useCallback } from "react";
 import { PageTransition } from "@/components/animations/PageTransition";
 import { SmoothScrollProvider } from "@/components/animations/SmoothScrollProvider";
 import { BrandLogo } from "@/components/branding/BrandLogo";
@@ -72,33 +72,133 @@ const NAV_SECTIONS: Array<{
   },
 ];
 
-function NotificationBell() {
-  const [unread, setUnread] = useState<number | null>(null);
+interface ActivityItem {
+  kind: "order" | "payment";
+  order_id: string;
+  ref: string;
+  status: string;
+  total: number;
+  at: string;
+}
 
-  useEffect(() => {
-    let cancelled = false;
-    apiClient
-      .get<{ unread_count?: number }>("/notifications?unread_only=true&limit=1")
-      .then((data) => {
-        if (!cancelled) setUnread(data?.unread_count ?? 0);
-      })
-      .catch(() => {
-        // Non-critical; leave the bell quiet when unavailable.
-      });
-    return () => {
-      cancelled = true;
-    };
+function NotificationBell() {
+  const [items, setItems] = useState<ActivityItem[] | null>(null);
+  const [unread, setUnread] = useState(0);
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const data = await apiClient.get<{ items?: ActivityItem[] }>("/admin/activity?limit=15");
+      const list = data?.items || [];
+      setItems(list);
+      const seen = localStorage.getItem("admin_activity_seen");
+      const seenTs = seen ? Date.parse(seen) : 0;
+      setUnread(list.filter((i) => Date.parse(i.at) > seenTs).length);
+    } catch {
+      // Non-critical; leave the bell quiet when unavailable.
+    }
   }, []);
 
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 60_000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next) {
+      localStorage.setItem("admin_activity_seen", new Date().toISOString());
+      setUnread(0);
+    }
+  };
+
+  const fmt = (iso: string) => {
+    const d = new Date(iso);
+    const diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 60) return "just now";
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  };
+
+  const statusTone = (s: string) => {
+    const u = s?.toUpperCase() || "";
+    if (["CONFIRMED", "SUCCESS"].includes(u)) return "text-green-700 bg-green-50";
+    if (["PENDING", "CREATED", "PROCESSING"].includes(u)) return "text-amber-700 bg-amber-50";
+    if (["PAYMENT_FAILED", "FAILED", "FAILURE"].includes(u)) return "text-red-700 bg-red-50";
+    if (["SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(u)) return "text-blue-700 bg-blue-50";
+    return "text-neutral-600 bg-neutral-100";
+  };
+
   return (
-    <span className="relative inline-flex items-center justify-center rounded-xl p-2 text-neutral-400 hover:bg-neutral-50 hover:text-neutral-700 transition-colors">
-      <Bell className="h-5 w-5" />
-      {unread !== null && unread > 0 && (
-        <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-          {unread > 99 ? "99+" : unread}
-        </span>
+    <div className="relative" ref={wrapRef}>
+      <button
+        onClick={toggle}
+        aria-label="Store activity"
+        className="relative inline-flex items-center justify-center rounded-xl p-2 text-neutral-400 hover:bg-neutral-50 hover:text-neutral-700 transition-colors"
+      >
+        <Bell className="h-5 w-5" />
+        {unread > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+            {unread > 99 ? "99+" : unread}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-11 z-50 w-80 rounded-2xl border border-neutral-200 bg-white shadow-xl">
+          <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">
+            <p className="text-sm font-semibold text-neutral-900">Store activity</p>
+            <span className="text-[11px] text-neutral-400">last 3 days</span>
+          </div>
+          <div className="max-h-96 overflow-y-auto">
+            {!items && (
+              <p className="px-4 py-6 text-center text-sm text-neutral-400">Loading…</p>
+            )}
+            {items && items.length === 0 && (
+              <p className="px-4 py-6 text-center text-sm text-neutral-400">No activity in the last 3 days.</p>
+            )}
+            {items && items.length > 0 && items.map((it, idx) => (
+              <Link
+                key={`${it.kind}-${it.ref}-${idx}`}
+                href={`/orders/${it.order_id}`}
+                onClick={() => setOpen(false)}
+                className="flex items-start gap-3 border-b border-neutral-50 px-4 py-3 last:border-0 hover:bg-neutral-50"
+              >
+                <span className={"mt-0.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide " + statusTone(it.status)}>
+                  {it.kind === "payment" ? "₹" : "📦"} {it.status}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-neutral-900">{it.ref}</span>
+                  <span className="text-xs text-neutral-500">
+                    ₹{(it.total / 100).toFixed(2)} · {fmt(it.at)}
+                  </span>
+                </span>
+              </Link>
+            ))}
+          </div>
+          <Link
+            href="/orders"
+            onClick={toggle}
+            className="block border-t border-neutral-100 px-4 py-2.5 text-center text-xs font-medium text-neutral-500 hover:bg-neutral-50"
+          >
+            View all orders
+          </Link>
+        </div>
       )}
-    </span>
+    </div>
   );
 }
 

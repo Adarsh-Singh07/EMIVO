@@ -156,6 +156,53 @@ function PayPageInner() {
     [refreshOrder]
   );
 
+  // Pick up a payment session pre-created by the checkout page (it starts
+  // the initiation in parallel with the redirect and stashes it in
+  // sessionStorage) so the lightbox opens with zero extra round-trips.
+  // Waits briefly for the stash to land, then gives up (caller initiates).
+  const takePaySession = useCallback(
+    async (o: OrderV2): Promise<boolean> => {
+      const KEY = "elektrix_pay_session";
+      for (let waited = 0; waited <= 2500; waited += 250) {
+        const raw = sessionStorage.getItem(KEY);
+        if (raw) {
+          sessionStorage.removeItem(KEY);
+          try {
+            const st = JSON.parse(raw) as {
+              orderId: string;
+              paymentId?: string | null;
+              checkout?: {
+                provider?: string;
+                access_key?: string;
+                key?: string;
+                env?: string;
+                checkout_url?: string;
+              };
+            };
+            if (st.orderId !== o.id) return false;
+            const co = st.checkout;
+            if (co?.provider !== "easebuzz" || !co.access_key || !co.key || !co.env) return false;
+            paymentIdRef.current = st.paymentId || null;
+            setGateway({
+              accessKey: co.access_key,
+              merchantKey: co.key,
+              env: co.env === "prod" ? "prod" : "test",
+              checkoutUrl: co.checkout_url || "",
+            });
+            setPhase("awaiting");
+            startPolling(o.id);
+            return true;
+          } catch {
+            return false;
+          }
+        }
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      return false;
+    },
+    [startPolling]
+  );
+
   const openGateway = useCallback(
     async (o: OrderV2) => {
       // Never open a gateway from inside the gateway frame itself — that
@@ -279,11 +326,14 @@ function PayPageInner() {
       gatewayOpened.current = true;
       if (embedded) {
         startPolling(order.id);
-      } else {
-        openGateway(order);
+        return;
       }
+      (async () => {
+        if (await takePaySession(order)) return;
+        openGateway(order);
+      })();
     }
-  }, [phase, order, openGateway, startPolling, embedded]);
+  }, [phase, order, openGateway, startPolling, embedded, takePaySession]);
 
   // Stop polling when leaving
   useEffect(() => stopPolling, []);
@@ -471,19 +521,66 @@ function PayPageInner() {
   }
 
   // "opening" (about to open the gateway) and "awaiting" (gateway open, polling)
+  const stepIndex = phase === "opening" ? 1 : 2;
+  const steps = [
+    { label: "Order placed", state: "done" },
+    { label: "Contacting secure gateway", state: stepIndex === 1 ? "active" : "done" },
+    { label: "Complete your payment", state: stepIndex === 2 ? "active" : "pending" },
+    { label: "Confirmation", state: "pending" },
+  ];
   return shell(
     <div>
       <div className="text-center">
-        <Loader2 className="w-12 h-12 animate-spin text-neutral-900 mx-auto" />
-        <h1 className="mt-5 text-2xl font-semibold tracking-tight">
-          {phase === "opening" ? "Contacting secure payment gateway…" : "Waiting for payment confirmation"}
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {phase === "opening" ? "Starting your secure payment…" : "Complete your payment"}
         </h1>
         <p className="mt-2 text-sm text-neutral-500">
           {phase === "opening"
-            ? "This usually takes a few seconds. Don't close this page."
-            : "Complete your payment in the secure window. This page updates automatically the moment it succeeds."}
+            ? "One moment — connecting you to the secure payment window."
+            : "The secure payment window is open on this page. It updates automatically the moment you pay."}
         </p>
       </div>
+
+      <div className="mt-6 rounded-2xl border border-neutral-200 bg-white p-5">
+        <ol className="space-y-0">
+          {steps.map((st, i) => (
+            <li key={st.label} className="flex gap-3 last:pb-0">
+              <div className="flex flex-col items-center">
+                <span
+                  className={
+                    "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold " +
+                    (st.state === "done"
+                      ? "bg-green-100 text-green-700"
+                      : st.state === "active"
+                        ? "bg-neutral-950 text-white"
+                        : "bg-neutral-100 text-neutral-400")
+                  }
+                >
+                  {st.state === "done" ? (
+                    <CheckCircle2 className="h-4 w-4" />
+                  ) : st.state === "active" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    i + 1
+                  )}
+                </span>
+                {i < steps.length - 1 && <span className="my-1 h-5 w-px bg-neutral-200" />}
+              </div>
+              <div className={"pb-4 last:pb-0 " + (st.state === "active" ? "animate-pulse" : "")}>
+                <p className={"text-sm font-medium " + (st.state === "pending" ? "text-neutral-400" : "text-neutral-900")}>
+                  {st.label}
+                </p>
+                {st.label === "Complete your payment" && st.state === "active" && (
+                  <p className="mt-0.5 text-xs text-neutral-500">
+                    Pay in the window — this page confirms itself automatically.
+                  </p>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+
       <div className="mt-6">{summary}</div>
       {error && <p className="text-sm text-red-600 text-center mb-4">{error}</p>}
       <div className="flex flex-col sm:flex-row gap-3 justify-center">

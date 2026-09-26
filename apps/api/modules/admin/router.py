@@ -32,6 +32,15 @@ async def dashboard(service: AdminService = Depends(_service)):
     return await service.dashboard()
 
 
+@router.get("/activity", dependencies=[Depends(require_staff)])
+async def activity(
+    limit: int = Query(15, ge=1, le=50),
+    service: AdminService = Depends(_service),
+):
+    """Recent order/payment activity for the admin notification bell."""
+    return {"items": await service.activity(limit)}
+
+
 @router.get("/users", response_model=AdminUserList, dependencies=[Depends(require_staff)])
 async def list_users(
     q: Optional[str] = None,

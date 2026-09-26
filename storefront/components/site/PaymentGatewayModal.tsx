@@ -19,12 +19,10 @@
  * fallback link if the lightbox cannot load. It is hard-restricted to the
  * allow-listed gateway hosts in lib/safe-redirect.ts.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ExternalLink, Loader2, ShieldCheck, X } from "lucide-react";
 import { isSafeGatewayUrl } from "@/lib/safe-redirect";
-
-const SDK_URL =
-  "https://ebz-static.s3.ap-south-1.amazonaws.com/easecheckout/v2.0.0/easebuzz-checkout-v2.min.js";
+import { loadEasebuzzSdk } from "@/lib/easebuzz-sdk";
 
 export interface GatewayResult {
   status: "success" | "failed";
@@ -85,26 +83,14 @@ export default function PaymentGatewayModal({
       }
     };
 
-    const existing = document.getElementById("easebuzz-checkout-sdk") as HTMLScriptElement | null;
-    if (existing) {
-      if ((window as { EasebuzzCheckout?: unknown }).EasebuzzCheckout) {
-        openLightbox();
-      } else {
-        existing.addEventListener("load", openLightbox);
-        existing.addEventListener("error", () => setSdkState("error"));
-      }
-    } else {
-      const s = document.createElement("script");
-      s.id = "easebuzz-checkout-sdk";
-      s.src = SDK_URL;
-      s.async = true;
-      s.onload = openLightbox;
-      s.onerror = () => {
+    loadEasebuzzSdk().then((ok) => {
+      if (cancelled) return;
+      if (ok) openLightbox();
+      else {
         setSdkState("error");
         setSdkError("Could not load the Easebuzz payment SDK.");
-      };
-      document.body.appendChild(s);
-    }
+      }
+    });
 
     return () => {
       cancelled = true;

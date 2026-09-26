@@ -81,6 +81,8 @@ interface Payment {
   currency: string;
   status: string;
   provider: string;
+  provider_payment_id?: string | null; // gateway payment id (easepayid)
+  metadata_info?: { txnid?: string } | null;
   created_at: string;
   updated_at: string;
 }
@@ -378,13 +380,23 @@ export default function OrderDetailPage() {
                       <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[11px] font-semibold text-neutral-500">
                         {p.provider}
                       </span>
+                      {p.provider_payment_id && (
+                        <span className="font-mono text-[11px] text-neutral-500" title="Gateway payment ID">
+                          {p.provider_payment_id}
+                        </span>
+                      )}
+                      {p.metadata_info?.txnid && (
+                        <span className="font-mono text-[11px] text-neutral-400" title="Transaction ID">
+                          txn:{p.metadata_info.txnid}
+                        </span>
+                      )}
                       <span className="font-mono text-[11px] text-neutral-400">{p.id.slice(0, 8)}</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="font-mono text-[11px] text-neutral-400">
                         {new Date(p.created_at).toLocaleString("en-IN")}
                       </span>
-                      {p.status?.toUpperCase() === "CAPTURED" && (
+                      {["CAPTURED", "SUCCESS"].includes(p.status?.toUpperCase() || "") && (
                         <button
                           onClick={() => {
                             setRefundPayment(p);

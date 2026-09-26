@@ -15,6 +15,38 @@ class AdminService:
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    async def activity(self, limit: int = 15) -> list[dict]:
+        """Recent store activity for the admin notification bell: order and
+        payment status changes from the last 3 days, newest first."""
+        bid = await get_store_business_id(self.session)
+        res = await self.session.execute(text("""
+            SELECT 'order' AS kind, o.id AS order_id, o.order_number AS ref,
+                   o.status AS status, o.total AS total, o.updated_at AS at
+            FROM orders o
+            WHERE o.business_id = :bid AND o.deleted_at IS NULL
+              AND o.updated_at > now() - interval '3 days'
+            UNION ALL
+            SELECT 'payment' AS kind, o.id AS order_id, o.order_number AS ref,
+                   p.status AS status, p.amount AS total, p.updated_at AS at
+            FROM payments p
+            JOIN orders o ON o.id = p.order_id
+            WHERE o.business_id = :bid
+              AND p.updated_at > now() - interval '3 days'
+            ORDER BY at DESC
+            LIMIT :limit
+        """), {"bid": bid, "limit": limit})
+        return [
+            {
+                "kind": r["kind"],
+                "order_id": str(r["order_id"]),
+                "ref": r["ref"],
+                "status": r["status"],
+                "total": r["total"],
+                "at": r["at"].isoformat(),
+            }
+            for r in res.mappings()
+        ]
+
     async def dashboard(self) -> DashboardStats:
         bid = await get_store_business_id(self.session)
 

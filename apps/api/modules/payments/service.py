@@ -427,6 +427,22 @@ class PaymentService:
             )
             order_items = list(items_res.scalars().all())
 
+            # Payment email FIRST, then the order-confirmation email: the outbox
+            # worker dispatches in event order, so payment.captured is emitted
+            # before order.created.
+            self.db.add(OutboxEvent(
+                tenant_id=order.business_id,
+                type="payment.captured",
+                payload={
+                    "order_id": str(order.id),
+                    "order_number": order.order_number,
+                    "user_id": str(order.user_id),
+                    "payment_id": str(payment.id),
+                    "amount": payment.amount,
+                    "provider_payment_id": provider_payment_id,
+                },
+            ))
+
             # "Order Confirmed" email for ONLINE payments fires here (not at checkout)
             self.db.add(OutboxEvent(
                 tenant_id=order.business_id,
@@ -444,20 +460,6 @@ class PaymentService:
                         for oi in order_items
                     ],
                     "shipping_address": order.shipping_address,
-                },
-            ))
-
-            # Also emit payment.captured for payment-specific notification
-            self.db.add(OutboxEvent(
-                tenant_id=order.business_id,
-                type="payment.captured",
-                payload={
-                    "order_id": str(order.id),
-                    "order_number": order.order_number,
-                    "user_id": str(order.user_id),
-                    "payment_id": str(payment.id),
-                    "amount": payment.amount,
-                    "provider_payment_id": provider_payment_id,
                 },
             ))
 

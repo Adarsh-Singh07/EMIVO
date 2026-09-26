@@ -41,12 +41,16 @@ import { toast } from "sonner";
 import { inr, formatDate } from "@/lib/format";
 import { track } from "@/lib/analytics";
 import { isSafeRedirectUrl, openPaymentGateway } from "@/lib/safe-redirect";
+import { loadEasebuzzSdk, preconnectEasebuzz } from "@/lib/easebuzz-sdk";
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 
 const IDEM_KEY_STORAGE = "elektrix_checkout_ik";
+// Hands a just-created payment session to the /pay page so the gateway
+// lightbox opens without an extra initiate round-trip after the redirect.
+const PAY_SESSION_KEY = "elektrix_pay_session";
 
 function newIdempotencyKey(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
@@ -282,6 +286,12 @@ function CheckoutContent() {
   /* ---------------- Payment step ---------------- */
   const [paymentMethod, setPaymentMethod] = useState<"COD" | "ONLINE">("ONLINE");
 
+  // Warm the payment gateway: preconnect + preload the EaseCheckout SDK as
+  // soon as the buyer is likely to pay online, so the lightbox opens fast.
+  useEffect(() => {
+    if (paymentMethod === "ONLINE") loadEasebuzzSdk();
+  }, [paymentMethod]);
+
   /* ---------------- Order placement ---------------- */
   const idemKeyRef = useRef<string>("");
   const [placing, setPlacing] = useState(false);
@@ -463,7 +473,28 @@ function CheckoutContent() {
         // lifecycle — gateway handoff, live status polling, retry/reorder.
         sessionStorage.removeItem(IDEM_KEY_STORAGE);
         reloadCart();
-        router.push(`/pay/${encodeURIComponent(response.order.id)}?placed=1`);
+        // Kick off the gateway session NOW, in parallel with the redirect:
+        // the /pay page picks it up from sessionStorage and opens the
+        // lightbox without another initiate round-trip.
+        const orderId = response.order.id;
+        (async () => {
+          try {
+            const init = await storeApi.initiatePayment({
+              order_id: orderId,
+              idempotency_key: crypto.randomUUID(),
+            });
+            if (init.checkout?.provider === "easebuzz" && init.checkout.access_key) {
+              sessionStorage.setItem(PAY_SESSION_KEY, JSON.stringify({
+                orderId,
+                paymentId: init.payment?.id || null,
+                checkout: init.checkout,
+              }));
+            }
+          } catch {
+            // Non-fatal: the /pay page falls back to initiating itself.
+          }
+        })();
+        router.push(`/pay/${encodeURIComponent(orderId)}?placed=1`);
         setPlacing(false);
         return;
       } else {
