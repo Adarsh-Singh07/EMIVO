@@ -64,6 +64,22 @@ The same commit runs everywhere. Only three things differ:
 Never point local testing at the production Supabase database — local testing
 writes real orders/users. Local always uses the `db` container.
 
+### Current production topology (hybrid)
+
+As of 2026-09-26 the **storefront and admin run on Vercel**
+(`elektrix.in`, `admin.elektrix.in` — deployed automatically from `main`),
+while the **API + workers + redis + nginx run on the VPS** behind
+`api.elektrix.in` (Cloudflare-proxied). This is a supported configuration:
+
+- The Vercel frontends already build with `NEXT_PUBLIC_API_URL=https://api.elektrix.in/api/v1`.
+- The VM's own storefront/admin containers are idle replicas — harmless; they
+  become live immediately if DNS for the frontend domains is ever pointed at
+  the VPS (the all-on-VPS model described below).
+- `api.elektrix.in` sits behind the Cloudflare proxy, so Let's Encrypt HTTP-01
+  cannot reach the origin: origin certs are self-signed placeholders. Browsers
+  see Cloudflare's edge certificate. If the zone uses **Full (strict)**, install
+  a Cloudflare **Origin CA** certificate instead of relying on the placeholder.
+
 ---
 
 ## 3. Local setup (do this FIRST — it must work before any VPS work)
