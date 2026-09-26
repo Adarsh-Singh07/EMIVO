@@ -69,8 +69,13 @@ async def initiate_payment(
     provider_name = service.provider.name  # "cashfree" | "easebuzz" | "mock"
 
     if provider_name == "easebuzz":
+        # key + env are required client-side by the official EaseCheckout JS SDK
+        # (the salt never leaves the server). SDK env vocabulary: "test" | "prod".
+        sdk_env = "prod" if settings.easebuzz_environment.lower() == "production" else "test"
         checkout = {
             "provider": "easebuzz",
+            "key": settings.easebuzz_merchant_key,
+            "env": sdk_env,
             "access_key": meta.get("access_key", ""),
             "checkout_url": meta.get("checkout_url", ""),
             "txnid": meta.get("txnid", ""),

@@ -258,6 +258,9 @@ export interface PaymentInitiateResponse {
     provider?: string;
     checkout_url?: string;
     access_key?: string;
+    // Easebuzz EaseCheckout SDK inputs (salt stays server-side)
+    key?: string;
+    env?: "test" | "prod";
   };
 }
 

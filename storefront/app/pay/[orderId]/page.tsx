@@ -33,6 +33,7 @@ import { track } from "@/lib/analytics";
 import { useCart } from "@/components/site/CartProvider";
 import { inr } from "@/lib/format";
 import PaymentGatewayModal, { type GatewayResult } from "@/components/site/PaymentGatewayModal";
+import { openPaymentGateway } from "@/lib/safe-redirect";
 
 const POLL_INTERVAL_MS = 3_000;
 const POLL_MAX_MS = 15 * 60 * 1000;
@@ -55,7 +56,12 @@ function PayPageInner() {
   const [phase, setPhase] = useState<Phase>("loading");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [gatewayUrl, setGatewayUrl] = useState<string | null>(null);
+  const [gateway, setGateway] = useState<{
+    accessKey: string;
+    merchantKey: string;
+    env: "test" | "prod";
+    checkoutUrl: string;
+  } | null>(null);
   // This page also renders INSIDE the embedded gateway modal (the surl/furl
   // redirect lands here in the frame); then it reports to the parent instead
   // of driving its own full-screen UX.
@@ -163,12 +169,28 @@ function PayPageInner() {
           order_id: o.id,
           idempotency_key: crypto.randomUUID(),
         });
-        const url = init.checkout?.checkout_url;
-        if (!url) throw new Error("Payment gateway did not return a checkout URL.");
-        // Embedded checkout: the gateway renders in a modal frame on THIS
-        // page — no redirect, no new tab. Polling picks the result up as
-        // soon as the backend settles the payment.
-        setGatewayUrl(url);
+        const co = init.checkout;
+        // Embedded checkout (official Easebuzz EaseCheckout SDK): the gateway
+        // renders in a lightbox on THIS page — no redirect, no new tab.
+        // Polling picks the result up as soon as the backend settles it.
+        if (co.provider === "easebuzz") {
+          if (!co.access_key || !co.key || !co.env) {
+            throw new Error("Payment gateway did not return a checkout session.");
+          }
+          setGateway({
+            accessKey: co.access_key,
+            merchantKey: co.key,
+            env: co.env === "prod" ? "prod" : "test",
+            checkoutUrl: co.checkout_url || "",
+          });
+        } else {
+          // Legacy provider fallback (redirect to the hosted checkout page).
+          const url = co.checkout_url;
+          if (!url) throw new Error("Payment gateway did not return a checkout URL.");
+          if (!openPaymentGateway(url)) {
+            throw new Error("Could not open the payment gateway. Allow pop-ups and retry.");
+          }
+        }
         setPhase("awaiting");
         startPolling(o.id);
       } catch (err) {
@@ -194,7 +216,7 @@ function PayPageInner() {
   // frame, decides the real state.
   const handleGatewayResult = useCallback(
     (result: GatewayResult) => {
-      setGatewayUrl(null);
+      setGateway(null);
       (async () => {
         const fresh = await refreshOrder(orderId);
         if (result.status === "success" && isPaid(fresh?.status?.toUpperCase() || "")) {
@@ -269,10 +291,13 @@ function PayPageInner() {
     <div className="min-h-screen flex items-center justify-center bg-neutral-50 px-4 py-16">
       <div className="w-full max-w-lg">
         {children}
-        {gatewayUrl && !embedded && (
+        {gateway && !embedded && (
           <PaymentGatewayModal
-            url={gatewayUrl}
-            onClose={() => setGatewayUrl(null)}
+            accessKey={gateway.accessKey}
+            merchantKey={gateway.merchantKey}
+            env={gateway.env}
+            checkoutUrl={gateway.checkoutUrl}
+            onClose={() => setGateway(null)}
             onGatewayResult={handleGatewayResult}
           />
         )}

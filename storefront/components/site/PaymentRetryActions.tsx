@@ -34,7 +34,12 @@ export default function PaymentRetryActions({
   const [busy, setBusy] = useState<"retry" | "reorder" | null>(null);
   const [soldOut, setSoldOut] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const [gatewayUrl, setGatewayUrl] = useState<string | null>(null);
+  const [gateway, setGateway] = useState<{
+    accessKey: string;
+    merchantKey: string;
+    env: "test" | "prod";
+    checkoutUrl: string;
+  } | null>(null);
 
   // 30s tick so the countdown/window state stays honest on a long-open page
   useEffect(() => {
@@ -96,10 +101,21 @@ export default function PaymentRetryActions({
         order_id: order.id,
         idempotency_key: crypto.randomUUID(),
       });
-      const url = init.checkout?.checkout_url;
+      const co = init.checkout;
+      if (co.provider === "easebuzz" && co.access_key && co.key && co.env) {
+        // Embedded checkout: official Easebuzz lightbox renders on this page.
+        setGateway({
+          accessKey: co.access_key,
+          merchantKey: co.key,
+          env: co.env === "prod" ? "prod" : "test",
+          checkoutUrl: co.checkout_url || "",
+        });
+        return;
+      }
+      // Legacy provider fallback (redirect to the hosted checkout page).
+      const url = co.checkout_url;
       if (url && isSafeGatewayUrl(url)) {
-        // Embedded checkout: gateway renders in a modal frame on this page.
-        setGatewayUrl(url);
+        window.location.assign(url);
         return;
       }
       throw new Error("Payment gateway did not return a checkout URL. Please try again.");
@@ -124,7 +140,7 @@ export default function PaymentRetryActions({
   // The modal frame's final hop is our own /pay page, which posts the result.
   // Re-fetch the order through onChanged so the parent shows real backend state.
   const handleGatewayResult = (result: GatewayResult) => {
-    setGatewayUrl(null);
+    setGateway(null);
     setBusy(null);
     if (result.status === "success") {
       toast.success("Payment successful — order confirmed!");
@@ -137,11 +153,14 @@ export default function PaymentRetryActions({
 
   return (
     <div className="rounded-2xl border border-red-100 bg-red-50/60 p-4 sm:p-5">
-      {gatewayUrl && (
+      {gateway && (
         <PaymentGatewayModal
-          url={gatewayUrl}
+          accessKey={gateway.accessKey}
+          merchantKey={gateway.merchantKey}
+          env={gateway.env}
+          checkoutUrl={gateway.checkoutUrl}
           onClose={() => {
-            setGatewayUrl(null);
+            setGateway(null);
             setBusy(null);
           }}
           onGatewayResult={handleGatewayResult}
