@@ -29,6 +29,21 @@ export function safeNavigate(url: string): boolean {
 }
 
 /**
+ * True if the URL may be loaded inside the embedded payment-gateway frame.
+ * Same allow-list as redirects, but same-origin URLs are NOT accepted here —
+ * the frame always shows the gateway's hosted checkout page.
+ */
+export function isSafeGatewayUrl(url: string): boolean {
+  if (!url) return false;
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" && ALLOWED_REDIRECT_HOSTS.has(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Open a payment-gateway URL. In an installed PWA (standalone display),
  * same-window cross-origin navigations can fail silently — handing off to
  * the device browser always opens the gateway. Returns false if the URL

@@ -262,8 +262,11 @@ class EasebuzzProvider(BasePaymentProvider):
         phone = str(notes.get("phone", "9999999999"))
         productinfo = f"ELEKTRIX Order {receipt[:10]}"[:100]
 
-        # surl/furl — the backend must handle these; never a frontend URL
-        surl = f"{notes.get('api_base', 'https://api.elektrix.in')}/api/v1/payments/easebuzz/return"
+        # surl/furl — the backend must handle these; never a frontend URL.
+        # api_public_url is the publicly reachable base of this API
+        # (env-driven so local/staging/prod each get their own callbacks).
+        api_base = str(notes.get("api_base", "")).rstrip("/") or settings.api_public_url.rstrip("/")
+        surl = f"{api_base}/api/v1/payments/easebuzz/return"
         furl = surl  # same endpoint handles both; status field differentiates
 
         request_hash = generate_request_hash(
@@ -290,10 +293,7 @@ class EasebuzzProvider(BasePaymentProvider):
         }
 
         initiate_url = f"{self._base_url}/payment/initiateLink"
-        with open("/tmp/easebuzz_payload.txt", "w") as pf:
-            pf.write(str(payload))
-
-        print("PAYLOAD:", payload); logger.info(
+        logger.info(
             "EaseBuzz: initiating payment txnid=%s amount_inr=%s",
             txnid,
             amount_inr,

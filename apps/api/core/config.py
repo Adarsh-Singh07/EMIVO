@@ -92,9 +92,12 @@ class Settings(BaseSettings):
 
     # EaseBuzz payment provider — credentials from EaseBuzz dashboard
     # NEVER commit real values; insert via environment / Docker secrets only.
+    # easebuzz_environment: "test" (testpay.easebuzz.in) | "production"
+    # (pay.easebuzz.in). NOTE: the live value is literally "production" —
+    # "prod" would silently keep hitting the test gateway.
     easebuzz_merchant_key: str = Field(default="")
     easebuzz_salt: SecretStr = Field(default=SecretStr(""))
-    easebuzz_environment: str = Field(default="test")  # "test" | "prod"
+    easebuzz_environment: str = Field(default="test")  # "test" | "production"
 
     # Delhivery Configuration
     delhivery_api_key: SecretStr = Field(default=SecretStr(""))
@@ -148,6 +151,11 @@ class Settings(BaseSettings):
 
     # Storefront URL (links inside emails)
     storefront_url: str = Field(default="https://elektrix.in")
+
+    # Public base URL of THIS API as reachable from the internet (payment
+    # gateway callbacks). Used to build Easebuzz surl/furl; must match the
+    # publicly resolvable API host (api.elektrix.in in prod, localhost in dev).
+    api_public_url: str = Field(default="https://api.elektrix.in")
 
     # R2 public base for media URLs
     r2_public_url: str = Field(default="")

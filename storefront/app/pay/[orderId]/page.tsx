@@ -32,7 +32,7 @@ import { storeApi, type OrderV2 } from "@/lib/store-api";
 import { track } from "@/lib/analytics";
 import { useCart } from "@/components/site/CartProvider";
 import { inr } from "@/lib/format";
-import { openPaymentGateway } from "@/lib/safe-redirect";
+import PaymentGatewayModal, { type GatewayResult } from "@/components/site/PaymentGatewayModal";
 
 const POLL_INTERVAL_MS = 3_000;
 const POLL_MAX_MS = 15 * 60 * 1000;
@@ -55,10 +55,19 @@ function PayPageInner() {
   const [phase, setPhase] = useState<Phase>("loading");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [gatewayUrl, setGatewayUrl] = useState<string | null>(null);
+  // This page also renders INSIDE the embedded gateway modal (the surl/furl
+  // redirect lands here in the frame); then it reports to the parent instead
+  // of driving its own full-screen UX.
+  const [embedded, setEmbedded] = useState(false);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollStart = useRef(0);
   const gatewayOpened = useRef(false);
   const purchaseTracked = useRef<string | null>(null);
+
+  useEffect(() => {
+    setEmbedded(window.self !== window.top);
+  }, []);
 
   // purchase — fires exactly once per order when payment is confirmed,
   // regardless of whether confirmation arrives via initial load or polling.
@@ -117,8 +126,34 @@ function PayPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
 
+  const startPolling = useCallback(
+    (id: string) => {
+      pollStart.current = Date.now();
+      stopPolling();
+      pollTimer.current = setInterval(async () => {
+        const fresh = await refreshOrder(id);
+        if (!fresh) return;
+        const st = fresh.status?.toUpperCase();
+        if (isPaid(st)) {
+          setPhase("confirmed");
+          stopPolling();
+        } else if (st === "PAYMENT_FAILED") {
+          setPhase("failed");
+          stopPolling();
+        } else if (Date.now() - pollStart.current > POLL_MAX_MS) {
+          stopPolling();
+          toast.info("Still waiting on the gateway — keep this page open or check Order History later.");
+        }
+      }, POLL_INTERVAL_MS);
+    },
+    [refreshOrder]
+  );
+
   const openGateway = useCallback(
     async (o: OrderV2) => {
+      // Never open a gateway from inside the gateway frame itself — that
+      // instance only observes and reports the result to its host page.
+      if (window.self !== window.top) return;
       setBusy(true);
       setError("");
       try {
@@ -130,27 +165,12 @@ function PayPageInner() {
         });
         const url = init.checkout?.checkout_url;
         if (!url) throw new Error("Payment gateway did not return a checkout URL.");
-        if (!openPaymentGateway(url)) {
-          throw new Error("Could not open the payment gateway. Allow pop-ups and retry.");
-        }
+        // Embedded checkout: the gateway renders in a modal frame on THIS
+        // page — no redirect, no new tab. Polling picks the result up as
+        // soon as the backend settles the payment.
+        setGatewayUrl(url);
         setPhase("awaiting");
-        pollStart.current = Date.now();
-        stopPolling();
-        pollTimer.current = setInterval(async () => {
-          const fresh = await refreshOrder(o.id);
-          if (!fresh) return;
-          const st = fresh.status?.toUpperCase();
-          if (isPaid(st)) {
-            setPhase("confirmed");
-            stopPolling();
-          } else if (st === "PAYMENT_FAILED") {
-            setPhase("failed");
-            stopPolling();
-          } else if (Date.now() - pollStart.current > POLL_MAX_MS) {
-            stopPolling();
-            toast.info("Still waiting on the gateway — keep this page open or check Order History later.");
-          }
-        }, POLL_INTERVAL_MS);
+        startPolling(o.id);
       } catch (err) {
         setPhase(o.status?.toUpperCase() === "PAYMENT_FAILED" ? "failed" : "awaiting");
         if (err instanceof ApiError && err.code === "STOCK_SOLD_OUT") {
@@ -166,16 +186,59 @@ function PayPageInner() {
         setBusy(false);
       }
     },
-    [refreshOrder]
+    [refreshOrder, startPolling]
   );
 
-  // Auto-open the gateway exactly once for a pending order on arrival
+  // The embedded gateway frame reported the outcome (its final hop is our own
+  // /pay page inside the frame). Re-fetch the order — the backend, not the
+  // frame, decides the real state.
+  const handleGatewayResult = useCallback(
+    (result: GatewayResult) => {
+      setGatewayUrl(null);
+      (async () => {
+        const fresh = await refreshOrder(orderId);
+        if (result.status === "success" && isPaid(fresh?.status?.toUpperCase() || "")) {
+          setPhase("confirmed");
+          stopPolling();
+        } else if (fresh?.status?.toUpperCase() === "PAYMENT_FAILED") {
+          setPhase("failed");
+          stopPolling();
+        } else if (result.status === "failed" && fresh && !isPaid(fresh.status?.toUpperCase() || "")) {
+          setPhase(fresh.status?.toUpperCase() === "PAYMENT_FAILED" ? "failed" : "awaiting");
+        }
+      })();
+    },
+    [orderId, refreshOrder]
+  );
+
+  // When rendering inside the gateway frame, tell the host page the outcome.
+  useEffect(() => {
+    if (!embedded || !order) return;
+    if (phase === "confirmed" || phase === "failed" || phase === "expired") {
+      window.parent.postMessage(
+        {
+          type: "ELEKTRIX_PAYMENT_RESULT",
+          status: phase === "confirmed" ? "success" : "failed",
+          order_number: order.order_number,
+        },
+        window.location.origin
+      );
+    }
+  }, [embedded, phase, order]);
+
+  // Auto-open the gateway exactly once for a pending order on arrival.
+  // When embedded (this page IS the gateway frame's final hop), never open a
+  // gateway — just poll until the backend settles, then report to the host.
   useEffect(() => {
     if (phase === "opening" && order && !gatewayOpened.current) {
       gatewayOpened.current = true;
-      openGateway(order);
+      if (embedded) {
+        startPolling(order.id);
+      } else {
+        openGateway(order);
+      }
     }
-  }, [phase, order, openGateway]);
+  }, [phase, order, openGateway, startPolling, embedded]);
 
   // Stop polling when leaving
   useEffect(() => stopPolling, []);
@@ -204,7 +267,16 @@ function PayPageInner() {
 
   const shell = (children: React.ReactNode) => (
     <div className="min-h-screen flex items-center justify-center bg-neutral-50 px-4 py-16">
-      <div className="w-full max-w-lg">{children}</div>
+      <div className="w-full max-w-lg">
+        {children}
+        {gatewayUrl && !embedded && (
+          <PaymentGatewayModal
+            url={gatewayUrl}
+            onClose={() => setGatewayUrl(null)}
+            onGatewayResult={handleGatewayResult}
+          />
+        )}
+      </div>
     </div>
   );
 
@@ -213,6 +285,27 @@ function PayPageInner() {
       <div className="text-center">
         <Loader2 className="w-10 h-10 animate-spin text-neutral-900 mx-auto" />
         <p className="mt-5 text-lg font-semibold tracking-tight">Loading your order…</p>
+      </div>
+    );
+  }
+
+  // Inside the gateway frame (the surl/furl redirect lands here): show a
+  // compact status card and let the host page take over via postMessage.
+  if (embedded && phase !== "gone") {
+    const ok = phase === "confirmed";
+    return (
+      <div className="min-h-screen grid place-items-center bg-neutral-50 px-4">
+        <div className="text-center">
+          {ok ? (
+            <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto" />
+          ) : (
+            <XCircle className={`w-12 h-12 mx-auto ${phase === "expired" ? "text-neutral-400" : "text-red-500"}`} />
+          )}
+          <p className="mt-4 text-lg font-semibold tracking-tight">
+            {ok ? "Payment successful" : phase === "awaiting" || phase === "opening" ? "Waiting for payment…" : "Payment not completed"}
+          </p>
+          <p className="mt-1 text-sm text-neutral-500">Returning to ELEKTRIX…</p>
+        </div>
       </div>
     );
   }
@@ -340,7 +433,7 @@ function PayPageInner() {
         <p className="mt-2 text-sm text-neutral-500">
           {phase === "opening"
             ? "This usually takes a few seconds. Don't close this page."
-            : "Complete the payment in the gateway window/tab. This page updates automatically the moment it succeeds."}
+            : "Complete your payment in the secure window. This page updates automatically the moment it succeeds."}
         </p>
       </div>
       <div className="mt-6">{summary}</div>
