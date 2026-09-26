@@ -58,7 +58,7 @@ The same commit runs everywhere. Only three things differ:
 | Public URLs | `localhost:3000/8000` | VM IP or temp domain | `elektrix.in` + subdomains |
 | `ENV_NAME` | `local` | `staging` | `prod` |
 | `PAYMENT_PROVIDER` | `easebuzz` (test keys) | `easebuzz` (**test** keys, sandbox) | `easebuzz` (`EASEBUZZ_ENVIRONMENT=production`, live keys) |
-| Database | local `db` container | Supabase project | same Supabase project |
+| Database | local `db` container | Supabase project `eyvqmneuqiwzkcfjepwf` (Mumbai/ap-south-1 — created 2026-09-27; the original Seoul project `ihemgmucjxpdpqdlxeai` is retained untouched as a fallback snapshot) | same Supabase project |
 | TLS | none (http) | Let's Encrypt via `setup_ssl.sh` | Let's Encrypt via `setup_ssl.sh` |
 
 Never point local testing at the production Supabase database — local testing
