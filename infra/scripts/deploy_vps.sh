@@ -2,14 +2,16 @@
 set -euo pipefail
 
 # ==============================================================================
-# ELEKTRIX v0.2 — Oracle VPS Deployment (same script GitHub Actions triggers)
+# ELEKTRIX — VPS Deployment (run ON the server; same script GitHub Actions
+# triggers). Works on any VPS (Azure staging, Oracle production) — the
+# environment differences live entirely in /opt/elektrix/.env and DNS.
 #
 # Pipeline: build → DB backup → migrate → RLS → certs → rollout → seed →
 #           smoke (api/storefront/admin) → reload | rollback on failure
 # Set SKIP_PULL=1 to deploy the working tree as-is (local deploy).
 # ==============================================================================
 
-cd /opt/elektrix
+cd "${ELEKTRIX_DIR:-/opt/elektrix}"
 COMPOSE="docker compose -f compose.prod.vm1.yaml"
 PREVIOUS_COMMIT=$(git rev-parse HEAD)
 
@@ -27,6 +29,7 @@ fi
 set -a; source .env; set +a
 : "${DATABASE_URL:?DATABASE_URL missing in .env}"
 : "${JWT_SECRET:?JWT_SECRET missing in .env}"
+: "${SYNC_DATABASE_URL:?SYNC_DATABASE_URL missing in .env (sync postgresql:// DSN used by backup/RLS scripts)}"
 
 echo "=== [2/9] Building images ==="
 $COMPOSE build
@@ -35,7 +38,7 @@ echo "=== [3/9] Database backup (pre-migration) ==="
 mkdir -p backups
 TS=$(date +%Y%m%d_%H%M%S)
 PGPASS=$(echo "$SYNC_DATABASE_URL" | sed -E 's|postgresql://[^:]+:([^@]+)@.*|\1|')
-docker run --rm -e PGPASSWORD="$PGPASS" -v /opt/elektrix/backups:/backups postgres:17-alpine \
+docker run --rm -e PGPASSWORD="$PGPASS" -v "$PWD/backups:/backups" postgres:17-alpine \
     pg_dump "${SYNC_DATABASE_URL}" --no-owner --no-privileges -Fc \
     -f "/backups/pre_deploy_${TS}.dump" && echo "  backup: backups/pre_deploy_${TS}.dump"
 

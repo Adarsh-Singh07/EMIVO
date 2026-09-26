@@ -16,7 +16,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
 from dotenv import load_dotenv
 
-load_dotenv(r'd:\Projects\EMIVO\.env')
+# Load the repo-root .env regardless of where the script is run from
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 BASE_URL = "http://127.0.0.1:8000/api/v1"
 

@@ -1,7 +1,13 @@
-# Production Docker stack for ELEKTRIX v0.2 (Oracle ARM VPS)
+# Production Docker stack for ELEKTRIX (temporary Azure VPS today, Oracle VPS later)
 #
 # Services: nginx (TLS edge) → storefront (elektrix.in) + admin (admin.elektrix.in)
 #           → api (api.elektrix.in) + workers → Supabase PostgreSQL + Redis
+#
+# `name` pins the compose project name so container names (elektrix-api-1,
+# elektrix-api-2) stay stable regardless of the clone directory — nginx's
+# upstreams in infra/nginx/nginx.conf reference those names.
+name: elektrix
+
 x-default-env: &default-env
   DATABASE_URL: ${DATABASE_URL}
   REDIS_URL: ${REDIS_URL:-redis://redis:6379}

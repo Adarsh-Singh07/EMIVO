@@ -1,0 +1,81 @@
+# Local end-to-end stack: the SAME images and entrypoints as the production
+# compose (compose.prod.vm1.yaml) but WITHOUT the nginx TLS edge — api,
+# storefront and admin are published directly on localhost. The database is
+# the local pgvector container (compose.yaml), NOT Supabase, so local testing
+# can never touch production data.
+#
+#   cp .env.example .env   (then edit values)
+#   docker compose -f compose.yaml -f compose.local.yaml up -d --build
+#   docker compose -f compose.yaml -f compose.local.yaml run --rm api alembic upgrade head
+#   docker compose -f compose.yaml -f compose.local.yaml run --rm api python scripts/apply_all_rls.py
+#   docker compose -f compose.yaml -f compose.local.yaml run --rm -e ADMIN_INITIAL_PASSWORD=... api python scripts/seed_store.py
+#
+# Storefront  http://localhost:3000   Admin http://localhost:3001   API http://localhost:8000
+name: elektrix
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Inside the compose network the local database host is `db`.
+      DATABASE_URL: postgresql+asyncpg://postgres:password@db:5432/emivo
+      REDIS_URL: redis://redis:6379/0
+      ENV_NAME: local
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  storefront:
+    build:
+      context: .
+      dockerfile: Dockerfile.storefront
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  admin:
+    build:
+      context: .
+      dockerfile: admin/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+    ports:
+      - "3001:3100"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  workers:
+    build:
+      context: .
+      dockerfile: apps/workers/Dockerfile
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:password@db:5432/emivo
+      REDIS_URL: redis://redis:6379/0
+      ENV_NAME: local
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped

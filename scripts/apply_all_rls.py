@@ -13,19 +13,12 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
-RLS_FILES = [
-    "db/rls/00_app_role.sql",
-    "db/rls/01_businesses.sql",
-    "db/rls/02_products.sql",
-    "db/rls/03_orders.sql",
-    "db/rls/04_customers.sql",
-    "db/rls/05_settings.sql",
-    "db/rls/06_users.sql",
-    "db/rls/07_carts.sql",
-    "db/rls/08_coupons.sql",
-    "db/rls/09_payments.sql",
-    "db/rls/10_v02_commerce.sql",
-]
+# Every db/rls/*.sql, in filename order — the same set deploy_vps.sh applies.
+# Keep new policy files here simply by dropping them into db/rls/.
+RLS_FILES = sorted(
+    str(p.relative_to(ROOT)).replace("\\", "/")
+    for p in (ROOT / "db" / "rls").glob("*.sql")
+)
 
 ROOT = Path(__file__).parent.parent
 

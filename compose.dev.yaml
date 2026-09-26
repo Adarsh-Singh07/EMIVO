@@ -35,7 +35,7 @@ services:
     volumes:
       - ./admin:/app
       - /app/node_modules
-      - /app/.nexti
+      - /app/.next
 
   redis:
     image: redis:7-alpine

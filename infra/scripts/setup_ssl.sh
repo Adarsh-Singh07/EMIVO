@@ -20,7 +20,7 @@ if ! command -v certbot &> /dev/null; then
 fi
 
 sudo mkdir -p "$WEBROOT_PATH"
-sudo chown -R ubuntu:ubuntu "$WEBROOT_PATH"
+sudo chown -R "$USER":"$USER" "$WEBROOT_PATH"
 
 self_signed() {
     local domain="$1"
@@ -63,8 +63,8 @@ echo "=== [5/5] Reloading nginx ==="
 docker compose -f /opt/elektrix/compose.prod.vm1.yaml exec -T nginx nginx -s reload 2>/dev/null || true
 
 if [ "$FAILED" = "1" ]; then
-    echo "NOTE: some domains used placeholders. Point their DNS A records at this"
-    echo "VPS (161.118.254.169), then re-run: bash infra/scripts/setup_ssl.sh"
+    echo "NOTE: some domains used placeholders. Point their DNS A records at"
+    echo "THIS server's public IP, then re-run: bash infra/scripts/setup_ssl.sh"
 else
     echo "All certificates installed."
 fi
