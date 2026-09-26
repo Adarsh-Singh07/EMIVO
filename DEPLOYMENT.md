@@ -184,6 +184,37 @@ Minimum checklist for a VPS `.env`:
 | `ADMIN_INITIAL_PASSWORD` | strong password for the seeded admin, then optionally remove from `.env` |
 | `R2_*`, email, SMS, AI keys | optional features; fill when needed |
 
+### 4.3b Azure VM (current temporary host) — copy-paste bring-up
+
+The VM already has Docker, the compose plugin, GitHub CLI (authenticated) and
+an empty `/opt/elektrix`. As `azureuser`:
+
+```bash
+# 1. Code
+sudo chown -R azureuser:azureuser /opt/elektrix
+cd /opt/elektrix
+git clone https://github.com/Adarsh-Singh07/EMIVO.git .   # gh already authed
+
+# 2. Secrets
+cp .env.example .env && chmod 600 .env && nano .env
+#   Fill at minimum: ENV_NAME=staging, DATABASE_URL + SYNC_DATABASE_URL
+#   (Supabase), JWT_SECRET (openssl rand -hex 32), EASEBUZZ_MERCHANT_KEY /
+#   EASEBUZZ_SALT (TEST pair), EASEBUZZ_ENVIRONMENT=test,
+#   ADMIN_INITIAL_PASSWORD, and the URL rows above per domain decision
+#   (elektrix.in pointed at this VM OR http://<VM-IP> everywhere).
+
+# 3. Firewall (Azure portal: NSG inbound rules) — allow 22, 80, 443
+
+# 4. Certificates + full deploy (build → backup → migrate → RLS → rollout →
+#    seed → smoke, rollback on failure)
+bash infra/scripts/setup_ssl.sh
+bash infra/scripts/deploy_vps.sh
+```
+
+Open `http://<VM-IP>` (or https://elektrix.in once DNS points here) and run
+the verification checklist from Section 4.5 of the deployment verification
+below (login, catalog, cart, checkout, Easebuzz **sandbox** payment).
+
 ### 4.4 Firewall / network
 
 Open inbound: `22` (SSH), `80` (HTTP + ACME), `443` (HTTPS).
