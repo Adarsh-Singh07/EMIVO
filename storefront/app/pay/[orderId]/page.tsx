@@ -276,27 +276,44 @@ function PayPageInner() {
     (result: GatewayResult) => {
       setGateway(null);
       (async () => {
-        // The gateway reports success client-side — ask OUR backend to verify
-        // with the gateway's status API and capture immediately, so settlement
-        // never depends on the gateway's redirect reaching the surl endpoint.
-        if (result.status === "success" && paymentIdRef.current) {
+        // The gateway reports the outcome client-side — ask OUR backend to
+        // verify with the gateway's status API, so settlement (success OR
+        // usercancel/failure) never depends on the gateway's redirect
+        // reaching the surl endpoint.
+        if (paymentIdRef.current) {
           try {
             await storeApi.verifyPaymentSuccess(paymentIdRef.current);
           } catch (err) {
-            if (!(err instanceof ApiError && err.code === "ALREADY_PAID")) {
+            // ALREADY_PAID (captured) and PAYMENT_PENDING (unknown) are both
+            // fine — the refresh below picks up the real state.
+            if (!(err instanceof ApiError && ["ALREADY_PAID", "PAYMENT_PENDING", "BAD_REQUEST"].includes(err.code ?? ""))) {
               console.warn("verify-success failed; falling back to polling", err);
             }
           }
         }
         const fresh = await refreshOrder(orderId);
-        if (isPaid(fresh?.status?.toUpperCase() || "")) {
+        const freshStatus = fresh?.status?.toUpperCase() || "";
+        if (isPaid(freshStatus)) {
           setPhase("confirmed");
           stopPolling();
-        } else if (fresh?.status?.toUpperCase() === "PAYMENT_FAILED") {
+        } else if (freshStatus === "PAYMENT_FAILED") {
+          setError(
+            result.rawStatus?.toLowerCase().includes("cancel")
+              ? "Payment was cancelled — no money was charged. You can retry now."
+              : ""
+          );
           setPhase("failed");
           stopPolling();
-        } else if (result.status === "failed" && fresh) {
-          setPhase(fresh.status?.toUpperCase() === "PAYMENT_FAILED" ? "failed" : "awaiting");
+        } else if (result.status === "failed") {
+          // Gateway says failed but backend hasn't reflected it yet — show
+          // the failed screen so the buyer gets immediate, honest feedback.
+          setError(
+            result.rawStatus?.toLowerCase().includes("cancel")
+              ? "Payment was cancelled — no money was charged. You can retry now."
+              : "The payment attempt failed or was cancelled. You can retry now."
+          );
+          setPhase("failed");
+          stopPolling();
         }
       })();
     },

@@ -182,7 +182,7 @@ class PaymentService:
                         await self._capture(active, settled.get("easepayid") or meta["txnid"],
                                             source="easebuzz_status_api")
                         raise DomainException("Payment already completed", code="ALREADY_PAID", status_code=409)
-                if g_status in ("FAILED", "FAILURE", "BOUNCED", "USERCANCEL"):
+                if g_status in ("FAILED", "FAILURE", "BOUNCED") or g_status.startswith("USERCANCEL"):
                     await self._fail(active, f"gateway_{g_status.lower()}", meta["txnid"])
                     active = None  # fall through to a fresh attempt below
             if active and active.status in (PaymentStatus.CREATED, PaymentStatus.PENDING):
@@ -354,7 +354,7 @@ class PaymentService:
                     )
                 provider_payment_id = settled.get("easepayid") or txnid
                 return await self._capture(payment, provider_payment_id, source="easebuzz_status_api")
-            if provider_status in ("FAILED", "FAILURE", "BOUNCED", "USERCANCEL"):
+            if provider_status in ("FAILED", "FAILURE", "BOUNCED") or provider_status.startswith("USERCANCEL"):
                 return await self._fail(
                     payment, f"easebuzz_{provider_status.lower()}", txnid
                 )

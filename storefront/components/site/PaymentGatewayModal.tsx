@@ -26,6 +26,8 @@ import { loadEasebuzzSdk } from "@/lib/easebuzz-sdk";
 
 export interface GatewayResult {
   status: "success" | "failed";
+  /** Raw gateway status ('success' | 'failure' | 'usercancelled' | …). */
+  rawStatus?: string;
   orderNumber?: string;
 }
 
@@ -73,6 +75,7 @@ export default function PaymentGatewayModal({
             // Backend is the source of truth — the host re-fetches the order.
             resultCb.current?.({
               status: response?.status === "success" ? "success" : "failed",
+              rawStatus: response?.status || "unknown",
             });
           },
         });

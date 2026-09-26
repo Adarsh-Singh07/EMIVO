@@ -41,6 +41,16 @@ class PaymentRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_by_metadata_txnid(self, txnid: str) -> Optional[Payment]:
+        stmt = (
+            select(Payment)
+            .options(selectinload(Payment.events))
+            .execution_options(populate_existing=True)
+            .where(Payment.metadata_info["txnid"].as_string() == txnid)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_active_for_order(self, order_id: str) -> Optional[Payment]:
         """Newest payment for this order still awaiting gateway completion
         (CREATED/PENDING). Reused when a buyer re-enters the payment flow so

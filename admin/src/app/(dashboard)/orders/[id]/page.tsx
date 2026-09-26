@@ -203,6 +203,20 @@ export default function OrderDetailPage() {
       const updated = await apiClient.patch<Order>(`/orders/${id}/status`, payload);
       setOrder(updated);
       toast.success(`Order moved to ${target}`);
+      // Money already captured on a cancelled order? Offer the refund
+      // immediately — the admin decides the amount and reason, nothing is
+      // refunded automatically by this prompt.
+      if (target === "CANCELLED") {
+        const paid = payments.find(
+          (p) => ["SUCCESS", "CAPTURED"].includes(p.status?.toUpperCase() || "")
+        );
+        if (paid) {
+          setRefundPayment(paid);
+          setRefundAmount(""); // empty = full refund, editable
+          setRefundReason("Order cancelled by admin");
+          toast.info("Order cancelled — refund captured money if applicable.");
+        }
+      }
       load();
     } catch (err) {
       toast.error(err instanceof ApiError ? `${err.message}${err.code ? ` (${err.code})` : ""}` : "Transition failed");

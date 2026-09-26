@@ -292,8 +292,32 @@ async def easebuzz_webhook(
     else:
         logger.warning("EaseBuzz webhook called but active provider is %s", service.provider.name)
 
-    txnid = callback_data.get("txnid", "")
+    txnid = callback_data.get("txnid", "") or callback_data.get("easebuzz_id", "")
     eb_status = callback_data.get("status", "").upper()
+
+    # Refund webhook: Easebuzz posts {easebuzz_id, merchant_refund_id,
+    # refund_amount, status, hash} when a refund settles. The hash verifies
+    # with the same reverse-sequence; the refund state is then applied
+    # idempotently (payment → REFUNDED, order → REFUNDED).
+    if callback_data.get("easebuzz_id") and eb_status in ("REFUNDED", "SUCCESS") and "refund_amount" in callback_data:
+        payment = await service.repository.get_by_provider_payment_id(txnid)
+        if payment is None:
+            payment = await service.repository.get_by_metadata_txnid(txnid)
+        if payment is None:
+            logger.warning("EaseBuzz refund webhook: no payment for %s", txnid)
+            return {"status": "ok", "handled": "unknown_payment"}
+        if str(payment.status.value).upper() == "REFUNDED":
+            return {"status": "ok", "handled": "already_refunded"}
+        from modules.payments.models import PaymentStatus
+        await service.repository.update_status(payment.id, PaymentStatus.REFUNDED, txnid)
+        order = await service.order_repository.get_by_id(payment.order_id)
+        if order and order.status.value in ("CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "PENDING"):
+            from modules.orders.models import OrderStatus
+            order.status = OrderStatus.REFUNDED
+            await service.order_repository.update(order)
+        await service.db.commit()
+        logger.info("EaseBuzz refund webhook: payment %s marked REFUNDED", payment.id)
+        return {"status": "ok", "handled": "refunded"}
 
     result = await service.handle_easebuzz_callback(
         txnid=txnid,

@@ -205,6 +205,50 @@ async def expire_stale_orders(ctx) -> int:
     count = 0
     async with maker() as session:
         svc = OrderService(session)
+
+        # --- Reconcile stuck gateway sessions: money may have moved while our
+        # surl callback never arrived (SDK lightbox flow). Ask the gateway.
+        reconciled = 0
+        try:
+            from modules.payments.service import PaymentService
+            from modules.payments.models import Payment, PaymentStatus
+            psvc = PaymentService(session)
+            provider = psvc.provider
+            if provider.name == "easebuzz":
+                cutoff_r = datetime.now(timezone.utc) - timedelta(minutes=10)
+                pay_rows = (await session.execute(
+                    select(Payment).join(Order, Order.id == Payment.order_id).where(
+                        Payment.status == PaymentStatus.CREATED,
+                        Order.status == OrderStatus.PENDING,
+                        Order.deleted_at.is_(None),
+                        Order.payment_method == "ONLINE",
+                        Payment.updated_at < cutoff_r,
+                    ).limit(50)
+                )).scalars().all()
+                for pmt in pay_rows:
+                    try:
+                        txnid = (pmt.metadata_info or {}).get("txnid", "")
+                        if not txnid:
+                            continue
+                        fetched = await provider.fetch_payment(txnid)
+                        g_status = str(fetched.get("status", "")).upper()
+                        if g_status == "SUCCESS":
+                            await psvc._capture(pmt, (fetched.get("raw") or {}).get("easepayid") or txnid,
+                                                source="worker_reconcile")
+                            reconciled += 1
+                        elif g_status in ("FAILED", "FAILURE", "BOUNCED") or g_status.startswith("USERCANCEL"):
+                            await psvc._fail(pmt, f"gateway_{g_status.lower()}", txnid)
+                            reconciled += 1
+                        await session.commit()
+                    except Exception as exc:
+                        await session.rollback()
+                        logger.warning("reconcile: payment %s failed: %s", pmt.id, exc)
+            if reconciled:
+                logger.info("expire_stale_orders: reconciled %s stuck payments", reconciled)
+        except Exception as exc:
+            await session.rollback()
+            logger.warning("payment reconciliation failed: %s", exc)
+
         cutoff = datetime.now(timezone.utc) - timedelta(hours=2)
         rows = (await session.execute(
             select(Order).where(
@@ -222,6 +266,50 @@ async def expire_stale_orders(ctx) -> int:
                     count += 1
             except Exception as exc:
                 logger.warning("expire_stale_orders: order %s failed: %s", order.id, exc)
+
+        # --- Auto-refund safety net: any ONLINE order that is cancelled or
+        # payment-failed while the gateway says SUCCESS gets refunded in full.
+        refunded = 0
+        try:
+            from modules.payments.service import PaymentService
+            from modules.payments.models import Payment, PaymentStatus
+            from modules.payments.repository import PaymentRepository
+            psvc = PaymentService(session)
+            provider = psvc.provider
+            if provider.name == "easebuzz":
+                rows2 = (await session.execute(
+                    select(Payment).join(Order, Order.id == Payment.order_id).where(
+                        Payment.status == PaymentStatus.SUCCESS,
+                        Order.status.in_([OrderStatus.CANCELLED, OrderStatus.PAYMENT_FAILED]),
+                        Order.deleted_at.is_(None),
+                        Order.payment_method == "ONLINE",
+                    ).limit(50)
+                )).scalars().all()
+                repo = PaymentRepository(session)
+                for pmt in rows2:
+                    try:
+                        txnid = (pmt.metadata_info or {}).get("txnid", "") or pmt.provider_order_id
+                        if not txnid:
+                            continue
+                        fetched = await provider.fetch_payment(txnid)
+                        if str(fetched.get("status", "")).upper() != "SUCCESS":
+                            continue  # gateway disagrees — leave for manual review
+                        await provider.refund(txnid, amount=None)
+                        await repo.update_status(pmt.id, PaymentStatus.REFUNDED, txnid)
+                        await repo.log_event(
+                            pmt.id, "auto_refund_issued",
+                            {"reason": "order cancelled/failed after capture", "source": "worker"},
+                        )
+                        await session.commit()
+                        refunded += 1
+                    except Exception as exc:
+                        await session.rollback()
+                        logger.warning("auto-refund: payment %s failed: %s", pmt.id, exc)
+            if refunded:
+                logger.info("expire_stale_orders: auto-refunded %s captured payments on dead orders", refunded)
+        except Exception as exc:
+            await session.rollback()
+            logger.warning("auto-refund pass failed: %s", exc)
     if count:
         logger.info("expire_stale_orders: cancelled %s stale orders", count)
     return count
