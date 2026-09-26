@@ -1,14 +1,16 @@
 # ELEKTRIX - Project State
 
-## Current Phase: v0.2 Production Release — Launched (2026-08-17)
+## Current Phase: v0.2 Production — infrastructure migration in progress
 
-**Last Updated:** 2026-08-17
-**Current Milestone:** ELEKTRIX v0.2 — PRODUCTION E-COMMERCE COMPLETE & FESTIVAL LAUNCH
-**Current Focus:** Replace placeholder `RAZORPAY_KEY_ID` in production `.env` with real live key; update DNS for `elektrix.in`, `www.elektrix.in`, `admin.elektrix.in` → VPS; re-run `bash infra/scripts/setup_ssl.sh`
+**Last Updated:** 2026-09-26
+**Current Milestone:** Clean, reproducible deployment (local → Azure temp VPS → Oracle production)
+**Current Focus:** Deploy to the temporary Azure VM (`/opt/elektrix`, see DEPLOYMENT.md §4.3b), then point `elektrix.in` DNS at it and re-run `bash infra/scripts/setup_ssl.sh`
 **Product & Brand Name:** ELEKTRIX
 **Official Domain:** https://elektrix.in
-**Historical Note:** Formerly named EMIVO during initial scaffold phase
-**Master Regression Suite Status:** ✅ 52/52 PASSED (100% Green) — includes oversell concurrency (10 buyers/2 units), atomic coupon races, payment lifecycle + tamper + webhook idempotency, IDOR/authz boundaries, order lifecycle w/ inventory effects
+**Historical Note:** Formerly named EMIVO during initial scaffold phase; GitHub repo keeps the EMIVO name
+**Deployment truth:** `DEPLOYMENT.md` (repo root) is the single source of truth for deployment. The old Oracle VPS (161.118.254.169) was destroyed; all deployment config is reconstructible from Git + the `.env` checklist.
+**Payments:** Easebuzz is the gateway (embedded in-page checkout via modal iframe; `PAYMENT_PROVIDER=easebuzz`, `EASEBUZZ_ENVIRONMENT=test|production`). Razorpay/Cashfree mentions below are historical.
+**Master Regression Suite Status:** ✅ 90/90 backend tests + 24/24 smoke suite green (2026-09-26, local full stack)
 **Frontend Quality Status:** ✅ TypeScript 0 errors (storefront + admin), Next.js production build PASS for both
 **Production Stack Status:** ✅ ALL RUNNING & HEALTHY on VPS (API 2×, storefront 2×, admin 2×, workers 1×, Redis, Nginx 4-vhost)
 **Production Smoke Suite:** ✅ 24/24 PASSED against live `api.elektrix.in`
@@ -103,8 +105,9 @@
 
 ---
 
-## Remaining action items (pre-launch)
+## Remaining action items (2026-09-26)
 
-1. **Real Razorpay live key** — replace `RAZORPAY_KEY_ID=rzp_live_yourlivekey` in `.env` with the actual `rzp_live_*` key id. The key secret and webhook secret are already in `.env`. After the swap, ONLINE checkout will work end-to-end (initiate → Checkout.js → verify-success → capture + stock commit). Re-run `scripts/smoke_prod.sh` to confirm initiate returns 201 with a real provider key id.
-2. **DNS** — point `elektrix.in`, `www.elektrix.in`, `admin.elektrix.in` A records at `161.118.254.169` (Cloudflare or nameserver of choice). Then run `bash infra/scripts/setup_ssl.sh`.
-3. **Rotate leaked Supabase credential** — `apply_rls.py` once contained the Supabase password in git. The credential has been removed from the file; rotate the database password in Supabase and update `.env` + any CI secrets.
+1. **Azure deployment** — follow `DEPLOYMENT.md` §4.3b: clone into `/opt/elektrix`, fill `.env` (Supabase DSN, new `JWT_SECRET`, Easebuzz **test** keys, `ENV_NAME=staging`), open NSG ports 22/80/443, run `setup_ssl.sh` + `deploy_vps.sh`, verify sandbox payment end-to-end.
+2. **Secrets to re-enter** (old VPS gone): Supabase DB password (rotate if it ever appeared in git history — see v0.2 note below), Easebuzz test (Azure) + live (Oracle) merchant key/salt from the Easebuzz dashboard, `JWT_SECRET` (fresh per VPS), R2 keys if media uploads are needed, email/SMS keys when those features are re-enabled.
+3. **DNS** — point `elektrix.in`, `www`, `admin.`, `api.` at the Azure VM (temporary) and later at the new Oracle VPS; after each change run `bash infra/scripts/setup_ssl.sh`. Update GitHub secrets `VPS_SSH_*` for the current VM if CI-driven deploy is wanted.
+4. **Rotate leaked Supabase credential (historical)** — `apply_rls.py` once contained the Supabase password in git. Rotate the database password in Supabase and update `.env` + any CI secrets.
