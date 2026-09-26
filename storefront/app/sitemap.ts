@@ -34,6 +34,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const res = await fetch(`${API_URL}/store/products?page_size=100`, {
       next: { revalidate: 3600 },
+      // Bound the call so a black-holed API host can never stall the build.
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return staticRoutes;
     const data = (await res.json()) as { items?: SitemapProduct[] };

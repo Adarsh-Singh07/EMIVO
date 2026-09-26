@@ -46,11 +46,16 @@ const plainText = (html: string | undefined) =>
 export async function GET() {
   const items: FeedProduct[] = [];
   const pageSize = 100;
+  // Overall budget: a black-holed API host must never stall prerendering past
+  // the 60s build-page budget — each fetch is bounded and the loop gives up.
+  const deadline = Date.now() + 20_000;
   // Up to 5 pages (500 products) — plenty for the current catalog size.
   for (let page = 1; page <= 5; page++) {
+    if (Date.now() > deadline) break;
     try {
       const res = await fetch(`${API_URL}/store/products?page=${page}&page_size=${pageSize}`, {
         next: { revalidate: 3600 },
+        signal: AbortSignal.timeout(8000),
       });
       if (!res.ok) break;
       const data = (await res.json()) as { items?: FeedProduct[] };

@@ -623,6 +623,18 @@ export const PROMO_TILES: PromoTile[] = [
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 /**
+ * Server-side fetches must never hang the build or a page render: a black-holed
+ * API host (domain resolves, connection never completes) previously kept
+ * `next build` prerendering past its 60s page budget and failed the build.
+ * Every guard below relies on the fetch actually FAILING — so bound it.
+ */
+const SERVER_FETCH_TIMEOUT_MS = 8000;
+
+function serverFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(url, { ...init, signal: AbortSignal.timeout(SERVER_FETCH_TIMEOUT_MS) });
+}
+
+/**
  * Server-side fetch of a product page from /store/products with ISR caching.
  * Returns null when the API is unreachable (caller falls back to static).
  */
@@ -643,7 +655,7 @@ export async function fetchStoreProductsServer(
   const qs = sp.toString();
 
   try {
-    const res = await fetch(`${API_BASE}/store/products${qs ? `?${qs}` : ""}`, {
+    const res = await serverFetch(`${API_BASE}/store/products${qs ? `?${qs}` : ""}`, {
       next: { revalidate: 0 },
       headers: { "Content-Type": "application/json" },
     });
@@ -672,7 +684,7 @@ export async function fetchApiProducts(
 /** Single product by slug or id. Static fallback keeps old links working. */
 export async function getApiProductById(idOrSlug: string): Promise<Product | null> {
   try {
-    const res = await fetch(`${API_BASE}/store/products/${encodeURIComponent(idOrSlug)}`, {
+    const res = await serverFetch(`${API_BASE}/store/products/${encodeURIComponent(idOrSlug)}`, {
       cache: "no-store",
       headers: { "Content-Type": "application/json" },
     });
@@ -689,7 +701,7 @@ export async function getApiProductById(idOrSlug: string): Promise<Product | nul
 /** Related products for a slug/id; falls back to a static slice. */
 export async function getRelatedProducts(idOrSlug: string, limit = 8): Promise<Product[]> {
   try {
-    const res = await fetch(
+    const res = await serverFetch(
       `${API_BASE}/store/products/${encodeURIComponent(idOrSlug)}/related?limit=${limit}`,
       { next: { revalidate: 300 } }
     );
@@ -728,7 +740,7 @@ export async function getNewArrivals(n = 8): Promise<Product[]> {
 /** Category list for navigation (API first, static fallback). */
 export async function getCategories(): Promise<Category[]> {
   try {
-    const res = await fetch(`${API_BASE}/store/categories`, { next: { revalidate: 300 } });
+    const res = await serverFetch(`${API_BASE}/store/categories`, { next: { revalidate: 300 } });
     if (!res.ok) return CATEGORIES;
     const data = (await res.json()) as Array<{ slug: string; name: string }>;
     if (!Array.isArray(data) || data.length === 0) return CATEGORIES;
@@ -746,7 +758,7 @@ export async function getCategories(): Promise<Category[]> {
 
 export async function fetchStoreConfigServer(): Promise<any | null> {
   try {
-    const res = await fetch(`${API_BASE}/store/config`, { next: { revalidate: 60 } });
+    const res = await serverFetch(`${API_BASE}/store/config`, { next: { revalidate: 60 } });
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -757,7 +769,7 @@ export async function fetchStoreConfigServer(): Promise<any | null> {
 
 export async function getActiveCoupons(): Promise<any[]> {
   try {
-    const res = await fetch(`${API_BASE}/store/coupons`, { next: { revalidate: 60 } });
+    const res = await serverFetch(`${API_BASE}/store/coupons`, { next: { revalidate: 60 } });
     if (!res.ok) return [];
     return await res.json();
   } catch {
@@ -786,7 +798,7 @@ export function isBankOfferEligible(offer: BankOffer, productId: string): boolea
 
 export async function fetchBankOffers(): Promise<BankOffer[]> {
   try {
-    const res = await fetch(`${API_BASE}/store/bank-offers`, { next: { revalidate: 60 } });
+    const res = await serverFetch(`${API_BASE}/store/bank-offers`, { next: { revalidate: 60 } });
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data : [];
@@ -797,7 +809,7 @@ export async function fetchBankOffers(): Promise<BankOffer[]> {
 
 export async function fetchCatalogues(): Promise<any[]> {
   try {
-    const res = await fetch(`${API_BASE}/store/catalogues`, { next: { revalidate: 30 } });
+    const res = await serverFetch(`${API_BASE}/store/catalogues`, { next: { revalidate: 30 } });
     if (!res.ok) return [];
     const data = await res.json();
     return data.map((cat: any) => ({

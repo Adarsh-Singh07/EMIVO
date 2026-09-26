@@ -170,7 +170,7 @@ Minimum checklist for a VPS `.env`:
 |---|---|
 | `COMPOSE_PROJECT_NAME` | `elektrix` (keep) |
 | `ENV_NAME` | `staging` on Azure, `prod` on Oracle |
-| `DATABASE_URL` | Supabase **pooler** DSN (`postgresql+asyncpg://postgres.<ref>:<pw>@aws-0-<region>.pooler.supabase.com:6543/postgres`) |
+| `DATABASE_URL` | Supabase **pooler** DSN (`postgresql+asyncpg://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres`) |
 | `SYNC_DATABASE_URL` | same credentials as `postgresql://…` (used by deploy backup/RLS steps) |
 | `REDIS_URL` | `redis://redis:6379/0` (compose-internal redis) |
 | `JWT_SECRET` | `openssl rand -hex 32` — generate a NEW one per VPS |
