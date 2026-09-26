@@ -420,17 +420,21 @@ class EasebuzzProvider(BasePaymentProvider):
 
     async def fetch_payment(self, payment_id: str) -> dict[str, Any]:
         """
-        Fetch payment status from EaseBuzz using the txnid.
+        Fetch transaction status via Easebuzz **Transaction V2 API**.
 
-        EaseBuzz status API: POST /payment/paymentapitest (sandbox)
-                                  /payment/paymentapi (production)
+        POST {dashboard_base}/transaction/v2/retrieve
+          params: key, txnid, hash  (hash = SHA512(key|txnid|salt))
+          response: {"status": true|false, "msg": {status: 'success'|'...',
+                     amount, easepayid, email, phone, ...}}
+
+        NOTE: the legacy /payment/paymentapi endpoints now serve the gateway
+        SPA (HTML) instead of JSON — they must not be used.
         """
         if self.environment == "production":
-            status_url = "https://pay.easebuzz.in/payment/paymentapi"
+            status_url = "https://dashboard.easebuzz.in/transaction/v2/retrieve"
         else:
-            status_url = "https://testpay.easebuzz.in/payment/paymentapitest"
+            status_url = "https://testdashboard.easebuzz.in/transaction/v2/retrieve"
 
-        # payment_id here is the txnid we assigned
         hash_str = compute_sha512(f"{self._merchant_key}|{payment_id}|{self._salt}")
         payload = {
             "key": self._merchant_key,
@@ -458,10 +462,11 @@ class EasebuzzProvider(BasePaymentProvider):
         except Exception:
             return {}
 
+        msg = data.get("msg") if isinstance(data.get("msg"), dict) else {}
         return {
             "txnid": payment_id,
-            "status": data.get("status"),
-            "raw": data,
+            "status": str(msg.get("status") or ""),
+            "raw": msg,
         }
 
     async def refund(
@@ -471,13 +476,19 @@ class EasebuzzProvider(BasePaymentProvider):
         speed: str = "normal",
         provider_order_id: Optional[str] = None,
     ) -> dict[str, Any]:
-        """EaseBuzz refund via their refund API.
-        provider_payment_id is the txnid.
-        amount is in paise (minor units); EaseBuzz expects INR."""
+        """Easebuzz **Refund V2 API**.
+
+        provider_payment_id is the txnid (Easebuzz id).
+        amount is in paise (minor units); Easebuzz expects an INR string.
+
+        POST {dashboard_base}/transaction/v2/refund
+          params: key, easebuzz_id, refund_amount, merchant_refund_id, hash
+          hash  = SHA512(key|merchant_refund_id|easebuzz_id|refund_amount|salt)
+        """
         if self.environment == "production":
-            refund_url = "https://pay.easebuzz.in/payment/refund"
+            refund_url = "https://dashboard.easebuzz.in/transaction/v2/refund"
         else:
-            refund_url = "https://testpay.easebuzz.in/payment/refund"
+            refund_url = "https://testdashboard.easebuzz.in/transaction/v2/refund"
 
         txnid = provider_payment_id
         refund_id = f"rf_{secrets.token_hex(8)}"
@@ -489,13 +500,13 @@ class EasebuzzProvider(BasePaymentProvider):
             amount_inr = ""  # full refund
 
         hash_str = compute_sha512(
-            f"{self._merchant_key}|{txnid}|{refund_id}|{amount_inr}|{self._salt}"
+            f"{self._merchant_key}|{refund_id}|{txnid}|{amount_inr}|{self._salt}"
         )
         payload = {
             "key": self._merchant_key,
-            "txnid": txnid,
-            "refund_id": refund_id,
-            "amount": amount_inr,
+            "easebuzz_id": txnid,
+            "refund_amount": amount_inr,
+            "merchant_refund_id": refund_id,
             "hash": hash_str,
         }
 

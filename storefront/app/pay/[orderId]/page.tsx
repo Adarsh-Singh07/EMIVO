@@ -62,6 +62,7 @@ function PayPageInner() {
     env: "test" | "prod";
     checkoutUrl: string;
   } | null>(null);
+  const paymentIdRef = useRef<string | null>(null);
   // This page also renders INSIDE the embedded gateway modal (the surl/furl
   // redirect lands here in the frame); then it reports to the parent instead
   // of driving its own full-screen UX.
@@ -170,6 +171,7 @@ function PayPageInner() {
           idempotency_key: crypto.randomUUID(),
         });
         const co = init.checkout;
+        paymentIdRef.current = init.payment?.id || null;
         // Embedded checkout (official Easebuzz EaseCheckout SDK): the gateway
         // renders in a lightbox on THIS page — no redirect, no new tab.
         // Polling picks the result up as soon as the backend settles it.
@@ -201,6 +203,15 @@ function PayPageInner() {
         } else if (err instanceof ApiError && err.code === "PAYMENT_WINDOW_EXPIRED") {
           setError("The 2-hour payment window for this order has ended.");
           setPhase("expired");
+        } else if (err instanceof ApiError && err.code === "ALREADY_PAID") {
+          // The resume path just captured the payment server-side — show it.
+          const fresh = await refreshOrder(o.id);
+          if (fresh && isPaid(fresh.status?.toUpperCase() || "")) {
+            setPhase("confirmed");
+            stopPolling();
+          } else {
+            setError("Payment already completed — confirming…");
+          }
         } else {
           setError(err instanceof Error ? err.message : "Could not start the payment.");
         }
@@ -218,14 +229,26 @@ function PayPageInner() {
     (result: GatewayResult) => {
       setGateway(null);
       (async () => {
+        // The gateway reports success client-side — ask OUR backend to verify
+        // with the gateway's status API and capture immediately, so settlement
+        // never depends on the gateway's redirect reaching the surl endpoint.
+        if (result.status === "success" && paymentIdRef.current) {
+          try {
+            await storeApi.verifyPaymentSuccess(paymentIdRef.current);
+          } catch (err) {
+            if (!(err instanceof ApiError && err.code === "ALREADY_PAID")) {
+              console.warn("verify-success failed; falling back to polling", err);
+            }
+          }
+        }
         const fresh = await refreshOrder(orderId);
-        if (result.status === "success" && isPaid(fresh?.status?.toUpperCase() || "")) {
+        if (isPaid(fresh?.status?.toUpperCase() || "")) {
           setPhase("confirmed");
           stopPolling();
         } else if (fresh?.status?.toUpperCase() === "PAYMENT_FAILED") {
           setPhase("failed");
           stopPolling();
-        } else if (result.status === "failed" && fresh && !isPaid(fresh.status?.toUpperCase() || "")) {
+        } else if (result.status === "failed" && fresh) {
           setPhase(fresh.status?.toUpperCase() === "PAYMENT_FAILED" ? "failed" : "awaiting");
         }
       })();

@@ -219,10 +219,27 @@ class PaymentService:
             payment_in = payment_in.model_copy(update={"provider": PaymentProvider.EASEBUZZ})
 
         # 4. Provider order (external call — runs on its own, no DB locks held)
+        # Real customer details for the gateway (Easebuzz shows them on the
+        # hosted page and in the merchant dashboard): name/phone come from the
+        # order's shipping-address snapshot, email from the buyer's account.
+        from sqlalchemy import select as _select
+        from modules.users.models import User as _User
+
+        ship = order.shipping_address or {}
+        buyer_email = ""
+        if order.user_id:
+            buyer_email = (
+                await self.db.execute(
+                    _select(_User.email).where(_User.id == order.user_id)
+                )
+            ).scalar() or ""
         notes = (payment_in.metadata or {}) | {
             "order_id": str(payment_in.order_id),
             "order_number": order.order_number or "",
             "business_id": business_id,
+            "firstname": str(ship.get("full_name") or "").strip()[:50] or "Customer",
+            "email": buyer_email.strip() or "customer@elektrix.in",
+            "phone": str(ship.get("phone") or "").strip()[:15] or "9999999999",
         }
         provider_order = await self.provider.create_order(
             amount=order.total,

@@ -575,6 +575,16 @@ export const storeApi = {
     });
   },
 
+  /** Ask the backend to verify the payment with the gateway (source of truth)
+   *  and capture it — used right after the embedded gateway reports success,
+   *  so settlement never depends on the gateway's redirect alone. */
+  verifyPaymentSuccess(paymentId: string): Promise<{ id: string; status?: string }> {
+    return fetchApi(`/payments/${encodeURIComponent(paymentId)}/verify-success`, {
+      method: "POST",
+      body: JSON.stringify({ provider_payment_id: paymentId }),
+    });
+  },
+
   /* ----- Notifications (auth) ----- */
 
   listNotifications(params: { unread_only?: boolean; limit?: number } = {}): Promise<NotificationPage> {
