@@ -1,6 +1,7 @@
 import logging
 
 import boto3
+import httpx
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
@@ -59,15 +60,26 @@ class S3CompatibleAdapter:
     ) -> bool:
         """Server-side PUT (browser never talks to the R2 S3 endpoint).
 
-        Catches everything (not just ClientError): an unreachable endpoint
-        raises SSLError/EndpointConnectionError, and the router relies on a
-        False return — not an exception — to trigger the REST fallback."""
+        The request is signed offline by boto3 (SigV4 presigned URL) and sent
+        with httpx: the R2 S3 edge rejects urllib3/botocore's TLS handshake
+        from some networks (APAC, Sep 2026) while accepting httpx's. Any
+        failure returns False — the router treats that as the trigger for the
+        api.cloudflare.com REST fallback."""
         try:
-            params: dict = {"Bucket": bucket_name, "Key": object_name, "Body": data}
+            params: dict = {"Bucket": bucket_name, "Key": object_name}
             if content_type:
                 params["ContentType"] = content_type
-            self.client.put_object(**params)
+            url = self.client.generate_presigned_url(
+                "put_object", Params=params, ExpiresIn=300
+            )
+            headers = {"Content-Type": content_type} if content_type else None
+            resp = httpx.put(url, content=data, headers=headers, timeout=60)
+            if resp.status_code != 200:
+                logger.error(
+                    f"R2 upload PUT for {object_name} returned {resp.status_code}: {resp.text[:120]}"
+                )
+                return False
             return True
         except Exception as e:  # noqa: BLE001 - any S3 failure must fall through
-            logger.error(f"R2 S3 upload of {object_name} failed: {type(e).__name__}: {e}")
+            logger.error(f"R2 upload of {object_name} failed: {type(e).__name__}: {e}")
             return False

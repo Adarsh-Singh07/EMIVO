@@ -44,8 +44,14 @@ def _s3_delete(account_id: str, bucket: str, key: str) -> None:
         secret_key=os.getenv("R2_SECRET_ACCESS_KEY", ""),
     )
     try:
-        adapter.client.delete_object(Bucket=bucket, Key=key)
-        print(f"  cleanup via S3 delete: {key}")
+        # presigned DELETE + httpx (boto3's own HTTP stack may be blocked)
+        import httpx
+
+        url = adapter.client.generate_presigned_url(
+            "delete_object", Params={"Bucket": bucket, "Key": key}, ExpiresIn=300
+        )
+        resp = httpx.delete(url, timeout=30)
+        print(f"  cleanup via presigned DELETE: {key} -> {resp.status_code}")
     except Exception as e:  # noqa: BLE001
         print(f"  S3 delete failed ({type(e).__name__}); trying REST")
         asyncio.run(_rest_delete(account_id, bucket, key))
