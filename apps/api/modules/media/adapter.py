@@ -62,24 +62,31 @@ class S3CompatibleAdapter:
 
         The request is signed offline by boto3 (SigV4 presigned URL) and sent
         with httpx: the R2 S3 edge rejects urllib3/botocore's TLS handshake
-        from some networks (APAC, Sep 2026) while accepting httpx's. Any
-        failure returns False — the router treats that as the trigger for the
-        api.cloudflare.com REST fallback."""
-        try:
-            params: dict = {"Bucket": bucket_name, "Key": object_name}
-            if content_type:
-                params["ContentType"] = content_type
-            url = self.client.generate_presigned_url(
-                "put_object", Params=params, ExpiresIn=300
-            )
-            headers = {"Content-Type": content_type} if content_type else None
-            resp = httpx.put(url, content=data, headers=headers, timeout=60)
-            if resp.status_code != 200:
-                logger.error(
-                    f"R2 upload PUT for {object_name} returned {resp.status_code}: {resp.text[:120]}"
+        from some networks (APAC, Sep 2026) while accepting httpx's. During
+        Cloudflare's APAC degradation the edge also flaps per-connection, so
+        each attempt gets a fresh presigned URL and we retry a few times with
+        backoff. Any total failure returns False — the router treats that as
+        the trigger for the api.cloudflare.com REST fallback."""
+        import time
+
+        headers = {"Content-Type": content_type} if content_type else None
+        last_err = "no attempts made"
+        for attempt in range(4):
+            try:
+                params: dict = {"Bucket": bucket_name, "Key": object_name}
+                if content_type:
+                    params["ContentType"] = content_type
+                url = self.client.generate_presigned_url(
+                    "put_object", Params=params, ExpiresIn=300
                 )
-                return False
-            return True
-        except Exception as e:  # noqa: BLE001 - any S3 failure must fall through
-            logger.error(f"R2 upload of {object_name} failed: {type(e).__name__}: {e}")
-            return False
+                resp = httpx.put(url, content=data, headers=headers, timeout=30)
+                if resp.status_code == 200:
+                    if attempt:
+                        logger.info(f"R2 upload of {object_name} succeeded on attempt {attempt + 1}")
+                    return True
+                last_err = f"PUT returned {resp.status_code}: {resp.text[:120]}"
+            except Exception as e:  # noqa: BLE001 - any S3 failure must fall through
+                last_err = f"{type(e).__name__}: {e}"
+            time.sleep(0.4 * (attempt + 1))
+        logger.error(f"R2 upload of {object_name} failed after 4 attempts: {last_err}")
+        return False

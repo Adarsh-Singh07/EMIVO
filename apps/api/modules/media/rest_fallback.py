@@ -7,6 +7,7 @@ with R2 edit scope (CLOUDFLARE_API_TOKEN or R2_API_TOKEN env var). This
 module is the single implementation of that fallback — the router, tests and
 scripts/test_r2_upload_paths.py all go through it.
 """
+import asyncio
 from urllib.parse import quote
 
 import httpx
@@ -33,24 +34,32 @@ async def upload_via_cloudflare_api(
     data: bytes,
     content_type: str | None = None,
     timeout: float = 60.0,
+    attempts: int = 3,
 ) -> tuple[bool, str]:
     """PUT one object to R2 through api.cloudflare.com. Returns (ok, detail).
 
-    detail is "" on success, otherwise a short operator-readable reason."""
+    detail is "" on success, otherwise a short operator-readable reason.
+    Retries a few times with backoff — the edge flaps per-connection during
+    the APAC degradation."""
     if not token or not account_id:
         return False, "Cloudflare API token or account id is not configured"
 
     headers = {"Authorization": f"Bearer {token}"}
     if content_type:
         headers["Content-Type"] = content_type
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as http:
-            resp = await http.put(object_url(account_id, bucket, key), headers=headers, content=data)
-    except httpx.HTTPError as e:
-        return False, f"REST API request failed: {type(e).__name__}: {e}"
-
-    if resp.status_code == 200:
-        return True, ""
-    return False, (
-        f"REST API upload failed with status {resp.status_code}: {resp.text[:200]}"
-    )
+    url = object_url(account_id, bucket, key)
+    detail = "no attempts made"
+    for attempt in range(attempts):
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as http:
+                resp = await http.put(url, headers=headers, content=data)
+        except httpx.HTTPError as e:
+            detail = f"REST API request failed: {type(e).__name__}: {e}"
+        else:
+            if resp.status_code == 200:
+                return True, ""
+            detail = (
+                f"REST API upload failed with status {resp.status_code}: {resp.text[:200]}"
+            )
+        await asyncio.sleep(0.5 * (attempt + 1))
+    return False, detail
