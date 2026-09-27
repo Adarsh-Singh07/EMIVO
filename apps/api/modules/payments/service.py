@@ -538,19 +538,30 @@ class PaymentService:
 
         order = await self.order_repository.get_by_id(payment.order_id)
 
-        # Provider-side refund first; only then mutate local state.
-        # Cashfree requires the order id (provider_order_id), not the payment id.
-        if payment.provider_payment_id:
-            provider_refund = await self.provider.refund(
-                payment.provider_payment_id,
-                amount=refund_amount,
-                provider_order_id=payment.provider_order_id,
+        # Atomically claim the refund before touching the provider, so two
+        # concurrent staff refunds can never both reach provider.refund. If
+        # the provider call fails, the claim is reverted to SUCCESS.
+        if not await self.repository.claim_refund(payment_id):
+            raise DomainException(
+                "Payment already refunded or refund in progress",
+                code="CONFLICT", status_code=409,
             )
-            refund_id = provider_refund.get("id") or provider_refund.get("refund_id")
-        else:
-            refund_id = None
+        try:
+            # Cashfree requires the order id (provider_order_id), not the payment id.
+            if payment.provider_payment_id:
+                provider_refund = await self.provider.refund(
+                    payment.provider_payment_id,
+                    amount=refund_amount,
+                    provider_order_id=payment.provider_order_id,
+                )
+                refund_id = provider_refund.get("id") or provider_refund.get("refund_id")
+            else:
+                refund_id = None
+        except Exception:
+            await self.repository.update_status(payment_id, PaymentStatus.SUCCESS)
+            await self.db.commit()
+            raise
 
-        await self.repository.update_status(payment_id, PaymentStatus.REFUNDED)
         await self.repository.log_event(
             payment_id=payment_id,
             event_type="payment_refunded",

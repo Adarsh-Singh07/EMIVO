@@ -446,11 +446,21 @@ export const storeApi = {
     });
   },
 
-  /** Merge the guest session cart into the logged-in user's cart (auth). */
-  mergeCart(sessionId: string): Promise<Cart> {
+  /** Merge the guest session cart into the logged-in user's cart (auth).
+   * The merge endpoint requires both the guest cart's id and its session
+   * token (same ownership rule as every other cart route). */
+  async mergeCart(sessionId: string): Promise<Cart> {
+    let cartId = "";
+    try {
+      // Fetch the guest cart WITHOUT the auth token: with Bearer attached
+      // this endpoint would return the user's cart, not the guest cart.
+      cartId = (await fetchApi<Cart>("/carts", { headers: cartHeaders() }, true)).id;
+    } catch {
+      // No guest cart yet — the merge call below fails harmlessly (best-effort).
+    }
     return fetchApi<Cart>("/carts/merge", {
       method: "POST",
-      body: JSON.stringify({ session_id: sessionId }),
+      body: JSON.stringify({ session_id: sessionId, cart_id: cartId }),
     });
   },
 

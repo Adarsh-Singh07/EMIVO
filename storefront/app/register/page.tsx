@@ -1,10 +1,9 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Mail, Lock, User, Smartphone, AlertCircle, Loader2, CheckCircle2, XCircle } from "lucide-react";
-import { API_URL } from "@/lib/api-client";
+import { Eye, EyeOff, Mail, Lock, User, Smartphone, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 
@@ -20,8 +19,6 @@ function RegisterForm() {
     password: "",
     confirmPassword: "",
   });
-  const [phoneStatus, setPhoneStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
-  const phoneCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -31,35 +28,6 @@ function RegisterForm() {
 
   const digits = form.phone.replace(/\D/g, "").replace(/^91/, "").replace(/^0/, "");
   const phoneValid = /^[6-9]\d{9}$/.test(digits);
-
-  // Realtime availability: debounced check against the API while typing.
-  useEffect(() => {
-    if (phoneCheckTimer.current) clearTimeout(phoneCheckTimer.current);
-    if (!form.phone) {
-      setPhoneStatus("idle");
-      return;
-    }
-    if (!phoneValid) {
-      setPhoneStatus("invalid");
-      return;
-    }
-    setPhoneStatus("checking");
-    phoneCheckTimer.current = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `${API_URL}/auth/phone/available?phone=${encodeURIComponent(digits)}`,
-          { cache: "no-store" }
-        );
-        const body = await res.json();
-        setPhoneStatus(body.available ? "available" : "taken");
-      } catch {
-        setPhoneStatus("idle"); // network hiccup — submit will re-validate
-      }
-    }, 450);
-    return () => {
-      if (phoneCheckTimer.current) clearTimeout(phoneCheckTimer.current);
-    };
-  }, [digits, phoneValid, form.phone]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,12 +39,6 @@ function RegisterForm() {
     }
     if (!phoneValid) {
       setError("Enter a valid 10-digit Indian mobile number");
-      return;
-    }
-    if (phoneStatus === "taken") {
-      setError(
-        "This mobile number is already registered on another account. If this is your number, please contact support at support@elektrix.in."
-      );
       return;
     }
     if (form.password.length < 8) {
@@ -173,25 +135,8 @@ function RegisterForm() {
                 required
                 disabled={isLoading}
               />
-              {phoneStatus === "checking" && (
-                <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 animate-spin" />
-              )}
-              {phoneStatus === "available" && (
-                <CheckCircle2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-green-600" />
-              )}
-              {phoneStatus === "taken" && (
-                <XCircle className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
-              )}
             </div>
-            {phoneStatus === "available" && (
-              <p className="mt-1 text-xs text-green-600">Mobile number is available</p>
-            )}
-            {phoneStatus === "taken" && (
-              <p className="mt-1 text-xs text-red-500">
-                Already registered on another account — contact support to reclaim it.
-              </p>
-            )}
-            {phoneStatus === "invalid" && form.phone && (
+            {!phoneValid && form.phone && (
               <p className="mt-1 text-xs text-neutral-400">Enter a 10-digit Indian mobile number</p>
             )}
           </div>

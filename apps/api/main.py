@@ -44,8 +44,11 @@ app = FastAPI(
     title="ELEKTRIX API",
     description="ELEKTRIX e-commerce platform API",
     version="2.0.0",
-    openapi_url="/api/v1/openapi.json",
-    docs_url="/api/v1/docs",
+    # Interactive docs and the full OpenAPI spec are recon gold for an
+    # attacker (admin routes, schemas, webhooks) — never expose them in prod.
+    openapi_url=None if settings.is_prod else "/api/v1/openapi.json",
+    docs_url=None if settings.is_prod else "/api/v1/docs",
+    redoc_url=None if settings.is_prod else "/redoc",
     lifespan=lifespan,
 )
 

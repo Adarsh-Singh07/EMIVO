@@ -1,6 +1,27 @@
 from typing import Any, Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
+
+# Product images must live on our own CDN — a staff-entered arbitrary URL
+# would let product pages load (and later swap) off-site assets.
+_ALLOWED_MEDIA_HOSTS = ("media.elektrix.in",)
+_ALLOWED_MEDIA_HOST_SUFFIXES = (".r2.dev",)
+
+
+def _validate_media_url(value: Optional[str]) -> Optional[str]:
+    if value is None or value == "":
+        return value
+    from urllib.parse import urlparse
+
+    parsed = urlparse(value)
+    if parsed.scheme != "https":
+        raise ValueError("media_url must be an https URL on an allowed host")
+    host = (parsed.hostname or "").lower()
+    if host in _ALLOWED_MEDIA_HOSTS or host.endswith(_ALLOWED_MEDIA_HOST_SUFFIXES):
+        return value
+    raise ValueError(
+        "media_url must be hosted on media.elektrix.in or a *.r2.dev bucket"
+    )
 
 
 def _slugify(value: str) -> str:
@@ -45,6 +66,17 @@ class ProductMediaBase(BaseModel):
     media_url: str
     position: int = 0
     alt_text: Optional[str] = None
+
+
+class ProductMediaCreate(ProductMediaBase):
+    # Write-path only: rows seeded/created before the allowlist keep
+    # rendering, but every new/updated media entry must use our CDN.
+    @field_validator("media_url")
+    @classmethod
+    def check_media_url(cls, v: str) -> str:
+        result = _validate_media_url(v)
+        assert result is not None
+        return result
 
 
 class ProductMediaCreate(ProductMediaBase):

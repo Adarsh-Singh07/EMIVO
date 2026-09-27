@@ -1,5 +1,5 @@
 from typing import Optional, List, Tuple
-from sqlalchemy import select, func
+from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -141,6 +141,18 @@ class PaymentRepository:
             await self.db.flush()
 
         return payment
+
+    async def claim_refund(self, payment_id: str) -> bool:
+        """Atomically transition SUCCESS -> REFUNDED. Returns False when the
+        payment is no longer in SUCCESS (a concurrent refund claimed it),
+        closing the check-then-act double-refund window."""
+        stmt = (
+            update(Payment)
+            .where(Payment.id == payment_id, Payment.status == PaymentStatus.SUCCESS)
+            .values(status=PaymentStatus.REFUNDED)
+        )
+        result = await self.db.execute(stmt)
+        return result.rowcount == 1
 
     async def log_event(
         self, payment_id: str, event_type: str, payload: dict

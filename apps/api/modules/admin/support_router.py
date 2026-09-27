@@ -1,10 +1,12 @@
 """Admin support box: all tickets, reply, resolve."""
 from typing import Optional
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.dependencies import set_db_context, require_staff as _rs
 from core.dependencies import require_staff
+from core.exceptions import DomainException
 from modules.support.schemas import TicketMessageCreate, TicketOut, TicketStatusUpdate
 from modules.support.service import SupportService
 from modules.users.models import User
@@ -64,7 +66,6 @@ async def email_customer(ticket_id: str, payload: TicketMessageCreate,
 @router.patch("/tickets/{ticket_id}/status", response_model=TicketOut, dependencies=[Depends(require_staff)])
 async def set_status(ticket_id: str, payload: TicketStatusUpdate,
                      service: SupportService = Depends(_service), staff: User = Depends(require_staff)):
-    from sqlalchemy import text
     await service.add_message(
         ticket_id, str(staff.id), "admin",
         f"[status] {payload.status}", role="platform_admin", commit=False,

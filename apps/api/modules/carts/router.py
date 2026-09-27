@@ -99,6 +99,11 @@ async def merge_guest_cart(
 ) -> Any:
     """Merge the guest session cart into the authenticated user's cart
     (called right after login). Quantities of identical products add up."""
+    # IDOR guard: same ownership rule as every other cart route — the caller
+    # must present both the guest cart's id and its matching session token,
+    # otherwise any authenticated user could steal/empty a stranger's cart
+    # knowing only the session token.
+    await _owned_cart(payload.cart_id, service, current_user, payload.session_id)
     return await service.merge_guest_cart(
         user_id=str(current_user.id),
         session_id=_validate_guest_session(payload.session_id),
@@ -107,6 +112,7 @@ async def merge_guest_cart(
 
 class MergeRequest(BaseModel):
     session_id: str
+    cart_id: str
 
 
 @router.get("/{cart_id}", response_model=CartResponse)

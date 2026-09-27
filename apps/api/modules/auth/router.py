@@ -82,17 +82,6 @@ async def change_password(
     return {"status": "password_updated"}
 
 
-@router.get("/phone/available", status_code=status.HTTP_200_OK)
-async def phone_available(
-    phone: str,
-    service: AuthService = Depends(get_auth_service),
-):
-    """Realtime mobile-number availability for the signup form. Always 200;
-    deliberately does not distinguish 'invalid' from 'taken' beyond the flag
-    so it can't be used to enumerate accounts beyond the signup flow itself."""
-    return {"available": await service.phone_available(phone)}
-
-
 @router.post("/otp/request", status_code=status.HTTP_202_ACCEPTED)
 async def otp_request(
     data: OtpRequestIn,

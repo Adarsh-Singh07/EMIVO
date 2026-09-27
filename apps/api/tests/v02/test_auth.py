@@ -97,17 +97,12 @@ async def test_register_duplicate_phone_rejected_and_availability(client):
     by the signup form and enforced server-side at registration."""
     user = await register_and_login(client, 777005)
 
-    # Availability endpoint: taken number reports unavailable
+    # The phone-availability oracle is gone: the endpoint must not answer
+    # unauthenticated callers any more (enumeration fix).
     r = await client.get("/api/v1/auth/phone/available", params={"phone": user["phone"]})
-    assert r.status_code == 200 and r.json()["available"] is False
+    assert r.status_code in (401, 404)
 
-    # Free number reports available
-    r = await client.get(
-        "/api/v1/auth/phone/available", params={"phone": f"97{str(777005).zfill(8)}"}
-    )
-    assert r.status_code == 200 and r.json()["available"] is True
-
-    # Registration with the taken number is rejected with a support pointer
+    # Registration with the taken number is still rejected with a support pointer
     r = await client.post("/api/v1/auth/register", json={
         "email": f"other{uuid.uuid4().hex[:6]}@example.com",
         "password": "Passw0rd!123",

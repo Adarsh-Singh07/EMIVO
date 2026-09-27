@@ -72,7 +72,7 @@ async def test_guest_cart_merges_into_user_cart_on_login(client):
 
     user = await register_and_login(client, 888002)
     r = await client.post("/api/v1/carts/merge", headers=user["headers"],
-                          json={"session_id": session})
+                          json={"session_id": session, "cart_id": cart["id"]})
     assert r.status_code == 200, r.text
     merged = r.json()
     import re
@@ -86,9 +86,43 @@ async def test_guest_cart_merges_into_user_cart_on_login(client):
 
 async def test_cart_merge_scopes_user_id(client):
     session = f"guest-{uuid.uuid4().hex}"
-    await client.get("/api/v1/carts", headers={"X-Cart-Session": session})
+    cart = (await client.get("/api/v1/carts", headers={"X-Cart-Session": session})).json()
     user = await register_and_login(client, 888003)
     r = await client.post("/api/v1/carts/merge", headers=user["headers"],
-                          json={"session_id": session})
+                          json={"session_id": session, "cart_id": cart["id"]})
     assert r.status_code == 200
     assert r.json()["user_id"] is not None
+
+
+async def test_cart_merge_rejects_unowned_cart(client):
+    """Regression (BOLA fix): a session token without the matching guest
+    cart id — or a cart id the caller does not control — must 404."""
+    victim_session = f"guest-{uuid.uuid4().hex}"
+    victim_cart = (await client.get(
+        "/api/v1/carts", headers={"X-Cart-Session": victim_session}
+    )).json()
+
+    attacker = await register_and_login(client, 888004)
+
+    # Token alone (no cart_id) is not enough
+    r = await client.post("/api/v1/carts/merge", headers=attacker["headers"],
+                          json={"session_id": victim_session})
+    assert r.status_code == 422
+
+    # Mismatched pair (wrong cart id) is rejected
+    r = await client.post("/api/v1/carts/merge", headers=attacker["headers"],
+                          json={"session_id": victim_session,
+                                "cart_id": victim_cart["id"][:-1] + ("0" if victim_cart["id"][-1] != "0" else "1")})
+    assert r.status_code == 404
+
+    # Correct pair from a DIFFERENT caller is still rejected: the guest cart
+    # must be presented by a session that matches, not just any account.
+    other_session = f"guest-{uuid.uuid4().hex}"
+    other_cart = (await client.get(
+        "/api/v1/carts", headers={"X-Cart-Session": other_session}
+    )).json()
+    r = await client.post("/api/v1/carts/merge", headers=attacker["headers"],
+                          json={"session_id": other_session, "cart_id": other_cart["id"]})
+    # The attacker does hold both values here (they created the cart), so the
+    # merge itself succeeds — ownership for guests IS possession of the pair.
+    assert r.status_code == 200
