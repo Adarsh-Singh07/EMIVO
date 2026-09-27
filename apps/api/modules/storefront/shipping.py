@@ -84,6 +84,12 @@ STATE_NAME_TO_CODE = {
     "himachal pradesh": "HP",
 }
 
+STATE_CODE_TO_NAME = {
+    code: name.title()
+    for name, code in STATE_NAME_TO_CODE.items()
+    if name != "orissa"  # prefer the modern "Odisha" spelling
+}
+
 
 def _format_delivery_dates(min_days: int, max_days: int) -> tuple[str, str, str]:
     now = datetime.now()
@@ -201,14 +207,18 @@ async def get_delhivery_estimate(destination_pincode: str, is_store_cod_enabled:
         except Exception as exc:
             logger.warning("Delhivery API check failed for %s: %s", destination_pincode, exc)
 
-    # 2. Enrich with India Post API if city or state_code missing
-    if not city or not state_code:
+    # 2. Enrich with India Post API if city / state info is incomplete
+    if not city or not state_code or not state_name:
         postal_info = await _fetch_postal_pincode_details(destination_pincode)
         if postal_info:
             city = city or postal_info.get("city", "")
             district = district or postal_info.get("district", "")
             state_name = state_name or postal_info.get("state", "")
             state_code = state_code or postal_info.get("state_code", "")
+
+    # Fill the state name from the code when the postal lookup was skipped
+    if state_code and not state_name:
+        state_name = STATE_CODE_TO_NAME.get(state_code, "")
 
     # Default state / days if unresolved
     if not state_code and destination_pincode.startswith("8"):
