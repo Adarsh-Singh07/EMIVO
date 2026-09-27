@@ -53,3 +53,17 @@ class S3CompatibleAdapter:
             logger.error(f"Error generating presigned download URL: {e}")
             return None
         return response
+
+    def upload_bytes(
+        self, bucket_name: str, object_name: str, data: bytes, content_type: str | None = None
+    ) -> bool:
+        """Server-side PUT (browser never talks to the R2 S3 endpoint)."""
+        try:
+            params: dict = {"Bucket": bucket_name, "Key": object_name, "Body": data}
+            if content_type:
+                params["ContentType"] = content_type
+            self.client.put_object(**params)
+            return True
+        except ClientError as e:
+            logger.error(f"Error uploading object: {e}")
+            return False

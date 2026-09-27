@@ -10,6 +10,9 @@ r2_access_key = os.getenv("R2_ACCESS_KEY_ID", "")
 r2_secret_key = os.getenv("R2_SECRET_ACCESS_KEY", "")
 r2_bucket = os.getenv("R2_BUCKET_NAME", "elektrix-media")
 r2_public_url = os.getenv("R2_PUBLIC_URL", "").rstrip("/")
+# Optional Cloudflare API token (R2 edit scope) enabling the
+# api.cloudflare.com upload fallback when the S3 endpoint is unreachable.
+cf_api_token = os.getenv("CLOUDFLARE_API_TOKEN", "")
 
 _adapter: "S3CompatibleAdapter | None" = None
 
@@ -31,3 +34,7 @@ def get_default_bucket() -> str:
 
 def get_r2_public_url() -> str:
     return r2_public_url
+
+
+def get_cloudflare_api_token() -> str:
+    return cf_api_token

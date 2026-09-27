@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Settings, Save, Loader2, RefreshCw, AlertCircle, Shield, Globe, Truck, Banknote, Megaphone } from "lucide-react";
 import { toast } from "sonner";
 import { apiClient, ApiError } from "@/lib/api-client";
+import { uploadMediaFile } from "@/lib/media";
 import { formatINR, rupeesToPaise, paiseToRupeeInput } from "@/lib/money";
 import { BRAND_CONFIG } from "@/config/branding";
 
@@ -225,19 +226,10 @@ export default function SettingsPage() {
   const handlePromoImageUpload = async (idx: number, file: File) => {
     try {
       setUploadingPromoIdx(idx);
-      const presign = await apiClient.post<{ upload_url: string; public_url: string }>("/media/presign", {
-        filename: file.name,
-        content_type: file.type,
-        size_bytes: file.size,
-      });
-      await fetch(presign.upload_url, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type },
-      });
+      const publicUrl = await uploadMediaFile(file);
       setPromoTiles(prev => {
         const n = [...prev];
-        n[idx].img = presign.public_url;
+        n[idx].img = publicUrl;
         return n;
       });
       toast.success("Promo image uploaded");
@@ -251,21 +243,11 @@ export default function SettingsPage() {
   const handleBannerImageUpload = async (idx: number, file: File) => {
     try {
       setUploadingBannerIdx(idx);
-      const presign = await apiClient.post<{ upload_url: string; public_url: string }>("/media/presign", {
-        filename: file.name,
-        content_type: file.type,
-                size_bytes: file.size,
-      });
-      const put = await fetch(presign.upload_url, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      if (!put.ok) throw new Error("Upload failed");
-      
+      const publicUrl = await uploadMediaFile(file);
+
       setHeroSlides((prev) => {
         const n = [...prev];
-        n[idx].img = presign.public_url;
+        n[idx].img = publicUrl;
         return n;
       });
       toast.success("Image uploaded, please save settings to apply");

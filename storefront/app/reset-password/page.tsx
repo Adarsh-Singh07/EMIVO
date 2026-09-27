@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Lock, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { toast } from "sonner";
+import { PasswordRules, passwordMeetsAllRules } from "@/components/PasswordRules";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -14,9 +15,17 @@ function ResetPasswordForm() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showRules, setShowRules] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+
+  const allRulesPass = passwordMeetsAllRules(password);
+  const passwordsMatch = password === confirmPassword;
+  const confirmTouched = confirmPassword.length > 0;
+  // The Reset button stays disabled until everything the backend enforces is
+  // already satisfied client-side.
+  const formValid = allRulesPass && passwordsMatch && !!token;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,12 +41,12 @@ function ResetPasswordForm() {
       return;
     }
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters");
+    if (!allRulesPass) {
+      setError("Password does not meet all the requirements");
       return;
     }
 
-    if (password !== confirmPassword) {
+    if (!passwordsMatch) {
       setError("Passwords do not match");
       return;
     }
@@ -124,7 +133,8 @@ function ResetPasswordForm() {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Min. 8 characters"
+                onFocus={() => setShowRules(true)}
+                placeholder="Create a new password"
                 className="w-full h-11 pl-10 pr-11 rounded-xl border border-neutral-300 text-sm outline-none focus:border-neutral-950 focus:ring-1 focus:ring-neutral-950 transition-colors"
                 required
                 disabled={isLoading}
@@ -137,13 +147,7 @@ function ResetPasswordForm() {
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            {password && (
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <span className="text-xs text-green-600">
-                  {password.length >= 8 ? "Strong password" : "At least 8 characters"}
-                </span>
-              </div>
-            )}
+            {showRules && <PasswordRules password={password} />}
           </div>
 
           <div>
@@ -154,21 +158,30 @@ function ResetPasswordForm() {
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
               <input
                 id="confirmPassword"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full h-11 pl-10 pr-4 rounded-xl border border-neutral-300 text-sm outline-none focus:border-neutral-950 focus:ring-1 focus:ring-neutral-950 transition-colors"
+                placeholder="Re-enter the password"
+                className={`w-full h-11 pl-10 pr-4 rounded-xl border text-sm outline-none focus:ring-1 transition-colors ${
+                  confirmTouched && !passwordsMatch
+                    ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                    : "border-neutral-300 focus:border-neutral-950 focus:ring-neutral-950"
+                }`}
                 required
                 disabled={isLoading}
               />
             </div>
+            {confirmTouched && (
+              <p className={`mt-1 text-xs ${passwordsMatch ? "text-green-600" : "text-red-500"}`}>
+                {passwordsMatch ? "Passwords match" : "Passwords do not match"}
+              </p>
+            )}
           </div>
 
           <button
             type="submit"
-            disabled={isLoading || !password || !confirmPassword || !token}
-            className="w-full h-11 rounded-xl bg-neutral-950 text-white text-sm font-semibold hover:bg-neutral-800 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 mt-2"
+            disabled={isLoading || !formValid || !password || !confirmPassword}
+            className="w-full h-11 rounded-xl bg-neutral-950 text-white text-sm font-semibold hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 mt-2"
           >
             {isLoading ? (
               <>

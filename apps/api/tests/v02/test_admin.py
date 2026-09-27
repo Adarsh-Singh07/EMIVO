@@ -213,3 +213,21 @@ async def test_newsletter_subscribe_idempotent(client):
     r = await client.post("/api/v1/newsletter/subscribe", json={"email": email})
     assert r.status_code == 201
     assert "already" in r.json()["message"] or r.json()["subscribed"] is True
+
+
+# --------------------------------------------------------------------- #
+# Admin activity feed (notification bell)                                #
+# --------------------------------------------------------------------- #
+
+async def test_admin_activity_ok(client, admin):
+    """Regression: orders.status (orderstatus) and payments.status
+    (paymentstatus) are distinct Postgres enums, so the UNION in the activity
+    query raised 'could not convert type paymentstatus to orderstatus' — an
+    unhandled 500 which, because it bypasses CORS middleware, surfaced in
+    browsers as a CORS error on /admin/activity."""
+    r = await client.get("/api/v1/admin/activity?limit=15", headers=admin)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert "items" in body
+    for item in body["items"]:
+        assert item["kind"] in ("order", "payment")

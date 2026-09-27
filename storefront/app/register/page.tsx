@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Mail, Lock, User, Smartphone, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
+import { PasswordRules, passwordMeetsAllRules } from "@/components/PasswordRules";
 
 function RegisterForm() {
   const router = useRouter();
@@ -20,6 +21,7 @@ function RegisterForm() {
     confirmPassword: "",
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [showRules, setShowRules] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -29,11 +31,24 @@ function RegisterForm() {
   const digits = form.phone.replace(/\D/g, "").replace(/^91/, "").replace(/^0/, "");
   const phoneValid = /^[6-9]\d{9}$/.test(digits);
 
+  const allRulesPass = passwordMeetsAllRules(form.password);
+  const passwordsMatch = form.password === form.confirmPassword;
+  const confirmTouched = form.confirmPassword.length > 0;
+  // The Create Account button stays disabled until everything the backend
+  // enforces is already satisfied client-side.
+  const formValid =
+    allRulesPass &&
+    passwordsMatch &&
+    phoneValid &&
+    form.first_name.trim().length > 0 &&
+    form.last_name.trim().length > 0 &&
+    form.email.length > 0;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (!form.first_name || !form.email || !form.password) {
+    if (!form.first_name || !form.last_name || !form.email || !form.password) {
       setError("Please fill in all required fields");
       return;
     }
@@ -41,11 +56,11 @@ function RegisterForm() {
       setError("Enter a valid 10-digit Indian mobile number");
       return;
     }
-    if (form.password.length < 8) {
-      setError("Password must be at least 8 characters");
+    if (!allRulesPass) {
+      setError("Password does not meet all the requirements");
       return;
     }
-    if (form.password !== form.confirmPassword) {
+    if (!passwordsMatch) {
       setError("Passwords do not match");
       return;
     }
@@ -67,8 +82,6 @@ function RegisterForm() {
       setIsLoading(false);
     }
   };
-
-  const passwordStrong = form.password.length >= 8;
 
   return (
     <div className="w-full max-w-md mx-auto">
@@ -109,7 +122,7 @@ function RegisterForm() {
                   type="text"
                   value={form.first_name}
                   onChange={update("first_name")}
-                  placeholder="Adarsh"
+                  placeholder="First Name"
                   className="w-full h-11 pl-10 pr-3 rounded-xl border border-neutral-300 text-sm outline-none focus:border-neutral-950 focus:ring-1 focus:ring-neutral-950 transition-colors"
                   required
                   disabled={isLoading}
@@ -142,14 +155,14 @@ function RegisterForm() {
           </div>
             <div>
               <label htmlFor="last_name" className="block text-sm font-medium text-neutral-700 mb-1.5">
-                Last Name
+                Last Name <span className="text-red-500">*</span>
               </label>
               <input
                 id="last_name"
                 type="text"
                 value={form.last_name}
                 onChange={update("last_name")}
-                placeholder="Singh"
+                placeholder="Last Name"
                 className="w-full h-11 px-4 rounded-xl border border-neutral-300 text-sm outline-none focus:border-neutral-950 focus:ring-1 focus:ring-neutral-950 transition-colors"
                 disabled={isLoading}
               />
@@ -186,7 +199,8 @@ function RegisterForm() {
                 type={showPassword ? "text" : "password"}
                 value={form.password}
                 onChange={update("password")}
-                placeholder="Min. 8 characters"
+                onFocus={() => setShowRules(true)}
+                placeholder="Create a password"
                 className="w-full h-11 pl-10 pr-11 rounded-xl border border-neutral-300 text-sm outline-none focus:border-neutral-950 focus:ring-1 focus:ring-neutral-950 transition-colors"
                 required
                 disabled={isLoading}
@@ -199,16 +213,7 @@ function RegisterForm() {
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            {form.password && (
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <CheckCircle2
-                  className={`w-3.5 h-3.5 ${passwordStrong ? "text-green-500" : "text-neutral-300"}`}
-                />
-                <span className={`text-xs ${passwordStrong ? "text-green-600" : "text-neutral-400"}`}>
-                  {passwordStrong ? "Strong password" : "At least 8 characters"}
-                </span>
-              </div>
-            )}
+            {showRules && <PasswordRules password={form.password} />}
           </div>
 
           <div>
@@ -219,21 +224,30 @@ function RegisterForm() {
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
               <input
                 id="confirmPassword"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={form.confirmPassword}
                 onChange={update("confirmPassword")}
-                placeholder="••••••••"
-                className="w-full h-11 pl-10 pr-4 rounded-xl border border-neutral-300 text-sm outline-none focus:border-neutral-950 focus:ring-1 focus:ring-neutral-950 transition-colors"
+                placeholder="Re-enter the password"
+                className={`w-full h-11 pl-10 pr-4 rounded-xl border text-sm outline-none focus:ring-1 transition-colors ${
+                  confirmTouched && !passwordsMatch
+                    ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                    : "border-neutral-300 focus:border-neutral-950 focus:ring-neutral-950"
+                }`}
                 required
                 disabled={isLoading}
               />
             </div>
+            {confirmTouched && (
+              <p className={`mt-1 text-xs ${passwordsMatch ? "text-green-600" : "text-red-500"}`}>
+                {passwordsMatch ? "Passwords match" : "Passwords do not match"}
+              </p>
+            )}
           </div>
 
           <button
             type="submit"
-            disabled={isLoading}
-            className="w-full h-11 rounded-xl bg-neutral-950 text-white text-sm font-semibold hover:bg-neutral-800 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 mt-2"
+            disabled={isLoading || !formValid}
+            className="w-full h-11 rounded-xl bg-neutral-950 text-white text-sm font-semibold hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 mt-2"
           >
             {isLoading ? (
               <>

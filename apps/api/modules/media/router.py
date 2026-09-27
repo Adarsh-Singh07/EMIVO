@@ -2,15 +2,18 @@ import os
 import time
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import httpx
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from starlette.concurrency import run_in_threadpool
 
 from core.dependencies import require_staff
 from modules.media.dependencies import (
+    get_cloudflare_api_token,
     get_default_bucket,
     get_media_adapter,
     get_r2_public_url,
 )
-from modules.media.schemas import PresignedUploadRequest, PresignedUploadResponse
+from modules.media.schemas import MediaUploadResponse, PresignedUploadRequest, PresignedUploadResponse
 
 router = APIRouter(prefix="/api/v1/media", tags=["media"])
 
@@ -79,3 +82,96 @@ async def create_presigned_upload(
     return PresignedUploadResponse(
         upload_url=upload_url, public_url=public_url, key=key, provider="r2"
     )
+
+
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # matches nginx client_max_body_size 20M
+
+
+@router.post(
+    "/upload",
+    response_model=MediaUploadResponse,
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_staff)],
+)
+async def upload_media(
+    file: UploadFile = File(...),
+    adapter=Depends(get_media_adapter),
+    bucket: str = Depends(get_default_bucket),
+):
+    """Server-proxied media upload. The browser sends the file HERE (same
+    origin path as every other API call) and the backend writes it to R2 —
+    the browser never touches the R2 S3 endpoint, whose TLS is unreachable
+    from some networks/ISPs. Falls back to the Cloudflare REST API
+    (api.cloudflare.com) when the S3 path fails and CLOUDFLARE_API_TOKEN is
+    configured."""
+    filename = file.filename or ""
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type '{ext or filename}'")
+
+    content_type = (file.content_type or "").split(";")[0].strip().lower()
+    if content_type not in ALLOWED_CONTENT_TYPES[ext]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Content type '{content_type or 'missing'}' does not match extension '{ext}'",
+        )
+
+    if adapter is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Media storage is not configured",
+        )
+
+    chunks: list[bytes] = []
+    received = 0
+    while chunk := await file.read(1024 * 1024):
+        received += len(chunk)
+        if received > MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail="File exceeds the 20 MB limit")
+        chunks.append(chunk)
+    data = b"".join(chunks)
+    if not data:
+        raise HTTPException(status_code=400, detail="Empty file")
+
+    key = f"products/{int(time.time())}_{uuid.uuid4().hex}{ext}"
+
+    s3_ok = await run_in_threadpool(
+        adapter.upload_bytes, bucket, key, data, content_type
+    )
+    if not s3_ok:
+        token = get_cloudflare_api_token()
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=(
+                    "R2 S3 endpoint unreachable. Configure CLOUDFLARE_API_TOKEN "
+                    "(R2 edit scope) to enable the api.cloudflare.com upload fallback."
+                ),
+            )
+        rest_url = (
+            f"https://api.cloudflare.com/client/v4/accounts/{os.environ.get('R2_ACCOUNT_ID', '')}"
+            f"/r2/buckets/{bucket}/objects/{key}"
+        )
+        try:
+            async with httpx.AsyncClient(timeout=60) as http:
+                resp = await http.put(
+                    rest_url,
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type": content_type,
+                    },
+                    content=data,
+                )
+        except httpx.HTTPError as e:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Both R2 upload paths failed (S3 + REST API): {e}",
+            )
+        if resp.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"R2 REST API upload failed with status {resp.status_code}",
+            )
+
+    public_url = f"{get_r2_public_url()}/{key}"
+    return MediaUploadResponse(public_url=public_url, key=key, provider="r2")

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiClient, ApiError } from "@/lib/api-client";
+import { uploadMediaFile } from "@/lib/media";
 
 interface BankOffer {
   id: string;
@@ -147,18 +148,8 @@ export default function BankOffersPage() {
   const handlePosterUpload = async (file: File) => {
     try {
       setUploading(true);
-      const presign = await apiClient.post<{ upload_url: string; public_url: string }>("/media/presign", {
-        filename: file.name,
-        content_type: file.type,
-        size_bytes: file.size,
-      });
-      const put = await fetch(presign.upload_url, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      if (!put.ok) throw new Error("Upload failed");
-      setPosterUrl(presign.public_url);
+      const publicUrl = await uploadMediaFile(file);
+      setPosterUrl(publicUrl);
       toast.success("Poster uploaded");
     } catch {
       toast.error("Failed to upload poster");

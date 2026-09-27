@@ -12,3 +12,11 @@ class PresignedUploadResponse(BaseModel):
     public_url: str
     key: str
     provider: str = "r2"
+
+
+class MediaUploadResponse(BaseModel):
+    """Response for POST /media/upload — the server put the object to R2
+    itself, so the client only needs the public URL."""
+    public_url: str
+    key: str
+    provider: str = "r2"

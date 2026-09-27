@@ -19,6 +19,7 @@ import {
 import { VariantBuilder } from "@/components/products/VariantBuilder";
 import { toast } from "sonner";
 import { apiClient, ApiError } from "@/lib/api-client";
+import { uploadMediaFile } from "@/lib/media";
 import { formatINR, rupeesToPaise, paiseToRupeeInput, isoToLocalInput, localInputToIso } from "@/lib/money";
 
 export interface ProductMedia {
@@ -247,20 +248,10 @@ export function ProductEditor({ productId }: { productId?: string }) {
 
   // ------------------------- media helpers ------------------------- //
 
-  const presignAndUpload = async (file: File): Promise<string> => {
-    const presign = await apiClient.post<{ upload_url: string; public_url: string; key: string }>("/media/presign", {
-      filename: file.name,
-      content_type: file.type,
-      size_bytes: file.size,
-    });
-    const put = await fetch(presign.upload_url, {
-      method: "PUT",
-      headers: { "Content-Type": file.type },
-      body: file,
-    });
-    if (!put.ok) throw new Error(`File upload failed (status ${put.status})`);
-    return presign.public_url;
-  };
+  // Upload goes through the API (multipart) — the server writes the file to
+  // R2 itself, so the browser never talks to the R2 S3 endpoint directly
+  // (that endpoint's TLS is unreachable from some networks/ISPs).
+  const uploadMedia = (file: File) => uploadMediaFile(file);
 
   const handleFiles = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -272,7 +263,7 @@ export function ProductEditor({ productId }: { productId?: string }) {
           toast.error(`${file.name} exceeds the 10 MB limit`);
           continue;
         }
-        const publicUrl = await presignAndUpload(file);
+        const publicUrl = await uploadMedia(file);
         if (isEdit && productId) {
           const added = await apiClient.post<ProductMedia>(`/products/${productId}/media`, { media_url: publicUrl });
           setMedia((prev) => [...prev, added]);
@@ -837,7 +828,7 @@ export function ProductEditor({ productId }: { productId?: string }) {
             <div>
               <h2 className="text-base font-bold text-neutral-900">Images</h2>
               <p className="mt-0.5 text-xs text-neutral-500">
-                {isEdit ? "Uploads go live immediately (presigned PUT → product media)." : "Images are attached when the product is created."}
+                {isEdit ? "Uploads go live immediately (server uploads to R2 → product media)." : "Images are attached when the product is created."}
               </p>
             </div>
 

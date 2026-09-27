@@ -104,7 +104,8 @@ export async function fetchApi<T>(
   const isAuthEndpoint = endpoint.startsWith('/auth/');
 
   const headers = new Headers(options.headers || {});
-  if (!headers.has('Content-Type')) {
+  // Let the browser set the multipart boundary for FormData uploads.
+  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
 
@@ -204,6 +205,7 @@ export async function fetchApi<T>(
 export const apiClient = {
   get: <T = any>(url: string, skipAuth = false) => fetchApi<T>(url, { method: 'GET' }, skipAuth),
   post: <T = any>(url: string, data: any, skipAuth = false) => fetchApi<T>(url, { method: 'POST', body: JSON.stringify(data) }, skipAuth),
+  postForm: <T = any>(url: string, form: FormData, skipAuth = false) => fetchApi<T>(url, { method: 'POST', body: form }, skipAuth),
   put: <T = any>(url: string, data: any, skipAuth = false) => fetchApi<T>(url, { method: 'PUT', body: JSON.stringify(data) }, skipAuth),
   patch: <T = any>(url: string, data: any, skipAuth = false) => fetchApi<T>(url, { method: 'PATCH', body: JSON.stringify(data) }, skipAuth),
   delete: <T = any>(url: string, skipAuth = false) => fetchApi<T>(url, { method: 'DELETE' }, skipAuth),

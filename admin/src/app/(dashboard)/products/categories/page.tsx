@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Plus, Trash2, Image as ImageIcon, Loader2, Edit } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { uploadMediaFile } from "@/lib/media";
 import { toast } from "sonner";
 
 interface Category {
@@ -74,19 +75,9 @@ export default function CategoriesPage() {
   const handleImageUpload = async (file: File) => {
     try {
       setUploading(true);
-      const presign = await apiClient.post<{ upload_url: string; public_url: string }>("/media/presign", {
-        filename: file.name,
-        content_type: file.type,
-        size_bytes: file.size,
-      });
-      const put = await fetch(presign.upload_url, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      if (!put.ok) throw new Error("Upload failed");
-      
-      setEditingCat(prev => ({ ...prev, image_url: presign.public_url }));
+      const publicUrl = await uploadMediaFile(file);
+
+      setEditingCat(prev => ({ ...prev, image_url: publicUrl }));
       toast.success("Image uploaded");
     } catch (err) {
       toast.error("Failed to upload image");

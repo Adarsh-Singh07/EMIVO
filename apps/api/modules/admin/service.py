@@ -19,15 +19,17 @@ class AdminService:
         """Recent store activity for the admin notification bell: order and
         payment status changes from the last 3 days, newest first."""
         bid = await get_store_business_id(self.session)
+        # Cast status to text: orders.status (orderstatus) and payments.status
+        # (paymentstatus) are distinct enum types and UNION cannot mix them.
         res = await self.session.execute(text("""
             SELECT 'order' AS kind, o.id AS order_id, o.order_number AS ref,
-                   o.status AS status, o.total AS total, o.updated_at AS at
+                   o.status::text AS status, o.total AS total, o.updated_at AS at
             FROM orders o
             WHERE o.business_id = :bid AND o.deleted_at IS NULL
               AND o.updated_at > now() - interval '3 days'
             UNION ALL
             SELECT 'payment' AS kind, o.id AS order_id, o.order_number AS ref,
-                   p.status AS status, p.amount AS total, p.updated_at AS at
+                   p.status::text AS status, p.amount AS total, p.updated_at AS at
             FROM payments p
             JOIN orders o ON o.id = p.order_id
             WHERE o.business_id = :bid
