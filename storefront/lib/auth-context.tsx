@@ -122,10 +122,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback(
-    async ({ email, password, first_name, last_name }: RegisterPayload) => {
+    async ({ email, password, first_name, last_name, phone }: RegisterPayload) => {
       // Backend /auth/register returns UserResponse (not tokens).
       // We auto-login immediately after successful registration.
-      await apiClient.post("/auth/register", { email, password, first_name, last_name }, true);
+      // phone is REQUIRED by the backend (UserCreate) — dropping it 422s.
+      await apiClient.post(
+        "/auth/register",
+        { email, password, first_name, last_name, phone },
+        true,
+      );
       // Now login to get tokens
       const tokenData = await apiClient.post<{
         access_token: string;
