@@ -8,6 +8,70 @@ import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 import { PasswordRules, passwordMeetsAllRules } from "@/components/PasswordRules";
 
+type FieldName = "first_name" | "last_name" | "email" | "phone" | "password";
+
+/**
+ * Translates raw API errors into plain language a shopper can act on.
+ * The backend's 422 body arrives (via the API client) as a joined string of
+ * "body.<field>: <reason>" entries; 429 comes from the rate limiter.
+ */
+function explainRegisterError(err: any): {
+  summary: string;
+  field?: FieldName;
+  fieldText?: string;
+} {
+  const status = Number(err?.status ?? 0);
+  const raw = String(err?.message || "");
+  const lower = raw.toLowerCase();
+
+  if (status === 429 || lower.includes("rate limit") || lower.includes("too many requests")) {
+    return {
+      summary:
+        "You've tried several times in a short window. For security, please wait 5 minutes and try again.",
+    };
+  }
+  if (status === 400 && (lower.includes("already") || lower.includes("taken"))) {
+    return {
+      summary:
+        "An account with this email or mobile number already exists — try signing in instead, or use a different email.",
+    };
+  }
+
+  // Field validation (422): collect every field the server complained about.
+  const problems: Array<{ field: FieldName; text: string }> = [];
+  if (lower.includes("body.password") || (lower.includes("password") && lower.includes("character"))) {
+    const missing: string[] = [];
+    if (lower.includes("uppercase")) missing.push("an uppercase letter");
+    if (lower.includes("lowercase")) missing.push("a lowercase letter");
+    if (lower.includes("number") || lower.includes("digit")) missing.push("a number");
+    if (lower.includes("special")) missing.push("a special character (like ! or @)");
+    if (!missing.length) missing.push("at least 8 characters");
+    problems.push({
+      field: "password",
+      text: "Your password is missing " + missing.join(" and ") + ". Check the checklist below.",
+    });
+  }
+  if (lower.includes("body.last_name") || lower.includes("last name")) {
+    problems.push({ field: "last_name", text: "Please enter your last name." });
+  }
+  if (lower.includes("body.phone") || (lower.includes("phone") && lower.includes("character"))) {
+    problems.push({ field: "phone", text: "Enter a valid 10-digit Indian mobile number." });
+  }
+  if (lower.includes("body.email") || (lower.includes("email") && lower.includes("valid"))) {
+    problems.push({ field: "email", text: "That email address doesn't look valid — please check it." });
+  }
+
+  if (problems.length) {
+    return {
+      summary: "We couldn't create your account: " + problems.map((p) => p.text).join(" "),
+      field: problems[0].field,
+      fieldText: problems[0].text,
+    };
+  }
+
+  return { summary: raw || "Registration failed. Please try again in a moment." };
+}
+
 function RegisterForm() {
   const router = useRouter();
   const { register } = useAuth();
@@ -24,9 +88,12 @@ function RegisterForm() {
   const [showRules, setShowRules] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldError, setFieldError] = useState<{ field: FieldName; text: string } | null>(null);
 
-  const update = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+  const update = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (fieldError) setFieldError(null);
     setForm((f) => ({ ...f, [k]: e.target.value }));
+  };
 
   const digits = form.phone.replace(/\D/g, "").replace(/^91/, "").replace(/^0/, "");
   const phoneValid = /^[6-9]\d{9}$/.test(digits);
@@ -34,22 +101,28 @@ function RegisterForm() {
   const allRulesPass = passwordMeetsAllRules(form.password);
   const passwordsMatch = form.password === form.confirmPassword;
   const confirmTouched = form.confirmPassword.length > 0;
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
   // The Create Account button stays disabled until everything the backend
   // enforces is already satisfied client-side.
   const formValid =
     allRulesPass &&
     passwordsMatch &&
     phoneValid &&
+    emailValid &&
     form.first_name.trim().length > 0 &&
-    form.last_name.trim().length > 0 &&
-    form.email.length > 0;
+    form.last_name.trim().length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setFieldError(null);
 
-    if (!form.first_name || !form.last_name || !form.email || !form.password) {
+    if (!form.first_name.trim() || !form.last_name.trim() || !form.email.trim() || !form.password) {
       setError("Please fill in all required fields");
+      return;
+    }
+    if (!emailValid) {
+      setError("That email address doesn't look valid — please check it (e.g. name@example.com)");
       return;
     }
     if (!phoneValid) {
@@ -68,7 +141,7 @@ function RegisterForm() {
     setIsLoading(true);
     try {
       await register({
-        email: form.email,
+        email: form.email.trim(),
         password: form.password,
         first_name: form.first_name,
         last_name: form.last_name,
@@ -77,7 +150,9 @@ function RegisterForm() {
       toast.success("Account created! Welcome to ELEKTRIX.");
       router.push("/");
     } catch (err: any) {
-      setError(err?.message || "Registration failed. Please try again.");
+      const mapped = explainRegisterError(err);
+      setError(mapped.summary);
+      setFieldError(mapped.field ? { field: mapped.field, text: mapped.fieldText ?? mapped.summary } : null);
     } finally {
       setIsLoading(false);
     }
@@ -152,6 +227,9 @@ function RegisterForm() {
             {!phoneValid && form.phone && (
               <p className="mt-1 text-xs text-neutral-400">Enter a 10-digit Indian mobile number</p>
             )}
+            {fieldError?.field === "phone" && (
+              <p className="mt-1 text-xs text-red-600">{fieldError.text}</p>
+            )}
           </div>
             <div>
               <label htmlFor="last_name" className="block text-sm font-medium text-neutral-700 mb-1.5">
@@ -166,6 +244,9 @@ function RegisterForm() {
                 className="w-full h-11 px-4 rounded-xl border border-neutral-300 text-sm outline-none focus:border-neutral-950 focus:ring-1 focus:ring-neutral-950 transition-colors"
                 disabled={isLoading}
               />
+              {fieldError?.field === "last_name" && (
+                <p className="mt-1 text-xs text-red-600">{fieldError.text}</p>
+              )}
             </div>
           </div>
 
@@ -186,6 +267,9 @@ function RegisterForm() {
                 disabled={isLoading}
               />
             </div>
+            {fieldError?.field === "email" && (
+              <p className="mt-1 text-xs text-red-600">{fieldError.text}</p>
+            )}
           </div>
 
           <div>
@@ -213,6 +297,9 @@ function RegisterForm() {
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+            {fieldError?.field === "password" && (
+              <p className="mt-2 text-xs text-red-600">{fieldError.text}</p>
+            )}
             {showRules && <PasswordRules password={form.password} />}
           </div>
 

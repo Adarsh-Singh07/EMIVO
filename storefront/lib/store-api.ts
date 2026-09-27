@@ -279,6 +279,36 @@ export interface NotificationPage {
   unread_count: number;
 }
 
+export interface ShippingEstimate {
+  serviceable: boolean;
+  pincode?: string;
+  city?: string;
+  district?: string;
+  state?: string;
+  state_code?: string;
+  place_name?: string;
+  estimated_days?: string;
+  estimated_days_min?: number;
+  estimated_days_max?: number;
+  expected_delivery_date?: string;
+  formatted_delivery_date?: string;
+  delivery_date_range?: string;
+  cod_available?: boolean;
+  prepaid_available?: boolean;
+  origin_pincode?: string;
+  warehouse_location?: string;
+  message?: string;
+}
+
+export interface ReverseGeocodeResult {
+  success: boolean;
+  pincode?: string;
+  city?: string;
+  state?: string;
+  estimate?: ShippingEstimate | null;
+  message?: string;
+}
+
 export interface StoreConfig {
   online_payment_available: boolean;
   payment_provider: string;
@@ -546,11 +576,21 @@ export const storeApi = {
   replyTicket(id: string, body: string): Promise<unknown> {
     return fetchApi(`/support/tickets/${encodeURIComponent(id)}/messages`, { method: "POST", body: JSON.stringify({ body }) });
   },
-  chat(message: string, ctx?: { user_name?: string; history?: Array<{ role: string; text: string }> }): Promise<{ reply: string; ticket?: { id: string; subject: string } | null }> {
+  chat(message: string, ctx?: { user_name?: string; history?: Array<{ role: string; text: string }> }): Promise<{ reply: string; ticket?: { id: string; subject: string } | null; is_authenticated?: boolean }> {
     return fetchApi(`/support/chat`, {
       method: "POST",
       body: JSON.stringify({ message, user_name: ctx?.user_name, history: ctx?.history }),
     });
+  },
+
+
+
+  getShippingEstimate(pincode: string): Promise<ShippingEstimate> {
+    return fetchApi<ShippingEstimate>(`/store/shipping-estimate?pincode=${encodeURIComponent(pincode)}`);
+  },
+
+  reverseGeocode(lat: number, lon: number): Promise<ReverseGeocodeResult> {
+    return fetchApi<ReverseGeocodeResult>(`/store/reverse-geocode?lat=${lat}&lon=${lon}`);
   },
 
 

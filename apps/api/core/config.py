@@ -101,7 +101,7 @@ class Settings(BaseSettings):
 
     # Delhivery Configuration
     delhivery_api_key: SecretStr = Field(default=SecretStr(""))
-    delhivery_origin_pincode: str = Field(default="")
+    delhivery_origin_pincode: str = Field(default="841508")
     delhivery_environment: str = Field(default="prod") # "prod" or "sandbox"
 
     # Transactional email. Provider: "resend" (default) or "smtp" (Lark Mail

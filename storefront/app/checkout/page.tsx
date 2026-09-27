@@ -30,6 +30,7 @@ import {
   Truck,
   Package,
   ExternalLink,
+  Navigation,
 } from "lucide-react";
 import { useCart } from "@/components/site/CartProvider";
 import BankOfferHint from "@/components/site/BankOfferHint";
@@ -163,8 +164,81 @@ function CheckoutContent() {
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [saveToAccount, setSaveToAccount] = useState(true);
   const [savingAddress, setSavingAddress] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  const [pincodeLoading, setPincodeLoading] = useState(false);
+  const [locationHint, setLocationHint] = useState("");
   /** Unsaved new address (used as shipping_address when not saving). */
   const [draftAddress, setDraftAddress] = useState<typeof form | null>(null);
+
+  const handlePincodeChange = async (val: string) => {
+    const pin = val.replace(/\D/g, "").slice(0, 6);
+    setForm((f) => ({ ...f, pincode: pin }));
+    if (pin.length === 6) {
+      setPincodeLoading(true);
+      try {
+        const est = await storeApi.getShippingEstimate(pin);
+        if (est.city || est.state) {
+          setForm((f) => ({
+            ...f,
+            city: f.city || est.city || "",
+            state: f.state || est.state || "",
+          }));
+          const place = est.city ? `${est.city}, ${est.state || ""}` : (est.state || "");
+          const del = est.formatted_delivery_date ? ` • Delivery by ${est.formatted_delivery_date}` : "";
+          setLocationHint(`📍 ${place}${del}`);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setPincodeLoading(false);
+      }
+    } else {
+      setLocationHint("");
+    }
+  };
+
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
+    setDetectingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const geo = await storeApi.reverseGeocode(pos.coords.latitude, pos.coords.longitude);
+          if (geo.success && geo.pincode) {
+            setForm((f) => ({
+              ...f,
+              pincode: geo.pincode || f.pincode,
+              city: geo.city || f.city,
+              state: geo.state || f.state,
+            }));
+            const place = geo.city ? `${geo.city}, ` : "";
+            toast.success(`Location detected: ${place}${geo.pincode}`);
+            if (geo.estimate?.formatted_delivery_date) {
+              setLocationHint(`📍 ${place}${geo.state} • Delivery by ${geo.estimate.formatted_delivery_date}`);
+            }
+          } else {
+            toast.error(geo.message || "Could not detect PIN code from current coordinates");
+          }
+        } catch {
+          toast.error("Failed to reverse geocode location");
+        } finally {
+          setDetectingLocation(false);
+        }
+      },
+      (err) => {
+        setDetectingLocation(false);
+        if (err.code === 1) {
+          toast.error("Location permission denied. Please enter PIN code manually.");
+        } else {
+          toast.error("Could not fetch location. Please enter PIN code manually.");
+        }
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  };
 
   const loadAddresses = useCallback(async () => {
     setAddressesLoading(true);
@@ -888,7 +962,27 @@ function CheckoutContent() {
                 </button>
               ) : (
                 <div className="border border-neutral-200 rounded-3xl p-5 sm:p-6 bg-neutral-50/40">
-                  <h3 className="font-semibold mb-4">New address</h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold">New address</h3>
+                    <button
+                      type="button"
+                      onClick={handleDetectLocation}
+                      disabled={detectingLocation}
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-800 disabled:opacity-50 transition-colors"
+                    >
+                      {detectingLocation ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Detecting location…</span>
+                        </>
+                      ) : (
+                        <>
+                          <Navigation className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Use Current Location</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm font-medium block mb-1.5" htmlFor="addr-name">
@@ -976,20 +1070,27 @@ function CheckoutContent() {
                       <label className="text-sm font-medium block mb-1.5" htmlFor="addr-pincode">
                         PIN code *
                       </label>
-                      <input
-                        id="addr-pincode"
-                        value={form.pincode}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            pincode: e.target.value.replace(/\D/g, "").slice(0, 6),
-                          }))
-                        }
-                        placeholder="400001"
-                        inputMode="numeric"
-                        maxLength={6}
-                        className={`${inputCls} ${inputErrorCls("pincode")}`}
-                      />
+                      <div className="relative">
+                        <input
+                          id="addr-pincode"
+                          value={form.pincode}
+                          onChange={(e) => handlePincodeChange(e.target.value)}
+                          placeholder="400001"
+                          inputMode="numeric"
+                          maxLength={6}
+                          className={`${inputCls} ${inputErrorCls("pincode")}`}
+                        />
+                        {pincodeLoading && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                          </div>
+                        )}
+                      </div>
+                      {locationHint && (
+                        <p className="text-xs text-emerald-700 font-medium mt-1.5 flex items-center gap-1">
+                          {locationHint}
+                        </p>
+                      )}
                       {formErrors.pincode && (
                         <p className="text-xs text-red-500 mt-1">{formErrors.pincode}</p>
                       )}

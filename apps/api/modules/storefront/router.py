@@ -139,6 +139,20 @@ async def shipping_estimate(pincode: str = Query(..., min_length=6, max_length=6
     cod_enabled = db_cfg.get("cod_enabled", settings.cod_enabled)
     return await get_delhivery_estimate(pincode, is_store_cod_enabled=cod_enabled)
 
+
+@router.get("/reverse-geocode")
+async def reverse_geocode_endpoint(
+    lat: float = Query(..., ge=-90.0, le=90.0),
+    lon: float = Query(..., ge=-180.0, le=180.0),
+    session=Depends(get_db_session)
+):
+    from modules.storefront.shipping import reverse_geocode_location
+    from modules.orders.service import get_store_settings
+    from core.config import settings
+    db_cfg = await get_store_settings(session)
+    cod_enabled = db_cfg.get("cod_enabled", settings.cod_enabled)
+    return await reverse_geocode_location(lat, lon, is_store_cod_enabled=cod_enabled)
+
 from pydantic import BaseModel, EmailStr, Field
 class ContactForm(BaseModel):
     # Bounded, validated fields — this endpoint is unauthenticated and emails

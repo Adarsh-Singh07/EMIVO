@@ -83,11 +83,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             import hashlib
 
             return "u:" + hashlib.sha256(auth[7:].encode()).hexdigest()[:24]
-        # X-Real-IP is set by our nginx to $remote_addr. The FIRST
-        # X-Forwarded-For entry is client-controlled and must never be used
-        # as an identity (rate-limit bypass via header spoofing) — if we ever
-        # fall back to XFF, only the LAST entry (appended by our own proxy)
-        # is trustworthy.
+        # X-Real-IP is set by our nginx to $remote_addr. In production the
+        # frontends live on Vercel and every request arrives through the
+        # Cloudflare proxy, so $remote_addr is a Cloudflare edge IP and ALL
+        # visitors would share one rate-limit bucket. Cloudflare sets
+        # CF-Connecting-IP to the real visitor IP on every proxied request —
+        # and it cannot be spoofed, because a spoofed request still has to
+        # traverse Cloudflare (which overwrites it). Prefer it, then fall
+        # back through the same headers.
+        cf_ip = request.headers.get("cf-connecting-ip", "").strip()
+        if cf_ip:
+            return "ip:" + cf_ip
         real_ip = request.headers.get("x-real-ip", "").strip()
         if real_ip:
             return "ip:" + real_ip

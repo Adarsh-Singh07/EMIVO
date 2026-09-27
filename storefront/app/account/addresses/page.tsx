@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { MapPin, Plus, Trash2, CheckCircle2, ChevronRight, LogIn, ShieldAlert, Loader2 } from "lucide-react";
+import { MapPin, Plus, Trash2, CheckCircle2, ChevronRight, LogIn, ShieldAlert, Loader2, Navigation } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { storeApi, type Address } from "@/lib/store-api";
 import { toast } from "sonner";
@@ -24,6 +24,9 @@ export default function AddressesPage() {
   const [fetching, setFetching] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  const [pincodeLoading, setPincodeLoading] = useState(false);
+  const [locationHint, setLocationHint] = useState("");
   const [form, setForm] = useState({ ...EMPTY });
 
   const load = useCallback(async () => {
@@ -48,7 +51,78 @@ export default function AddressesPage() {
 
   const resetForm = () => {
     setForm({ ...EMPTY });
+    setLocationHint("");
     setIsAdding(false);
+  };
+
+  const handlePincodeChange = async (val: string) => {
+    const pin = val.replace(/\D/g, "").slice(0, 6);
+    setForm((f) => ({ ...f, pincode: pin }));
+    if (pin.length === 6) {
+      setPincodeLoading(true);
+      try {
+        const est = await storeApi.getShippingEstimate(pin);
+        if (est.city || est.state) {
+          setForm((f) => ({
+            ...f,
+            city: f.city || est.city || "",
+            state: f.state || est.state || "",
+          }));
+          const place = est.city ? `${est.city}, ${est.state || ""}` : (est.state || "");
+          const del = est.formatted_delivery_date ? ` • Delivery by ${est.formatted_delivery_date}` : "";
+          setLocationHint(`📍 ${place}${del}`);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setPincodeLoading(false);
+      }
+    } else {
+      setLocationHint("");
+    }
+  };
+
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
+    setDetectingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const geo = await storeApi.reverseGeocode(pos.coords.latitude, pos.coords.longitude);
+          if (geo.success && geo.pincode) {
+            setForm((f) => ({
+              ...f,
+              pincode: geo.pincode || f.pincode,
+              city: geo.city || f.city,
+              state: geo.state || f.state,
+            }));
+            const place = geo.city ? `${geo.city}, ` : "";
+            toast.success(`Location detected: ${place}${geo.pincode}`);
+            if (geo.estimate?.formatted_delivery_date) {
+              setLocationHint(`📍 ${place}${geo.state} • Delivery by ${geo.estimate.formatted_delivery_date}`);
+            }
+          } else {
+            toast.error(geo.message || "Could not detect PIN code from current coordinates");
+          }
+        } catch {
+          toast.error("Failed to reverse geocode location");
+        } finally {
+          setDetectingLocation(false);
+        }
+      },
+      (err) => {
+        setDetectingLocation(false);
+        if (err.code === 1) {
+          toast.error("Location permission denied. Please enter PIN code manually.");
+        } else {
+          toast.error("Could not fetch location. Please enter PIN code manually.");
+        }
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -169,7 +243,27 @@ export default function AddressesPage() {
 
       {isAdding ? (
         <div className="border border-neutral-200 rounded-3xl p-6 bg-neutral-50/30">
-          <h2 className="font-semibold text-lg mb-6">New Address</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="font-semibold text-lg">New Address</h2>
+            <button
+              type="button"
+              onClick={handleDetectLocation}
+              disabled={detectingLocation}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-800 disabled:opacity-50 transition-colors"
+            >
+              {detectingLocation ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Detecting location…</span>
+                </>
+              ) : (
+                <>
+                  <Navigation className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Use Current Location</span>
+                </>
+              )}
+            </button>
+          </div>
           <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5 block">
@@ -215,18 +309,30 @@ export default function AddressesPage() {
               <input value={form.state} onChange={update("state")} placeholder="Maharashtra" className={inputCls} required />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5 block">
-                PIN code *
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-neutral-500 block">
+                  PIN code *
+                </label>
+                {pincodeLoading && (
+                  <span className="text-[11px] text-neutral-400 flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Checking place…
+                  </span>
+                )}
+              </div>
               <input
                 value={form.pincode}
-                onChange={(e) => setForm((f) => ({ ...f, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
+                onChange={(e) => handlePincodeChange(e.target.value)}
                 placeholder="400001"
                 inputMode="numeric"
                 maxLength={6}
                 className={inputCls}
                 required
               />
+              {locationHint && (
+                <p className="text-xs text-emerald-700 font-medium mt-1.5">
+                  {locationHint}
+                </p>
+              )}
             </div>
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5 block">
