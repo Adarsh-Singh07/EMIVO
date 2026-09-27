@@ -101,3 +101,28 @@ async def test_categories_tree(client):
     for c in cats:
         if c["slug"] == "audio":
             assert any(ch["slug"] == "wireless-earbuds" for ch in c["children"])
+
+
+def test_product_media_url_allowlist():
+    """Regression: the CDN allowlist on the product-media WRITE path must be
+    live (a duplicate ProductMediaCreate once shadowed the validator), while
+    the read path stays lenient for rows created before the allowlist."""
+    from pydantic import ValidationError
+    from modules.products.schemas import ProductMediaCreate, ProductMediaResponse
+
+    for bad in (
+        "https://images.unsplash.com/photo-1.jpg",
+        "javascript:alert(1)",
+        "http://media.elektrix.in/a.jpg",
+        "https://evil.example.com/a.jpg",
+    ):
+        try:
+            ProductMediaCreate(media_url=bad)
+            raise AssertionError(f"expected rejection for {bad}")
+        except ValidationError:
+            pass
+
+    ProductMediaCreate(media_url="https://media.elektrix.in/products/a.jpg")
+    ProductMediaCreate(media_url="https://pub-abc123.r2.dev/x.png")
+    # Legacy rows keep serializing on the read path
+    ProductMediaResponse(id="1", product_id="p", media_url="https://images.unsplash.com/legacy.jpg")

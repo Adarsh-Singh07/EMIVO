@@ -79,10 +79,6 @@ class ProductMediaCreate(ProductMediaBase):
         return result
 
 
-class ProductMediaCreate(ProductMediaBase):
-    pass
-
-
 class ProductMediaResponse(ProductMediaBase):
     id: str
     product_id: str
