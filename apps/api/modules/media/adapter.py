@@ -1,4 +1,8 @@
 import logging
+import os
+import subprocess
+import tempfile
+import time
 
 import boto3
 import httpx
@@ -60,15 +64,14 @@ class S3CompatibleAdapter:
     ) -> bool:
         """Server-side PUT (browser never talks to the R2 S3 endpoint).
 
-        The request is signed offline by boto3 (SigV4 presigned URL) and sent
-        with httpx: the R2 S3 edge rejects urllib3/botocore's TLS handshake
-        from some networks (APAC, Sep 2026) while accepting httpx's. During
-        Cloudflare's APAC degradation the edge also flaps per-connection, so
-        each attempt gets a fresh presigned URL and we retry a few times with
-        backoff. Any total failure returns False — the router treats that as
-        the trigger for the api.cloudflare.com REST fallback."""
-        import time
-
+        The request is signed offline by boto3 (SigV4 presigned URL); the PUT
+        itself alternates between httpx and curl. The R2 S3 edge currently
+        rejects some TLS client fingerprints (this image's OpenSSL 3.5 sends
+        post-quantum key shares; curl on OpenSSL 3.0 does not) and flaps
+        per-connection during Cloudflare's APAC degradation — so we retry
+        with backoff across both transports. Total failure returns False,
+        which the router treats as the trigger for the api.cloudflare.com
+        REST fallback."""
         headers = {"Content-Type": content_type} if content_type else None
         last_err = "no attempts made"
         for attempt in range(4):
@@ -79,14 +82,39 @@ class S3CompatibleAdapter:
                 url = self.client.generate_presigned_url(
                     "put_object", Params=params, ExpiresIn=300
                 )
-                resp = httpx.put(url, content=data, headers=headers, timeout=30)
-                if resp.status_code == 200:
-                    if attempt:
-                        logger.info(f"R2 upload of {object_name} succeeded on attempt {attempt + 1}")
-                    return True
-                last_err = f"PUT returned {resp.status_code}: {resp.text[:120]}"
+                if attempt % 2 == 0:
+                    resp = httpx.put(url, content=data, headers=headers, timeout=30)
+                    if resp.status_code == 200:
+                        return True
+                    last_err = f"httpx PUT returned {resp.status_code}: {resp.text[:120]}"
+                else:
+                    code = self._put_via_curl(url, data, content_type)
+                    if code == 200:
+                        return True
+                    last_err = f"curl PUT returned {code}"
             except Exception as e:  # noqa: BLE001 - any S3 failure must fall through
                 last_err = f"{type(e).__name__}: {e}"
             time.sleep(0.4 * (attempt + 1))
         logger.error(f"R2 upload of {object_name} failed after 4 attempts: {last_err}")
         return False
+
+    @staticmethod
+    def _put_via_curl(url: str, data: bytes, content_type: str | None) -> int:
+        """PUT via the curl binary (different TLS fingerprint than Python)."""
+        tmp = tempfile.NamedTemporaryFile(delete=False)
+        try:
+            tmp.write(data)
+            tmp.close()
+            cmd = ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}",
+                   "--max-time", "60", "-X", "PUT"]
+            if content_type:
+                cmd += ["-H", f"Content-Type: {content_type}"]
+            cmd += ["--data-binary", f"@{tmp.name}", url]
+            out = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
+            try:
+                return int(out.stdout.strip() or 0)
+            except ValueError:
+                logger.error(f"curl upload produced no status: {out.stderr[:120]}")
+                return 0
+        finally:
+            os.unlink(tmp.name)
