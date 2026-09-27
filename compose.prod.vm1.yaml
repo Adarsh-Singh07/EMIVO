@@ -11,6 +11,10 @@ name: elektrix
 x-default-env: &default-env
   DATABASE_URL: ${DATABASE_URL}
   REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+  # Prod hardening gates (docs/redoc disabled, mock payments refused) key off
+  # this — never let the stack ship with ENV_NAME unset. The server .env can
+  # still override for a staging clone of this file.
+  ENV_NAME: ${ENV_NAME:-prod}
 
 services:
   nginx:
