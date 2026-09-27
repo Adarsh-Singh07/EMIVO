@@ -94,7 +94,10 @@ class S3CompatibleAdapter:
                     last_err = f"curl PUT returned {code}"
             except Exception as e:  # noqa: BLE001 - any S3 failure must fall through
                 last_err = f"{type(e).__name__}: {e}"
-            time.sleep(0.4 * (attempt + 1))
+            # The edge flaps in minute-scale windows; spread attempts so a
+            # short bad window doesn't sink the upload. Total ≈ 25s, within
+            # nginx's 60s proxy timeout.
+            time.sleep([0, 5, 7, 8][min(attempt, 3)])
         logger.error(f"R2 upload of {object_name} failed after 4 attempts: {last_err}")
         return False
 
