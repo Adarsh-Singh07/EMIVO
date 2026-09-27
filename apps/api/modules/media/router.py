@@ -1,8 +1,8 @@
+import logging
 import os
 import time
 import uuid
 
-import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from starlette.concurrency import run_in_threadpool
 
@@ -11,9 +11,13 @@ from modules.media.dependencies import (
     get_cloudflare_api_token,
     get_default_bucket,
     get_media_adapter,
+    get_r2_account_id,
     get_r2_public_url,
 )
+from modules.media.rest_fallback import upload_via_cloudflare_api
 from modules.media.schemas import MediaUploadResponse, PresignedUploadRequest, PresignedUploadResponse
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/media", tags=["media"])
 
@@ -141,6 +145,7 @@ async def upload_media(
     if not s3_ok:
         token = get_cloudflare_api_token()
         if not token:
+            logger.error("R2 S3 upload failed and no Cloudflare API token is configured")
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail=(
@@ -148,30 +153,16 @@ async def upload_media(
                     "(R2 edit scope) to enable the api.cloudflare.com upload fallback."
                 ),
             )
-        rest_url = (
-            f"https://api.cloudflare.com/client/v4/accounts/{os.environ.get('R2_ACCOUNT_ID', '')}"
-            f"/r2/buckets/{bucket}/objects/{key}"
+        ok, detail = await upload_via_cloudflare_api(
+            token, get_r2_account_id(), bucket, key, data, content_type
         )
-        try:
-            async with httpx.AsyncClient(timeout=60) as http:
-                resp = await http.put(
-                    rest_url,
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "Content-Type": content_type,
-                    },
-                    content=data,
-                )
-        except httpx.HTTPError as e:
+        if not ok:
+            logger.error(f"R2 REST fallback failed for {key}: {detail}")
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Both R2 upload paths failed (S3 + REST API): {e}",
+                detail=f"Both R2 upload paths failed. {detail}",
             )
-        if resp.status_code != 200:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"R2 REST API upload failed with status {resp.status_code}",
-            )
+        logger.info(f"R2 upload via REST fallback succeeded for {key}")
 
     public_url = f"{get_r2_public_url()}/{key}"
     return MediaUploadResponse(public_url=public_url, key=key, provider="r2")

@@ -57,13 +57,17 @@ class S3CompatibleAdapter:
     def upload_bytes(
         self, bucket_name: str, object_name: str, data: bytes, content_type: str | None = None
     ) -> bool:
-        """Server-side PUT (browser never talks to the R2 S3 endpoint)."""
+        """Server-side PUT (browser never talks to the R2 S3 endpoint).
+
+        Catches everything (not just ClientError): an unreachable endpoint
+        raises SSLError/EndpointConnectionError, and the router relies on a
+        False return — not an exception — to trigger the REST fallback."""
         try:
             params: dict = {"Bucket": bucket_name, "Key": object_name, "Body": data}
             if content_type:
                 params["ContentType"] = content_type
             self.client.put_object(**params)
             return True
-        except ClientError as e:
-            logger.error(f"Error uploading object: {e}")
+        except Exception as e:  # noqa: BLE001 - any S3 failure must fall through
+            logger.error(f"R2 S3 upload of {object_name} failed: {type(e).__name__}: {e}")
             return False
