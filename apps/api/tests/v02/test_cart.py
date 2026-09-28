@@ -18,7 +18,15 @@ async def test_guest_cart_flow(client):
     assert cart["session_id"] == session
 
     products = await get_store_products(client, in_stock=True)
-    pid = products["items"][0]["id"]
+    items = products["items"]
+    # Earlier tests in this session reserve inventory on the shared DB, so
+    # don't assume items[0] still has room for 2 — pick the product with the
+    # most available stock instead.
+    best = max(items, key=lambda p: (p.get("stock") or {}).get("available", 0))
+    assert (best.get("stock") or {}).get("available", 0) >= 2, (
+        "seed data must leave one product with 2+ available for the happy path"
+    )
+    pid = best["id"]
 
     r = await client.post(f"/api/v1/carts/{cart['id']}/items", headers=headers,
                           json={"product_id": pid, "quantity": 2})
