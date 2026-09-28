@@ -1,6 +1,8 @@
 """Registration email-OTP gate: when email_verification_required is on,
 a fresh account cannot sign in with its password until it redeems the
 activation code we emailed it."""
+import os
+
 import pytest
 
 from conftest import _run
@@ -73,3 +75,41 @@ async def test_register_email_otp_flow(client, verification_on):
     # And password sign-in now works
     r = await client.post("/api/v1/auth/login", json={"email": email, "password": password})
     assert r.status_code == 200
+
+
+async def test_staff_accounts_bypass_email_gate(client, verification_on):
+    """Owner/staff accounts are provisioned internally — the storefront
+    email-verification gate must never lock an admin out."""
+    from sqlalchemy import text
+    from core.database import async_session_maker
+
+    admin_email = os.environ.get("ADMIN_EMAIL", "admin@example.com")
+    admin_password = os.environ.get("ADMIN_INITIAL_PASSWORD", "TestAdminPass123!")
+
+    async with async_session_maker() as s:
+        uid = (
+            await s.execute(text("SELECT id FROM users WHERE email = :e"), {"e": admin_email})
+        ).scalar_one()
+        await s.execute(
+            text("SELECT set_config('app.user_id', :u, true)"), {"u": str(uid)}
+        )
+        await s.execute(
+            text("UPDATE users SET is_email_verified = false WHERE id = :u"), {"u": str(uid)}
+        )
+        await s.commit()
+
+    try:
+        r = await client.post(
+            "/api/v1/auth/login", json={"email": admin_email, "password": admin_password}
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["access_token"]
+    finally:
+        async with async_session_maker() as s:
+            await s.execute(
+                text("SELECT set_config('app.user_id', :u, true)"), {"u": str(uid)}
+            )
+            await s.execute(
+                text("UPDATE users SET is_email_verified = true WHERE id = :u"), {"u": str(uid)}
+            )
+            await s.commit()

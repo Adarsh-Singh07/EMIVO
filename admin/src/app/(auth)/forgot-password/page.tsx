@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, Variants } from "framer-motion";
-import { Phone, AlertCircle, Loader2, CheckCircle, RotateCcw, Mail } from "lucide-react";
+import { AlertCircle, Loader2, CheckCircle, RotateCcw, Mail } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { FadeIn } from "@/components/animations/FadeIn";
 import { toast } from "sonner";
@@ -32,35 +31,33 @@ const itemVariants: Variants = {
 };
 
 export default function ForgotPasswordPage() {
-  const router = useRouter();
   const { forgotPassword } = useAuth();
 
-  const [step, setStep] = useState<"phone" | "success">("phone");
-  const [phone, setPhone] = useState("");
+  const [step, setStep] = useState<"email" | "success">("email");
+  const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const validatePhone = (value: string) => {
-    const digits = value.replace(/\D/g, "").slice(0, 10);
-    setPhone(digits);
-    return digits;
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (phone.length !== 10) {
-      setError("Please enter a valid 10-digit phone number");
+    const trimmed = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setError("Please enter a valid email address");
       return;
     }
 
     setIsLoading(true);
     try {
-      await forgotPassword({ phone });
+      // The backend emails a single-use reset link (valid 30 minutes) and is
+      // anti-enumeration: it always reports success, so the success screen
+      // never reveals whether the account exists.
+      await forgotPassword({ email: trimmed });
       setStep("success");
     } catch (err: any) {
-      setError(err.message || "Failed to send reset OTP. Please try again.");
+      setError(err.message || "Failed to send the reset email. Please try again.");
+      toast.error(err.message || "Failed to send the reset email. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -100,22 +97,25 @@ export default function ForgotPasswordPage() {
           {/* Header */}
           <FadeIn direction="up" delay={0.1} className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 mb-4 shadow-lg shadow-amber-500/25">
-              {step === "phone" ? (
+              {step === "email" ? (
                 <Mail className="w-7 h-7 text-white" />
               ) : (
                 <CheckCircle className="w-7 h-7 text-white" />
               )}
             </div>
-            {step === "phone" ? (
+            {step === "email" ? (
               <>
                 <h1 className="text-3xl font-bold text-neutral-900 dark:text-white tracking-tight">Forgot Password?</h1>
-                <p className="mt-2 text-neutral-500 dark:text-neutral-400">Enter your phone number to receive a reset OTP</p>
+                <p className="mt-2 text-neutral-500 dark:text-neutral-400">
+                  Enter your account email and we&apos;ll send you a secure reset link
+                </p>
               </>
             ) : (
               <>
-                <h1 className="text-3xl font-bold text-neutral-900 dark:text-white tracking-tight">Check Your Phone</h1>
+                <h1 className="text-3xl font-bold text-neutral-900 dark:text-white tracking-tight">Check Your Email</h1>
                 <p className="mt-2 text-neutral-500 dark:text-neutral-400">
-                  We&apos;ve sent a 6-digit OTP to <span className="font-medium text-neutral-900 dark:text-white">+91 {phone.slice(0, 5)} {phone.slice(5)}</span>
+                  If an account exists for <span className="font-medium text-neutral-900 dark:text-white">{email.trim()}</span>,
+                  we&apos;ve sent a password reset link. It expires in 30 minutes.
                 </p>
               </>
             )}
@@ -135,26 +135,24 @@ export default function ForgotPasswordPage() {
             </FadeIn>
           )}
 
-          {/* Phone Step */}
-          {step === "phone" && (
+          {/* Email Step */}
+          {step === "email" && (
             <FadeIn direction="up" delay={0.2} className="space-y-6">
               <form onSubmit={handleSubmit}>
                 <div className="space-y-2">
-                  <label htmlFor="phone" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                    Phone Number
+                  <label htmlFor="email" className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    Email Address
                   </label>
                   <div className="relative">
-                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
                     <input
-                      id="phone"
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => validatePhone(e.target.value)}
-                      placeholder="Enter 10-digit phone number"
-                      inputMode="numeric"
-                      maxLength={10}
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="admin@elektrix.in"
                       className="w-full h-12 pl-12 pr-4 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
-                      autoComplete="tel"
+                      autoComplete="email"
                       required
                       disabled={isLoading}
                     />
@@ -163,17 +161,17 @@ export default function ForgotPasswordPage() {
 
                 <motion.button
                   type="submit"
-                  disabled={isLoading || phone.length !== 10}
-                  className="w-full h-12 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold text-base hover:from-amber-600 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-amber-500/25"
+                  disabled={isLoading || !email.trim()}
+                  className="w-full h-12 mt-6 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold text-base hover:from-amber-600 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-amber-500/25"
                   whileTap={{ scale: 0.98 }}
                 >
                   {isLoading ? (
                     <span className="flex items-center justify-center gap-2">
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Sending OTP...
+                      Sending reset link...
                     </span>
                   ) : (
-                    "Send Reset OTP"
+                    "Send Reset Link"
                   )}
                 </motion.button>
               </form>
@@ -193,29 +191,30 @@ export default function ForgotPasswordPage() {
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 mb-4">
                 <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
               </div>
-              <h2 className="text-xl font-semibold text-neutral-900 dark:text-white">OTP Sent Successfully</h2>
+              <h2 className="text-xl font-semibold text-neutral-900 dark:text-white">Reset Link Sent</h2>
               <p className="text-neutral-600 dark:text-neutral-400 mt-2">
-                Enter the 6-digit code on the reset password page to create a new password.
+                Open the link in your email to set a new password. Didn&apos;t receive it? Check your
+                spam folder, or resend below.
               </p>
 
               <div className="flex gap-3 justify-center">
                 <motion.button
-                  onClick={() => router.push(`/reset-password?phone=${phone}`)}
-                  className="h-12 px-6 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold text-base hover:from-amber-600 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 transition-all shadow-lg shadow-amber-500/25"
-                  whileTap={{ scale: 0.98 }}
-                >
-                  Go to Reset Password
-                </motion.button>
-                <motion.button
-                  onClick={() => {
-                    setPhone("");
-                    setStep("phone");
-                  }}
+                  onClick={() => setStep("email")}
                   className="h-12 px-6 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-semibold text-base hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-all focus:outline-none focus:ring-2 focus:ring-amber-500"
                   whileTap={{ scale: 0.98 }}
                 >
                   <RotateCcw className="w-4 h-4 mr-2 inline" />
-                  Resend OTP
+                  Resend
+                </motion.button>
+                <motion.button
+                  onClick={() => {
+                    setEmail("");
+                    setStep("email");
+                  }}
+                  className="h-12 px-6 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold text-base hover:from-amber-600 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 transition-all shadow-lg shadow-amber-500/25"
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Use a different email
                 </motion.button>
               </div>
 

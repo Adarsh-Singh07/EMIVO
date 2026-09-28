@@ -114,12 +114,28 @@ class AuthService:
             raise DomainException("Account is disabled", code="FORBIDDEN", status_code=401)
 
         if settings.email_verification_required and not user.is_email_verified:
-            raise DomainException(
-                "Your email is not verified yet. Use OTP sign-in with the 6-digit "
-                "code we sent to your email to activate the account, then sign in "
-                "with your password.",
-                code="EMAIL_UNVERIFIED", status_code=403,
+            # Internal staff accounts (owner / platform_admin / staff) are
+            # provisioned in-house and are never subject to the storefront
+            # email-verification gate — a locked-out admin could otherwise
+            # not recover. business_members is RLS-guarded, so set the same
+            # app.user_id context _issue_tokens uses before reading it.
+            await self.session.execute(
+                text("SELECT set_config('app.user_id', :uid, true)"),
+                {"uid": str(user.id)},
             )
+            memberships = (
+                await self.session.execute(
+                    select(BusinessMember).where(BusinessMember.user_id == user.id)
+                )
+            ).scalars().all()
+            is_staff = any(m.role != RoleType.CUSTOMER for m in memberships)
+            if not is_staff:
+                raise DomainException(
+                    "Your email is not verified yet. Use OTP sign-in with the 6-digit "
+                    "code we sent to your email to activate the account, then sign in "
+                    "with your password.",
+                    code="EMAIL_UNVERIFIED", status_code=403,
+                )
 
         return await self._issue_tokens(user)
         
