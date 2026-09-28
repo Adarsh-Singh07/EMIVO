@@ -1,4 +1,4 @@
-"use client";
+new_page = '''"use client";
 
 /**
  * ELEKTRIX Admin - operations landing. Replaces the old marketing hero
@@ -27,7 +27,7 @@ type Stats = {
   active_offers: number;
 };
 
-const inr = (paise: number) => "\u20B9" + (paise / 100).toLocaleString("en-IN");
+const inr = (paise: number) => "\\u20B9" + (paise / 100).toLocaleString("en-IN");
 
 const SECTIONS = [
   { href: "/dashboard", label: "Dashboard", desc: "Sales, revenue and order trends", Icon: LayoutDashboard },
@@ -162,3 +162,7 @@ export default function AdminHomePage() {
     </div>
   );
 }
+'''
+io_open = __import__("io").open
+io_open("admin/src/app/page.tsx", "w", encoding="utf-8", newline="\n").write(new_page)
+print("home page replaced")

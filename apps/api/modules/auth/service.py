@@ -141,6 +141,14 @@ class AuthService:
         if not user.is_active:
             raise DomainException("Account is disabled", code="FORBIDDEN", status_code=401)
 
+        if getattr(user, "suspended", False):
+            reason = (user.suspension_reason or "policy violation").strip()
+            raise DomainException(
+                f"Your account has been suspended. Reason: {reason}. "
+                "Please contact support at support@elektrix.in or +91 80920 24066 to resolve this.",
+                code="ACCOUNT_SUSPENDED", status_code=403,
+            )
+
         if settings.email_verification_required and not user.is_email_verified:
             # Internal staff accounts (owner / platform_admin / staff) are
             # provisioned in-house and are never subject to the storefront

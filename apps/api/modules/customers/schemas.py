@@ -29,12 +29,15 @@ class CustomerUpdate(BaseModel):
 
 class CustomerResponse(BaseModel):
     id: str
-    business_id: str
+    customer_id: str | None = None
+    business_id: str | None = None
     name: str
     email: str
     phone: str | None = None
     address: str | None = None
     notes: str | None = None
+    is_active: bool | None = None
+    suspended: bool | None = None
     created_at: Any
     updated_at: Any
     deleted_at: Any = None

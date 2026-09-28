@@ -25,6 +25,10 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Admin moderation: suspended accounts cannot sign in until unsuspended;
+    # the reason is shown to the user at login time.
+    suspended: Mapped[bool] = mapped_column(Boolean, default=False)
+    suspension_reason: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
 
     # Optional MFA
     mfa_secret: Mapped[str | None] = mapped_column(String(100), nullable=True)

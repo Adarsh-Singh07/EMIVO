@@ -3,6 +3,8 @@ from typing import Any
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, status
+
+from core.dependencies import require_staff
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db_session
@@ -15,7 +17,8 @@ from modules.customers.schemas import (
 
 router = APIRouter(prefix="/customers", tags=["customers"])
 
-@router.post("/", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(require_staff)])
 async def create_customer(
     payload: CustomerCreate,
     session: AsyncSession = Depends(get_db_session)
@@ -66,38 +69,48 @@ async def create_customer(
     }
 
 
-@router.get("/", response_model=CustomerListResponse)
+@router.get("/", response_model=CustomerListResponse, dependencies=[Depends(require_staff)])
 async def list_customers(
     page: int = 1,
     page_size: int = 20,
     session: AsyncSession = Depends(get_db_session)
 ) -> Any:
     offset = (page - 1) * page_size
-    
-    count_query = sa.text("SELECT COUNT(*) FROM customers")
-    count_res = await session.execute(count_query)
-    total = count_res.scalar() or 0
-    
+
+    # Realtime registry: every registered USER is a customer. The legacy
+    # `customers` table is left-joined by email only for CRM fields
+    # (address/notes) that accounts can carry.
+    count_query = sa.text("SELECT COUNT(*) FROM users WHERE deleted_at IS NULL")
+    total = (await session.execute(count_query)).scalar() or 0
+
     query = sa.text('''
-        SELECT id, business_id, name, email, phone, address, created_at, updated_at
-        FROM customers
-        ORDER BY created_at DESC
+        SELECT u.id, u.email, u.first_name, u.last_name, u.phone,
+               u.is_active, u.suspended, u.created_at,
+               c.id AS customer_id, c.address, c.notes
+        FROM users u
+        LEFT JOIN customers c ON lower(c.email) = lower(u.email)
+        WHERE u.deleted_at IS NULL
+        ORDER BY u.created_at DESC
         LIMIT :limit OFFSET :offset
     ''')
     result = await session.execute(query, {"limit": page_size, "offset": offset})
     rows = result.fetchall()
-    
+
     items = []
     for row in rows:
         items.append({
-            "id": row.id,
-            "business_id": row.business_id,
-            "name": row.name,
+            "id": row.id,  # user id — stable key for the detail page
+            "customer_id": row.customer_id,
+            "business_id": None,
+            "name": f"{row.first_name or ''} {row.last_name or ''}".strip() or row.email,
             "email": row.email,
             "phone": row.phone,
             "address": row.address,
+            "notes": row.notes,
+            "is_active": row.is_active,
+            "suspended": row.suspended,
             "created_at": row.created_at.isoformat() if row.created_at else None,
-            "updated_at": row.updated_at.isoformat() if row.updated_at else None
+            "updated_at": row.created_at.isoformat() if row.created_at else None,
         })
         
     return {
@@ -108,7 +121,7 @@ async def list_customers(
     }
 
 
-@router.get("/{customer_id}", response_model=CustomerResponse)
+@router.get("/{customer_id}", response_model=CustomerResponse, dependencies=[Depends(require_staff)])
 async def get_customer(
     customer_id: uuid.UUID,
     session: AsyncSession = Depends(get_db_session)
@@ -136,7 +149,7 @@ async def get_customer(
     }
 
 
-@router.put("/{customer_id}", response_model=CustomerResponse)
+@router.put("/{customer_id}", response_model=CustomerResponse, dependencies=[Depends(require_staff)])
 async def update_customer(
     customer_id: uuid.UUID,
     payload: CustomerUpdate,

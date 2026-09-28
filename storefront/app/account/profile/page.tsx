@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { apiClient } from "@/lib/api-client";
 import { toast } from "sonner";
-import { ArrowLeft, User, Mail, Lock, Phone, Eye, EyeOff, Loader2 } from "lucide-react";
+import { ArrowLeft, User, Mail, Lock, Phone, Eye, EyeOff, Loader2, Trash2, AlertTriangle } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
+  const router = useRouter();
 
   /* ── Profile state ── */
   const [firstName, setFirstName] = useState("");
@@ -25,6 +27,10 @@ export default function ProfilePage() {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [changingPw, setChangingPw] = useState(false);
+
+  /* ── Delete account state ── */
+  const [confirmText, setConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -266,6 +272,55 @@ export default function ProfilePage() {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Danger zone: self-service account deletion */}
+      <div className="rounded-2xl border border-red-200 bg-red-50/60 p-5 sm:p-6">
+        <div className="flex items-center gap-2 text-red-700">
+          <AlertTriangle className="w-5 h-5" />
+          <h2 className="text-base font-bold">Delete your account</h2>
+        </div>
+        <p className="mt-2 text-sm text-red-700/80 leading-relaxed">
+          This permanently removes your personal details and signs you out of every device.
+          Your order and payment history is kept for the store&apos;s records, but the account
+          can no longer sign in. This cannot be undone.
+        </p>
+        <div className="mt-4">
+          <label className="block text-xs font-semibold text-red-700 mb-1.5">
+            Type the word <b>DELETE</b> to confirm
+          </label>
+          <input
+            type="text"
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder="DELETE"
+            className="w-full h-10 px-4 rounded-xl border border-red-200 bg-white text-sm outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-colors"
+          />
+        </div>
+        <div className="mt-4 flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={async () => {
+              if (confirmText.trim().toUpperCase() !== "DELETE") return;
+              setDeleting(true);
+              try {
+                await apiClient.delete("/users/me");
+                toast.success("Your account has been deleted.");
+                await logout();
+                router.push("/");
+              } catch {
+                toast.error("Could not delete your account. Please try again.");
+                setDeleting(false);
+              }
+            }}
+            disabled={confirmText.trim().toUpperCase() !== "DELETE" || deleting}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-full text-sm font-semibold hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {deleting && <Loader2 className="w-4 h-4 animate-spin" />}
+            <Trash2 className="w-4 h-4" />
+            {deleting ? "Deleting…" : "Delete my account"}
+          </button>
+        </div>
       </div>
     </div>
   );

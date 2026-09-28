@@ -26,6 +26,8 @@ class AdminUser(BaseModel):
     first_name: str
     last_name: str
     is_active: bool
+    suspended: bool = False
+    suspension_reason: Optional[str] = None
     roles: List[str] = []
     created_at: datetime
 

@@ -156,6 +156,148 @@ class AdminService:
     # Users directory                                                       #
     # ------------------------------------------------------------------ #
 
+    async def suspend_user(self, user_id: str, reason: str) -> None:
+        """Suspend a customer account with a user-visible reason."""
+        # users RLS: UPDATE only matches rows whose id == app.user_id, so set
+        # the context to the TARGET user for this statement.
+        await self.session.execute(
+            text("SELECT set_config('app.user_id', :u, true)"), {"u": user_id},
+        )
+        res = await self.session.execute(
+            text("UPDATE users SET suspended = true, suspension_reason = :r WHERE id = :u"),
+            {"r": reason.strip() or "Policy violation", "u": user_id},
+        )
+        if res.rowcount == 0:
+            raise DomainException("User not found", code="NOT_FOUND", status_code=404)
+        await self._revoke_user_sessions(user_id)
+        await self.session.commit()
+
+    async def unsuspend_user(self, user_id: str) -> None:
+        await self.session.execute(
+            text("SELECT set_config('app.user_id', :u, true)"), {"u": user_id},
+        )
+        res = await self.session.execute(
+            text("UPDATE users SET suspended = false, suspension_reason = NULL WHERE id = :u"),
+            {"u": user_id},
+        )
+        if res.rowcount == 0:
+            raise DomainException("User not found", code="NOT_FOUND", status_code=404)
+        await self.session.commit()
+
+    async def delete_user(self, user_id: str) -> None:
+        """Admin hard-remove of an account, preserving order/payment history.
+
+        The row stays (orders reference user_id) but every personal field is
+        anonymized and sign-in is impossible. Order history remains intact
+        for the business record, as required.
+        """
+        row = (await self.session.execute(
+            text("SELECT email, first_name, last_name, phone FROM users WHERE id = :u"),
+            {"u": user_id},
+        )).mappings().first()
+        if not row:
+            raise DomainException("User not found", code="NOT_FOUND", status_code=404)
+
+        bid = await get_store_business_id(self.session)
+        role = (await self.session.execute(text(
+            "SELECT role FROM business_members WHERE business_id = :bid AND user_id = :uid LIMIT 1"
+        ), {"bid": bid, "uid": user_id})).scalar()
+        if role in ("owner", "platform_admin"):
+            raise DomainException(
+                "Staff accounts cannot be deleted here", code="FORBIDDEN", status_code=403,
+            )
+
+        # users RLS: the anonymize UPDATE only matches when app.user_id is
+        # the target user — switch the context for the remainder of the tx.
+        await self.session.execute(
+            text("SELECT set_config('app.user_id', :u, true)"), {"u": user_id},
+        )
+
+        anon_email = f"deleted-{user_id[:8]}@deleted.elektrix.invalid"
+        await self.session.execute(text("""
+            UPDATE users SET
+                email = :e, first_name = 'Deleted', last_name = 'User',
+                phone = NULL, is_active = false, deleted_at = now(),
+                suspended = false, suspension_reason = NULL,
+                password_hash = 'deleted:account', mfa_enabled = false,
+                addresses = '[]'::json, wishlist = '[]'::json
+            WHERE id = :u
+        """), {"e": anon_email, "u": user_id})
+        await self.session.commit()
+        await self._revoke_user_sessions(user_id)
+        await self.session.commit()
+
+    async def _revoke_user_sessions(self, user_id: str) -> None:
+        """Kill every active session family for the user (best-effort)."""
+        try:
+            from core.redis import redis_manager
+            redis = redis_manager.client
+            fams = await redis.smembers(f"auth:user:{user_id}:families") or []
+            for fam in fams:
+                fam = fam.decode() if isinstance(fam, bytes) else fam
+                await redis.delete(f"auth:family:{fam}")
+            await redis.delete(f"auth:user:{user_id}:families")
+        except Exception:
+            pass
+
+    async def customer_overview(self, user_id: str) -> dict:
+        """Everything the admin needs about one customer: profile, orders,
+        payments and saved addresses — from live data."""
+        profile = (await self.session.execute(text("""
+            SELECT id, email, first_name, last_name, phone, is_active, suspended,
+                   suspension_reason, is_email_verified, created_at,
+                   COALESCE(addresses, '[]'::json) AS addresses
+            FROM users WHERE id = :u
+        """), {"u": user_id})).mappings().first()
+        if not profile:
+            # The admin customers list may pass a legacy customers-record id;
+            # resolve the account via that record's email.
+            cust_email = (await self.session.execute(text(
+                "SELECT email FROM customers WHERE id = :u"
+            ), {"u": user_id})).scalar()
+            if cust_email:
+                profile = (await self.session.execute(text("""
+                    SELECT id, email, first_name, last_name, phone, is_active, suspended,
+                           suspension_reason, is_email_verified, created_at,
+                           COALESCE(addresses, '[]'::json) AS addresses
+                    FROM users WHERE lower(email) = lower(:e)
+                """), {"e": cust_email})).mappings().first()
+        if not profile:
+            raise DomainException("User not found", code="NOT_FOUND", status_code=404)
+
+        orders = (await self.session.execute(text("""
+            SELECT o.id, o.order_number, o.status::text AS status, o.total, o.created_at,
+                   (SELECT count(*) FROM order_items oi WHERE oi.order_id = o.id)::int AS items
+            FROM orders o
+            WHERE o.user_id = :u
+            ORDER BY o.created_at DESC
+            LIMIT 100
+        """), {"u": user_id})).mappings().all()
+
+        payments = (await self.session.execute(text("""
+            SELECT p.id, p.order_id, o.order_number, p.status::text AS status,
+                   p.amount, p.currency, p.provider::text AS provider, p.created_at
+            FROM payments p
+            LEFT JOIN orders o ON o.id = p.order_id
+            WHERE p.user_id = :u
+            ORDER BY p.created_at DESC
+            LIMIT 100
+        """), {"u": user_id})).mappings().all()
+
+        addresses = (await self.session.execute(text("""
+            SELECT id, COALESCE(label, 'Address') AS label, full_name, phone,
+                   line1, line2, city, state, pincode, is_default
+            FROM addresses WHERE user_id = :u
+            ORDER BY is_default DESC, created_at DESC
+        """), {"u": user_id})).mappings().all()
+
+        return {
+            "profile": dict(profile),
+            "orders": [dict(o) for o in orders],
+            "payments": [dict(x) for x in payments],
+            "addresses": [dict(a) for a in addresses],
+        }
+
     async def list_users(self, q: Optional[str], page: int, page_size: int):
         filters = ""
         params: dict = {"lim": page_size, "off": (page - 1) * page_size}
@@ -163,7 +305,8 @@ class AdminService:
             filters = "WHERE u.email ILIKE :q OR u.first_name ILIKE :q OR u.last_name ILIKE :q"
             params["q"] = f"%{q}%"
         rows = (await self.session.execute(text(f"""
-            SELECT u.id, u.email, u.first_name, u.last_name, u.is_active, u.created_at,
+            SELECT u.id, u.email, u.first_name, u.last_name, u.is_active, u.suspended,
+                   u.suspension_reason, u.created_at,
                    COALESCE(array_agg(bm.role) FILTER (WHERE bm.role IS NOT NULL), ARRAY[]::text[]) AS roles
             FROM users u
             LEFT JOIN business_members bm ON bm.user_id = u.id

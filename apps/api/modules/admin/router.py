@@ -66,6 +66,32 @@ async def update_store_settings(
     festival banner content, storefront announcement."""
     return await service.update_settings(payload)
 
+@router.post("/users/{user_id}/suspend", dependencies=[Depends(require_staff)])
+async def suspend_user(user_id: str, body: dict, service: AdminService = Depends(_service)):
+    """Suspend a customer account; the reason is shown to them at login."""
+    await service.suspend_user(user_id, str(body.get("reason", "")))
+    return {"status": "suspended"}
+
+
+@router.post("/users/{user_id}/unsuspend", dependencies=[Depends(require_staff)])
+async def unsuspend_user(user_id: str, service: AdminService = Depends(_service)):
+    await service.unsuspend_user(user_id)
+    return {"status": "active"}
+
+
+@router.delete("/users/{user_id}", status_code=204, dependencies=_OWNER_ONLY)
+async def delete_user(user_id: str, service: AdminService = Depends(_service)):
+    """Permanently remove an account. Personal data is anonymized; order and
+    payment history is preserved for the business record."""
+    await service.delete_user(user_id)
+
+
+@router.get("/customers/{user_id}/overview", dependencies=[Depends(require_staff)])
+async def customer_overview(user_id: str, service: AdminService = Depends(_service)):
+    """Live 360 view: profile + orders + payments + addresses for one user."""
+    return await service.customer_overview(user_id)
+
+
 @router.post("/users/invite", response_model=dict, dependencies=_OWNER_ONLY)
 async def invite_admin(
     payload: AdminInviteRequest,

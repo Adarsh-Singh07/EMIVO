@@ -22,7 +22,6 @@ import {
 import Link from "next/link";
 import { ReactNode, useEffect, useState, useRef, useCallback } from "react";
 import { PageTransition } from "@/components/animations/PageTransition";
-import { SmoothScrollProvider } from "@/components/animations/SmoothScrollProvider";
 import { BrandLogo } from "@/components/branding/BrandLogo";
 import { BRAND_CONFIG } from "@/config/branding";
 import { useAuth, ADMIN_ROLES } from "@/lib/auth-context";
@@ -215,7 +214,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <AuthGuard requiredRoles={[...ADMIN_ROLES]}>
-      <SmoothScrollProvider>
+      <>
         <div className="flex min-h-screen w-full bg-neutral-50 font-sans text-neutral-900">
           {/* Sidebar */}
           {sidebarOpen && (
@@ -231,7 +230,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 <BrandLogo variant="wordmark" size={30} />
               </Link>
             </div>
-            <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-4 w-64">
+            <nav className="flex-1 min-h-0 overflow-y-auto py-4 px-3 space-y-4 w-64">
               {NAV_SECTIONS.map((section) => (
                 <div key={section.label} className="space-y-1">
                   <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
@@ -298,7 +297,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             </div>
           </main>
         </div>
-      </SmoothScrollProvider>
+      </>
     </AuthGuard>
   );
 }

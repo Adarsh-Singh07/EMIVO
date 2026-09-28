@@ -27,3 +27,15 @@ async def update_me(
     service: UserService = Depends(get_user_service)
 ):
     return await service.update_user(current_user.id, data)
+
+@router.delete("/me", status_code=204)
+async def delete_my_account(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+):
+    """Self-service account removal. Personal data is anonymized and sign-in
+    is disabled; order and payment history is retained for business records
+    (as required by the store's order bookkeeping)."""
+    from modules.admin.service import AdminService
+
+    await AdminService(session).delete_user(str(user.id))
