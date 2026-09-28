@@ -34,7 +34,7 @@ const Cookies = {
 
 export const setTokens = (access: string, refresh: string) => {
   Cookies.set("access_token", access, 1);   // 1 day
-  Cookies.set("refresh_token", refresh, 7); // 7 days
+  Cookies.set("refresh_token", refresh, 30); // match backend 30-day rotation
 };
 
 export const removeTokens = () => {

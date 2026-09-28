@@ -57,7 +57,7 @@ export default function ContactPage() {
             </div>
             <div>
               <label className="text-sm font-medium block mb-1.5" htmlFor="c-mobile">Mobile Number</label>
-              <input id="c-mobile" type="tel" value={form.mobile} onChange={update("mobile")} placeholder="+91 9876543210" className={inputCls} />
+              <input id="c-mobile" type="tel" value={form.mobile} onChange={update("mobile")} placeholder="+91 1234567890" className={inputCls} />
             </div>
             <div>
               <label className="text-sm font-medium block mb-1.5" htmlFor="c-subject">Subject</label>

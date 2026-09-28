@@ -503,16 +503,23 @@ export default function ProductDetail({
             </button>
           </div>
 
-          {/* Trust badges */}
-          <div className="flex gap-6 mt-8 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-2 ">
-            <div className="flex items-center gap-2 text-xs text-neutral-600 shrink-0 snap-start">
-              <Truck className="w-5 h-5 text-neutral-400 shrink-0" /> Free shipping over ₹999
-            </div>
-            <div className="flex items-center gap-2 text-xs text-neutral-600 shrink-0 snap-start">
-              <RotateCcw className="w-5 h-5 text-neutral-400 shrink-0" /> {product.return_policy || "Easy Replacement on Damaged/Defective Delivery"}
-            </div>
-            <div className="flex items-center gap-2 text-xs text-neutral-600 shrink-0 snap-start">
-              <ShieldCheck className="w-5 h-5 text-neutral-400 shrink-0" /> {product.warranty_info || "Brand warranty"}
+          {/* Trust badges — perpetual horizontal marquee on phones (pauses
+              on touch/hover, static for reduced-motion users) */}
+          <div className="ex-marquee mt-8 overflow-hidden pb-2">
+            <div className="ex-marquee-track gap-6 pr-6">
+              {[0, 1].map((dup) => (
+                <div key={dup} className="flex gap-6 shrink-0" aria-hidden={dup === 1}>
+                  <div className="flex items-center gap-2 text-xs text-neutral-600 shrink-0">
+                    <Truck className="w-5 h-5 text-neutral-400 shrink-0" /> Free shipping over ₹999
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-neutral-600 shrink-0">
+                    <RotateCcw className="w-5 h-5 text-neutral-400 shrink-0" /> {product.return_policy || "Easy Replacement on Damaged/Defective Delivery"}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-neutral-600 shrink-0">
+                    <ShieldCheck className="w-5 h-5 text-neutral-400 shrink-0" /> {product.warranty_info || "Brand warranty"}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

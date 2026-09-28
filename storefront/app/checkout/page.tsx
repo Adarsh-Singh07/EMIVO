@@ -1,5 +1,7 @@
 "use client";
 
+import { explainApiError } from "@/lib/errors";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -305,7 +307,7 @@ function CheckoutContent() {
         toast.success("Address saved");
         setStep(2);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Could not save address");
+        toast.error(explainApiError(err).summary);
       } finally {
         setSavingAddress(false);
       }
@@ -346,7 +348,7 @@ function CheckoutContent() {
       }
     } catch (err) {
       setAppliedCoupon(null);
-      setCouponError(err instanceof Error ? err.message : "Could not validate coupon");
+      setCouponError(explainApiError(err).summary);
     } finally {
       setCouponLoading(false);
     }
@@ -992,7 +994,7 @@ function CheckoutContent() {
                         id="addr-name"
                         value={form.full_name}
                         onChange={update("full_name")}
-                        placeholder="Rahul Sharma"
+                        placeholder="Full Name"
                         className={`${inputCls} ${inputErrorCls("full_name")}`}
                       />
                       {formErrors.full_name && (
@@ -1012,7 +1014,7 @@ function CheckoutContent() {
                             phone: e.target.value.replace(/\D/g, "").slice(0, 10),
                           }))
                         }
-                        placeholder="9876543210"
+                        placeholder="1234567890"
                         inputMode="numeric"
                         className={`${inputCls} ${inputErrorCls("phone")}`}
                       />

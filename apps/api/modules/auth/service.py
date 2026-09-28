@@ -196,9 +196,15 @@ class AuthService:
         redis_key = f"auth:family:{family_id}"
         ttl_seconds = settings.refresh_token_expiration_days * 24 * 60 * 60
         
+        # Keep the previously issued token for the short concurrent-refresh
+        # grace window (see refresh_token) so parallel tabs don't log out.
+        prior = await self.redis.hgetall(redis_key)
+        prev_token = prior.get("token", "") if prior else ""
         await self.redis.hset(redis_key, mapping={
             "token": refresh_token,
-            "user_id": user.id
+            "prev_token": prev_token,
+            "rotated_at": str(datetime.now(timezone.utc).timestamp()),
+            "user_id": user.id,
         })
         await self.redis.expire(redis_key, ttl_seconds)
         
@@ -230,11 +236,28 @@ class AuthService:
         user_id = family_data.get("user_id")
         
         if stored_token != refresh_token:
-            # REPLAY DETECTED! Token was already used and rotated. Invalidate entire family.
-            await self.redis.delete(redis_key)
-            if user_id:
-                await self.redis.srem(f"auth:user:{user_id}:families", family_id)
-            raise DomainException("Token reuse detected. Session invalidated.", code="UNAUTHORIZED", status_code=401)
+            # Token was already rotated. A REPLAY of an old token normally
+            # means theft — invalidate the family. BUT two tabs of the same
+            # browser (or the installed PWA alongside it) can refresh in
+            # parallel; the loser presents the just-rotated token. That race
+            # is benign: allow it within a short grace window so legitimate
+            # sessions don't get logged out; only older replays kill the
+            # family.
+            prev_token = family_data.get("prev_token", "")
+            rotated_at = float(family_data.get("rotated_at", "0") or 0)
+            grace_ok = (
+                bool(prev_token)
+                and refresh_token == prev_token
+                and (datetime.now(timezone.utc).timestamp() - rotated_at) <= 60
+            )
+            if not grace_ok:
+                await self.redis.delete(redis_key)
+                if user_id:
+                    await self.redis.srem(f"auth:user:{user_id}:families", family_id)
+                raise DomainException(
+                    "Token reuse detected. Session invalidated.",
+                    code="UNAUTHORIZED", status_code=401,
+                )
             
         # Token is valid. Issue new pair.
         stmt = select(User).where(User.id == user_id)

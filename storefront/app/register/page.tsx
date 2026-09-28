@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 import { PasswordRules, passwordMeetsAllRules } from "@/components/PasswordRules";
 import { storeApi } from "@/lib/store-api";
+import { explainApiError } from "@/lib/errors";
 
 type FieldName = "first_name" | "last_name" | "email" | "phone" | "password";
 
@@ -211,9 +212,13 @@ function RegisterForm() {
         router.push("/");
       }
     } catch (err: any) {
-      const mapped = explainRegisterError(err);
+      const mapped = explainApiError(err);
       setError(mapped.summary);
-      setFieldError(mapped.field ? { field: mapped.field, text: mapped.fieldText ?? mapped.summary } : null);
+      setFieldError(
+        mapped.field && (["first_name", "last_name", "email", "phone", "password"] as const).includes(mapped.field as FieldName)
+          ? { field: mapped.field as FieldName, text: mapped.fieldText ?? mapped.summary }
+          : null,
+      );
     } finally {
       setIsLoading(false);
     }
@@ -350,7 +355,7 @@ function RegisterForm() {
                 pattern="[0-9]*"
                 value={form.phone}
                 onChange={updatePhone}
-                placeholder="9876543210"
+                placeholder="1234567890"
                 maxLength={10}
                 className="w-full h-11 pl-10 pr-10 rounded-xl border border-neutral-300 text-sm outline-none focus:border-neutral-950 focus:ring-1 focus:ring-neutral-950 transition-colors"
                 required

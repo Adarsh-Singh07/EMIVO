@@ -164,6 +164,10 @@ async def get_delhivery_estimate(destination_pincode: str, is_store_cod_enabled:
     cache_key = f"pincode_est_v2:{destination_pincode}:{1 if is_store_cod_enabled else 0}"
     cached = await _cache_get(cache_key)
     if cached:
+        # Backend COD truth always wins, even on a cache hit created while
+        # the flag was still enabled (TTL is a day; admins flip it live).
+        if not is_store_cod_enabled:
+            cached = {**cached, "cod_available": False}
         return cached
 
     delhivery_key = settings.delhivery_api_key.get_secret_value()
@@ -207,14 +211,22 @@ async def get_delhivery_estimate(destination_pincode: str, is_store_cod_enabled:
         except Exception as exc:
             logger.warning("Delhivery API check failed for %s: %s", destination_pincode, exc)
 
-    # 2. Enrich with India Post API if city / state info is incomplete
-    if not city or not state_code or not state_name:
-        postal_info = await _fetch_postal_pincode_details(destination_pincode)
-        if postal_info:
-            city = city or postal_info.get("city", "")
-            district = district or postal_info.get("district", "")
-            state_name = state_name or postal_info.get("state", "")
-            state_code = state_code or postal_info.get("state_code", "")
+    # Backend COD truth must always win, even on a cache hit from before
+    # the flag was flipped (TTL is a day; admins turn COD on/off live).
+    if not is_store_cod_enabled:
+        cod_available = False
+
+    # 2. India Post is the authoritative source for PLACE NAMES (official
+    # postal database); Delhivery's DB is serviceability-oriented and can
+    # return non-standard city labels. So prefer postal names whenever the
+    # lookup succeeds, and fall back to Delhivery's fields only if it fails.
+    # Delhivery remains the source for serviceability, COD and transit ETA.
+    postal_info = await _fetch_postal_pincode_details(destination_pincode)
+    if postal_info:
+        city = postal_info.get("city", "") or city
+        district = postal_info.get("district", "") or district
+        state_name = postal_info.get("state", "") or state_name
+        state_code = postal_info.get("state_code", "") or state_code
 
     # Fill the state name from the code when the postal lookup was skipped
     if state_code and not state_name:

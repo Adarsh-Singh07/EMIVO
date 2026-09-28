@@ -222,10 +222,6 @@ export default function PincodeChecker() {
                   </span>
                 </div>
               </div>
-
-              <p className="text-[11px] text-neutral-400 pt-0.5">
-                ⚡ Dispatched from central warehouse in Vijayipur, Bihar (841508)
-              </p>
             </>
           ) : (
             <div className="flex items-start gap-2 text-red-600">

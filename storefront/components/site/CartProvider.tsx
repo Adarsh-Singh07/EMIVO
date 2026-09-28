@@ -113,10 +113,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const c = await storeApi.getCart();
       cartIdRef.current = c.id;
       setCart(c);
-    } catch {
-      // No cart yet (fresh session) or API unreachable — keep empty state.
-      cartIdRef.current = null;
-      setCart(null);
+    } catch (err) {
+      // 404 = genuinely no cart yet; anything else (auth hiccup, network)
+      // is transient — keep the previous cart instead of showing a bogus
+      // "empty cart" that still exists server-side.
+      const status = (err as { status?: number })?.status;
+      if (status === 404 || !cartIdRef.current) {
+        cartIdRef.current = null;
+        setCart(null);
+      }
     } finally {
       setLoading(false);
     }

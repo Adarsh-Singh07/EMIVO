@@ -1,5 +1,7 @@
 "use client";
 
+import { explainApiError } from "@/lib/errors";
+
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { MapPin, Plus, Trash2, CheckCircle2, ChevronRight, LogIn, ShieldAlert, Loader2, Navigation } from "lucide-react";
@@ -165,7 +167,7 @@ export default function AddressesPage() {
       resetForm();
       await load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save address");
+      toast.error(explainApiError(err).summary);
     } finally {
       setIsSaving(false);
     }
@@ -269,7 +271,7 @@ export default function AddressesPage() {
               <label className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5 block">
                 Receiver Name *
               </label>
-              <input value={form.full_name} onChange={update("full_name")} placeholder="Rahul Sharma" className={inputCls} required />
+              <input value={form.full_name} onChange={update("full_name")} placeholder="Full Name" className={inputCls} required />
             </div>
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5 block">
@@ -278,7 +280,7 @@ export default function AddressesPage() {
               <input
                 value={form.phone}
                 onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
-                placeholder="9876543210"
+                placeholder="1234567890"
                 inputMode="numeric"
                 className={inputCls}
                 required

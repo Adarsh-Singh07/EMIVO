@@ -302,7 +302,7 @@ function LoginForm() {
                   onChange={(e) =>
                     otpChannel === "email" ? setOtpEmail(e.target.value) : setOtpPhone(e.target.value)
                   }
-                  placeholder={otpChannel === "email" ? "name@company.com" : "98765 43210"}
+                  placeholder={otpChannel === "email" ? "name@company.com" : "1234567890"}
                   className="w-full h-11 pl-10 pr-4 rounded-xl border border-neutral-300 text-sm outline-none focus:border-neutral-950 focus:ring-1 focus:ring-neutral-950 transition-colors"
                   required
                   disabled={isLoading}

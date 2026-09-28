@@ -261,3 +261,23 @@ footer :focus-visible,
     scroll-behavior: auto !important;
   }
 }
+
+
+/* Product-page trust badges: perpetual horizontal marquee on small screens
+   (pause on hover/focus, disabled for reduced-motion users). */
+@keyframes ex-marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.ex-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: ex-marquee 22s linear infinite;
+}
+.ex-marquee:hover .ex-marquee-track,
+.ex-marquee:focus-within .ex-marquee-track {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ex-marquee-track { animation: none; }
+}

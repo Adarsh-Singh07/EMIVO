@@ -29,19 +29,32 @@ async def test_register_duplicate_email_rejected(client):
 
 
 async def test_refresh_rotation_and_replay_detection(client):
+    """Rotation semantics with the concurrent-refresh grace window:
+    an immediate replay of the PREVIOUS token is tolerated (two tabs of the
+    same browser refresh in parallel), but a replay of an OLDER token —
+    i.e. real token theft — revokes the whole family."""
     user = await register_and_login(client, 777002)
+    original = user["refresh_token"]
 
-    # Rotate: old refresh token must stop working, new one issued
-    r1 = await client.post("/api/v1/auth/refresh", json={"refresh_token": user["refresh_token"]})
+    # Rotate: a fresh pair is issued
+    r1 = await client.post("/api/v1/auth/refresh", json={"refresh_token": original})
     assert r1.status_code == 200
     rotated = r1.json()
 
-    r2 = await client.post("/api/v1/auth/refresh", json={"refresh_token": user["refresh_token"]})
-    assert r2.status_code == 401  # replay detected
+    # Benign race: the just-rotated-out token gets presented again within
+    # the grace window — tolerated, issues yet another pair.
+    r2 = await client.post("/api/v1/auth/refresh", json={"refresh_token": original})
+    assert r2.status_code == 200
+    second = r2.json()
 
-    # The family is revoked after replay — even the rotated token dies
-    r3 = await client.post("/api/v1/auth/refresh", json={"refresh_token": rotated["refresh_token"]})
+    # Real replay: the token from TWO rotations ago is presented — that is
+    # not the immediately-previous token, so the family is revoked.
+    r3 = await client.post("/api/v1/auth/refresh", json={"refresh_token": original})
     assert r3.status_code == 401
+
+    # Family revoked — every token of the family is dead, even the latest.
+    r4 = await client.post("/api/v1/auth/refresh", json={"refresh_token": second["refresh_token"]})
+    assert r4.status_code == 401
 
 
 async def test_forgot_and_reset_password(client):
