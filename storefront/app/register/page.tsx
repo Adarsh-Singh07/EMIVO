@@ -74,7 +74,15 @@ function explainRegisterError(err: any): {
 
 function RegisterForm() {
   const router = useRouter();
-  const { register } = useAuth();
+  const { register, requestOtp, verifyOtp } = useAuth();
+
+  const [step, setStep] = useState<"details" | "otp">("details");
+  const [otpEmail, setOtpEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpBusy, setOtpBusy] = useState(false);
+  const [otpError, setOtpError] = useState("");
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
 
   const [form, setForm] = useState({
     first_name: "",
@@ -140,21 +148,65 @@ function RegisterForm() {
 
     setIsLoading(true);
     try {
-      await register({
+      const { verificationRequired } = await register({
         email: form.email.trim(),
         password: form.password,
         first_name: form.first_name,
         last_name: form.last_name,
         phone: digits,
       });
-      toast.success("Account created! Welcome to ELEKTRIX.");
-      router.push("/");
+      if (verificationRequired) {
+        setOtpEmail(form.email.trim());
+        setStep("otp");
+      } else {
+        toast.success("Account created! Welcome to ELEKTRIX.");
+        router.push("/");
+      }
     } catch (err: any) {
       const mapped = explainRegisterError(err);
       setError(mapped.summary);
       setFieldError(mapped.field ? { field: mapped.field, text: mapped.fieldText ?? mapped.summary } : null);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    const code = otpCode.replace(/\D/g, "");
+    if (code.length !== 6) {
+      setOtpError("Enter the 6-digit code from your email");
+      return;
+    }
+    setOtpError("");
+    setOtpBusy(true);
+    try {
+      await verifyOtp({ email: otpEmail }, code);
+      toast.success("Account activated! Welcome to ELEKTRIX.");
+      router.push("/");
+    } catch (err: any) {
+      setOtpError(
+        err?.message || "That code wasn't accepted. Check your email and try again, or resend the code."
+      );
+    } finally {
+      setOtpBusy(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setResending(true);
+    setResent(false);
+    setOtpError("");
+    try {
+      await requestOtp({ email: otpEmail });
+      setResent(true);
+    } catch (err: any) {
+      setOtpError(
+        String(err?.message || "").includes("minute")
+          ? "Please wait a minute before requesting another code."
+          : err?.message || "Could not resend the code right now."
+      );
+    } finally {
+      setResending(false);
     }
   };
 
@@ -169,12 +221,24 @@ function RegisterForm() {
       </Link>
 
       <div className="rounded-3xl border border-neutral-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold tracking-tight mb-1">Create your account</h1>
+        <h1 className="text-2xl font-semibold tracking-tight mb-1">
+          {step === "details" ? "Create your account" : "Verify your email"}
+        </h1>
         <p className="text-sm text-neutral-500 mb-8">
-          Already have an account?{" "}
-          <Link href="/login" className="font-medium text-neutral-900 hover:underline underline-offset-2">
-            Sign in
-          </Link>
+          {step === "details" ? (
+            <>
+              Already have an account?{" "}
+              <Link href="/login" className="font-medium text-neutral-900 hover:underline underline-offset-2">
+                Sign in
+              </Link>
+            </>
+          ) : (
+            <>
+              Step 2 of 2 — we just sent a 6-digit code to{" "}
+              <span className="font-medium text-neutral-800">{otpEmail}</span>. Enter it below to
+              activate your account.
+            </>
+          )}
         </p>
 
         {error && (
@@ -184,6 +248,7 @@ function RegisterForm() {
           </div>
         )}
 
+        {step === "details" && (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -346,6 +411,93 @@ function RegisterForm() {
             )}
           </button>
         </form>
+        )}
+
+        {step === "otp" && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
+              <Mail className="w-5 h-5 shrink-0" />
+              <span>
+                We sent a 6-digit code to <span className="font-medium">{otpEmail}</span>.
+                Enter it to activate your account.
+              </span>
+            </div>
+
+            <div>
+              <label htmlFor="otp_code" className="block text-sm font-medium text-neutral-700 mb-1.5">
+                Verification Code <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="otp_code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={otpCode}
+                onChange={(e) => {
+                  setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                  if (otpError) setOtpError("");
+                }}
+                placeholder="000000"
+                maxLength={6}
+                className="w-full h-14 px-4 rounded-xl border border-neutral-300 text-center text-2xl font-mono tracking-[0.5em] outline-none focus:border-neutral-950 focus:ring-1 focus:ring-neutral-950 transition-colors"
+              />
+            </div>
+
+            {otpError && (
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {otpError}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleVerifyOtp}
+              disabled={otpBusy || otpCode.length !== 6}
+              className="w-full h-11 rounded-xl bg-neutral-950 text-white text-sm font-semibold hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+            >
+              {otpBusy ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Activating…
+                </>
+              ) : (
+                "Verify & Activate Account"
+              )}
+            </button>
+
+            <div className="flex items-center justify-between text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setStep("details");
+                  setOtpError("");
+                }}
+                className="text-neutral-500 hover:text-neutral-800 underline underline-offset-2"
+              >
+                Use a different email
+              </button>
+              <button
+                type="button"
+                onClick={handleResendOtp}
+                disabled={resending || resent}
+                className="text-neutral-700 font-medium hover:text-neutral-950 disabled:opacity-50"
+              >
+                {resending ? (
+                  "Resending…"
+                ) : resent ? (
+                  "Code re-sent"
+                ) : (
+                  "Didn't get it? Resend code"
+                )}
+              </button>
+            </div>
+
+            <p className="text-[11px] text-neutral-400 text-center">
+              Check your spam folder if the code doesn&apos;t arrive. Codes expire in 10 minutes.
+            </p>
+          </div>
+        )}
       </div>
 
       <p className="text-center text-xs text-neutral-400 mt-6">

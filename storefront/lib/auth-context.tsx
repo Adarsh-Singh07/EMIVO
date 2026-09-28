@@ -49,7 +49,7 @@ interface AuthCtxValue {
   login: (payload: LoginPayload) => Promise<void>;
   requestOtp: (identifier: OtpIdentifier) => Promise<{ channel: "email" | "sms"; maskedEmail?: string }>;
   verifyOtp: (identifier: OtpIdentifier, code: string) => Promise<void>;
-  register: (payload: RegisterPayload) => Promise<void>;
+  register: (payload: RegisterPayload) => Promise<{ verificationRequired: boolean }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -123,15 +123,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(
     async ({ email, password, first_name, last_name, phone }: RegisterPayload) => {
-      // Backend /auth/register returns UserResponse (not tokens).
-      // We auto-login immediately after successful registration.
-      // phone is REQUIRED by the backend (UserCreate) — dropping it 422s.
-      await apiClient.post(
+      // Backend /auth/register returns UserResponse + verification_required.
+      // When email-OTP verification is enforced, do NOT auto-login: the
+      // account cannot authenticate until its emailed code is redeemed.
+      // The caller finishes with verifyOtp({ email }, code), which signs the
+      // user in and flips is_email_verified server-side.
+      const res = await apiClient.post<{ verification_required?: boolean }>(
         "/auth/register",
         { email, password, first_name, last_name, phone },
         true,
       );
-      // Now login to get tokens
+      if (res?.verification_required) return { verificationRequired: true };
+
+      // Verification not enforced (dev flag off): auto-login as before.
       const tokenData = await apiClient.post<{
         access_token: string;
         refresh_token: string;
@@ -148,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const me = await apiClient.get<User>("/users/me");
       setUser(me);
+      return { verificationRequired: false };
     },
     []
   );

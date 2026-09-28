@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.config import settings
 from core.dependencies import get_current_user, get_db_session
 from core.models import OutboxEvent
 from modules.auth.schemas import (
     TokenResponse, UserCreate, UserLogin, UserResponse, RefreshTokenRequest,
     ForgotPasswordRequest, ResetPasswordRequest, ChangePasswordRequest,
-    OtpRequestIn, OtpVerifyIn,
+    OtpRequestIn, OtpVerifyIn, RegisterResponse,
 )
 from modules.auth.service import AuthService
 from modules.users.models import User
@@ -21,7 +22,7 @@ async def get_auth_service(
 
 
 @router.post(
-    "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
+    "/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED
 )
 async def register(data: UserCreate, service: AuthService = Depends(get_auth_service)):
     user = await service.register_user(data)
@@ -37,7 +38,11 @@ async def register(data: UserCreate, service: AuthService = Depends(get_auth_ser
         },
     ))
     await session.commit()
-    return user
+    resp = RegisterResponse.model_validate(user)
+    resp.verification_required = (
+        settings.email_verification_required and not user.is_email_verified
+    )
+    return resp
 
 
 @router.post("/login", response_model=TokenResponse)

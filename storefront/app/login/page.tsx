@@ -62,6 +62,18 @@ function LoginForm() {
       toast.success("Welcome back!");
       router.push(callbackUrl);
     } catch (err: any) {
+      // Email not verified yet: steer the user straight into the OTP flow so
+      // they can activate the account without leaving the login screen.
+      if (err?.code === "EMAIL_UNVERIFIED") {
+        setMode("otp");
+        setOtpChannel("email");
+        setOtpEmail(email.trim());
+        setOtpStep("identifier");
+        setError(
+          "Your email isn't verified yet. Sign in with the 6-digit code we emailed you — after that you can use your password."
+        );
+        return;
+      }
       setError(err?.message || "Invalid credentials. Please try again.");
     } finally {
       setIsLoading(false);

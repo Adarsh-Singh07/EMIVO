@@ -17,6 +17,12 @@ sys.path.insert(0, "/app/apps/api")
 
 from main import app as fastapi_app  # noqa: E402
 
+# The registration email-OTP gate is ON by default in production. The rest of
+# this suite exercises register → password login end to end, so run it with the
+# gate off; test_email_verification.py opts back in per-test.
+from core.config import settings as _settings  # noqa: E402
+_settings.email_verification_required = False
+
 RUN_ID = uuid.uuid4().hex[:8]
 BASE = "http://testserver"
 

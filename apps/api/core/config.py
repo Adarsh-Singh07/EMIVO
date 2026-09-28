@@ -102,6 +102,11 @@ class Settings(BaseSettings):
     # Delhivery Configuration
     delhivery_api_key: SecretStr = Field(default=SecretStr(""))
     delhivery_origin_pincode: str = Field(default="841508")
+    # Require email-OTP verification at registration: a freshly registered
+    # account cannot sign in with a password until its email is verified.
+    # The integration test-suite disables it (conftest) so register+login
+    # keep working end to end; production leaves it enabled.
+    email_verification_required: bool = Field(default=True)
     delhivery_environment: str = Field(default="prod") # "prod" or "sandbox"
 
     # Transactional email. Provider: "resend" (default) or "smtp" (Lark Mail

@@ -90,6 +90,12 @@ class AuthService:
         })
         await self.session.commit()
         await self.session.refresh(user)
+
+        # When email verification is enforced, email the account's activation
+        # code right away so the frontend can complete the two-step flow.
+        if settings.email_verification_required:
+            await self.request_otp(email=user.email)
+
         return user
 
     async def authenticate_user(self, data: UserLogin) -> TokenResponse:
@@ -106,6 +112,14 @@ class AuthService:
 
         if not user.is_active:
             raise DomainException("Account is disabled", code="FORBIDDEN", status_code=401)
+
+        if settings.email_verification_required and not user.is_email_verified:
+            raise DomainException(
+                "Your email is not verified yet. Use OTP sign-in with the 6-digit "
+                "code we sent to your email to activate the account, then sign in "
+                "with your password.",
+                code="EMAIL_UNVERIFIED", status_code=403,
+            )
 
         return await self._issue_tokens(user)
         
@@ -500,4 +514,21 @@ class AuthService:
             raise DomainException(
                 "Invalid credentials", code="UNAUTHORIZED", status_code=401
             )
+
+        # An email code doubles as the registration-verification step: once
+        # redeemed, the account is activated for password sign-in too. The
+        # users RLS UPDATE policy only matches rows whose id equals the
+        # transaction's app.user_id, so set that context first — exactly the
+        # pattern reset_password / change_password use for users updates.
+        if email and not user.is_email_verified:
+            await self.session.execute(
+                text("SELECT set_config('app.user_id', :uid, true)"),
+                {"uid": str(user.id)},
+            )
+            user.is_email_verified = True
+            await self.session.commit()
+            # Commit expires the ORM object's attributes; refresh so
+            # _issue_tokens can read them again without a lazy-load.
+            await self.session.refresh(user)
+
         return await self._issue_tokens(user)

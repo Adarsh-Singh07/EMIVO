@@ -121,3 +121,10 @@ class UserResponse(UserBase):
 
     class Config:
         from_attributes = True
+
+
+class RegisterResponse(UserResponse):
+    """register endpoint: tells the client whether the email-OTP
+    verification step is pending before the account can be used."""
+    verification_required: bool = False
+
