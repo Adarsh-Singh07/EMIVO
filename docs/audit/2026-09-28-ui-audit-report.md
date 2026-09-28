@@ -27,6 +27,8 @@ findings reproduced twice.
 | D6 | High (process) | Staging | No staging Supabase project exists; the brief's fail-closed staging requirement is unmet. Tests currently use throwaway Docker infra (safe but not staging). | Provision staging Supabase project + separate env file + fail-closed guard that checks the host against an allowlist. |
 | D7 | Medium | Payments | Easebuzz is live in production but **sandbox credentials for staging tests are absent**; payment success/failure/retry matrix untested this round. | Configure Easebuzz sandbox in staging env; build the payment test matrix (success, failure, cancelled, pending, retry, duplicate-submit). |
 | D8 | Low | SEO | `/feeds` listing is crawlable; ensure `Disallow: /feeds`, `/pay` in robots and check sitemap coverage. | robots.ts update + sitemap audit. |
+| D9 | Medium | Search | Searching "charger" on /shop returns an electric kettle — weak relevance matching on the catalog search. | Tune the search query (tokenization/synonyms) in catalog.py. |
+| D10 | Low | Checkout (mobile) | Payment step can show the previous step's "Continue to offers" button in a disabled state — confusing step labeling. | Fix checkout step state/labels. |
 
 ## Gaps requiring the owner (cannot be self-served)
 
@@ -41,3 +43,19 @@ findings reproduced twice.
 - Programmatic in-page evaluation: overflow/broken-image/heading/auth-gate checks across all routes (cheaper and more complete than screenshots alone).
 - Backend integration suite (Docker scratch Postgres+Redis, RLS on): 106/106 passing at audit time.
 - Repo inspection (grep/tree) for the inventory; no new test framework installed yet — Playwright + axe-core are the recommended stack for Phase 4 quality gates (rationale in the roadmap doc).
+
+## Mock-data cleanup ledger (production, owner-approved 2026-09-29)
+
+Per owner instruction, testing ran against the production database with
+synthetic records. All of the following can be deleted later:
+
+| Record | Detail |
+|---|---|
+| Users | `qa.register.9281@example.com`, `qa.register.9282@example.com`, `qa.register.9283@example.com`, `qa.verify.7001@example.com` (the latter is verified, owns a cart + a draft address) |
+| Address | "Test Residency, Ward 7, Vijayipur, Gopalganj 841508" on `qa.verify.7001` (if persisted during checkout continue) |
+| Cart | 1 × Havells Vesta kettle in the qa.verify.7001 user cart |
+| Outbox events | `auth.otp_login` ×4, `auth.password_reset` ×1 (admin@), `auth.welcome` ×4 — historic rows, harmless |
+| Emails delivered externally | 1 password-reset email to admin@elektrix.in (expired, single-use) |
+
+No orders, payments, refunds or customer data were created. Payment testing
+was intentionally skipped per owner instruction (2026-09-29).
