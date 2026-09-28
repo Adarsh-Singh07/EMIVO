@@ -38,9 +38,7 @@ export default function Footer() {
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-16 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
         <div className="col-span-2">
           <Link href="/" className="flex items-center gap-1.5">
-            <div className="w-9 h-9 rounded-lg bg-white text-neutral-950 grid place-items-center font-bold">
-              E
-            </div>
+            <img src="/branding/icon.png" alt="ELEKTRIX" className="w-9 h-9 rounded-lg object-cover" />
             <span className="text-2xl font-bold text-white">ELEKTRIX</span>
           </Link>
           <p className="mt-5 text-sm max-w-sm text-neutral-400">

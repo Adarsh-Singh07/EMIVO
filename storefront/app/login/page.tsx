@@ -158,9 +158,7 @@ function LoginForm() {
     <div className="w-full max-w-md mx-auto">
       {/* Logo */}
       <Link href="/" className="flex items-center gap-2 justify-center mb-8">
-        <div className="w-10 h-10 rounded-xl bg-neutral-950 text-white grid place-items-center font-bold text-sm tracking-tighter">
-          EX
-        </div>
+        <img src="/branding/icon.png" alt="ELEKTRIX" className="w-10 h-10 rounded-xl object-cover" />
         <span className="text-2xl font-bold tracking-tight">ELEKTRIX</span>
       </Link>
 

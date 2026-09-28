@@ -117,20 +117,33 @@ async def chat(
             try:
                 from modules.notifications.providers import get_email_provider
                 from modules.notifications.aliases import ALIAS_SUPPORT, CONTACT_INBOX
+                from modules.notifications.templates import _shell
                 email_prov = get_email_provider()
                 g_name = ticket_action.get("name") or "Guest Visitor"
                 g_email = ticket_action.get("email") or "Not provided"
                 g_phone = ticket_action.get("phone") or "Not provided"
-                html_body = f"""
-                <h2>New Guest Complaint / Inquiry via Chatbot</h2>
-                <p><strong>Ticket ID:</strong> {guest_ticket_id}</p>
-                <p><strong>Customer Name:</strong> {g_name}</p>
-                <p><strong>Email:</strong> {g_email}</p>
-                <p><strong>Phone:</strong> {g_phone}</p>
-                <p><strong>Subject:</strong> {ticket_action.get('subject')}</p>
-                <h3>Details:</h3>
-                <p>{ticket_action.get('description')}</p>
-                """
+                detail_rows = "".join(
+                    f"<tr><td style='padding:9px 4px;border-bottom:1px solid #e4e4e7;"
+                    f"color:#71717a;font-size:13px;width:120px;'>{label}</td>"
+                    f"<td style='padding:9px 4px;border-bottom:1px solid #e4e4e7;"
+                    f"color:#0a0a0a;font-size:14px;'>{value}</td></tr>"
+                    for label, value in (
+                        ("Name", g_name), ("Email", g_email), ("Phone", g_phone),
+                        ("Subject", ticket_action.get("subject", "—")),
+                    )
+                )
+                html_body = _shell(
+                    "New guest complaint via chat",
+                    f"<table role='presentation' width='100%' cellpadding='0' cellspacing='0' "
+                    f"style='border:1px solid #e4e4e7;border-radius:12px;border-collapse:separate;"
+                    f"margin:6px 0 14px;'>{detail_rows}</table>"
+                    f"<div style='margin:0;background:#fafafa;border:1px solid #e4e4e7;"
+                    f"border-radius:12px;padding:14px 18px;font-size:14px;line-height:1.6;"
+                    f"color:#3f3f46;'>{ticket_action.get('description', '')}</div>",
+                    preheader=f"Guest complaint {guest_ticket_id} from the support chat.",
+                    header_meta=guest_ticket_id,
+                    pill=("GUEST TICKET", "#b45309"),
+                )
                 await email_prov.send_email(
                     to_email=CONTACT_INBOX,
                     subject=f"[{guest_ticket_id}] Chatbot Inquiry: {ticket_action.get('subject')}",
