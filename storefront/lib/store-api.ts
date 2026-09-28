@@ -583,6 +583,21 @@ export const storeApi = {
     });
   },
 
+  /** Live duplicate check for the register form. Both args optional; pass only
+   * the ones you want checked. Never throws on a network hiccup — returns
+   * false for any requested field so the form stays usable offline. */
+  async checkAvailability(args: { email?: string; phone?: string }): Promise<{ email_taken: boolean; phone_taken: boolean }> {
+    const sp = new URLSearchParams();
+    if (args.email) sp.set("email", args.email);
+    if (args.phone) sp.set("phone", args.phone);
+    try {
+      const qs = sp.toString();
+      return await fetchApi<{ email_taken: boolean; phone_taken: boolean }>(`/auth/availability${qs ? `?${qs}` : ""}`);
+    } catch {
+      return { email_taken: false, phone_taken: false };
+    }
+  },
+
 
 
   getShippingEstimate(pincode: string): Promise<ShippingEstimate> {

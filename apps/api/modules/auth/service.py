@@ -48,6 +48,34 @@ class AuthService:
         )
         return encoded_jwt
 
+    async def check_availability(self, email: str | None, phone: str | None) -> dict:
+        """Read-only duplicate check for the register form's live feedback.
+        Same matching semantics as register_user (email case-insensitive;
+        phone by normalized value or shared last-10). No side effects."""
+        email_n = (email or "").strip().lower()
+        phone_n = self._normalize_phone(phone or "")
+
+        email_taken = False
+        if email_n:
+            row = (
+                await self.session.execute(select(User.id).where(User.email == email_n))
+            ).scalar_one_or_none()
+            email_taken = row is not None
+
+        phone_taken = False
+        if phone_n:
+            row = (
+                await self.session.execute(
+                    select(User.id).where(
+                        (User.phone == phone_n)
+                        | (func.right(User.phone, 10) == phone_n[-10:])
+                    )
+                )
+            ).scalar_one_or_none()
+            phone_taken = row is not None
+
+        return {"email_taken": email_taken, "phone_taken": phone_taken}
+
     async def register_user(self, data: UserCreate) -> dict:
         stmt = select(User).where(User.email == data.email)
         result = await self.session.execute(stmt)

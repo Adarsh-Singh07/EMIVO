@@ -1,12 +1,13 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Mail, Lock, User, Smartphone, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 import { PasswordRules, passwordMeetsAllRules } from "@/components/PasswordRules";
+import { storeApi } from "@/lib/store-api";
 
 type FieldName = "first_name" | "last_name" | "email" | "phone" | "password";
 
@@ -97,19 +98,64 @@ function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [fieldError, setFieldError] = useState<{ field: FieldName; text: string } | null>(null);
+  const [emailTaken, setEmailTaken] = useState(false);
+  const [phoneTaken, setPhoneTaken] = useState(false);
 
   const update = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => {
     if (fieldError) setFieldError(null);
     setForm((f) => ({ ...f, [k]: e.target.value }));
   };
 
-  const digits = form.phone.replace(/\D/g, "").replace(/^91/, "").replace(/^0/, "");
+  const updatePhone = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (fieldError) setFieldError(null);
+    let d = e.target.value.replace(/\D/g, "");
+    if (d.length > 10 && d.startsWith("91")) d = d.slice(2);
+    setForm((f) => ({ ...f, phone: d.slice(0, 10) }));
+    setPhoneTaken(false);
+  };
+
+  const updateEmail = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (fieldError) setFieldError(null);
+    setForm((f) => ({ ...f, email: e.target.value }));
+    setEmailTaken(false);
+  };
+
+  const digits = form.phone;
   const phoneValid = /^[6-9]\d{9}$/.test(digits);
 
   const allRulesPass = passwordMeetsAllRules(form.password);
   const passwordsMatch = form.password === form.confirmPassword;
   const confirmTouched = form.confirmPassword.length > 0;
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
+
+  // Live duplicate check: 450ms debounce, cancelled on the next keystroke.
+  useEffect(() => {
+    if (!emailValid) return;
+    let active = true;
+    const t = setTimeout(() => {
+      storeApi.checkAvailability({ email: form.email.trim() }).then((r) => {
+        if (active) setEmailTaken(r.email_taken);
+      });
+    }, 450);
+    return () => {
+      active = false;
+      clearTimeout(t);
+    };
+  }, [form.email]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!phoneValid) return;
+    let active = true;
+    const t = setTimeout(() => {
+      storeApi.checkAvailability({ phone: digits }).then((r) => {
+        if (active) setPhoneTaken(r.phone_taken);
+      });
+    }, 450);
+    return () => {
+      active = false;
+      clearTimeout(t);
+    };
+  }, [digits]); // eslint-disable-line react-hooks/exhaustive-deps
   // The Create Account button stays disabled until everything the backend
   // enforces is already satisfied client-side.
   const formValid =
@@ -117,6 +163,8 @@ function RegisterForm() {
     passwordsMatch &&
     phoneValid &&
     emailValid &&
+    !emailTaken &&
+    !phoneTaken &&
     form.first_name.trim().length > 0 &&
     form.last_name.trim().length > 0;
 
@@ -268,34 +316,10 @@ function RegisterForm() {
                   disabled={isLoading}
                 />
               </div>
+              {fieldError?.field === "first_name" && (
+                <p className="mt-1 text-xs text-red-600">{fieldError.text}</p>
+              )}
             </div>
-
-          <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-neutral-700 mb-1.5">
-              Mobile Number <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <Smartphone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-              <input
-                id="phone"
-                type="tel"
-                inputMode="numeric"
-                value={form.phone}
-                onChange={update("phone")}
-                placeholder="98765 43210"
-                maxLength={13}
-                className="w-full h-11 pl-10 pr-10 rounded-xl border border-neutral-300 text-sm outline-none focus:border-neutral-950 focus:ring-1 focus:ring-neutral-950 transition-colors"
-                required
-                disabled={isLoading}
-              />
-            </div>
-            {!phoneValid && form.phone && (
-              <p className="mt-1 text-xs text-neutral-400">Enter a 10-digit Indian mobile number</p>
-            )}
-            {fieldError?.field === "phone" && (
-              <p className="mt-1 text-xs text-red-600">{fieldError.text}</p>
-            )}
-          </div>
             <div>
               <label htmlFor="last_name" className="block text-sm font-medium text-neutral-700 mb-1.5">
                 Last Name <span className="text-red-500">*</span>
@@ -316,6 +340,38 @@ function RegisterForm() {
           </div>
 
           <div>
+            <label htmlFor="phone" className="block text-sm font-medium text-neutral-700 mb-1.5">
+              Mobile Number <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <Smartphone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+              <input
+                id="phone"
+                type="tel"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={form.phone}
+                onChange={updatePhone}
+                placeholder="9876543210"
+                maxLength={10}
+                className="w-full h-11 pl-10 pr-10 rounded-xl border border-neutral-300 text-sm outline-none focus:border-neutral-950 focus:ring-1 focus:ring-neutral-950 transition-colors"
+                required
+                disabled={isLoading}
+              />
+            </div>
+            {phoneTaken ? (
+              <p className="mt-1 text-xs text-red-600">
+                This mobile number is already registered. One account per number — use a different number.
+              </p>
+            ) : !phoneValid && form.phone ? (
+              <p className="mt-1 text-xs text-neutral-400">Enter a 10-digit Indian mobile number</p>
+            ) : null}
+            {fieldError?.field === "phone" && (
+              <p className="mt-1 text-xs text-red-600">{fieldError.text}</p>
+            )}
+          </div>
+
+          <div>
             <label htmlFor="email" className="block text-sm font-medium text-neutral-700 mb-1.5">
               Email Address <span className="text-red-500">*</span>
             </label>
@@ -325,13 +381,26 @@ function RegisterForm() {
                 id="email"
                 type="email"
                 value={form.email}
-                onChange={update("email")}
+                onChange={updateEmail}
                 placeholder="name@company.com"
                 className="w-full h-11 pl-10 pr-4 rounded-xl border border-neutral-300 text-sm outline-none focus:border-neutral-950 focus:ring-1 focus:ring-neutral-950 transition-colors"
                 required
                 disabled={isLoading}
               />
             </div>
+            {emailTaken ? (
+              <p className="mt-1 text-xs text-red-600">
+                This email is already registered —{" "}
+                <Link href="/login" className="font-medium underline underline-offset-2">
+                  sign in
+                </Link>{" "}
+                instead.
+              </p>
+            ) : form.email && !emailValid ? (
+              <p className="mt-1 text-xs text-neutral-400">
+                Enter a valid email, e.g. name@example.com (must include &apos;@&apos;)
+              </p>
+            ) : null}
             {fieldError?.field === "email" && (
               <p className="mt-1 text-xs text-red-600">{fieldError.text}</p>
             )}

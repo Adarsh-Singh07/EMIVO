@@ -45,6 +45,16 @@ async def register(data: UserCreate, service: AuthService = Depends(get_auth_ser
     return resp
 
 
+@router.get("/availability")
+async def check_availability(
+    email: str | None = None,
+    phone: str | None = None,
+    service: AuthService = Depends(get_auth_service),
+):
+    """Live duplicate check for the registration form (rate-limited)."""
+    return await service.check_availability(email, phone)
+
+
 @router.post("/login", response_model=TokenResponse)
 async def login(data: UserLogin, service: AuthService = Depends(get_auth_service)):
     return await service.authenticate_user(data)
