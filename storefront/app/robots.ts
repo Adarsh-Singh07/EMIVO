@@ -9,7 +9,7 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: "*",
         allow: "/",
         // Account, checkout and API-ish pages hold no SEO value.
-        disallow: ["/account/", "/checkout", "/notifications"],
+        disallow: ["/account/", "/checkout", "/notifications", "/feeds", "/pay"],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,

@@ -112,7 +112,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-xl font-bold text-neutral-900">Supabase PostgreSQL + RLS</h3>
               <p className="text-neutral-500 text-sm leading-relaxed">
-                Database-level tenant isolation enforced via `SET LOCAL ROLE emivo_app` and `app.business_id` session variables.
+                Database-level tenant isolation enforced by a restricted PostgreSQL role and per-request business scoping.
               </p>
             </div>
 
