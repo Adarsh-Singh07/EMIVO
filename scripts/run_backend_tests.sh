@@ -7,12 +7,18 @@
 # project (elektrix_*), so this can never touch live containers even when run
 # on the VM. All hostnames come from variables — no hardcoded names.
 set -euo pipefail
+# Git Bash (MSYS) rewrites absolute arguments (e.g. /app, /tmp) to Windows
+# paths, which breaks docker volume mounts and psql -f targets. Disable it.
+export MSYS_NO_PATHCONV=1
 cd "$(dirname "$0")/.."
 
 API_IMAGE="${API_IMAGE:-elektrix-api:v02test}"
 NET=elektrix-test-net
 DB_CONTAINER=elektrix-test-db-1
 REDIS_CONTAINER=elektrix-test-redis
+# Docker on Windows needs Windows paths for host-side volume mounts; Git Bash
+# $(pwd) returns POSIX paths (/e/...) which Docker CLI cannot resolve.
+REPO_ROOT_WIN="$(cygpath -w "$(pwd)" | tr '\\' '/')"
 DB_URL="postgresql+asyncpg://postgres:password@${DB_CONTAINER}:5432/emivo"
 DB_SYNC_URL="postgresql://postgres:password@${DB_CONTAINER}:5432/emivo"
 REDIS_URL="redis://${REDIS_CONTAINER}:6379/0"
@@ -69,7 +75,7 @@ docker run --rm --network "$NET" \
   -e ADMIN_EMAIL="admin@example.com" \
   -e ADMIN_INITIAL_PASSWORD="TestAdminPass123!" \
   -e ENV_NAME=pytest \
-  -v "$(pwd)/scripts:/app/scripts" \
+  -v "${REPO_ROOT_WIN}/scripts:/app/scripts" \
   "$API_IMAGE" python /app/scripts/seed_store.py | tail -3
 
 echo "==> [6/6] pytest"
@@ -88,7 +94,7 @@ docker run --rm --network "$NET" \
   -e ADMIN_EMAIL="admin@example.com" \
   -e ADMIN_INITIAL_PASSWORD="TestAdminPass123!" \
   -e PYTHONPATH=/app/apps/api \
-  -v "$(pwd)/apps/api/tests:/app/apps/api/tests" \
-  -v "$(pwd)/apps/workers:/app/apps/workers:ro" \
+  -v "${REPO_ROOT_WIN}/apps/api/tests:/app/apps/api/tests" \
+  -v "${REPO_ROOT_WIN}/apps/workers:/app/apps/workers:ro" \
   --workdir /app \
   "$API_IMAGE" python -m pytest apps/api/tests/v02 -q

@@ -18,6 +18,7 @@ import {
   Landmark,
   Timer,
   Megaphone,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { ReactNode, useEffect, useState, useRef, useCallback } from "react";
@@ -37,6 +38,7 @@ const NAV_SECTIONS: Array<{
     links: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/analytics", label: "Analytics", icon: BarChart3 },
+      { href: "/assistant", label: "Assistant", icon: Sparkles },
     ],
   },
   {
