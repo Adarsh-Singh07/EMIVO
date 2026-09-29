@@ -26,6 +26,11 @@ fi
 if [ ! -f ".env" ]; then
     echo "ERROR: .env file missing!"; exit 1
 fi
+# Tag app images per commit. With the mutable `:latest` tag, `compose up -d`
+# sees no config diff and silently keeps running OLD containers even though
+# the image contents changed (this left the admin UI un-deployed for hours
+# on 2026-09-29). A distinct per-commit tag forces recreation every deploy.
+export IMAGE_TAG="${IMAGE_TAG:-$(git rev-parse --short HEAD)}"
 set -a; source .env; set +a
 : "${DATABASE_URL:?DATABASE_URL missing in .env}"
 : "${JWT_SECRET:?JWT_SECRET missing in .env}"
