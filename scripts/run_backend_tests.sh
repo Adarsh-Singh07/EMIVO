@@ -16,9 +16,14 @@ API_IMAGE="${API_IMAGE:-elektrix-api:v02test}"
 NET=elektrix-test-net
 DB_CONTAINER=elektrix-test-db-1
 REDIS_CONTAINER=elektrix-test-redis
-# Docker on Windows needs Windows paths for host-side volume mounts; Git Bash
-# $(pwd) returns POSIX paths (/e/...) which Docker CLI cannot resolve.
-REPO_ROOT_WIN="$(cygpath -w "$(pwd)" | tr '\\' '/')"
+# Docker needs host paths for -v mounts. On Linux $(pwd) is already a host
+# path; on Windows (Git Bash) $(pwd) is POSIX (/e/...) and Docker CLI cannot
+# resolve it, so convert with cygpath.
+if command -v cygpath >/dev/null 2>&1; then
+  REPO_ROOT_WIN="$(cygpath -w "$(pwd)" | tr '\\' '/')"
+else
+  REPO_ROOT_WIN="$(pwd)"
+fi
 DB_URL="postgresql+asyncpg://postgres:password@${DB_CONTAINER}:5432/emivo"
 DB_SYNC_URL="postgresql://postgres:password@${DB_CONTAINER}:5432/emivo"
 REDIS_URL="redis://${REDIS_CONTAINER}:6379/0"
