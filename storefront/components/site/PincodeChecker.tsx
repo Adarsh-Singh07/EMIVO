@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { MapPin, Truck, CheckCircle2, XCircle, Loader2, Navigation } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { storeApi, type ShippingEstimate } from "@/lib/store-api";
+import { getRememberedPincode, rememberPincode } from "@/lib/pincode-memory";
 
 const PINCODE_RE = /^\d{6}$/;
-const LOCAL_PIN_KEY = "elektrix_delivery_pincode";
 
 export default function PincodeChecker() {
   const [pincode, setPincode] = useState("");
@@ -17,14 +17,10 @@ export default function PincodeChecker() {
 
   // Restore saved pincode from local storage on mount
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_PIN_KEY);
-      if (saved && PINCODE_RE.test(saved)) {
-        setPincode(saved);
-        checkPincodeValue(saved);
-      }
-    } catch {
-      // Ignore local storage errors
+    const saved = getRememberedPincode();
+    if (saved && PINCODE_RE.test(saved)) {
+      setPincode(saved);
+      checkPincodeValue(saved);
     }
   }, []);
 
@@ -36,9 +32,7 @@ export default function PincodeChecker() {
       const data = await storeApi.getShippingEstimate(pin);
       setResult(data);
       if (data.serviceable) {
-        try {
-          localStorage.setItem(LOCAL_PIN_KEY, pin);
-        } catch {}
+        rememberPincode(pin);
       }
     } catch {
       setResult({
@@ -79,9 +73,7 @@ export default function PincodeChecker() {
             setPincode(geo.pincode);
             if (geo.estimate) {
               setResult(geo.estimate);
-              try {
-                localStorage.setItem(LOCAL_PIN_KEY, geo.pincode);
-              } catch {}
+              rememberPincode(geo.pincode);
             } else {
               checkPincodeValue(geo.pincode);
             }

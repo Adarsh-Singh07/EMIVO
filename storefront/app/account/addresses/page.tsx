@@ -7,6 +7,7 @@ import Link from "next/link";
 import { MapPin, Plus, Trash2, CheckCircle2, ChevronRight, LogIn, ShieldAlert, Loader2, Navigation } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { storeApi, type Address } from "@/lib/store-api";
+import { rememberPincode } from "@/lib/pincode-memory";
 import { toast } from "sonner";
 
 const EMPTY = {
@@ -163,6 +164,7 @@ export default function AddressesPage() {
         label: form.label.trim() || undefined,
         is_default: addresses.length === 0,
       });
+      rememberPincode(form.pincode);
       toast.success("Address added successfully");
       resetForm();
       await load();

@@ -45,6 +45,7 @@ import { inr, formatDate } from "@/lib/format";
 import { track } from "@/lib/analytics";
 import { isSafeRedirectUrl, openPaymentGateway } from "@/lib/safe-redirect";
 import { loadEasebuzzSdk, preconnectEasebuzz } from "@/lib/easebuzz-sdk";
+import { getRememberedPincode, rememberPincode } from "@/lib/pincode-memory";
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -176,6 +177,7 @@ function CheckoutContent() {
     const pin = val.replace(/\D/g, "").slice(0, 6);
     setForm((f) => ({ ...f, pincode: pin }));
     if (pin.length === 6) {
+      rememberPincode(pin);
       setPincodeLoading(true);
       try {
         const est = await storeApi.getShippingEstimate(pin);
@@ -264,6 +266,18 @@ function CheckoutContent() {
     if (user) loadAddresses();
   }, [user, loadAddresses]);
 
+  // Pre-fill the PIN field from a previously-remembered delivery PIN (set in the
+  // site header, a product page, or a past checkout) so the buyer's location is
+  // remembered across visits. Skipped once a saved address drives the form.
+  useEffect(() => {
+    if (form.pincode) return;
+    const remembered = getRememberedPincode();
+    if (remembered) {
+      setForm((f) => ({ ...f, pincode: f.pincode || remembered }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const update = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -300,6 +314,7 @@ function CheckoutContent() {
           label: form.label.trim() || undefined,
           is_default: addresses.length === 0,
         });
+        rememberPincode(form.pincode);
         setAddresses((prev) => [...prev, created]);
         setSelectedAddressId(created.id);
         setDraftAddress(null);
@@ -312,6 +327,7 @@ function CheckoutContent() {
         setSavingAddress(false);
       }
     } else {
+      rememberPincode(form.pincode);
       setDraftAddress({ ...form });
       setSelectedAddressId("");
       setShowNewForm(false);

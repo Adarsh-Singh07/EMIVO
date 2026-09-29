@@ -22,6 +22,7 @@ import CartDrawer from "./CartDrawer";
 import SearchBox from "./SearchBox";
 import NotificationsBell from "./NotificationsBell";
 import { useWishlist } from "@/lib/wishlist-context";
+import { getRememberedPincode, rememberPincode } from "@/lib/pincode-memory";
 import { useCompareIds } from "@/lib/compare";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
@@ -132,7 +133,7 @@ export default function Header() {
 
   // Load the saved pincode only after mount to avoid SSR hydration mismatch.
   useEffect(() => {
-    const saved = localStorage.getItem("elektrix-pincode");
+    const saved = getRememberedPincode();
     if (saved) {
       setPincode(saved);
       setPincodeDraft(saved);
@@ -143,7 +144,7 @@ export default function Header() {
     const v = pincodeDraft.trim();
     if (/^\d{6}$/.test(v)) {
       setPincode(v);
-      localStorage.setItem("elektrix-pincode", v);
+      rememberPincode(v);
       setPinOpen(false);
       setPinError("");
       toast.success(`Delivering to ${v}`);
