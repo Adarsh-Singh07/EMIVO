@@ -79,7 +79,7 @@ async def _ask_llm(system: str, user_block: str) -> Optional[str]:
                             {"role": "system", "content": system},
                             {"role": "user", "content": user_block},
                         ],
-                        temperature: 0.2,
+                        "temperature": 0.2,
                     },
                 )
                 resp.raise_for_status()
@@ -97,12 +97,11 @@ async def _ask_llm(system: str, user_block: str) -> Optional[str]:
             client = genai.Client(api_key=settings.gemini_api_key.get_secret_value())
             for model in [m.strip() for m in settings.gemini_chat_models.split(",") if m.strip()]:
                 try:
+                    # Plain-string contents: the genai SDK rejects dict/role
+                    # shapes here (the storefront chatbot uses the same form).
                     resp = client.models.generate_content(
                         model=model,
-                        contents=[
-                            {"role": "system", "part": {"text": system}},
-                            {"role": "user", "part": {"text": user_block}},
-                        ],
+                        contents=f"{system}\n\n{user_block}",
                     )
                     out = (resp.text or "").strip()
                     if out:

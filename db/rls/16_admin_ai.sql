@@ -1,9 +1,20 @@
 -- Admin AI assistant audit log (idempotent; mirrors the 20260929_2000 migration)
--- admin_ai_actions is a staff-only, business-agnostic audit trail. It is
--- written by the app role (emivo_app) from the admin assistant service. No
--- RLS is enabled on it (an RLS policy would block the audit INSERT, which runs
--- without a matching business context); access is controlled at the API layer
--- (require_staff) + the GRANT below.
+-- admin_ai_actions is a staff-only, business-agnostic audit trail written by
+-- the app role (emivo_app) from the admin assistant service. Prod enables RLS
+-- on it (no default-allow), so staff must get an explicit policy — the audit
+-- INSERT otherwise fails with "new row violates row-level security policy".
+ALTER TABLE public.admin_ai_actions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS admin_ai_staff_all ON public.admin_ai_actions;
+CREATE POLICY admin_ai_staff_all ON public.admin_ai_actions
+    FOR ALL TO emivo_app
+    USING (
+        NULLIF(current_setting('app.role', true), '') IN ('platform_admin', 'owner', 'staff')
+    )
+    WITH CHECK (
+        NULLIF(current_setting('app.role', true), '') IN ('platform_admin', 'owner', 'staff')
+    );
+
 DO $$ BEGIN
     GRANT SELECT, INSERT ON public.admin_ai_actions TO emivo_app;
 EXCEPTION WHEN OTHERS THEN NULL; END $$;
