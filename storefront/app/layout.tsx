@@ -10,6 +10,7 @@ import { toJsonLd } from "@/lib/format";
 import MobileBottomNav from "@/components/site/MobileBottomNav";
 import { Toaster } from "sonner";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
+import PwaServiceWorker from "@/components/PwaServiceWorker";
 import CookieConsent from "@/components/site/CookieConsent";
 import LenisProvider from "@/components/site/LenisProvider";
 import SupportChatWidget from "@/components/site/SupportChatWidget";
@@ -104,7 +105,7 @@ export const metadata: Metadata = {
     images: ["/icons/icon-512.png"],
   },
   // PWA — installable app with standalone display, icons and manifest.
-  manifest: "/manifest.webmanifest?v=3",
+  manifest: "/manifest.webmanifest?v=4",
   icons: {
     icon: "/icons/icon-192.png",
     apple: "/icons/icon-192.png",
@@ -164,6 +165,7 @@ export default function RootLayout({
               <Footer />
               <MobileBottomNav />
 
+              <PwaServiceWorker />
               <PwaInstallPrompt />
               <Toaster
                 position="bottom-right"
