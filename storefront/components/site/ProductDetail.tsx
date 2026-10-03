@@ -360,7 +360,7 @@ export default function ProductDetail({
                 <span className="w-2 h-2 rounded-full bg-red-500" /> Out of stock
               </span>
             ) : lowStock ? (
-              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-600">
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-700">
                 <span className="w-2 h-2 rounded-full bg-amber-500" /> Only {stockAvailable} left
               </span>
             ) : (

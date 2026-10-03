@@ -33,7 +33,7 @@ export default function CatalogueStrip({ title, eyebrow, subtitle, category_link
       <div className="flex items-end justify-between mb-4">
         <div>
           {eyebrow && (
-            <p className="text-xs font-bold uppercase tracking-widest text-amber-500 mb-1">{eyebrow}</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-amber-700 mb-1">{eyebrow}</p>
           )}
           <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">{title}</h2>
           {subtitle && <p className="text-sm text-neutral-500 mt-1">{subtitle}</p>}

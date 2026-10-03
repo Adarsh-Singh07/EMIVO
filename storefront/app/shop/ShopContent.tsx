@@ -362,6 +362,7 @@ export default function ShopContent() {
               <select
                 value={sort}
                 onChange={(e) => setParam({ sort: e.target.value === "relevance" ? null : e.target.value })}
+                aria-label="Sort products"
                 className="h-10 border border-neutral-200 rounded-full px-4 text-sm focus:outline-none focus:border-neutral-950"
               >
                 {SORT_OPTIONS.map((o) => (
