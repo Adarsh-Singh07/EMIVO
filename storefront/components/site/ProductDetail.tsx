@@ -250,7 +250,7 @@ export default function ProductDetail({
 
       <div className="grid lg:grid-cols-2 gap-10">
         {/* Gallery */}
-        <div className="flex flex-col-reverse sm:flex-row gap-4">
+        <div className="min-w-0 flex flex-col-reverse sm:flex-row gap-4">
           <div className="flex sm:flex-col gap-3 overflow-x-auto sm:overflow-x-visible pb-2 sm:pb-0 no-scrollbar snap-x snap-mandatory">
             {images.map((src, i) => (
               <button
@@ -290,8 +290,9 @@ export default function ProductDetail({
           </div>
         </div>
 
-        {/* Details */}
-        <div>
+        {/* Details — min-w-0 stops the w-max trust marquee from stretching
+            this grid item (and every CTA inside it) past the viewport */}
+        <div className="min-w-0">
           <p className="text-[15px] uppercase tracking-[0.15em] text-neutral-500 font-medium">
             {product.brand}
           </p>
@@ -446,12 +447,14 @@ export default function ProductDetail({
           </div>
 
           {/* CTAs — stacked full-width on phones (tap-friendly, never clipped),
-              side-by-side from sm up. min-w-0 lets flex shrink safely. */}
+              side-by-side from sm up. w-full/flex-1 split because flex-1 in a
+              column container would override the fixed height (flex-basis wins
+              over height on the main axis). */}
           <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-4 mt-6">
             {orderedOrderId ? (
               <Link
                 href={`/order-tracking?order=${orderedOrderId}`}
-                className="min-w-0 flex-1 h-14 sm:h-16 inline-flex items-center justify-center gap-2 bg-neutral-950 text-white rounded-2xl text-base sm:text-lg font-semibold hover:bg-neutral-800 transition-colors shadow-sm"
+                className="min-w-0 w-full sm:w-auto sm:flex-1 h-14 sm:h-16 inline-flex items-center justify-center gap-2 bg-neutral-950 text-white rounded-2xl text-base sm:text-lg font-semibold hover:bg-neutral-800 transition-colors shadow-sm"
               >
                 <Truck className="w-5 h-5" /> Track Your Order
               </Link>
@@ -459,7 +462,7 @@ export default function ProductDetail({
             <button
               onClick={addToCart}
               disabled={outOfStock || adding}
-              className="min-w-0 flex-1 h-14 sm:h-16 inline-flex items-center justify-center gap-2 bg-neutral-950 text-white rounded-2xl text-base sm:text-lg font-semibold hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all active:scale-[0.98]"
+              className="min-w-0 w-full sm:w-auto sm:flex-1 h-14 sm:h-16 inline-flex items-center justify-center gap-2 bg-neutral-950 text-white rounded-2xl text-base sm:text-lg font-semibold hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all active:scale-[0.98]"
             >
               {adding ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShoppingBag className="w-5 h-5" />}
               Add to Cart
@@ -467,7 +470,7 @@ export default function ProductDetail({
             <button
               onClick={buyNow}
               disabled={outOfStock || buying}
-              className="min-w-0 flex-1 h-14 sm:h-16 inline-flex items-center justify-center gap-2 bg-amber-400 text-amber-950 rounded-2xl text-base sm:text-lg font-bold hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all active:scale-[0.98]"
+              className="min-w-0 w-full sm:w-auto sm:flex-1 h-14 sm:h-16 inline-flex items-center justify-center gap-2 bg-amber-400 text-amber-950 rounded-2xl text-base sm:text-lg font-bold hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all active:scale-[0.98]"
             >
               {buying ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
               Buy Now
