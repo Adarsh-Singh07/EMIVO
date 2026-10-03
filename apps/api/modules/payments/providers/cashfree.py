@@ -63,7 +63,10 @@ class CashfreeProvider(BasePaymentProvider):
                 "customer_email": customer_email,
             },
             "order_meta": {
-                "return_url": f"{settings.cors_origins[0] if settings.cors_origins else 'https://elektrix.in'}/order-tracking?orderId={{order_id}}"
+                # storefront_url is the canonical buyer-facing origin (VPS .env
+                # sets CORS_ORIGINS as a raw string, so cors_origins[0] would
+                # yield just "h").
+                "return_url": f"{settings.storefront_url.rstrip('/')}/pay/{{order_id}}"
             },
             "order_tags": cf_notes,
         }
