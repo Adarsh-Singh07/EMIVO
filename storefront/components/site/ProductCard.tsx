@@ -105,21 +105,23 @@ export default function ProductCard({ product }: { product: Product }) {
           </span>
         )}
 
-        {/* Wishlist — always visible */}
+        {/* Wishlist — bottom-left of the image so the OFF badge (top-left)
+            and compare/quick-view (right edge) stay unobstructed. */}
         <button
           onClick={handleWishlist}
           aria-label={wished ? "Remove from wishlist" : "Add to wishlist"}
           aria-pressed={wished}
-          className={`tap-target absolute top-2 right-2 z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-full grid place-items-center shadow-sm transition-colors ${
+          className={`tap-target absolute bottom-2 left-2 z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-full grid place-items-center shadow-sm transition-colors ${
             wished ? "bg-red-500 text-white" : "bg-white/90 text-neutral-700 hover:text-red-500"
           }`}
         >
           <Heart className={`w-3.5 h-3.5 ${wished ? "fill-white" : ""}`} />
         </button>
 
-        {/* Compare + quick view — hover reveal on desktop, always on mobile.
-            Comparing state = color change only (no word) so the catalog stays clean. */}
-        <div className="absolute right-2 top-11 sm:top-12 flex flex-col gap-2 lg:opacity-0 lg:translate-x-2 lg:group-hover:opacity-100 lg:group-hover:translate-x-0 lg:transition-all z-10">
+        {/* Compare + quick view — top-right, hover reveal on desktop, always
+            on mobile. Comparing state = color change only (no word) so the
+            catalog stays clean. */}
+        <div className="absolute right-2 top-2 flex flex-col gap-2 lg:opacity-0 lg:translate-x-2 lg:group-hover:opacity-100 lg:group-hover:translate-x-0 lg:transition-all z-10">
           <button
             onClick={() => {
               if (comparing) router.push("/compare");

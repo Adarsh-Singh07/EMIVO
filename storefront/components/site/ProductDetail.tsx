@@ -79,15 +79,18 @@ export default function ProductDetail({
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
-  // WYSIWYG HTML from the admin editor. DOMPurify needs a DOM, so sanitize
-  // client-side after mount — the server renders the plain-text tagline until
-  // then, and raw HTML is never injected on any render path.
+  // Description may be WYSIWYG HTML (admin editor) or markdown (imported /
+  // AI-generated copy: #, ###, **bold**, - bullets). Convert markdown first,
+  // then sanitize with DOMPurify (client-side — it needs a DOM). Raw text or
+  // HTML is never injected on any render path.
   const [safeDescription, setSafeDescription] = useState("");
   useEffect(() => {
     let cancelled = false;
     if (product.description) {
-      import("dompurify").then((mod) => {
-        if (!cancelled) setSafeDescription(mod.default.sanitize(product.description!));
+      Promise.all([import("dompurify"), import("marked")]).then(([pur, mk]) => {
+        if (cancelled) return;
+        const html = mk.marked.parse(product.description!, { async: false, breaks: true });
+        setSafeDescription(pur.default.sanitize(html));
       });
     } else {
       setSafeDescription("");
@@ -553,7 +556,7 @@ export default function ProductDetail({
             <div className="space-y-4 text-neutral-600">
               {safeDescription ? (
                 <div
-                  className="leading-relaxed text-neutral-600 [&>p]:mb-4 [&>ul]:list-disc [&>ul]:pl-5 [&>ul]:mb-4 [&>h2]:text-xl [&>h2]:font-bold [&>h2]:mb-2 [&>h2]:text-neutral-900 [&>h3]:text-lg [&>h3]:font-semibold [&>h3]:mb-2 [&>h3]:text-neutral-800"
+                  className="leading-relaxed text-neutral-600 [&>p]:mb-4 [&>ul]:list-disc [&>ul]:pl-5 [&>ul]:mb-4 [&>h1]:text-xl [&>h1]:font-bold [&>h1]:mb-2 [&>h1]:text-neutral-900 [&>h2]:text-xl [&>h2]:font-bold [&>h2]:mb-2 [&>h2]:text-neutral-900 [&>h3]:text-lg [&>h3]:font-semibold [&>h3]:mb-2 [&>h3]:text-neutral-800 [&>strong]:font-semibold [&>strong]:text-neutral-900"
                   dangerouslySetInnerHTML={{ __html: safeDescription }}
                 />
               ) : (
