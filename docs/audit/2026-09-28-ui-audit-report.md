@@ -59,3 +59,14 @@ synthetic records. All of the following can be deleted later:
 
 No orders, payments, refunds or customer data were created. Payment testing
 was intentionally skipped per owner instruction (2026-09-29).
+
+
+**Addendum 2026-10-04 — Cashfree gateway sandbox verification (owner-directed).**
+Payment testing was explicitly re-enabled by the owner for the Cashfree
+integration (sandbox keys only; Easebuzz production keys untouched). Rows
+created on production, all test orders CANCELLED (stock released):
+- 4 orders (`payment_method=ONLINE`, status PENDING→cancelled) placed by
+  admin@elektrix.in: 1 Easebuzz-initiated, 1 Cashfree-initiated (sandbox
+  payment_session_id verified, never paid), 2 abandoned e2e probes.
+- 2 payment rows: provider CASHFREE (CREATED) + EASEBUZZ (CREATED) — no
+  money moved, no webhooks processed.
