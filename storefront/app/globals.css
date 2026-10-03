@@ -129,15 +129,20 @@ footer :focus-visible,
 /*
  * Invisible hit-area expansion for small icon buttons (A6): keeps the visual
  * control compact while guaranteeing a ~44px touch target.
+ * Lives in @layer base so Tailwind positioning utilities (absolute/fixed)
+ * keep winning the cascade — unlayered, it silently overrode `absolute`
+ * and anchored overlays (e.g. the card wishlist heart) to their flow spot.
  */
-.tap-target {
-  position: relative;
-}
-.tap-target::after {
-  content: "";
-  position: absolute;
-  inset: -8px;
-  border-radius: inherit;
+@layer base {
+  .tap-target {
+    position: relative;
+  }
+  .tap-target::after {
+    content: "";
+    position: absolute;
+    inset: -8px;
+    border-radius: inherit;
+  }
 }
 
 /* Marquee announcement bar / brand strip */
