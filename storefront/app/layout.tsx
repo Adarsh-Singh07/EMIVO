@@ -74,6 +74,9 @@ const websiteJsonLd = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  // Build sentinel: the Phase 6 UI quality gate polls for this to know the
+  // Vercel deploy of THIS commit is live before running checks against prod.
+  other: { build: process.env.VERCEL_GIT_COMMIT_SHA || "local" },
   title: {
     default: "ELEKTRIX — Premium Electronics Store",
     template: "%s — ELEKTRIX",

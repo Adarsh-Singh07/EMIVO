@@ -34,6 +34,19 @@ jobs:
         working-directory: storefront
         run: npx playwright install --with-deps chromium
 
+      # Vercel ships asynchronously — wait until THIS commit's build is what
+      # elektrix.in serves (the layout exposes <meta name="build">), so the
+      # gate never tests a stale deployment.
+      - name: Wait for Vercel deploy of this commit
+        run: |
+          for i in $(seq 1 40); do
+            SHA=$(curl -s https://elektrix.in | grep -o '<meta name="build" content="[^"]*"' | head -1 | sed 's/.*content="//;s/"//')
+            echo "poll $i: served build = ${SHA:-none}"
+            if [ "$SHA" = "$GITHUB_SHA" ]; then echo "Deploy is live"; exit 0; fi
+            sleep 15
+          done
+          echo "::warning::Timed out waiting for deploy — running against latest anyway"
+
       - name: Run smoke + axe suite
         working-directory: storefront
         env:
