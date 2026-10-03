@@ -429,7 +429,8 @@ function RegisterForm() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 w-10 h-10 grid place-items-center text-neutral-400 hover:text-neutral-700"
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -572,9 +573,9 @@ function RegisterForm() {
         )}
       </div>
 
-      <p className="text-center text-xs text-neutral-400 mt-6">
+      <p className="text-center text-xs text-neutral-600 mt-6">
         By creating an account you agree to ELEKTRIX&apos;s{" "}
-        <Link href="/terms" className="underline underline-offset-2 hover:text-neutral-700">
+        <Link href="/terms" className="underline underline-offset-2 text-neutral-600 hover:text-neutral-900">
           Terms of Service
         </Link>
       </p>

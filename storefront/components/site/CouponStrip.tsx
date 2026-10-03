@@ -90,7 +90,7 @@ export default function CouponStrip({ coupons }: { coupons: Coupon[] }) {
           <h2 className="text-sm font-bold text-neutral-800 flex items-center gap-2">
             <Tag className="w-4 h-4 text-amber-500" /> Available Coupons
           </h2>
-          <span className="text-xs text-neutral-400">{coupons.length} offers</span>
+          <span className="text-xs text-neutral-600">{coupons.length} offers</span>
         </div>
         <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 snap-x snap-mandatory">
           {coupons.map((c) => {
@@ -121,7 +121,7 @@ export default function CouponStrip({ coupons }: { coupons: Coupon[] }) {
                   <p className="text-[10px] text-neutral-500 leading-tight truncate">
                     {minOrder}
                   </p>
-                  <p className="text-[10px] text-amber-600 font-semibold mt-1">Tap to copy & view T&C →</p>
+                  <p className="text-[10px] text-amber-700 font-semibold mt-1">Tap to copy & view T&C →</p>
                 </div>
               </button>
             );

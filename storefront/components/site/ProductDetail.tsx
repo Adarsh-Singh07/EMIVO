@@ -283,7 +283,7 @@ export default function ProductDetail({
               className="object-contain p-4"
             />
             {product.discount > 0 && !selectedVariant && (
-              <span className="absolute top-4 left-4 bg-green-600 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
+              <span className="absolute top-4 left-4 bg-green-700 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
                 {product.discount}% OFF
               </span>
             )}
@@ -328,10 +328,10 @@ export default function ProductDetail({
           <div className="flex flex-wrap items-end gap-x-3 gap-y-1 mt-5">
             <span className="text-3xl font-semibold">{inr(displayPrice)}</span>
             {product.mrp > displayPrice && (
-              <span className="text-neutral-400 line-through text-lg">{inr(product.mrp)}</span>
+              <span className="text-neutral-500 line-through text-lg">{inr(product.mrp)}</span>
             )}
             {!selectedVariant && product.discount > 0 && (
-              <span className="text-green-600 text-sm font-medium mb-1">
+              <span className="text-green-700 text-sm font-medium mb-1">
                 {product.discount}% off
               </span>
             )}
@@ -364,7 +364,7 @@ export default function ProductDetail({
                 <span className="w-2 h-2 rounded-full bg-amber-500" /> Only {stockAvailable} left
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-green-600">
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-green-700">
                 <span className="w-2 h-2 rounded-full bg-green-500" /> In stock
               </span>
             )}
@@ -563,7 +563,7 @@ export default function ProductDetail({
                 <ul className="space-y-2">
                   {product.highlights.map((h) => (
                     <li key={h} className="flex items-start gap-2">
-                      <Check className="w-4 h-4 mt-0.5 text-green-600 shrink-0" />
+                      <Check className="w-4 h-4 mt-0.5 text-green-700 shrink-0" />
                       {h}
                     </li>
                   ))}
@@ -577,7 +577,7 @@ export default function ProductDetail({
                   "Secure encrypted checkout",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2">
-                    <Check className="w-4 h-4 mt-0.5 text-green-600 shrink-0" />
+                    <Check className="w-4 h-4 mt-0.5 text-green-700 shrink-0" />
                     {item}
                   </li>
                 ))}

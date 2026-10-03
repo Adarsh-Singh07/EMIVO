@@ -95,7 +95,7 @@ export default function ProductCard({ product }: { product: Product }) {
         </Link>
 
         {product.discount > 0 && (
-          <span className="absolute top-2 left-2 bg-green-600 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded z-10">
+          <span className="absolute top-2 left-2 bg-green-700 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded z-10">
             {product.discount}% OFF
           </span>
         )}
@@ -170,21 +170,21 @@ export default function ProductCard({ product }: { product: Product }) {
           <div className="flex items-baseline gap-1.5 flex-wrap">
             <span className="font-bold text-sm">{inr(product.price)}</span>
             {product.mrp > product.price && (
-              <span className="text-neutral-400 line-through text-[11px]">{inr(product.mrp)}</span>
+              <span className="text-neutral-500 line-through text-[11px]">{inr(product.mrp)}</span>
             )}
             {product.discount > 0 && (
-              <span className="text-green-600 text-[11px] font-semibold">{product.discount}% OFF</span>
+              <span className="text-green-700 text-[11px] font-semibold">{product.discount}% OFF</span>
             )}
           </div>
           {product.onOffer && (
-            <span className="text-amber-600 text-[11px] font-bold tracking-tight">
+            <span className="text-amber-700 text-[11px] font-bold tracking-tight">
               ✦ {product.offerName || "Festival Offer"}
             </span>
           )}
         </div>
 
         {product.stockAvailable != null && product.stockAvailable > 0 && product.stockAvailable <= 5 && (
-          <p className="text-[10px] text-amber-600 mt-1">Only {product.stockAvailable} left</p>
+          <p className="text-[10px] text-amber-700 mt-1">Only {product.stockAvailable} left</p>
         )}
 
         <p className="text-[10px] text-neutral-500 mt-1">Dispatched in 24-48 hrs</p>

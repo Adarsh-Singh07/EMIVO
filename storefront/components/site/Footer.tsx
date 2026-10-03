@@ -62,7 +62,7 @@ export default function Footer() {
                 Vijayipur, Gopalganj, Bihar - 841508
               </div>
             </div>
-            <div className="text-xs pt-1.5 text-neutral-500 font-mono">
+            <div className="text-xs pt-1.5 text-neutral-400 font-mono">
               GSTIN: 10COMPG4070G1ZB
             </div>
             <div className="flex gap-3 pt-3">
@@ -144,7 +144,7 @@ export default function Footer() {
       </div>
 
       <div className="border-t border-neutral-900">
-        <div className="max-w-[1400px] mx-auto px-4 py-5 text-xs text-neutral-500 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="max-w-[1400px] mx-auto px-4 py-5 text-xs text-neutral-400 flex flex-col sm:flex-row items-center justify-between gap-3">
           <span>© {new Date().getFullYear()} ELEKTRIX. All rights reserved.</span>
           <span>Secured by VISA · MasterCard · UPI · Netbanking · COD</span>
         </div>

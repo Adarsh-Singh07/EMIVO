@@ -68,9 +68,9 @@ function ForgotPasswordForm() {
           </Link>
         </div>
 
-        <p className="text-center text-xs text-neutral-400 mt-6">
+        <p className="text-center text-xs text-neutral-600 mt-6">
           Didn't receive the email?{" "}
-          <Link href="/forgot-password" className="underline underline-offset-2 hover:text-neutral-700">
+          <Link href="/forgot-password" className="underline underline-offset-2 text-neutral-600 hover:text-neutral-900">
             Try again
           </Link>
         </p>
@@ -138,9 +138,9 @@ function ForgotPasswordForm() {
         </form>
       </div>
 
-      <p className="text-center text-xs text-neutral-400 mt-6">
+      <p className="text-center text-xs text-neutral-600 mt-6">
         Remember your password?{" "}
-        <Link href="/login" className="underline underline-offset-2 hover:text-neutral-700">
+        <Link href="/login" className="underline underline-offset-2 text-neutral-600 hover:text-neutral-900">
           Sign in
         </Link>
       </p>

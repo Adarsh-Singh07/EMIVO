@@ -213,7 +213,7 @@ export default async function Home() {
               {BRANDS.map((brand) => (
                 <span
                   key={`${copy}-${brand}`}
-                  className="text-2xl font-semibold text-neutral-400 whitespace-nowrap"
+                  className="text-2xl font-semibold text-neutral-500 whitespace-nowrap"
                 >
                   {brand}
                 </span>

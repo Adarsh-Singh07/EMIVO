@@ -61,7 +61,7 @@ export default function HeroSlider({ slides = HERO_SLIDES }: { slides?: any[] })
          * plain div instead of an <a href="#"> dead link wrapping the hero.
          */}
         {s.link ? (
-          <Link href={s.link} className="block absolute inset-0 group">
+          <Link href={s.link} className="block absolute inset-0 group" aria-label={s.title ? `View ${s.title}` : "View slide"}>
             <img
               key={`bg-${s.id}`}
               src={s.img}
@@ -142,14 +142,16 @@ export default function HeroSlider({ slides = HERO_SLIDES }: { slides?: any[] })
         </button>
 
         {/* Dots — enlarged hit areas (A6), active state announced (V2) */}
-        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-1">
+        {/* Dots sit clear of the fixed mobile bottom nav (which overlays the
+            hero's lower edge and otherwise hides half of every tap target). */}
+        <div className="absolute bottom-28 md:bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-1">
           {activeSlides.map((_, k) => (
             <button
               key={k}
               onClick={() => setI(k)}
               aria-label={`Go to slide ${k + 1}`}
               aria-current={k === i ? "true" : undefined}
-              className="grid h-8 min-w-[32px] place-items-center"
+              className="grid h-11 min-w-[44px] place-items-center"
             >
               <span
                 className={`h-1.5 rounded-full transition-all ${

@@ -97,7 +97,7 @@ export default function CartDrawer() {
                     )}
                     <p className="text-sm font-semibold mt-1">{inr(i.unit_price)}</p>
                     {stock != null && stock <= 5 && stock > 0 && (
-                      <p className="text-[11px] text-amber-600 mt-0.5">Only {stock} left</p>
+                      <p className="text-[11px] text-amber-700 mt-0.5">Only {stock} left</p>
                     )}
                     {stock != null && stock === 0 && (
                       <p className="text-[11px] text-red-600 mt-0.5">Out of stock</p>
