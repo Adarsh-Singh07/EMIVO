@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
  * Light theme, matching the dashboard visual language (rounded-full, /10 backgrounds).
  */
 
-type BadgeTone = "amber" | "emerald" | "blue" | "red" | "purple" | "neutral" | "cyan";
+type BadgeTone = "amber" | "emerald" | "blue" | "red" | "purple" | "neutral" | "cyan" | "indigo" | "violet" | "sky" | "green";
 
 const toneClasses: Record<BadgeTone, string> = {
   amber: "bg-amber-50 text-amber-700 border-amber-200",
@@ -15,6 +15,10 @@ const toneClasses: Record<BadgeTone, string> = {
   purple: "bg-purple-50 text-purple-700 border-purple-200",
   neutral: "bg-neutral-100 text-neutral-600 border-neutral-200",
   cyan: "bg-cyan-50 text-cyan-700 border-cyan-200",
+  indigo: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  violet: "bg-violet-50 text-violet-700 border-violet-200",
+  sky: "bg-sky-50 text-sky-700 border-sky-200",
+  green: "bg-green-50 text-green-700 border-green-200",
 };
 
 function Pill({ tone, children, className }: { tone: BadgeTone; children: React.ReactNode; className?: string }) {
@@ -32,18 +36,24 @@ function Pill({ tone, children, className }: { tone: BadgeTone; children: React.
 }
 
 export function OrderStatusBadge({ status }: { status: string }) {
+  // One semantic mapping shared with storefront account/orders STATUS_STYLES
+  // (design-system Phase 4b): same status = same color on both apps.
   const s = status?.toUpperCase() || "";
   switch (s) {
     case "PENDING":
       return <Pill tone="amber">Pending</Pill>;
     case "CONFIRMED":
-      return <Pill tone="cyan">Confirmed</Pill>;
+      return <Pill tone="blue">Confirmed</Pill>;
     case "PROCESSING":
-      return <Pill tone="blue">Processing</Pill>;
+      return <Pill tone="indigo">Processing</Pill>;
+    case "PACKED":
+      return <Pill tone="violet">Packed</Pill>;
     case "SHIPPED":
       return <Pill tone="purple">Shipped</Pill>;
+    case "OUT_FOR_DELIVERY":
+      return <Pill tone="sky">Out for delivery</Pill>;
     case "DELIVERED":
-      return <Pill tone="emerald">Delivered</Pill>;
+      return <Pill tone="green">Delivered</Pill>;
     case "CANCELLED":
       return <Pill tone="red">Cancelled</Pill>;
     case "REFUNDED":

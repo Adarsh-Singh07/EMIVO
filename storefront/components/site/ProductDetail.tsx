@@ -295,7 +295,7 @@ export default function ProductDetail({
           <p className="text-[15px] uppercase tracking-[0.15em] text-neutral-500 font-medium">
             {product.brand}
           </p>
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mt-2">{product.name}</h1>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mt-2 break-words">{product.name}</h1>
 
           <p className="text-neutral-600 mt-3">{product.tagline}</p>
 
@@ -326,7 +326,7 @@ export default function ProductDetail({
             </button>
           )}
 
-          <div className="flex items-end gap-3 mt-5">
+          <div className="flex flex-wrap items-end gap-x-3 gap-y-1 mt-5">
             <span className="text-3xl font-semibold">{inr(displayPrice)}</span>
             {product.mrp > displayPrice && (
               <span className="text-neutral-400 line-through text-lg">{inr(product.mrp)}</span>
@@ -445,11 +445,13 @@ export default function ProductDetail({
             {outOfStock && <span className="text-sm font-medium text-red-600">Out of stock</span>}
           </div>
 
-          <div className="flex gap-2 sm:gap-4 mt-6">
+          {/* CTAs — stacked full-width on phones (tap-friendly, never clipped),
+              side-by-side from sm up. min-w-0 lets flex shrink safely. */}
+          <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-4 mt-6">
             {orderedOrderId ? (
               <Link
                 href={`/order-tracking?order=${orderedOrderId}`}
-                className="flex-1 h-16 inline-flex items-center justify-center gap-2 bg-neutral-950 text-white rounded-2xl text-lg font-semibold hover:bg-neutral-800 transition-colors shadow-sm"
+                className="min-w-0 flex-1 h-14 sm:h-16 inline-flex items-center justify-center gap-2 bg-neutral-950 text-white rounded-2xl text-base sm:text-lg font-semibold hover:bg-neutral-800 transition-colors shadow-sm"
               >
                 <Truck className="w-5 h-5" /> Track Your Order
               </Link>
@@ -457,7 +459,7 @@ export default function ProductDetail({
             <button
               onClick={addToCart}
               disabled={outOfStock || adding}
-              className="flex-1 h-16 inline-flex items-center justify-center gap-2 bg-neutral-950 text-white rounded-2xl text-lg font-semibold hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all active:scale-[0.98]"
+              className="min-w-0 flex-1 h-14 sm:h-16 inline-flex items-center justify-center gap-2 bg-neutral-950 text-white rounded-2xl text-base sm:text-lg font-semibold hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all active:scale-[0.98]"
             >
               {adding ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShoppingBag className="w-5 h-5" />}
               Add to Cart
@@ -465,7 +467,7 @@ export default function ProductDetail({
             <button
               onClick={buyNow}
               disabled={outOfStock || buying}
-              className="flex-1 h-16 inline-flex items-center justify-center gap-2 bg-amber-400 text-amber-950 rounded-2xl text-lg font-bold hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all active:scale-[0.98]"
+              className="min-w-0 flex-1 h-14 sm:h-16 inline-flex items-center justify-center gap-2 bg-amber-400 text-amber-950 rounded-2xl text-base sm:text-lg font-bold hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all active:scale-[0.98]"
             >
               {buying ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
               Buy Now
@@ -591,8 +593,8 @@ export default function ProductDetail({
                 ...(product.specs || []).map((s) => [s.name, s.value] as [string, string]),
               ].map(([k, v], i) => (
                 <div key={`${k}-${i}`} className={`flex justify-between gap-4 px-4 py-3 ${i % 2 ? "bg-neutral-50" : ""}`}>
-                  <span className="text-neutral-500 capitalize">{k}</span>
-                  <span className="font-medium text-neutral-900 text-right">{v}</span>
+                  <span className="text-neutral-500 capitalize shrink-0">{k}</span>
+                  <span className="font-medium text-neutral-900 text-right break-words min-w-0">{v}</span>
                 </div>
               ))}
             </div>

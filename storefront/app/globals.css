@@ -6,6 +6,14 @@
 }
 
 :root {
+  /* Brand tokens (Phase 4b) — mirrored in admin/src/app/globals.css */
+  --ex-ink: #0a0a0a;
+  --ex-surface: #ffffff;
+  --ex-accent: #059669;       /* emerald-600 — primary CTAs, links, success */
+  --ex-accent-warm: #f59e0b;  /* amber-500 — secondary brand accent */
+  --ex-danger: #dc2626;       /* red-600 */
+  --ex-warning: #d97706;      /* amber-600 */
+
   --background: 0 0% 100%;
   --foreground: 0 0% 6%;
   --card: 0 0% 100%;

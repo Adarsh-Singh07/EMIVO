@@ -117,7 +117,8 @@ export default function CategoriesPage() {
       </div>
 
       <div className="rounded-2xl border border-neutral-200 bg-white overflow-hidden">
-        <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm min-w-[640px]">
           <thead className="bg-neutral-50 border-b border-neutral-200">
             <tr>
               <th className="px-6 py-4 font-medium text-neutral-500 w-20">Image</th>
@@ -160,7 +161,8 @@ export default function CategoriesPage() {
               </tr>
             )}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
 
       {modalOpen && (
