@@ -19,6 +19,14 @@ async def _webhook_secret() -> str:
     return settings.cashfree_webhook_secret.get_secret_value()
 
 
+def _sign_webhook(secret: str, timestamp: str, raw: str) -> str:
+    """Compute Cashfree's webhook signature: base64(HMAC-SHA256(secret, timestamp + raw_body))."""
+    import base64, hashlib, hmac
+    return base64.b64encode(
+        hmac.new(secret.encode(), (timestamp + raw).encode(), hashlib.sha256).digest()
+    ).decode()
+
+
 async def _place_pending_online_order(client, buyer, coupon=None):
     products = await get_store_products(client, in_stock=True)
     product = next(p for p in products["items"] if p["stock"]["available"] >= 2)
@@ -119,8 +127,8 @@ async def test_webhook_capture_and_duplicate_delivery(client):
         }
     }
     raw = json.dumps(body)
-    signature = "valid_mock_signature"
     event_id = f"evt_{uuid.uuid4().hex[:12]}"
+    signature = _sign_webhook(await _webhook_secret(), event_id, raw)
 
     r = await client.post("/api/v1/payments/webhook/cashfree",
                           content=raw, headers={
