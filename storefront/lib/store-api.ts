@@ -312,6 +312,11 @@ export interface ReverseGeocodeResult {
 export interface StoreConfig {
   online_payment_available: boolean;
   payment_provider: string;
+  /** Per-gateway availability for the checkout chooser. */
+  easebuzz_available?: boolean;
+  cashfree_available?: boolean;
+  /** Cashfree is in sandbox (test) mode — the UI must label it. */
+  cashfree_sandbox?: boolean;
   cod_enabled: boolean;
   cod_fee_paise: number;
   flat_shipping_paise: number;
@@ -633,6 +638,8 @@ export const storeApi = {
     order_id: string;
     idempotency_key: string;
     amount?: number;
+    /** Gateway the buyer picked at checkout (EASEBUZZ | CASHFREE). */
+    provider?: "EASEBUZZ" | "CASHFREE";
   }): Promise<PaymentInitiateResponse> {
     return fetchApi<PaymentInitiateResponse>("/payments/initiate", {
       method: "POST",

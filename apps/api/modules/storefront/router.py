@@ -89,17 +89,17 @@ async def store_config(session: AsyncSession = Depends(optional_db_context)):
     from core.config import settings
     from modules.orders.service import get_store_settings
     
+    # Multi-gateway: each gateway is offered when ITS keys are configured —
+    # the buyer picks at checkout (PAYMENT_PROVIDER is only the default).
     cashfree_configured = bool(
-        settings.payment_provider == "cashfree"
-        and settings.cashfree_client_id
+        settings.cashfree_client_id
         and settings.cashfree_client_secret.get_secret_value()
     )
     easebuzz_configured = bool(
-        settings.payment_provider == "easebuzz"
-        and settings.easebuzz_merchant_key
+        settings.easebuzz_merchant_key
         and settings.easebuzz_salt.get_secret_value()
     )
-    
+
     try:
         db_cfg = await get_store_settings(session)
     except Exception as e:
@@ -109,6 +109,10 @@ async def store_config(session: AsyncSession = Depends(optional_db_context)):
     return {
         "online_payment_available": cashfree_configured or easebuzz_configured,
         "payment_provider": settings.payment_provider,
+        # Per-gateway availability for the checkout chooser + sandbox labelling
+        "easebuzz_available": easebuzz_configured,
+        "cashfree_available": cashfree_configured,
+        "cashfree_sandbox": settings.cashfree_environment.lower() == "sandbox",
         "cod_enabled": db_cfg.get("cod_enabled", settings.cod_enabled),
         "cod_fee_paise": db_cfg.get("cod_fee_paise", settings.cod_fee_paise),
         "flat_shipping_paise": db_cfg.get("flat_shipping_paise", settings.flat_shipping_paise),

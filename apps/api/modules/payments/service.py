@@ -48,17 +48,34 @@ def _amount_str_to_paise(value: Any) -> Optional[int]:
         return None
 
 
-def get_provider() -> BasePaymentProvider:
-    """Select the payment provider from configuration. Production must be
-    explicit: 'mock' is refused when ENV_NAME=prod."""
-    chosen = (settings.payment_provider or "mock").lower()
+def _provider_configured(name: str) -> bool:
+    name = (name or "").lower()
+    if name == "cashfree":
+        return bool(settings.cashfree_client_id and settings.cashfree_client_secret.get_secret_value())
+    if name == "easebuzz":
+        return bool(settings.easebuzz_merchant_key and settings.easebuzz_salt.get_secret_value())
+    if name == "mock":
+        return not settings.is_prod
+    return False
+
+
+def get_provider(name: Optional[str] = None) -> BasePaymentProvider:
+    """Build a payment provider. `name` overrides PAYMENT_PROVIDER (used when
+    the buyer picks the gateway at checkout). Raises RuntimeError when the
+    named provider has no keys configured — the router turns that into a
+    clean 503 the UI can surface as "choose the other gateway"."""
+    chosen = (name or settings.payment_provider or "mock").lower()
     if chosen == "cashfree":
+        if not _provider_configured("cashfree"):
+            raise RuntimeError("Cashfree is not configured (missing client id/secret)")
         return CashfreeProvider(
             client_id=settings.cashfree_client_id,
             client_secret=settings.cashfree_client_secret.get_secret_value(),
             environment=settings.cashfree_environment,
         )
     if chosen == "easebuzz":
+        if not _provider_configured("easebuzz"):
+            raise RuntimeError("Easebuzz is not configured (missing merchant key/salt)")
         return EasebuzzProvider(
             merchant_key=settings.easebuzz_merchant_key,
             salt=settings.easebuzz_salt.get_secret_value(),
@@ -163,15 +180,43 @@ class PaymentService:
         #    accidentally closed the gateway and taps retry must land back in
         #    the SAME session — never a second transaction for one order.
         active = await self.repository.get_active_for_order(order.id)
+        requested_name = (
+            payment_in.provider.value.lower()
+            if payment_in.provider != PaymentProvider.MOCK
+            else (settings.payment_provider or "mock")
+        )
+        if payment_in.provider == PaymentProvider.MOCK and active:
+            # No explicit gateway choice (e.g. the /pay retry page): resume the
+            # buyer's existing session on ITS provider, never the env default.
+            requested_name = active.provider.value.lower()
+        if requested_name != "mock" and not _provider_configured(requested_name):
+            # Fail before touching any existing session — the buyer keeps
+            # their old retry option if the chosen gateway is unavailable.
+            raise DomainException(
+                f"{requested_name.title()} payments are not available right now. Please choose another payment method.",
+                code="PROVIDER_UNAVAILABLE", status_code=503,
+            )
         if active and active.id != getattr(payment_in, "id", None):
             meta = active.metadata_info or {}
+            active_provider = active.provider.value.lower()
+            if active_provider != requested_name:
+                # The buyer switched gateways on retry — the old session is
+                # meaningless for the new provider. Retire it and start fresh.
+                await self.repository.update_status(
+                    active.id, PaymentStatus.FAILED, active.provider_payment_id
+                )
+                await self.repository.log_event(
+                    active.id, "payment_superseded",
+                    {"reason": f"provider switched to {requested_name}"},
+                )
+                active = None
             # Reconcile with Easebuzz BEFORE reopening: the gateway session may
             # already be dead ('transaction failed' page), or the payment may
             # have succeeded without our callback hearing about it.
-            if (self.provider.name == "easebuzz" and meta.get("txnid")
+            elif (active_provider == "easebuzz" and meta.get("txnid")
                     and active.status == PaymentStatus.CREATED):
                 try:
-                    fetched = await self.provider.fetch_payment(meta["txnid"])
+                    fetched = await get_provider("easebuzz").fetch_payment(meta["txnid"])
                     g_status = str(fetched.get("status", "")).upper()
                 except Exception:
                     g_status = ""
@@ -213,10 +258,21 @@ class PaymentService:
             )
         if payment_in.amount is None:
             payment_in = payment_in.model_copy(update={"amount": order.total})
-        if payment_in.provider == PaymentProvider.MOCK and self.provider.name == "cashfree":
-            payment_in = payment_in.model_copy(update={"provider": PaymentProvider.CASHFREE})
-        elif payment_in.provider == PaymentProvider.MOCK and self.provider.name == "easebuzz":
-            payment_in = payment_in.model_copy(update={"provider": PaymentProvider.EASEBUZZ})
+        # Provider choice: the buyer picks the gateway at checkout (EASEBUZZ
+        # or CASHFREE). MOCK (tests) resolves to the env-configured provider.
+        if payment_in.provider == PaymentProvider.MOCK:
+            chosen = settings.payment_provider or "mock"
+        else:
+            chosen = payment_in.provider.value.lower()
+            if not _provider_configured(chosen):
+                raise DomainException(
+                    f"{chosen.title()} payments are not available right now. Please choose another payment method.",
+                    code="PROVIDER_UNAVAILABLE", status_code=503,
+                )
+        self.provider = get_provider(chosen)
+        payment_in = payment_in.model_copy(
+            update={"provider": PaymentProvider(self.provider.name.upper())}
+        )
 
         # 4. Provider order (external call — runs on its own, no DB locks held)
         # Real customer details for the gateway (Easebuzz shows them on the
@@ -309,25 +365,39 @@ class PaymentService:
             if not is_staff:
                 raise DomainException("Not your payment", code="FORBIDDEN", status_code=403)
 
-        # Provider-specific verification
-        if self.provider.name == "cashfree":
+        # Provider-specific verification — always through the gateway the
+        # buyer actually paid on (stored on the payment), never the env default.
+        payment_provider = get_provider(payment.provider.value.lower())
+        if payment_provider.name == "cashfree":
             # For Cashfree, verify by fetching payment status from Cashfree API
             # using the Cashfree order ID (from provider_order_id or stored in payment)
             cf_order_id = provider_order_id or payment.provider_order_id
             if not cf_order_id:
                 raise DomainException("Missing provider order ID", code="BAD_REQUEST", status_code=400)
-            
-            cf_payment = await self.provider.verify_payment_by_order(cf_order_id)
+
+            cf_payment = await payment_provider.verify_payment_by_order(cf_order_id)
             if not cf_payment:
                 raise DomainException("Could not verify payment with Cashfree", code="PAYMENT_FAILED", status_code=502)
-            
+
             payment_status = cf_payment.get("payment_status")
             if payment_status != "SUCCESS":
                 await self._fail(payment, cf_payment.get("payment_message") or "payment_failed", cf_payment.get("cf_payment_id", ""))
                 raise DomainException(f"Payment not successful: {payment_status}", code="BAD_REQUEST", status_code=400)
-            
+
+            # Settled amount must match the local total (Cashfree reports major units)
+            settled_major = cf_payment.get("payment_amount")
+            if settled_major is not None and round(float(settled_major) * 100) != payment.amount:
+                await self.repository.log_event(
+                    payment_id, "cashfree_settled_amount_mismatch",
+                    {"settled_paise": round(float(settled_major) * 100), "expected_paise": payment.amount},
+                )
+                await self.db.commit()
+                raise DomainException(
+                    "Settled amount does not match the order total",
+                    code="BAD_REQUEST", status_code=400,
+                )
             provider_payment_id = cf_payment.get("cf_payment_id", provider_payment_id)
-        elif self.provider.name == "easebuzz":
+        elif payment_provider.name == "easebuzz":
             # Easebuzz: the status API is the ONLY source of truth. Client-
             # supplied signatures/hashes prove nothing (the salt must be
             # assumed known), so this path never captures from client input.
@@ -337,7 +407,7 @@ class PaymentService:
                     "Missing Easebuzz txnid for verification",
                     code="BAD_REQUEST", status_code=400,
                 )
-            fetched = await self.provider.fetch_payment(txnid)
+            fetched = await payment_provider.fetch_payment(txnid)
             provider_status = str(fetched.get("status", "")).upper()
             if provider_status == "SUCCESS":
                 settled = fetched.get("raw", {}) or {}
@@ -368,7 +438,7 @@ class PaymentService:
         else:
             # Signature verification for mock/legacy providers
             payload = f"{payment.provider_order_id}|{provider_payment_id}"
-            is_valid = await self.provider.verify_signature(payload, provider_signature)
+            is_valid = await payment_provider.verify_signature(payload, provider_signature)
             if not is_valid:
                 # Route through _fail so the order lands in PAYMENT_FAILED
                 # with its stock held for the 2-hour retry window (same as
@@ -549,7 +619,7 @@ class PaymentService:
         try:
             # Cashfree requires the order id (provider_order_id), not the payment id.
             if payment.provider_payment_id:
-                provider_refund = await self.provider.refund(
+                provider_refund = await get_provider(payment.provider.value.lower()).refund(
                     payment.provider_payment_id,
                     amount=refund_amount,
                     provider_order_id=payment.provider_order_id,
@@ -634,16 +704,15 @@ class PaymentService:
         payload_str = raw_payload.decode("utf-8", errors="replace")
         payload_to_verify = timestamp + payload_str
 
-        # Provider-specific webhook secret. Cashfree uses a dedicated webhook
-        # secret; mock accepts any signature matching "valid_mock_signature".
-        if self.provider.name == "cashfree":
-            webhook_secret = settings.cashfree_webhook_secret.get_secret_value()
-            if not webhook_secret:
-                raise DomainException("Payment provider not configured", code="PAYMENT_FAILED")
-        else:
-            webhook_secret = None
+        # This handler serves the Cashfree webhook route — always verify with
+        # the Cashfree provider + its dedicated webhook secret, regardless of
+        # which gateway is the env default.
+        provider = get_provider("cashfree")
+        webhook_secret = settings.cashfree_webhook_secret.get_secret_value()
+        if not webhook_secret:
+            raise DomainException("Payment provider not configured", code="PAYMENT_FAILED")
 
-        is_valid = await self.provider.verify_signature(payload_to_verify, signature, webhook_secret)
+        is_valid = await provider.verify_signature(payload_to_verify, signature, webhook_secret)
         if not is_valid:
             raise DomainException("Invalid webhook signature", code="BAD_REQUEST", status_code=400)
 
@@ -832,7 +901,7 @@ class PaymentService:
         # capture. The callback hash is treated as routing metadata only: the
         # salt must be assumed known, so a valid hash never proves payment.
         try:
-            fetched = await self.provider.fetch_payment(txnid)
+            fetched = await get_provider("easebuzz").fetch_payment(txnid)
             provider_status = str(fetched.get("status", "")).upper()
             logger.info("EaseBuzz status API: txnid=%s status=%s", txnid, provider_status)
         except Exception as exc:

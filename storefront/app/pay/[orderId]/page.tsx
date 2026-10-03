@@ -62,6 +62,8 @@ function PayPageInner() {
     env: "test" | "prod";
     checkoutUrl: string;
   } | null>(null);
+  /** Stashed Cashfree session — its presence triggers the v3 inline modal. */
+  const [cfSession, setCfSession] = useState<{ sessionId: string; environment: string } | null>(null);
   const paymentIdRef = useRef<string | null>(null);
   // This page also renders INSIDE the embedded gateway modal (the surl/furl
   // redirect lands here in the frame); then it reports to the parent instead
@@ -177,12 +179,24 @@ function PayPageInner() {
                 key?: string;
                 env?: string;
                 checkout_url?: string;
+                payment_session_id?: string;
+                environment?: string;
               };
             };
             if (st.orderId !== o.id) return false;
             const co = st.checkout;
-            if (co?.provider !== "easebuzz" || !co.access_key || !co.key || !co.env) return false;
             paymentIdRef.current = st.paymentId || null;
+            if (co?.provider === "cashfree" && co.payment_session_id) {
+              // Cashfree: the v3 inline modal opens via the cfSession effect.
+              setCfSession({
+                sessionId: co.payment_session_id,
+                environment: co.environment || "sandbox",
+              });
+              setPhase("awaiting");
+              startPolling(o.id);
+              return true;
+            }
+            if (co?.provider !== "easebuzz" || !co.access_key || !co.key || !co.env) return false;
             setGateway({
               accessKey: co.access_key,
               merchantKey: co.key,
@@ -231,6 +245,12 @@ function PayPageInner() {
             merchantKey: co.key,
             env: co.env === "prod" ? "prod" : "test",
             checkoutUrl: co.checkout_url || "",
+          });
+        } else if (co.provider === "cashfree" && (co as any).payment_session_id) {
+          // Cashfree: v3 inline modal opens via the cfSession effect.
+          setCfSession({
+            sessionId: (co as any).payment_session_id,
+            environment: (co as any).environment || "sandbox",
           });
         } else {
           // Legacy provider fallback (redirect to the hosted checkout page).
@@ -319,6 +339,43 @@ function PayPageInner() {
     },
     [orderId, refreshOrder]
   );
+
+  // Cashfree v3 inline checkout: loads the SDK, opens the modal on THIS page
+  // and routes the outcome through the same settle path as the Easebuzz frame.
+  const openCashfreeModal = useCallback(async () => {
+    if (!cfSession) return;
+    const { sessionId, environment } = cfSession;
+    setCfSession(null);
+    try {
+      const w = window as any;
+      if (!w.Cashfree) {
+        await new Promise<boolean>((resolve) => {
+          const s = document.createElement("script");
+          s.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
+          s.async = true;
+          s.onload = () => resolve(true);
+          s.onerror = () => resolve(false);
+          document.body.appendChild(s);
+        });
+      }
+      const Ctor = (window as any).Cashfree;
+      if (!Ctor) throw new Error("Could not load the Cashfree gateway.");
+      const mode = environment === "production" ? "production" : "sandbox";
+      const cf = Ctor.load ? await Ctor.load({ mode }) : Ctor({ mode });
+      const result = await cf.checkout({ paymentSessionId: sessionId, redirectTarget: "_modal" });
+      if (result?.redirect) return; // off-site hop (e.g. bank page) — polling settles
+      handleGatewayResult({
+        status: result?.error ? "failed" : "success",
+        rawStatus: result?.error?.raw || result?.status,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not open the Cashfree gateway.");
+    }
+  }, [cfSession, handleGatewayResult]);
+
+  useEffect(() => {
+    if (cfSession && !embedded) openCashfreeModal();
+  }, [cfSession, embedded, openCashfreeModal]);
 
   // When rendering inside the gateway frame, tell the host page the outcome.
   useEffect(() => {

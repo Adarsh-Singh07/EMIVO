@@ -21,7 +21,7 @@ from modules.payments.schemas import (
     PaymentSuccessVerification,
     PaymentRefundRequest,
 )
-from modules.payments.service import PaymentService
+from modules.payments.service import PaymentService, get_provider
 
 router = APIRouter(prefix="/payments", tags=["payments"])
 
@@ -66,7 +66,9 @@ async def initiate_payment(
             detail="Payment provider is not available. Please retry in a moment or choose Cash on Delivery.",
         ) from exc
     meta = payment.metadata_info or {}
-    provider_name = service.provider.name  # "cashfree" | "easebuzz" | "mock"
+    # The buyer picked the gateway at checkout — the response must match the
+    # gateway stored on the payment, not the env default.
+    provider_name = payment.provider.value.lower()  # "cashfree" | "easebuzz" | "mock"
 
     if provider_name == "easebuzz":
         # key + env are required client-side by the official EaseCheckout JS SDK
@@ -98,7 +100,7 @@ async def initiate_payment(
         }
     return PaymentInitiationResponse(
         payment=PaymentResponse.model_validate(payment),
-        provider=service.provider.name,
+        provider=provider_name,
         checkout=checkout,
     )
 
@@ -222,10 +224,14 @@ async def easebuzz_return(
         callback_data.get("status", "?"),
     )
 
-    # Verify hash before trusting any field
-    provider = service.provider
-    if not isinstance(provider, EasebuzzProvider):
-        logger.error("EaseBuzz return called but provider is not EaseBuzz: %s", provider.name)
+    # Verify hash before trusting any field. The callback belongs to an
+    # Easebuzz payment regardless of which gateway is the env default.
+    try:
+        provider = get_provider("easebuzz")
+    except RuntimeError:
+        provider = None
+    if provider is None:
+        logger.error("EaseBuzz return called but Easebuzz is not configured")
         return RedirectResponse(
             url=f"{cfg.storefront_url}/account/orders?error=misconfigured",
             status_code=303,
@@ -283,14 +289,17 @@ async def easebuzz_webhook(
         form = await request.form()
         callback_data = dict(form)
 
-    provider = service.provider
-    if isinstance(provider, EasebuzzProvider):
+    try:
+        provider = get_provider("easebuzz")
+    except RuntimeError:
+        provider = None
+    if provider is not None:
         hash_valid = provider.verify_callback_hash(callback_data)
         if not hash_valid:
             logger.warning("EaseBuzz webhook: invalid hash — rejected")
             raise HTTPException(status_code=400, detail="Invalid webhook signature")
     else:
-        logger.warning("EaseBuzz webhook called but active provider is %s", service.provider.name)
+        logger.warning("EaseBuzz webhook called but Easebuzz is not configured")
 
     txnid = callback_data.get("txnid", "") or callback_data.get("easebuzz_id", "")
     eb_status = callback_data.get("status", "").upper()

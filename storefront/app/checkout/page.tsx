@@ -23,6 +23,7 @@ import {
   CreditCard,
   Banknote,
   ShieldCheck,
+  Check,
   CheckCircle2,
   Tag,
   X,
@@ -135,13 +136,23 @@ function CheckoutContent() {
 
   /* ---------------- Store config: payment availability ---------------- */
   const [onlinePaymentAvailable, setOnlinePaymentAvailable] = useState<boolean | null>(null);
+  const [easebuzzAvailable, setEasebuzzAvailable] = useState(true);
+  const [cashfreeAvailable, setCashfreeAvailable] = useState(false);
+  const [cashfreeSandbox, setCashfreeSandbox] = useState(false);
   const [codEnabled, setCodEnabled] = useState<boolean | null>(null);
   const [codFeePaise, setCodFeePaise] = useState<number>(0);
   useEffect(() => {
     storeApi.getStoreConfig().then((cfg) => {
       setOnlinePaymentAvailable(cfg.online_payment_available);
+      setEasebuzzAvailable(cfg.easebuzz_available ?? true);
+      setCashfreeAvailable(cfg.cashfree_available ?? false);
+      setCashfreeSandbox(cfg.cashfree_sandbox ?? false);
       setCodEnabled(cfg.cod_enabled);
       setCodFeePaise(cfg.cod_fee_paise ?? 0);
+      // Default the gateway to whatever is actually available.
+      if (cfg.cashfree_available && !(cfg.easebuzz_available ?? true)) {
+        setGateway("CASHFREE");
+      }
       
       if (!cfg.online_payment_available && cfg.cod_enabled) {
         setPaymentMethod("COD");
@@ -377,12 +388,17 @@ function CheckoutContent() {
 
   /* ---------------- Payment step ---------------- */
   const [paymentMethod, setPaymentMethod] = useState<"COD" | "ONLINE">("ONLINE");
+  /** Gateway the buyer picks when paying online (backend routes accordingly). */
+  const [gateway, setGateway] = useState<"EASEBUZZ" | "CASHFREE">("EASEBUZZ");
 
-  // Warm the payment gateway: preconnect + preload the EaseCheckout SDK as
-  // soon as the buyer is likely to pay online, so the lightbox opens fast.
+  // Warm the payment gateway: preconnect + preload the SDK of the gateway
+  // the buyer currently has selected, so the lightbox opens fast. Swapping
+  // the selection preloads the other SDK too (both stay cached).
   useEffect(() => {
-    if (paymentMethod === "ONLINE") loadEasebuzzSdk();
-  }, [paymentMethod]);
+    if (paymentMethod !== "ONLINE") return;
+    if (gateway === "CASHFREE") loadCashfreeScript();
+    else loadEasebuzzSdk();
+  }, [paymentMethod, gateway]);
 
   /* ---------------- Order placement ---------------- */
   const idemKeyRef = useRef<string>("");
@@ -430,6 +446,7 @@ function CheckoutContent() {
         const init = await storeApi.initiatePayment({
           order_id: order.id,
           idempotency_key: newIdempotencyKey(),
+          provider: gateway,
         });
         const co = init.checkout;
 
@@ -457,9 +474,12 @@ function CheckoutContent() {
         }
 
         const w = window as any;
-        const cashfree = w.Cashfree({
-          mode: co.environment === "sandbox" ? "sandbox" : "production"
-        });
+        // Cashfree v3 SDK: Cashfree.load() returns a promise with the client.
+        // _modal keeps the checkout on this page (inline lightbox).
+        const CashfreeCtor = w.Cashfree?.load
+          ? await w.Cashfree.load({ mode: co.environment === "sandbox" ? "sandbox" : "production" })
+          : w.Cashfree({ mode: co.environment === "sandbox" ? "sandbox" : "production" });
+        const cashfree = CashfreeCtor;
 
         cashfree.checkout({
           paymentSessionId: co.payment_session_id,
@@ -522,7 +542,7 @@ function CheckoutContent() {
         if (isRetry) setRetryingPayment(false);
       }
     },
-    [contactName, contactPhone, user, reloadCart]
+    [contactName, contactPhone, user, reloadCart, gateway]
   );
 
   const placeOrder = async () => {
@@ -574,12 +594,19 @@ function CheckoutContent() {
             const init = await storeApi.initiatePayment({
               order_id: orderId,
               idempotency_key: crypto.randomUUID(),
+              provider: gateway,
             });
-            if (init.checkout?.provider === "easebuzz" && init.checkout.access_key) {
+            // Stash whichever gateway was chosen so the /pay page can open
+            // its lightbox with zero extra round-trips.
+            const co = init.checkout;
+            const hasSession =
+              (co?.provider === "easebuzz" && !!(co as any).access_key) ||
+              (co?.provider === "cashfree" && !!(co as any).payment_session_id);
+            if (hasSession) {
               sessionStorage.setItem(PAY_SESSION_KEY, JSON.stringify({
                 orderId,
                 paymentId: init.payment?.id || null,
-                checkout: init.checkout,
+                checkout: co,
               }));
             }
           } catch {
@@ -1316,6 +1343,49 @@ function CheckoutContent() {
                   </span>
                 </button>
               </div>
+
+              {/* Gateway chooser — visible when paying online. Both SDKs are
+                  preloaded on selection so the chosen lightbox opens fast. */}
+              {paymentMethod === "ONLINE" && onlinePaymentAvailable !== false && (
+                <div className="mt-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
+                    Choose payment gateway
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {([
+                      { id: "EASEBUZZ", name: "Easebuzz", note: "UPI · Cards · Netbanking", show: easebuzzAvailable, sandbox: false },
+                      { id: "CASHFREE", name: "Cashfree", note: "UPI · Cards · Netbanking", show: cashfreeAvailable, sandbox: cashfreeSandbox },
+                    ] as const).filter((g) => g.show).map((g) => (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => setGateway(g.id)}
+                        aria-pressed={gateway === g.id}
+                        className={`flex flex-col items-start gap-1 rounded-2xl border-2 p-4 text-left transition-all ${
+                          gateway === g.id
+                            ? "border-neutral-950 bg-neutral-50"
+                            : "border-neutral-200 hover:border-neutral-400"
+                        }`}
+                      >
+                        <span className="text-sm font-semibold flex items-center gap-2">
+                          {g.name}
+                          {g.sandbox && (
+                            <span className="rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-[10px] font-bold px-2 py-0.5 uppercase tracking-wide">
+                              Sandbox
+                            </span>
+                          )}
+                          {gateway === g.id && (
+                            <span className="w-4 h-4 rounded-full bg-neutral-950 text-white grid place-items-center">
+                              <Check className="w-2.5 h-2.5" />
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-xs text-neutral-500">{g.note}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <p className="flex items-center gap-2 text-xs text-neutral-500 mt-4">
                 <ShieldCheck className="w-3.5 h-3.5" /> Payments are processed securely — the final
