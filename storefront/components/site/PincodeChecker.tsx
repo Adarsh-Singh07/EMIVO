@@ -103,7 +103,7 @@ export default function PincodeChecker() {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <MapPin className="w-4 h-4 text-emerald-600" />
-          <span className="text-sm font-semibold text-neutral-900">Delivery &amp; Service Availability</span>
+          <span className="text-xs font-semibold text-neutral-900">Delivery Availability</span>
         </div>
         <button
           type="button"
@@ -201,17 +201,12 @@ export default function PincodeChecker() {
                 </div>
               </div>
 
-              {/* Badges strip */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-neutral-600 mt-2">
-                <div className="flex items-center gap-1.5 bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5">
+              {/* Badges strip — COD line intentionally removed: the store does
+                  not offer COD, so it must never appear anywhere. */}
+              <div className="mt-2 text-xs text-neutral-600">
+                <div className="flex items-center gap-1.5 bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5 w-fit">
                   <Truck className="w-3.5 h-3.5 text-neutral-700 shrink-0" />
                   <span>Free delivery over ₹999</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                  <span>
-                    {result.cod_available ? "Cash on Delivery Available" : "Prepaid Delivery via UPI/Cards"}
-                  </span>
                 </div>
               </div>
             </>

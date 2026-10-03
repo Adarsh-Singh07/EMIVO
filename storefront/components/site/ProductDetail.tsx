@@ -298,8 +298,6 @@ export default function ProductDetail({
           </p>
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mt-2 break-words">{product.name}</h1>
 
-          <p className="text-neutral-600 mt-3">{product.tagline}</p>
-
           {/* Live rating summary (hidden when no reviews exist — no fake stars) */}
           {typeof product.rating === "number" && !!product.reviews && product.reviews > 0 && (
             <button
@@ -446,33 +444,32 @@ export default function ProductDetail({
             {outOfStock && <span className="text-sm font-medium text-red-600">Out of stock</span>}
           </div>
 
-          {/* CTAs — stacked full-width on phones (tap-friendly, never clipped),
-              side-by-side from sm up. w-full/flex-1 split because flex-1 in a
-              column container would override the fixed height (flex-basis wins
-              over height on the main axis). */}
-          <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-4 mt-6">
+          {/* CTAs — compact side-by-side row on every viewport (owner pref:
+              horizontal + smaller, never stacked). flex-1 is width-only here
+              (row direction), so the fixed height applies cleanly. */}
+          <div className="flex flex-row gap-2 sm:gap-4 mt-6">
             {orderedOrderId ? (
               <Link
                 href={`/order-tracking?order=${orderedOrderId}`}
-                className="min-w-0 w-full sm:w-auto sm:flex-1 h-14 sm:h-16 inline-flex items-center justify-center gap-2 bg-neutral-950 text-white rounded-2xl text-base sm:text-lg font-semibold hover:bg-neutral-800 transition-colors shadow-sm"
+                className="min-w-0 flex-1 h-12 sm:h-14 inline-flex items-center justify-center gap-2 bg-neutral-950 text-white rounded-xl sm:rounded-2xl text-sm sm:text-base font-semibold hover:bg-neutral-800 transition-colors shadow-sm"
               >
-                <Truck className="w-5 h-5" /> Track Your Order
+                <Truck className="w-4 h-4 sm:w-5 sm:h-5" /> Track Your Order
               </Link>
             ) : null}
             <button
               onClick={addToCart}
               disabled={outOfStock || adding}
-              className="min-w-0 w-full sm:w-auto sm:flex-1 h-14 sm:h-16 inline-flex items-center justify-center gap-2 bg-neutral-950 text-white rounded-2xl text-base sm:text-lg font-semibold hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all active:scale-[0.98]"
+              className="min-w-0 flex-1 h-12 sm:h-14 inline-flex items-center justify-center gap-2 bg-neutral-950 text-white rounded-xl sm:rounded-2xl text-sm sm:text-base font-semibold hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all active:scale-[0.98]"
             >
-              {adding ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShoppingBag className="w-5 h-5" />}
+              {adding ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />}
               Add to Cart
             </button>
             <button
               onClick={buyNow}
               disabled={outOfStock || buying}
-              className="min-w-0 w-full sm:w-auto sm:flex-1 h-14 sm:h-16 inline-flex items-center justify-center gap-2 bg-amber-400 text-amber-950 rounded-2xl text-base sm:text-lg font-bold hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all active:scale-[0.98]"
+              className="min-w-0 flex-1 h-12 sm:h-14 inline-flex items-center justify-center gap-2 bg-amber-400 text-amber-950 rounded-xl sm:rounded-2xl text-sm sm:text-base font-bold hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all active:scale-[0.98]"
             >
-              {buying ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
+              {buying ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Zap className="w-4 h-4 sm:w-5 sm:h-5" />}
               Buy Now
             </button>
           </div>
@@ -489,13 +486,16 @@ export default function ProductDetail({
               {wished ? "Wishlisted" : "Wishlist"}
             </button>
             <button
-              onClick={handleCompare}
+              onClick={() => {
+                if (comparing) router.push("/compare");
+                else handleCompare();
+              }}
               aria-pressed={comparing}
               className={`shrink-0 min-w-[100px] h-11 inline-flex items-center justify-center gap-2 border rounded-full text-sm hover:bg-neutral-50 snap-start ${
-                comparing ? "border-neutral-950" : "border-neutral-200"
+                comparing ? "border-emerald-600 text-emerald-700" : "border-neutral-200"
               }`}
             >
-              <RefreshCw className="w-4 h-4" /> {comparing ? "In compare" : "Compare"}
+              <RefreshCw className="w-4 h-4" /> {comparing ? "Go to Compare" : "Compare"}
             </button>
             <button
               className="shrink-0 min-w-[100px] h-11 inline-flex items-center justify-center gap-2 border border-neutral-200 rounded-full text-sm hover:bg-neutral-50 snap-start"

@@ -117,21 +117,22 @@ export default function ProductCard({ product }: { product: Product }) {
           <Heart className={`w-3.5 h-3.5 ${wished ? "fill-white" : ""}`} />
         </button>
 
-        {/* Compare + quick view — hover reveal on desktop, always on mobile */}
+        {/* Compare + quick view — hover reveal on desktop, always on mobile.
+            Comparing state = color change only (no word) so the catalog stays clean. */}
         <div className="absolute right-2 top-11 sm:top-12 flex flex-col gap-2 lg:opacity-0 lg:translate-x-2 lg:group-hover:opacity-100 lg:group-hover:translate-x-0 lg:transition-all z-10">
           <button
             onClick={() => {
               if (comparing) router.push("/compare");
               else handleCompare();
             }}
-            aria-label={comparing ? "Go to compare" : "Add to compare"}
+            aria-label={comparing ? "In compare — go to compare" : "Add to compare"}
             aria-pressed={comparing}
-            className={`tap-target h-7 sm:h-8 ${comparing ? "px-2" : "w-7 sm:w-8"} rounded-full flex items-center justify-center gap-1 shadow-sm transition-colors ${
-              comparing ? "bg-neutral-950 text-white" : "bg-white text-neutral-700"
+            title={comparing ? "In compare — go to compare" : "Add to compare"}
+            className={`tap-target w-7 sm:w-8 h-7 sm:h-8 rounded-full flex items-center justify-center shadow-sm transition-colors ${
+              comparing ? "bg-emerald-600 text-white" : "bg-white text-neutral-700"
             }`}
           >
             <RefreshCw className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
-            {comparing && <span className="text-[10px] font-medium whitespace-nowrap">Compare</span>}
           </button>
           <Link
             href={href}
