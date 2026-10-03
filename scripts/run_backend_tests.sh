@@ -94,6 +94,7 @@ docker run --rm --network "$NET" \
   -e RAZORPAY_WEBHOOK_SECRET=test_webhook_secret \
   -e CASHFREE_CLIENT_ID=test-client \
   -e CASHFREE_CLIENT_SECRET=test_webhook_secret \
+  -e CASHFREE_WEBHOOK_SECRET=test_webhook_secret \
   -e EASEBUZZ_MERCHANT_KEY=testkey \
   -e EASEBUZZ_SALT=testsalt \
   -e STORE_BUSINESS_ID="" \
