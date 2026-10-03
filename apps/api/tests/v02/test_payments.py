@@ -213,10 +213,11 @@ async def test_failed_webhook_holds_stock_for_retry_window(client):
         }
     }
     raw = json.dumps(body)
+    ts = "1234567890"
     r = await client.post("/api/v1/payments/webhook/cashfree", content=raw, headers={
         "Content-Type": "application/json",
-        "X-Webhook-Signature": "valid_mock_signature",
-        "X-Webhook-Timestamp": "1234567890",
+        "X-Webhook-Signature": _sign_webhook(await _webhook_secret(), ts, raw),
+        "X-Webhook-Timestamp": ts,
     })
     assert r.status_code == 200
     assert r.json()["handled"]["failed"] is True
