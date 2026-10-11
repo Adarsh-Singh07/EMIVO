@@ -484,7 +484,14 @@ class ProductService:
         await self.session.commit()
 
     async def get_category_brands(self, category_id: str) -> List[dict]:
-        await self._get_current_business_id()
+        """Ordered brand list for a category. Tenancy is enforced by RLS:
+        the category row is only visible inside the caller's business, so an
+        unknown/foreign id simply returns an empty list."""
+        visible = await self.session.execute(
+            text("SELECT 1 FROM categories WHERE id = :cid LIMIT 1"), {"cid": category_id}
+        )
+        if visible.first() is None:
+            raise DomainException("Category not found", code="NOT_FOUND", status_code=404)
         res = await self.session.execute(text("""
             SELECT b.id, b.name, b.slug, b.logo_url, cb.position
             FROM category_brands cb
@@ -495,18 +502,25 @@ class ProductService:
         return [dict(r._mapping) for r in res.fetchall()]
 
     async def set_category_brands(self, category_id: str, brand_ids: List[str]) -> List[dict]:
-        from modules.products.models import Category, CategoryBrand
-        from sqlalchemy import select
-        business_id = await self._get_current_business_id()
-        cat = await self.session.execute(
-            select(Category).where(Category.id == category_id, Category.business_id == business_id)
+        """Replace a category's ordered brand list. RLS policies on
+        categories/brands/category_brands keep every write inside the
+        caller's business (FORCE RLS on emivo_app)."""
+        from modules.products.models import CategoryBrand
+        visible = await self.session.execute(
+            text("SELECT 1 FROM categories WHERE id = :cid LIMIT 1"), {"cid": category_id}
         )
-        if not cat.scalar_one_or_none():
+        if visible.first() is None:
             raise DomainException("Category not found", code="NOT_FOUND", status_code=404)
+        # only keep brand ids that exist in the caller's tenant
+        res = await self.session.execute(
+            text("SELECT id FROM brands WHERE id = ANY(:ids)"), {"ids": list(brand_ids)}
+        )
+        allowed = {r[0] for r in res.fetchall()}
         await self.session.execute(
             text("DELETE FROM category_brands WHERE category_id = :cid"), {"cid": category_id}
         )
         for pos, bid in enumerate(brand_ids):
-            self.session.add(CategoryBrand(category_id=category_id, brand_id=bid, position=pos))
+            if bid in allowed:
+                self.session.add(CategoryBrand(category_id=category_id, brand_id=bid, position=pos))
         await self.session.commit()
         return await self.get_category_brands(category_id)

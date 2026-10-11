@@ -80,6 +80,68 @@ async def list_products(
     return await service.list_products(limit=limit, offset=offset, search=search)
 
 
+# --------------------------------------------------------------------------
+# Brands + per-category brand associations (admin CRUD — canonical facet list)
+#
+# NOTE: declared BEFORE the /{product_id} catch-alls so "brands" is not
+# shadowed by the product-detail route.
+# --------------------------------------------------------------------------
+
+@router.get("/brands")
+async def list_brands(
+    service: ProductService = Depends(get_product_service),
+    current_user: User = Depends(require_roles(STAFF))
+) -> Any:
+    return await service.list_brands()
+
+
+@router.post("/brands", response_model=BrandResponse, status_code=status.HTTP_201_CREATED)
+async def create_brand(
+    payload: BrandCreate,
+    service: ProductService = Depends(get_product_service),
+    current_user: User = Depends(require_roles(STAFF))
+) -> Any:
+    return await service.create_brand(payload)
+
+
+@router.put("/brands/{brand_id}", response_model=BrandResponse)
+async def update_brand(
+    brand_id: str,
+    payload: BrandUpdate,
+    service: ProductService = Depends(get_product_service),
+    current_user: User = Depends(require_roles(STAFF))
+) -> Any:
+    return await service.update_brand(brand_id, payload)
+
+
+@router.delete("/brands/{brand_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_brand(
+    brand_id: str,
+    service: ProductService = Depends(get_product_service),
+    current_user: User = Depends(require_roles(STAFF))
+) -> None:
+    await service.delete_brand(brand_id)
+
+
+@router.get("/categories/{category_id}/brands")
+async def get_category_brands(
+    category_id: str,
+    service: ProductService = Depends(get_product_service),
+    current_user: User = Depends(require_roles(STAFF))
+) -> Any:
+    return await service.get_category_brands(category_id)
+
+
+@router.put("/categories/{category_id}/brands")
+async def set_category_brands(
+    category_id: str,
+    payload: CategoryBrandsSet,
+    service: ProductService = Depends(get_product_service),
+    current_user: User = Depends(require_roles(STAFF))
+) -> Any:
+    return await service.set_category_brands(category_id, payload.brand_ids)
+
+
 @router.get("/{product_id}", response_model=ProductResponse)
 async def get_product(
     product_id: str,
@@ -172,6 +234,10 @@ async def reorder_media(
 # Categories (admin CRUD)
 # --------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------
+# Categories (admin CRUD)
+# --------------------------------------------------------------------------
+
 @router.post("/categories", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
 async def create_category(
     payload: CategoryCreate,
@@ -196,62 +262,3 @@ async def delete_category(
     current_user: User = Depends(require_roles(STAFF))
 ) -> None:
     await service.delete_category(category_id)
-
-
-@router.get("/categories/{category_id}/brands")
-async def get_category_brands(
-    category_id: str,
-    service: ProductService = Depends(get_product_service),
-    current_user: User = Depends(require_roles(STAFF))
-) -> Any:
-    return await service.get_category_brands(category_id)
-
-
-@router.put("/categories/{category_id}/brands")
-async def set_category_brands(
-    category_id: str,
-    payload: CategoryBrandsSet,
-    service: ProductService = Depends(get_product_service),
-    current_user: User = Depends(require_roles(STAFF))
-) -> Any:
-    return await service.set_category_brands(category_id, payload.brand_ids)
-
-
-# --------------------------------------------------------------------------
-# Brands (admin CRUD — canonical facet list)
-# --------------------------------------------------------------------------
-
-@router.get("/brands")
-async def list_brands(
-    service: ProductService = Depends(get_product_service),
-    current_user: User = Depends(require_roles(STAFF))
-) -> Any:
-    return await service.list_brands()
-
-
-@router.post("/brands", response_model=BrandResponse, status_code=status.HTTP_201_CREATED)
-async def create_brand(
-    payload: BrandCreate,
-    service: ProductService = Depends(get_product_service),
-    current_user: User = Depends(require_roles(STAFF))
-) -> Any:
-    return await service.create_brand(payload)
-
-
-@router.put("/brands/{brand_id}", response_model=BrandResponse)
-async def update_brand(
-    brand_id: str,
-    payload: BrandUpdate,
-    service: ProductService = Depends(get_product_service),
-    current_user: User = Depends(require_roles(STAFF))
-) -> Any:
-    return await service.update_brand(brand_id, payload)
-
-
-@router.delete("/brands/{brand_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_brand(
-    brand_id: str,
-    service: ProductService = Depends(get_product_service),
-    current_user: User = Depends(require_roles(STAFF))
-) -> None:
-    await service.delete_brand(brand_id)
