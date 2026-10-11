@@ -191,20 +191,16 @@ export default function ProductDetail({
     return ok;
   };
 
-  const buyNow = async () => {
+  const buyNow = () => {
     if (outOfStock) return;
     setBuying(true);
-    const ok = await add({
-      id: product.id,
-      name: product.name,
-      brand: product.brand,
-      price: displayPrice,
-      mrp: product.mrp,
-      img: product.img,
-      variantId: selectedVariant?.id,
-    });
+    // Buy Now checks out ONLY this product — it does not touch the cart.
+    // The /checkout page reads `buyNow`/`variant` and places a single-item
+    // order; the buyer's saved cart stays intact.
+    const qs = new URLSearchParams({ buyNow: product.id });
+    if (selectedVariant?.id) qs.set("variant", selectedVariant.id);
+    router.push(`/checkout?${qs.toString()}`);
     setBuying(false);
-    if (ok) router.push("/checkout");
   };
 
   const handleWishlist = async () => {

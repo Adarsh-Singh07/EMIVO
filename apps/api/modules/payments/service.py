@@ -338,6 +338,8 @@ class PaymentService:
             "email": buyer_email.strip() or "customer@elektrix.in",
             "phone": str(ship.get("phone") or "").strip()[:15] or "9999999999",
         }
+        if order.user_id:
+            notes["user_id"] = str(order.user_id)
         provider_order = await self.provider.create_order(
             amount=order.total,
             currency=payment_in.currency or order.currency,
@@ -551,6 +553,7 @@ class PaymentService:
                     "payment_id": str(payment.id),
                     "amount": payment.amount,
                     "provider_payment_id": provider_payment_id,
+                    "payment_gateway": payment.provider.value.lower() if payment.provider else "",
                 },
             ))
 
@@ -565,6 +568,9 @@ class PaymentService:
                     "email": user_email,
                     "first_name": user_first_name,
                     "total": order.total,
+                    "amount": payment.amount,
+                    "provider_payment_id": provider_payment_id,
+                    "payment_gateway": payment.provider.value.lower() if payment.provider else "",
                     "payment_method": "ONLINE",
                     "items": [
                         {"name": oi.product_name, "qty": oi.quantity, "unit_price": oi.unit_price}

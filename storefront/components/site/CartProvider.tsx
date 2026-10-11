@@ -106,24 +106,32 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const cartIdRef = useRef<string | null>(null);
+  // Monotonic sequence guarding against out-of-order server responses: when
+  // two mutations are in flight, an OLDER response must never clobber the
+  // newer one (this is what made it look like items "disappeared" — adding a
+  // second product raced the first and a stale snapshot won).
+  const seqRef = useRef(0);
 
   const reload = useCallback(async () => {
+    const seq = ++seqRef.current;
     setLoading(true);
     try {
       const c = await storeApi.getCart();
       cartIdRef.current = c.id;
-      setCart(c);
+      if (seq === seqRef.current) setCart(c);
     } catch (err) {
       // 404 = genuinely no cart yet; anything else (auth hiccup, network)
       // is transient — keep the previous cart instead of showing a bogus
       // "empty cart" that still exists server-side.
       const status = (err as { status?: number })?.status;
-      if (status === 404 || !cartIdRef.current) {
-        cartIdRef.current = null;
-        setCart(null);
+      if (seq === seqRef.current) {
+        if (status === 404 || !cartIdRef.current) {
+          cartIdRef.current = null;
+          setCart(null);
+        }
       }
     } finally {
-      setLoading(false);
+      if (seq === seqRef.current) setLoading(false);
     }
   }, []);
 
@@ -191,9 +199,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const ensureCartId = useCallback(async (): Promise<string> => {
     if (cartIdRef.current) return cartIdRef.current;
+    const seq = ++seqRef.current;
     const c = await storeApi.getCart();
     cartIdRef.current = c.id;
-    setCart(c);
+    if (seq === seqRef.current) setCart(c);
     return c.id;
   }, []);
 
@@ -260,6 +269,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
       setDrawerOpen(true);
 
+      // Guard this response against a newer mutation that lands first.
+      const seq = ++seqRef.current;
       try {
         const cartId = await ensureCartId();
         const updated = await storeApi.addCartItem(cartId, {
@@ -267,12 +278,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
           variant_id: product.variantId,
           quantity: qty,
         });
+        if (seq !== seqRef.current) return true; // a newer mutation superseded this
         cartIdRef.current = updated?.id ?? cartId;
         setCart(updated);
         // E-commerce event — only fires when a provider is configured.
         track("add_to_cart", itemParams({ ...product, quantity: qty }));
         return true;
       } catch (err) {
+        if (seq !== seqRef.current) return false; // superseded — the newer call owns UI
         // Rollback the optimistic state and surface the real error.
         setCart(prevCart);
         const message = err instanceof Error ? err.message : "Could not add to cart";
@@ -302,12 +315,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
       );
       const cartId = cartIdRef.current;
       if (!cartId) return;
+      const seq = ++seqRef.current;
       storeApi
         .updateCartItem(cartId, itemId, qty)
         .then((updated) => {
-          if (updated) setCart(updated);
+          if (seq === seqRef.current && updated) setCart(updated);
         })
         .catch((err) => {
+          if (seq !== seqRef.current) return;
           setCart(prevCart);
           toast.error(err instanceof Error ? err.message : "Could not update quantity");
         });
@@ -322,12 +337,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setCart((c) => (c ? { ...c, items: c.items.filter((i) => i.id !== itemId) } : c));
       const cartId = cartIdRef.current;
       if (!cartId) return;
+      const seq = ++seqRef.current;
       storeApi
         .removeCartItem(cartId, itemId)
         .then((updated) => {
-          if (updated && typeof updated === "object") setCart(updated);
+          if (seq === seqRef.current && updated && typeof updated === "object") setCart(updated);
         })
         .catch((err) => {
+          if (seq !== seqRef.current) return;
           setCart(prevCart);
           toast.error(err instanceof Error ? err.message : "Could not remove item");
         });

@@ -133,11 +133,23 @@ class CartService:
             cart = await self.repository.get_by_session(session_id)
 
         if not cart:
-            cart_data = CartCreate(user_id=user_id, session_id=session_id)
-            created = await self.repository.create(cart_data, business_id)
-            cart_id = str(created.id)
-            await self.db.commit()
-            cart = await self.repository.get_by_id(cart_id)
+            from sqlalchemy.exc import IntegrityError
+            try:
+                cart_data = CartCreate(user_id=user_id, session_id=session_id)
+                created = await self.repository.create(cart_data, business_id)
+                cart_id = str(created.id)
+                await self.db.commit()
+                cart = await self.repository.get_by_id(cart_id)
+            except IntegrityError:
+                # Lost the create race (concurrent get_or_create under the
+                # unique session/user index): fall back to the winner's cart.
+                await self.db.rollback()
+                if user_id:
+                    cart = await self.repository.get_by_user(user_id)
+                if not cart and session_id:
+                    cart = await self.repository.get_by_session(session_id)
+                if not cart:
+                    raise
 
         return await self._build_cart_response(cart)
 
@@ -266,10 +278,18 @@ class CartService:
         user_cart = await self.repository.get_by_user(user_id)
 
         if not user_cart:
-            user_cart = await self.repository.create(
-                CartCreate(user_id=user_id), business_id
-            )
-            await self.db.commit()
+            from sqlalchemy.exc import IntegrityError
+            try:
+                user_cart = await self.repository.create(
+                    CartCreate(user_id=user_id), business_id
+                )
+                await self.db.commit()
+            except IntegrityError:
+                # Concurrent login raced us to creating the user cart.
+                await self.db.rollback()
+                user_cart = await self.repository.get_by_user(user_id)
+                if not user_cart:
+                    raise
 
         if guest_cart and guest_cart.id != user_cart.id and guest_cart.items:
             for g_item in guest_cart.items:

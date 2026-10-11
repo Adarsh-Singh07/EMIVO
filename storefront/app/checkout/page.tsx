@@ -105,9 +105,56 @@ export default function CheckoutPage() {
 }
 
 function CheckoutContent() {
-  const { lines, subtotal, loading: cartLoading, reload: reloadCart } = useCart();
+  const cart = useCart();
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  /* ---------------- Buy Now mode ----------------
+   * /checkout?buyNow=<productId>&variant=<variantId> checks out ONLY that
+   * product (single-item order, explicit `items` payload). The buyer's saved
+   * cart is NOT read or cleared — "add to cart → checkout" still carries
+   * every cart item. */
+  const buyNowId = searchParams.get("buyNow") || "";
+  const buyNowVariant = searchParams.get("variant") || "";
+  const [buyNowItem, setBuyNowItem] = useState<import("@/components/site/CartProvider").CartLine | null>(null);
+  const [buyNowLoading, setBuyNowLoading] = useState(!!buyNowId);
+  useEffect(() => {
+    if (!buyNowId) return;
+    let cancelled = false;
+    setBuyNowLoading(true);
+    (async () => {
+      try {
+        const p = await storeApi.getProduct(buyNowId);
+        if (cancelled) return;
+        setBuyNowItem({
+          id: `buynow-${buyNowId}`,
+          product_id: p.id,
+          variant_id: buyNowVariant || null,
+          quantity: 1,
+          unit_price: p.effective_price,
+          subtotal: p.effective_price,
+          product_name: p.name,
+          variant_name: null,
+          stock_available: p.stock?.available ?? null,
+          img: p.images?.[0],
+        });
+      } catch {
+        if (!cancelled) toast.error("Could not load this product — please try again.");
+      } finally {
+        if (!cancelled) setBuyNowLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [buyNowId, buyNowVariant]);
+
+  const isBuyNow = !!buyNowId;
+  const lines = isBuyNow && buyNowItem ? [buyNowItem] : cart.lines;
+  const subtotal = isBuyNow && buyNowItem ? buyNowItem.subtotal : cart.subtotal;
+  const cartLoading = isBuyNow ? buyNowLoading : cart.loading;
+  const reloadCart = cart.reload;
 
   // Surfaces the ?error=payment_cancelled toast on return from the gateway.
   useEffect(() => {
@@ -419,22 +466,31 @@ function CheckoutContent() {
   const contactPhone = selectedAddress?.phone || draftAddress?.phone || "";
 
   const buildPayload = () => {
-    if (selectedAddress) {
-      return { address_id: selectedAddress.id };
+    // Base: the delivery address (always required by the server).
+    const base = selectedAddress
+      ? { address_id: selectedAddress.id }
+      : {
+          shipping_address: {
+            full_name: draftAddress!.full_name.trim(),
+            phone: draftAddress!.phone.trim(),
+            line1: draftAddress!.line1.trim(),
+            line2: draftAddress!.line2.trim() || undefined,
+            city: draftAddress!.city.trim(),
+            state: draftAddress!.state.trim(),
+            pincode: draftAddress!.pincode.trim(),
+            country: "IN",
+          },
+        };
+    // Buy Now: send an explicit single-item payload so ONLY this product is
+    // ordered — the buyer's saved cart is left intact. Without `items`, the
+    // server resolves the whole cart (the normal "add to cart → checkout").
+    if (isBuyNow && buyNowItem) {
+      return {
+        ...base,
+        items: [{ product_id: buyNowItem.product_id, variant_id: buyNowVariant || undefined, quantity: 1 }],
+      };
     }
-    const a = draftAddress!;
-    return {
-      shipping_address: {
-        full_name: a.full_name.trim(),
-        phone: a.phone.trim(),
-        line1: a.line1.trim(),
-        line2: a.line2.trim() || undefined,
-        city: a.city.trim(),
-        state: a.state.trim(),
-        pincode: a.pincode.trim(),
-        country: "IN",
-      },
-    };
+    return base;
   };
 
   /** Opens Cashfree for an existing PENDING online order. */

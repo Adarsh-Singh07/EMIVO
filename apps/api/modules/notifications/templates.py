@@ -82,32 +82,43 @@ def _shell(
     pill_html = f'<div style="margin:0 0 16px;">{_pill(*pill)}</div>' if pill else ""
     pre = preheader or title
     return f"""<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8" />
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml"><head><meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>{title}</title></head>
+<meta name="color-scheme" content="light" />
+<meta name="x-apple-disable-message-reformatting" />
+<title>{title}</title>
+<style>
+  /* Mobile: let the 600px card fill the screen instead of overflowing */
+  @media only screen and (max-width:640px) {{
+    .sm-container {{ width:100% !important; }}
+    .sm-pad {{ padding-left:20px !important; padding-right:20px !important; }}
+    .sm-h1 {{ font-size:21px !important; }}
+    .sm-item {{ font-size:13px !important; }}
+  }}
+</style></head>
 <body style="margin:0;padding:0;background:{PAPER};-webkit-text-size-adjust:100%;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">{pre}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:{PAPER};">
 <tr><td align="center" style="padding:28px 12px;">
-  <table role="presentation" width="600" cellpadding="0" cellspacing="0"
+  <table role="presentation" width="600" class="sm-container" cellpadding="0" cellspacing="0"
          style="max-width:600px;width:100%;background:#ffffff;border:1px solid {LINE};border-radius:14px;overflow:hidden;">
     <!-- Brand accent -->
     <tr><td style="height:4px;background:{GREEN};font-size:0;line-height:0;">&nbsp;</td></tr>
     <!-- Header -->
-    <tr><td style="padding:20px 6% 18px;border-bottom:1px solid {LINE};">
+    <tr><td class="sm-pad" style="padding:20px 6% 18px;border-bottom:1px solid {LINE};">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
         <td align="left" valign="middle">{wordmark}</td>{meta}
       </tr></table>
     </td></tr>
     <!-- Body -->
-    <tr><td style="padding:34px 7% 10px;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <tr><td class="sm-pad" style="padding:34px 7% 10px;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
       {pill_html}
-      <h1 style="margin:0 0 14px;font-size:23px;line-height:1.3;color:{INK};">{title}</h1>
+      <h1 class="sm-h1" style="margin:0 0 14px;font-size:23px;line-height:1.3;color:{INK};">{title}</h1>
       <div style="font-size:15px;line-height:1.65;color:{MUTED};">{body_html}</div>
       {_cta(cta_url, cta_label)}
     </td></tr>
     <!-- Help strip -->
-    <tr><td style="padding:26px 7% 26px;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <tr><td class="sm-pad" style="padding:26px 7% 26px;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
       <div style="background:{PAPER};border:1px solid {LINE};border-radius:12px;padding:14px 18px;text-align:center;">
         <span style="font-size:13px;color:{FAINT};">Need help?</span>&nbsp;&nbsp;
         <a href="{SITE}/order-tracking" style="color:{INK};font-size:13px;font-weight:600;text-decoration:none;">Track an order</a>
@@ -147,11 +158,11 @@ def _items_table(items: list) -> str:
         return ""
     rows = "".join(
         "<tr>"
-        f"<td style='padding:12px 4px;border-bottom:1px solid {LINE};color:{INK};font-size:14px;'>"
+        f"<td class='sm-item' style='padding:12px 4px;border-bottom:1px solid {LINE};color:{INK};font-size:14px;'>"
         f"{i.get('name','Item')}</td>"
-        f"<td style='padding:12px 4px;border-bottom:1px solid {LINE};text-align:center;"
+        f"<td class='sm-item' style='padding:12px 4px;border-bottom:1px solid {LINE};text-align:center;"
         f"color:{MUTED};font-size:14px;'>{i.get('qty', 1)}</td>"
-        f"<td style='padding:12px 4px;border-bottom:1px solid {LINE};text-align:right;"
+        f"<td class='sm-item' style='padding:12px 4px;border-bottom:1px solid {LINE};text-align:right;"
         f"color:{INK};font-size:14px;font-weight:600;'>"
         f"{_rupees(i.get('unit_price', 0) * i.get('qty', 1))}</td>"
         "</tr>"
@@ -176,14 +187,51 @@ def _items_table(items: list) -> str:
     )
 
 
-def _pay_chip(payment_method: str) -> str:
+def _pay_chip(payment_method: str, gateway: str = "") -> str:
     if not payment_method:
         return ""
-    label = "Cash on Delivery" if payment_method == "COD" else "Paid online"
+    if payment_method == "COD":
+        label = "Cash on Delivery"
+    else:
+        g = (gateway or "").strip()
+        g = {"cashfree": "Cashfree", "easebuzz": "Easebuzz"}.get(g.lower())
+        label = f"Paid online via {g}" if g else "Paid online"
     return (
         f'<div style="margin:16px 0 0;"><span style="display:inline-block;background:{PAPER};'
         f'border:1px solid {LINE};border-radius:8px;padding:6px 12px;font-size:12px;'
         f'color:{MUTED};">Payment: {label}</span></div>'
+    )
+
+
+def _payment_details(p: dict) -> str:
+    """Payment details card: gateway, reference id, amount, status.
+
+    Only rendered for prepaid orders — COD orders have no gateway."""
+    if not p.get("payment_gateway"):
+        return ""
+    g = p["payment_gateway"].strip()
+    g_label = {"cashfree": "Cashfree", "easebuzz": "Easebuzz"}.get(g.lower(), g.title())
+    ref = str(p.get("provider_payment_id") or "")
+    ref_display = (ref[:18] + "…") if len(ref) > 18 else (ref or "—")
+    rows = [
+        ("Paid via", f"<b style='color:{INK};'>{g_label}</b>"),
+        ("Payment reference", f"<span style='font-family:Menlo,Consolas,monospace;letter-spacing:0.4px;"
+                              f"color:{INK};'>{ref_display}</span>"),
+        ("Amount", f"<b style='color:{INK};'>{_rupees(p.get('amount', 0))}</b>"),
+        ("Status", f'<span style="color:{GREEN};font-weight:700;">Success</span>'),
+    ]
+    body = "".join(
+        f"<tr><td style='padding:8px 4px;color:{FAINT};font-size:13px;white-space:nowrap;'>"
+        f"{k}</td><td style='padding:8px 4px;color:{MUTED};font-size:13px;text-align:right;'>{v}</td></tr>"
+        for k, v in rows
+    )
+    return (
+        f"<div style='margin:20px 0 0;'><table role='presentation' width='100%' cellpadding='0' "
+        f"cellspacing='0' style='border:1px solid {LINE};border-radius:12px;'>"
+        f"<tr><td style='background:#fafafa;padding:9px 14px;font-size:11px;font-weight:700;"
+        f"letter-spacing:1.2px;text-transform:uppercase;color:#a1a1aa;border-radius:12px 12px 0 0;'>"
+        f"Payment details</td></tr>"
+        f"<tr><td colspan='2' style='padding:4px 14px;'>{body}</td></tr></table></div>"
     )
 
 
@@ -210,6 +258,7 @@ def payment_failed(p: dict, storefront_url: str) -> tuple[str, str]:
 def order_created(p: dict, storefront_url: str) -> tuple[str, str]:
     name = p.get("first_name") or "there"
     items = p.get("items", [])
+    gateway = p.get("payment_gateway", "")
     body = (
         f"Hi {name}, thank you for shopping with ELEKTRIX. Your order is confirmed and "
         "our team is preparing it for dispatch — you'll receive an update at every step."
@@ -218,7 +267,8 @@ def order_created(p: dict, storefront_url: str) -> tuple[str, str]:
         f"<tr><td style='text-align:right;color:{MUTED};font-size:14px;padding:4px 4px;'>Total</td>"
         f"<td style='text-align:right;color:{INK};font-size:18px;font-weight:700;padding:4px 4px;'>"
         f"{_rupees(p.get('total', 0))}</td></tr></table>"
-        f"{_pay_chip(p.get('payment_method', ''))}"
+        f"{_pay_chip(p.get('payment_method', ''), gateway)}"
+        f"{_payment_details(p) if p.get('payment_method') == 'ONLINE' and gateway else ''}"
     )
     subject = f"Order confirmed: {p.get('order_number','')} — thanks, {name}!"
     return subject, _shell(
@@ -234,6 +284,7 @@ def payment_captured(p: dict, storefront_url: str) -> tuple[str, str]:
         f"We've received your payment of <b style='color:{INK};'>{_rupees(p.get('amount', 0))}</b> "
         f"for order <b style='color:{INK};'>{p.get('order_number','')}</b>. "
         "Your order is now being prepared and will ship soon."
+        f"{_payment_details(p)}"
     )
     subject = f"Payment received — order {p.get('order_number','')} is being prepared"
     return subject, _shell(

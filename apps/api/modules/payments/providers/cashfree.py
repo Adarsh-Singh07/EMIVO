@@ -52,6 +52,7 @@ class CashfreeProvider(BasePaymentProvider):
         customer_id = str(notes.get("user_id", "guest_" + receipt))
         customer_phone = str(notes.get("phone", "9999999999"))
         customer_email = str(notes.get("email", "customer@example.com"))
+        customer_name = str(notes.get("firstname") or notes.get("name") or "").strip()[:60]
 
         payload = {
             "order_id": f"cf_{receipt.replace('-', '_')}", # Cashfree requires alphanumeric order_id
@@ -61,6 +62,7 @@ class CashfreeProvider(BasePaymentProvider):
                 "customer_id": customer_id,
                 "customer_phone": customer_phone,
                 "customer_email": customer_email,
+                **({"customer_name": customer_name} if customer_name else {}),
             },
             "order_meta": {
                 # storefront_url is the canonical buyer-facing origin (VPS .env

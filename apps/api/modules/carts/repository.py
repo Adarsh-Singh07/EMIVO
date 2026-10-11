@@ -27,19 +27,25 @@ class CartRepository:
             .options(selectinload(Cart.items))
             .execution_options(populate_existing=True)
             .where(Cart.user_id == user_id)
+            .order_by(Cart.created_at.desc(), Cart.id.desc())
+            .limit(1)
         )
         result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        return result.scalars().first()
 
     async def get_by_session(self, session_id: str) -> Optional[Cart]:
+        # Most-recent-wins: a duplicate session cart (pre-unique-index era)
+        # must not 500 the whole cart — `scalar_one_or_none` raised on it.
         stmt = (
             select(Cart)
             .options(selectinload(Cart.items))
             .execution_options(populate_existing=True)
             .where(Cart.session_id == session_id)
+            .order_by(Cart.created_at.desc(), Cart.id.desc())
+            .limit(1)
         )
         result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        return result.scalars().first()
 
     async def create(self, cart_data: CartCreate, business_id: str) -> Cart:
         db_cart = Cart(
