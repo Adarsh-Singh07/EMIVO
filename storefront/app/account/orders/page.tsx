@@ -67,6 +67,14 @@ const CANCEL_REASONS = [
 
 const CAN_CANCEL = new Set(["PENDING", "CONFIRMED", "PROCESSING"]);
 
+/** Human gateway name from the payment record — never hard-code one. */
+function gatewayLabel(provider?: string | null): string {
+  const g = (provider || "").toLowerCase();
+  if (g === "cashfree") return "Cashfree";
+  if (g === "easebuzz") return "Easebuzz";
+  return "Online Payment";
+}
+
 function statusStyle(status: string) {
   return (
     STATUS_STYLES[status?.toUpperCase()] ?? {
@@ -329,7 +337,7 @@ function OrderDetail({
                     <CreditCard className="w-3.5 h-3.5" />
                     {order.payment_method === "COD"
                       ? "Cash on Delivery"
-                      : "Online Payment (Easebuzz)"}
+                      : `Online Payment (${gatewayLabel(order.payment_provider)})`}
                   </span>
                 )}
                 {order.payment_status && (
@@ -614,7 +622,7 @@ function OrderDetail({
             <div className="flex items-center justify-between">
               <span className="text-neutral-500">Method</span>
               <span className="font-medium text-neutral-700">
-                {order.payment_method === "COD" ? "Cash on Delivery" : "Online Payment (EaseBuzz)"}
+                {order.payment_method === "COD" ? "Cash on Delivery" : `Online Payment (${gatewayLabel(order.payment_provider)})`}
               </span>
             </div>
           </div>

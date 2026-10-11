@@ -266,6 +266,7 @@ export interface OrderV2 {
   payment_status?: string;
   payment_txnid?: string | null;       // EaseBuzz txnid / provider reference
   payment_provider_id?: string | null; // Provider payment ID
+  payment_provider?: string | null;    // Gateway used: "cashfree" | "easebuzz"
   coupon_code?: string | null;
   tracking_number?: string | null;
   tracking_url?: string | null;

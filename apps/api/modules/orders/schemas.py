@@ -141,6 +141,7 @@ class OrderResponseV2(OrderResponse):
     # Payment transaction details (populated from payments table join)
     payment_txnid: Optional[str] = None       # EaseBuzz txnid or provider reference
     payment_provider_id: Optional[str] = None  # Provider payment ID (easepayid etc.)
+    payment_provider: Optional[str] = None    # Gateway used: "cashfree" | "easebuzz"
 
 
 class CheckoutResponse(BaseModel):

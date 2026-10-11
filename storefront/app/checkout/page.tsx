@@ -142,16 +142,12 @@ function CheckoutContent() {
       setOnlinePaymentAvailable(cfg.online_payment_available);
       setCodEnabled(cfg.cod_enabled);
       setCodFeePaise(cfg.cod_fee_paise ?? 0);
-      // Follow the store's default gateway (admin-selected in Settings); there
-      // is no per-buyer chooser. Fall back to an available gateway if the
-      // default isn't configured.
+      // Follow the store's effective default gateway (admin-selected in
+      // Settings, env fallback resolved server-side). There is no per-buyer
+      // chooser — this MUST be the same value the admin panel displays.
       const dg = (cfg.default_gateway || "").toUpperCase();
-      if (dg === "CASHFREE" && (cfg.cashfree_available ?? false)) {
-        setGateway("CASHFREE");
-      } else if (dg === "EASEBUZZ" && (cfg.easebuzz_available ?? true)) {
-        setGateway("EASEBUZZ");
-      } else if (cfg.cashfree_available ?? false) {
-        setGateway("CASHFREE");
+      if (dg === "CASHFREE" || dg === "EASEBUZZ") {
+        setGateway(dg);
       }
       
       if (!cfg.online_payment_available && cfg.cod_enabled) {
@@ -388,8 +384,10 @@ function CheckoutContent() {
 
   /* ---------------- Payment step ---------------- */
   const [paymentMethod, setPaymentMethod] = useState<"COD" | "ONLINE">("ONLINE");
-  /** Gateway the buyer picks when paying online (backend routes accordingly). */
-  const [gateway, setGateway] = useState<"EASEBUZZ" | "CASHFREE">("EASEBUZZ");
+  /** Gateway the buyer pays through — the store's default (backend-resolved).
+   *  Initial matches the backend's Cashfree-preferred fallback so checkout and
+   *  the admin panel always agree, even before /store/config loads. */
+  const [gateway, setGateway] = useState<"EASEBUZZ" | "CASHFREE">("CASHFREE");
 
   // Warm the payment gateway: preconnect + preload the SDK of the gateway
   // the buyer currently has selected, so the lightbox opens fast. Swapping

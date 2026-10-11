@@ -517,32 +517,33 @@ class OrderService:
             page_size=page_size
         )
 
-        # Fetch payment txnid for all orders in one query
+        # Fetch payment txnid + gateway for all orders in one query
         if orders:
             order_ids = [str(o.id) for o in orders]
             pmt_res = await self.session.execute(
                 text(
-                    "SELECT order_id, metadata_info->>'txnid' AS txnid, provider_payment_id "
+                    "SELECT order_id, metadata_info->>'txnid' AS txnid, provider_payment_id, provider "
                     "FROM payments WHERE order_id = ANY(:ids) "
                     "ORDER BY created_at DESC"
                 ),
                 {"ids": order_ids},
             )
-            # Build lookup: order_id → (txnid, provider_payment_id)
+            # Build lookup: order_id → (txnid, provider_payment_id, provider)
             payment_map: dict[str, tuple] = {}
             for row in pmt_res.mappings():
                 oid = str(row["order_id"])
                 if oid not in payment_map:  # keep most recent
-                    payment_map[oid] = (row["txnid"], row["provider_payment_id"])
+                    payment_map[oid] = (row["txnid"], row["provider_payment_id"], row["provider"])
         else:
             payment_map = {}
 
         items_resp = []
         for o in orders:
             resp = OrderResponseV2.model_validate(o)
-            txnid, provider_id = payment_map.get(str(o.id), (None, None))
+            txnid, provider_id, provider = payment_map.get(str(o.id), (None, None, None))
             resp.payment_txnid = txnid
             resp.payment_provider_id = provider_id
+            resp.payment_provider = (provider or "").lower() or None
             items_resp.append(resp)
 
         has_next = (page * page_size) < total
