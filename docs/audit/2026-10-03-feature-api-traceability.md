@@ -19,6 +19,8 @@
 | Reviews list + submit | `GET/POST /store/products/{id}/reviews` | reviews module → `product_reviews` | ✅ tests |
 | Compare tray (max N) | client (`localStorage`) + product APIs | `storefront/lib/compare.ts` | ✅ live (tint state + Go-to-Compare navigation verified) |
 | Recently viewed | client | `storefront/lib/compare.ts` | ✅ tests |
+| Category landing pages (hero, by Brand, by Price, subcategory tiles, featured, filterable grid) | `GET /store/category-pages/{slug}` | catalog service → `categories`, `brands`, `category_brands`, live price buckets + `store_settings.config.store.category_pages` overrides | ✅ tests (`test_brands_facet`) |
+| Brand facet + `/shop` brand filter | `GET /store/brands?category=` | scoped distinct product brands ⋈ `brands` (logo/slug) | ✅ tests |
 
 ## 2. Storefront — cart, checkout, orders
 
@@ -55,8 +57,10 @@
 |---|---|---|---|
 | Ops home (live vitals) | `GET /admin/dashboard`, `/admin/activity` | admin service → aggregate queries | ✅ live |
 | Orders: list, detail, status transitions | `GET /admin/orders*`, `POST /admin/orders/{id}/status` | admin service → `orders`, audit via order notes | ✅ live + tests |
-| Products CRUD, media (R2), variants | `/admin/products*`, `/admin/products/{id}/media` | admin + media modules → `products`, `product_media` (R2 uploads) | ✅ live (owner) + tests (media allowlist) |
+| Products CRUD, media (R2), variants | `/admin/products*`, `/admin/products/{id}/media` | admin + media modules → `products`, `product_media` (R2 uploads) | ✅ live (owner) + tests (media allowlist); dependent category→subcategory + category-scoped brand dropdowns in the editor |
 | Categories & brands | `/admin/categories*` | admin service → `categories` | ✅ live (table overflow fixed this round) |
+| Brands manager (logo, rename cascade, per-category "by brand" lists) | `/admin/brands`, `/admin/categories/{id}/brands` | products service → `brands`, `category_brands`; rename cascades to `products.brand` | ✅ tests |
+| Category Pages editor (hero, buckets, featured picks, SEO per category) | `PUT /admin/store-settings` (`category_pages`) | store settings JSONB, merged live into `GET /store/category-pages/{slug}` | ✅ tests |
 | Inventory adjust / low stock | `/admin/inventory*` | inventory service → `inventory`, `inventory_movements` | ✅ tests |
 | Coupons, bank offers, broadcasts | `/admin/coupons*`, `/bank-offers`, `/broadcasts` | respective modules | ✅ tests |
 | Customers registry (realtime) | `GET /customers` (users-driven) | users + CRM left-join → `users` ⋈ `customers` | ✅ live (6 users listed) + tests |

@@ -52,6 +52,11 @@ CREATE POLICY "Public read for categories"
 -- Brands (canonical facet list; products.brand stays denormalized text)
 -- ---------------------------------------------------------------------------
 
+-- Privileges first: 00_app_role.sql predates these tables, so their grants
+-- live here (the alembic migration creates the tables before the RLS pass).
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.brands TO emivo_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.category_brands TO emivo_app;
+
 ALTER TABLE public.brands ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.brands FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.category_brands ENABLE ROW LEVEL SECURITY;
