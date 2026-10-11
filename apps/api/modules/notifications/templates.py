@@ -220,9 +220,13 @@ def _payment_details(p: dict) -> str:
         ("Amount", f"<b style='color:{INK};'>{_rupees(p.get('amount', 0))}</b>"),
         ("Status", f'<span style="color:{GREEN};font-weight:700;">Success</span>'),
     ]
-    body = "".join(
-        f"<tr><td style='padding:8px 4px;color:{FAINT};font-size:13px;white-space:nowrap;'>"
-        f"{k}</td><td style='padding:8px 4px;color:{MUTED};font-size:13px;text-align:right;'>{v}</td></tr>"
+    row_html = "".join(
+        "<tr>"
+        f"<td style='padding:8px 4px;color:{FAINT};font-size:13px;white-space:nowrap;'>"
+        f"{k}</td>"
+        f"<td style='padding:8px 4px;color:{MUTED};font-size:13px;text-align:right;'>"
+        f"{v}</td>"
+        "</tr>"
         for k, v in rows
     )
     return (
@@ -231,7 +235,9 @@ def _payment_details(p: dict) -> str:
         f"<tr><td style='background:#fafafa;padding:9px 14px;font-size:11px;font-weight:700;"
         f"letter-spacing:1.2px;text-transform:uppercase;color:#a1a1aa;border-radius:12px 12px 0 0;'>"
         f"Payment details</td></tr>"
-        f"<tr><td colspan='2' style='padding:4px 14px;'>{body}</td></tr></table></div>"
+        f"<tr><td style='padding:4px 14px;'>"
+        f"<table role='presentation' width='100%' cellpadding='0' cellspacing='0'>{row_html}</table>"
+        f"</td></tr></table></div>"
     )
 
 
