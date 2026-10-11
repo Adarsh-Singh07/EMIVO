@@ -40,8 +40,9 @@ async def test_brand_crud_and_rename_cascade(client, admin):
     r = await client.put(f"/api/v1/products/brands/{b['id']}", json={"name": to_name}, headers=admin)
     assert r.status_code == 200, r.text
 
-    prods = await get_store_products(client, page_size=1, category=prods["items"][0]["category_slug"])
-    assert prods["items"][0]["brand"] == to_name
+    detail = await client.get(f"/api/v1/store/products/{pid}")
+    assert detail.status_code == 200
+    assert detail.json()["brand"] == to_name
 
     # in-use brand cannot be deleted
     r = await client.delete(f"/api/v1/products/brands/{b['id']}", headers=admin)
