@@ -352,7 +352,10 @@ export interface ReverseGeocodeResult {
 export interface StoreConfig {
   online_payment_available: boolean;
   payment_provider: string;
-  /** Per-gateway availability for the checkout chooser. */
+  /** Effective default gateway customers pay through (no chooser): "cashfree" | "easebuzz". */
+  default_gateway?: string;
+  default_gateway_available?: boolean;
+  /** Per-gateway availability (admin status display + fallback). */
   easebuzz_available?: boolean;
   cashfree_available?: boolean;
   /** Cashfree is in sandbox (test) mode — the UI must label it. */

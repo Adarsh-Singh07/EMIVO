@@ -23,7 +23,6 @@ import {
   CreditCard,
   Banknote,
   ShieldCheck,
-  Check,
   CheckCircle2,
   Tag,
   X,
@@ -136,21 +135,22 @@ function CheckoutContent() {
 
   /* ---------------- Store config: payment availability ---------------- */
   const [onlinePaymentAvailable, setOnlinePaymentAvailable] = useState<boolean | null>(null);
-  const [easebuzzAvailable, setEasebuzzAvailable] = useState(true);
-  const [cashfreeAvailable, setCashfreeAvailable] = useState(false);
-  const [cashfreeSandbox, setCashfreeSandbox] = useState(false);
   const [codEnabled, setCodEnabled] = useState<boolean | null>(null);
   const [codFeePaise, setCodFeePaise] = useState<number>(0);
   useEffect(() => {
     storeApi.getStoreConfig().then((cfg) => {
       setOnlinePaymentAvailable(cfg.online_payment_available);
-      setEasebuzzAvailable(cfg.easebuzz_available ?? true);
-      setCashfreeAvailable(cfg.cashfree_available ?? false);
-      setCashfreeSandbox(cfg.cashfree_sandbox ?? false);
       setCodEnabled(cfg.cod_enabled);
       setCodFeePaise(cfg.cod_fee_paise ?? 0);
-      // Default the gateway to whatever is actually available.
-      if (cfg.cashfree_available && !(cfg.easebuzz_available ?? true)) {
+      // Follow the store's default gateway (admin-selected in Settings); there
+      // is no per-buyer chooser. Fall back to an available gateway if the
+      // default isn't configured.
+      const dg = (cfg.default_gateway || "").toUpperCase();
+      if (dg === "CASHFREE" && (cfg.cashfree_available ?? false)) {
+        setGateway("CASHFREE");
+      } else if (dg === "EASEBUZZ" && (cfg.easebuzz_available ?? true)) {
+        setGateway("EASEBUZZ");
+      } else if (cfg.cashfree_available ?? false) {
         setGateway("CASHFREE");
       }
       
@@ -1344,47 +1344,14 @@ function CheckoutContent() {
                 </button>
               </div>
 
-              {/* Gateway chooser — visible when paying online. Both SDKs are
-                  preloaded on selection so the chosen lightbox opens fast. */}
+              {/* Customers pay through the store's default gateway (chosen by
+                  admin in Settings) — no per-order chooser. The matching SDK
+                  is preloaded so the lightbox opens fast on this page. */}
               {paymentMethod === "ONLINE" && onlinePaymentAvailable !== false && (
-                <div className="mt-3">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-                    Choose payment gateway
-                  </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    {([
-                      { id: "EASEBUZZ", name: "Easebuzz", note: "UPI · Cards · Netbanking", show: easebuzzAvailable, sandbox: false },
-                      { id: "CASHFREE", name: "Cashfree", note: "UPI · Cards · Netbanking", show: cashfreeAvailable, sandbox: cashfreeSandbox },
-                    ] as const).filter((g) => g.show).map((g) => (
-                      <button
-                        key={g.id}
-                        type="button"
-                        onClick={() => setGateway(g.id)}
-                        aria-pressed={gateway === g.id}
-                        className={`flex flex-col items-start gap-1 rounded-2xl border-2 p-4 text-left transition-all ${
-                          gateway === g.id
-                            ? "border-neutral-950 bg-neutral-50"
-                            : "border-neutral-200 hover:border-neutral-400"
-                        }`}
-                      >
-                        <span className="text-sm font-semibold flex items-center gap-2">
-                          {g.name}
-                          {g.sandbox && (
-                            <span className="rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-[10px] font-bold px-2 py-0.5 uppercase tracking-wide">
-                              Sandbox
-                            </span>
-                          )}
-                          {gateway === g.id && (
-                            <span className="w-4 h-4 rounded-full bg-neutral-950 text-white grid place-items-center">
-                              <Check className="w-2.5 h-2.5" />
-                            </span>
-                          )}
-                        </span>
-                        <span className="text-xs text-neutral-500">{g.note}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <p className="mt-3 text-xs text-neutral-500">
+                  Pay securely with {gateway === "CASHFREE" ? "Cashfree" : "Easebuzz"} — UPI, cards
+                  &amp; netbanking.
+                </p>
               )}
 
               <p className="flex items-center gap-2 text-xs text-neutral-500 mt-4">

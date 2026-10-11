@@ -108,8 +108,9 @@ async def store_config(session: AsyncSession = Depends(optional_db_context)):
     from core.config import settings
     from modules.orders.service import get_store_settings
     
-    # Multi-gateway: each gateway is offered when ITS keys are configured —
-    # the buyer picks at checkout (PAYMENT_PROVIDER is only the default).
+    # Multi-gateway: each gateway is available when ITS keys are configured;
+    # which one customers actually use is the admin default (below), not a
+    # buyer choice — the checkout no longer shows a gateway chooser.
     cashfree_configured = bool(
         settings.cashfree_client_id
         and settings.cashfree_client_secret.get_secret_value()
@@ -125,10 +126,25 @@ async def store_config(session: AsyncSession = Depends(optional_db_context)):
         import logging; logging.error("COUPONS ERROR: " + repr(e))
         db_cfg = {}
         
+    # Default gateway customers pay through: admin-persisted choice first,
+    # then env PAYMENT_PROVIDER, then any configured gateway (cashfree first).
+    # The storefront no longer offers a chooser — it just follows this default.
+    configured_map = {"cashfree": cashfree_configured, "easebuzz": easebuzz_configured}
+    admin_default = str(db_cfg.get("default_gateway") or "").lower()
+    env_default = (settings.payment_provider or "mock").lower()
+    default_gateway = None
+    for cand in (admin_default, env_default, "cashfree", "easebuzz"):
+        if cand in configured_map and configured_map[cand]:
+            default_gateway = cand
+            break
+
     return {
         "online_payment_available": cashfree_configured or easebuzz_configured,
         "payment_provider": settings.payment_provider,
-        # Per-gateway availability for the checkout chooser + sandbox labelling
+        # Effective default gateway (admin choice > env > any configured).
+        "default_gateway": default_gateway,
+        "default_gateway_available": default_gateway is not None,
+        # Per-gateway availability (admin status display + fallback logic).
         "easebuzz_available": easebuzz_configured,
         "cashfree_available": cashfree_configured,
         "cashfree_sandbox": settings.cashfree_environment.lower() == "sandbox",

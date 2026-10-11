@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Settings, Save, Loader2, RefreshCw, AlertCircle, Shield, Globe, Truck, Banknote, Megaphone } from "lucide-react";
+import { Settings, Save, Loader2, RefreshCw, AlertCircle, Shield, Globe, Truck, Banknote, Megaphone, Zap, CreditCard, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { uploadMediaFile } from "@/lib/media";
@@ -39,6 +39,8 @@ interface StoreSettings {
   announcement: string | null;
   hero_slides?: any[];
   promo_tiles?: any[];
+  category_pages?: Record<string, any>;
+  default_gateway?: string | null;
 }
 
 const inputClass =
@@ -114,6 +116,14 @@ export default function SettingsPage() {
   const [heroSlides, setHeroSlides] = useState<any[]>([]);
   const [promoTiles, setPromoTiles] = useState<any[]>([]);
 
+  // Default payment gateway (customers pay through this; no buyer chooser).
+  const [defaultGateway, setDefaultGateway] = useState<string>("cashfree");
+  const [gwStatus, setGwStatus] = useState<{
+    cashfree?: boolean;
+    easebuzz?: boolean;
+    cashfreeSandbox?: boolean;
+  }>({});
+
   const loadBusiness = useCallback(async () => {
     try {
       setBusinessLoading(true);
@@ -154,6 +164,7 @@ export default function SettingsPage() {
       setAnnouncement(data.announcement || "");
       setHeroSlides(data.hero_slides || []);
       setPromoTiles(data.promo_tiles || []);
+      setDefaultGateway(data.default_gateway || "cashfree");
     } catch (err) {
       setStoreError(err instanceof ApiError ? `${err.message}${err.code ? ` (${err.code})` : ""}` : "Could not load store settings");
     } finally {
@@ -164,6 +175,19 @@ export default function SettingsPage() {
   useEffect(() => {
     loadBusiness();
     loadStore();
+    // Gateway availability/status comes from the public store config.
+    apiClient
+      .get<{ cashfree_available?: boolean; easebuzz_available?: boolean; cashfree_sandbox?: boolean; default_gateway?: string | null }>("/store/config")
+      .then((cfg) => {
+        setGwStatus({
+          cashfree: !!cfg.cashfree_available,
+          easebuzz: !!cfg.easebuzz_available,
+          cashfreeSandbox: !!cfg.cashfree_sandbox,
+        });
+        // Reflect the effective default if the admin hasn't chosen one yet.
+        if (cfg.default_gateway) setDefaultGateway(cfg.default_gateway);
+      })
+      .catch(() => {});
   }, [loadBusiness, loadStore]);
 
   const saveBusiness = async (e: React.FormEvent) => {
@@ -207,6 +231,7 @@ export default function SettingsPage() {
         announcement: announcement.trim() || null,
         hero_slides: heroSlides,
         promo_tiles: promoTiles,
+        default_gateway: defaultGateway,
       };
       const data = await apiClient.put<StoreSettings>("/admin/store-settings", payload);
       setStore(data);
@@ -323,6 +348,71 @@ export default function SettingsPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <RupeeField label="COD fee" value={codFee} onChange={setCodFee} placeholder="0" />
                 <RupeeField label="COD max order value" value={codMaxOrder} onChange={setCodMaxOrder} placeholder="e.g. 10000" hint="Orders above this must pay online." />
+              </div>
+            </div>
+
+            {/* Payment Gateway — default gateway customers pay through */}
+            <div className="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/50 p-4">
+              <span className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-700">
+                <Zap className="h-4 w-4 text-amber-500" /> Default Payment Gateway
+              </span>
+              <p className="text-xs text-neutral-500 -mt-2">
+                Customers always pay through this gateway — there is no choice at checkout.
+                Changing it takes effect on the next payment.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {([
+                  { id: "cashfree", name: "Cashfree" },
+                  { id: "easebuzz", name: "Easebuzz" },
+                ] as const).map((g) => {
+                  const active = defaultGateway === g.id;
+                  const available = g.id === "cashfree" ? gwStatus.cashfree : gwStatus.easebuzz;
+                  const sandbox = g.id === "cashfree" ? gwStatus.cashfreeSandbox : false;
+                  return (
+                    <label
+                      key={g.id}
+                      className={`flex flex-col gap-1 rounded-xl border-2 p-4 cursor-pointer transition-all ${
+                        active ? "border-neutral-900 bg-white" : "border-neutral-200 bg-white hover:border-neutral-400"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="default_gateway"
+                          value={g.id}
+                          checked={active}
+                          onChange={() => setDefaultGateway(g.id)}
+                          className="h-4 w-4 accent-neutral-900"
+                        />
+                        <CreditCard className={`h-4 w-4 ${active ? "text-neutral-900" : "text-neutral-400"}`} />
+                        <span className="text-sm font-semibold text-neutral-900">{g.name}</span>
+                      </span>
+                      <span className="ml-6 flex items-center gap-2 text-xs">
+                        {available === undefined ? (
+                          <span className="text-neutral-400">status unknown</span>
+                        ) : available ? (
+                          <>
+                            <span className="inline-flex items-center gap-1 text-green-600 font-medium">
+                              <Check className="h-3.5 w-3.5" /> Configured
+                            </span>
+                            {sandbox && (
+                              <span className="rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-[10px] font-bold px-2 py-0.5 uppercase tracking-wide">
+                                Sandbox
+                              </span>
+                            )}
+                            {!sandbox && (
+                              <span className="text-neutral-400">Live</span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-red-500 font-medium">
+                            <X className="h-3.5 w-3.5" /> Not configured
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
 

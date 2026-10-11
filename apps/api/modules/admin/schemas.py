@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class DashboardStats(BaseModel):
@@ -63,6 +63,19 @@ class StoreSettingsUpdate(BaseModel):
     # price_buckets: [{label, min_price, max_price}],
     # featured_product_ids: [..], seo_title, seo_description} }
     category_pages: Optional[dict] = None
+    # Admin-chosen default payment gateway customers pay through:
+    # "cashfree" | "easebuzz" | None (None -> env PAYMENT_PROVIDER default).
+    default_gateway: Optional[str] = None
+
+    @field_validator("default_gateway")
+    @classmethod
+    def _validate_default_gateway(cls, v: Optional[str]) -> Optional[str]:
+        if v in (None, ""):
+            return None
+        v = v.strip().lower()
+        if v not in ("cashfree", "easebuzz"):
+            raise ValueError("default_gateway must be 'cashfree', 'easebuzz' or null")
+        return v
 
 
 class StoreSettingsResponse(BaseModel):
@@ -77,6 +90,7 @@ class StoreSettingsResponse(BaseModel):
     hero_slides: Optional[List[dict]] = None
     promo_tiles: Optional[List[dict]] = None
     category_pages: Optional[dict] = None
+    default_gateway: Optional[str] = None
 
 class AdminInviteRequest(BaseModel):
     email: str

@@ -118,6 +118,30 @@ class PaymentService:
         user_id = res.scalar()
         return str(user_id) if user_id else None
 
+    async def _default_gateway(self) -> str:
+        """Effective default gateway customers pay through.
+
+        Priority: 1) admin-persisted `default_gateway` (store settings),
+        2) env `PAYMENT_PROVIDER`, 3) any configured gateway (cashfree first).
+        Never returns an unconfigured gateway when a configured one exists.
+        """
+        admin_default = ""
+        try:
+            from core.store import get_store_settings
+            cfg = await get_store_settings(self.db)
+            admin_default = str(cfg.get("default_gateway") or "").lower()
+        except Exception:
+            admin_default = ""
+        env_default = (settings.payment_provider or "mock").lower()
+        for cand in (admin_default, env_default):
+            if cand and cand != "mock" and _provider_configured(cand):
+                return cand
+        # Fallback: any configured gateway, Cashfree preferred (owner default).
+        for cand in ("cashfree", "easebuzz"):
+            if _provider_configured(cand):
+                return cand
+        return env_default  # "mock" in dev when nothing is configured
+
     # ------------------------------------------------------------------ #
     # Initiation                                                          #
     # ------------------------------------------------------------------ #
@@ -183,19 +207,28 @@ class PaymentService:
         requested_name = (
             payment_in.provider.value.lower()
             if payment_in.provider != PaymentProvider.MOCK
-            else (settings.payment_provider or "mock")
+            else await self._default_gateway()
         )
         if payment_in.provider == PaymentProvider.MOCK and active:
             # No explicit gateway choice (e.g. the /pay retry page): resume the
             # buyer's existing session on ITS provider, never the env default.
             requested_name = active.provider.value.lower()
         if requested_name != "mock" and not _provider_configured(requested_name):
-            # Fail before touching any existing session — the buyer keeps
-            # their old retry option if the chosen gateway is unavailable.
-            raise DomainException(
-                f"{requested_name.title()} payments are not available right now. Please choose another payment method.",
-                code="PROVIDER_UNAVAILABLE", status_code=503,
-            )
+            # The requested/default gateway is currently unavailable (no keys).
+            # Fall back to the effective default so the customer can still pay.
+            fallback = await self._default_gateway()
+            if fallback != "mock" and _provider_configured(fallback):
+                logger.warning(
+                    "gateway %s unavailable, falling back to default %s",
+                    requested_name, fallback,
+                )
+                requested_name = fallback
+            else:
+                # No gateway configured at all — nothing to fall back to.
+                raise DomainException(
+                    "Online payment is not available right now. Please try Cash on Delivery or retry shortly.",
+                    code="PROVIDER_UNAVAILABLE", status_code=503,
+                )
         if active and active.id != getattr(payment_in, "id", None):
             meta = active.metadata_info or {}
             active_provider = active.provider.value.lower()
@@ -258,17 +291,10 @@ class PaymentService:
             )
         if payment_in.amount is None:
             payment_in = payment_in.model_copy(update={"amount": order.total})
-        # Provider choice: the buyer picks the gateway at checkout (EASEBUZZ
-        # or CASHFREE). MOCK (tests) resolves to the env-configured provider.
-        if payment_in.provider == PaymentProvider.MOCK:
-            chosen = settings.payment_provider or "mock"
-        else:
-            chosen = payment_in.provider.value.lower()
-            if not _provider_configured(chosen):
-                raise DomainException(
-                    f"{chosen.title()} payments are not available right now. Please choose another payment method.",
-                    code="PROVIDER_UNAVAILABLE", status_code=503,
-                )
+        # Provider choice: resolved above into `requested_name` — the
+        # admin-default gateway when the buyer didn't pick (now always the
+        # case: the chooser is gone), with a configured-gateway fallback.
+        chosen = requested_name
         self.provider = get_provider(chosen)
         payment_in = payment_in.model_copy(
             update={"provider": PaymentProvider(self.provider.name.upper())}
