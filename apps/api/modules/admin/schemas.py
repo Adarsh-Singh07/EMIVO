@@ -58,6 +58,11 @@ class StoreSettingsUpdate(BaseModel):
     announcement: Optional[str] = None
     hero_slides: Optional[List[dict]] = None
     promo_tiles: Optional[List[dict]] = None
+    # Per-category landing-page overrides: { "<category_slug>": {hero_image,
+    # hero_title, hero_subtitle, brand_section_title, price_section_title,
+    # price_buckets: [{label, min_price, max_price}],
+    # featured_product_ids: [..], seo_title, seo_description} }
+    category_pages: Optional[dict] = None
 
 
 class StoreSettingsResponse(BaseModel):
@@ -71,6 +76,7 @@ class StoreSettingsResponse(BaseModel):
     announcement: Optional[str] = None
     hero_slides: Optional[List[dict]] = None
     promo_tiles: Optional[List[dict]] = None
+    category_pages: Optional[dict] = None
 
 class AdminInviteRequest(BaseModel):
     email: str

@@ -86,6 +86,36 @@ class Category(Base):
     children = relationship("Category", cascade="all, delete-orphan", lazy="selectin")
 
 
+class Brand(Base):
+    """Canonical brand list. products.brand remains the denormalized text value;
+    this table drives the admin dropdowns and the storefront brand facet."""
+
+    __tablename__ = "brands"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    business_id = Column(String, ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(120), nullable=False)
+    slug = Column(String(140), nullable=True)
+    logo_url = Column(String(1000), nullable=True)
+    position = Column(Integer, nullable=False, default=0, server_default="0")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index('ix_brands_business_id', 'business_id'),
+        dict(comment="Canonical brands; per-category ordering lives in category_brands"),
+    )
+
+
+class CategoryBrand(Base):
+    """Ordered brand list per category — powers 'Mobiles by Brand' facets."""
+
+    __tablename__ = "category_brands"
+
+    category_id = Column(String, ForeignKey("categories.id", ondelete="CASCADE"), primary_key=True)
+    brand_id = Column(String, ForeignKey("brands.id", ondelete="CASCADE"), primary_key=True)
+    position = Column(Integer, nullable=False, default=0, server_default="0")
+
+
 class ProductVariant(Base):
     __tablename__ = "product_variants"
 

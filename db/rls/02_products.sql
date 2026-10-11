@@ -49,6 +49,53 @@ CREATE POLICY "Public read for categories"
     USING (NULLIF(current_setting('app.business_id', true), '') IS NULL);
 
 -- ---------------------------------------------------------------------------
+-- Brands (canonical facet list; products.brand stays denormalized text)
+-- ---------------------------------------------------------------------------
+
+ALTER TABLE public.brands ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.brands FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.category_brands ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.category_brands FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Tenant isolation for brands" ON public.brands;
+DROP POLICY IF EXISTS "Public read for brands" ON public.brands;
+
+CREATE POLICY "Tenant isolation for brands"
+    ON public.brands
+    FOR ALL
+    USING (business_id = NULLIF(current_setting('app.business_id', true), '')::text);
+
+CREATE POLICY "Public read for brands"
+    ON public.brands
+    FOR SELECT
+    USING (NULLIF(current_setting('app.business_id', true), '') IS NULL);
+
+-- ---------------------------------------------------------------------------
+-- Category-brand associations (inherit tenancy from categories)
+-- ---------------------------------------------------------------------------
+
+DROP POLICY IF EXISTS "Tenant isolation for category_brands" ON public.category_brands;
+DROP POLICY IF EXISTS "Public read for category_brands" ON public.category_brands;
+
+CREATE POLICY "Tenant isolation for category_brands"
+    ON public.category_brands
+    FOR ALL
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.categories
+            WHERE id = category_brands.category_id
+            AND business_id = NULLIF(current_setting('app.business_id', true), '')::text
+        )
+    );
+
+CREATE POLICY "Public read for category_brands"
+    ON public.category_brands
+    FOR SELECT
+    USING (
+        NULLIF(current_setting('app.business_id', true), '') IS NULL
+    );
+
+-- ---------------------------------------------------------------------------
 -- Product variants (inherit from product)
 -- ---------------------------------------------------------------------------
 

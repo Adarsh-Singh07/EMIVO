@@ -92,11 +92,11 @@ interface DraftMedia {
   media_url: string;
 }
 
-function flattenCategories(nodes: CategoryNode[], depth = 0): Array<{ id: string; name: string; depth: number }> {
-  const out: Array<{ id: string; name: string; depth: number }> = [];
+function flattenCategories(nodes: CategoryNode[], depth = 0, parentId: string | null = null): Array<{ id: string; name: string; depth: number; parent: string | null }> {
+  const out: Array<{ id: string; name: string; depth: number; parent: string | null }> = [];
   for (const n of nodes) {
-    out.push({ id: n.id, name: n.name, depth });
-    if (n.children?.length) out.push(...flattenCategories(n.children, depth + 1));
+    out.push({ id: n.id, name: n.name, depth, parent: parentId });
+    if (n.children?.length) out.push(...flattenCategories(n.children, depth + 1, n.id));
   }
   return out;
 }
@@ -115,7 +115,13 @@ export function ProductEditor({ productId }: { productId?: string }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const [categories, setCategories] = useState<Array<{ id: string; name: string; depth: number }>>([]);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string; depth: number; parent: string | null }>>([]);
+  const [brandOptions, setBrandOptions] = useState<string[]>([]);
+  const [addingBrand, setAddingBrand] = useState(false);
+  const [newBrand, setNewBrand] = useState("");
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatParent, setNewCatParent] = useState("");
+  const [showNewCat, setShowNewCat] = useState(false);
 
   // Form state
   const [name, setName] = useState("");
@@ -209,6 +215,55 @@ export function ProductEditor({ productId }: { productId?: string }) {
         .catch(() => setCategories([]));
     }
   }, [isEdit, loadProduct]);
+
+  // Brand options scoped to the selected category ("the brand list for Mobiles"),
+  // falling back to every known brand when the category has none yet.
+  useEffect(() => {
+    let cancelled = false;
+    const base = "/store/brands" + (categoryId ? `?category=${encodeURIComponent(categoryId)}` : "");
+    apiClient
+      .get<Array<{ name: string }>>(base)
+      .then((rows) => {
+        if (cancelled) return;
+        const scoped = (rows || []).map((r) => r.name).filter(Boolean);
+        if (scoped.length) {
+          setBrandOptions(scoped);
+          return;
+        }
+        return apiClient
+          .get<Array<{ name: string }>>("/store/brands")
+          .then((all) => {
+            if (cancelled) return;
+            setBrandOptions((all || []).map((r) => r.name).filter(Boolean));
+          })
+          .catch(() => {});
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [categoryId]);
+
+  const createCategory = async (parentSel: string) => {
+    const nm = newCatName.trim();
+    if (!nm) return;
+    const slug = nm.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    try {
+      const res = await apiClient.post<{ id: string }>("/products/categories", {
+        name: nm,
+        slug,
+        parent_id: parentSel || null,
+      });
+      toast.success("Category created");
+      const cats = await apiClient.get<CategoryNode[]>("/store/categories");
+      setCategories(flattenCategories(cats));
+      setCategoryId(res.id);
+      setNewCatName("");
+      setShowNewCat(false);
+    } catch {
+      toast.error("Failed to create category");
+    }
+  };
 
   // ------------------------- AI Generation ------------------------- //
   const handleAIGenerate = async () => {
@@ -535,7 +590,61 @@ export function ProductEditor({ productId }: { productId?: string }) {
               </div>
               <div>
                 <label className={labelClass}>Brand</label>
-                <input className={inputClass} value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Havells" />
+                {addingBrand ? (
+                  <div className="flex gap-2">
+                    <input
+                      className={inputClass}
+                      value={newBrand}
+                      onChange={(e) => setNewBrand(e.target.value)}
+                      placeholder="e.g. Havells"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const v = newBrand.trim();
+                        if (v) {
+                          setBrand(v);
+                          setAddingBrand(false);
+                          setNewBrand("");
+                          toast.success(`Brand "${v}" added to the catalogue`);
+                        }
+                      }}
+                      className="shrink-0 px-3 h-11 rounded-xl bg-neutral-900 text-white text-sm font-medium"
+                    >
+                      Add
+                    </button>
+                  </div>
+                ) : (
+                  <select
+                    className={inputClass}
+                    value={brand && !brandOptions.includes(brand) ? "__custom__" : brand}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === "__new__") {
+                        setAddingBrand(true);
+                      } else {
+                        setBrand(v);
+                      }
+                    }}
+                  >
+                    <option value="">No brand</option>
+                    {brand && !brandOptions.includes(brand) && (
+                      <option value="__custom__">{brand} (custom)</option>
+                    )}
+                    {brandOptions.map((b) => (
+                      <option key={b} value={b}>
+                        {b}
+                      </option>
+                    ))}
+                    <option value="__new__">+ Add new brand…</option>
+                  </select>
+                )}
+                {brandOptions.length > 0 && (
+                  <p className="mt-1 text-xs text-neutral-400">
+                    Brands{categoryId ? " for the selected category" : " in the catalogue"}
+                  </p>
+                )}
               </div>
               <div>
                 <label className={labelClass}>Return Policy</label>
@@ -563,28 +672,41 @@ export function ProductEditor({ productId }: { productId?: string }) {
                   </select>
                   <button
                     type="button"
-                    onClick={() => {
-                      const name = window.prompt("New Category Name:");
-                      if (!name) return;
-                      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-                      apiClient.post<{ id: string }>("/products/categories", { name, slug })
-                        .then((res) => {
-                          toast.success("Category created");
-                          setCategoryId(res.id);
-                          return apiClient.get<{id:string; name:string; depth:number}[]>("/store/categories");
-                        })
-                        .then((cats) => {
-                          const flatten = (nodes: any[], depth = 0): any[] =>
-                            nodes.reduce((acc, node) => [...acc, { id: node.id, name: node.name, depth }, ...flatten(node.children || [], depth + 1)], []);
-                          setCategories(flatten(cats));
-                        })
-                        .catch(() => toast.error("Failed to create category"));
-                    }}
+                    onClick={() => setShowNewCat((v) => !v)}
                     className="shrink-0 px-3 py-2 text-sm font-semibold text-neutral-700 bg-neutral-100 rounded-xl hover:bg-neutral-200"
                   >
-                    + New
+                    {showNewCat ? "✕" : "+ New"}
                   </button>
                 </div>
+                {showNewCat && (
+                  <div className="mt-2 rounded-xl border border-neutral-200 bg-neutral-50 p-3 space-y-2">
+                    <input
+                      className={inputClass}
+                      value={newCatName}
+                      onChange={(e) => setNewCatName(e.target.value)}
+                      placeholder="New category / subcategory name"
+                      autoFocus
+                    />
+                    <select className={inputClass} value={newCatParent} onChange={(e) => setNewCatParent(e.target.value)}>
+                      <option value="">Top-level category</option>
+                      {categories
+                        .filter((c) => c.depth === 0)
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>
+                            Under {c.name} (subcategory)
+                          </option>
+                        ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => createCategory(newCatParent)}
+                      disabled={!newCatName.trim()}
+                      className="w-full h-10 rounded-xl bg-neutral-900 text-white text-sm font-semibold disabled:opacity-40"
+                    >
+                      Create category
+                    </button>
+                  </div>
+                )}
               </div>
               <div>
                 <label className={labelClass}>Status</label>

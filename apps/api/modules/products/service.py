@@ -92,6 +92,7 @@ class ProductService:
         else:
             await self.inventory.ensure_row(product.id, business_id, data.initial_stock or 0)
 
+        await self.sync_product_brand_facet(data.brand, data.category_id)
         await self.session.commit()
         return await self.repository.get_by_id(product.id)
 
@@ -132,6 +133,7 @@ class ProductService:
         if "tags" in provided:
             product.tags = data.tags
 
+        await self.sync_product_brand_facet(product.brand, product.category_id)
         await self.repository.update(product)
         await self.session.commit()
         return await self.repository.get_by_id(product.id)
@@ -319,3 +321,192 @@ class ProductService:
         
         await self.session.delete(category)
         await self.session.commit()
+
+    # ------------------------------------------------------------------
+    # Brands facet (canonical list + per-category associations)
+    # ------------------------------------------------------------------
+
+    async def _brand_slug(self, name: str) -> str:
+        import re
+        slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:120]
+        return slug or "brand"
+
+    async def _get_or_create_brand(self, business_id: str, name: str) -> "Brand":
+        from modules.products.models import Brand
+        from sqlalchemy import select
+        result = await self.session.execute(
+            select(Brand).where(Brand.business_id == business_id, Brand.name == name)
+        )
+        brand = result.scalar_one_or_none()
+        if brand:
+            return brand
+        brand = Brand(business_id=business_id, name=name, slug=await self._brand_slug(name))
+        self.session.add(brand)
+        await self.session.flush()
+        return brand
+
+    async def sync_product_brand_facet(self, brand_name: Optional[str], category_id: Optional[str]) -> None:
+        """Keep the brand facet usable with zero admin setup: a product saved
+        with a brand auto-registers the brand and associates it with the
+        product's category (and that category's parent, so parent landing
+        pages like Mobiles accumulate child-category brands)."""
+        if not brand_name or not brand_name.strip() or not category_id:
+            return
+        from modules.products.models import Category, CategoryBrand
+        from sqlalchemy import select
+        business_id = await self._get_current_business_id()
+        brand = await self._get_or_create_brand(business_id, brand_name.strip())
+
+        result = await self.session.execute(
+            select(Category).where(Category.id == category_id)
+        )
+        category = result.scalar_one_or_none()
+        if not category:
+            return
+        target_ids = [category.id]
+        if category.parent_id:
+            target_ids.append(category.parent_id)
+
+        for cid in target_ids:
+            existing = await self.session.execute(
+                select(CategoryBrand).where(
+                    CategoryBrand.category_id == cid, CategoryBrand.brand_id == brand.id
+                )
+            )
+            if not existing.scalar_one_or_none():
+                max_pos = await self.session.execute(
+                    text("SELECT COALESCE(MAX(position), -1) FROM category_brands WHERE category_id = :c"),
+                    {"c": cid},
+                )
+                self.session.add(CategoryBrand(
+                    category_id=cid, brand_id=brand.id, position=(max_pos.scalar() or -1) + 1
+                ))
+        # no commit here — caller commits with the product write
+
+    async def list_brands(self) -> List[dict]:
+        business_id = await self._get_current_business_id()
+        res = await self.session.execute(text("""
+            SELECT b.id, b.name, b.slug, b.logo_url, b.position,
+                   COALESCE(p.product_count, 0) AS product_count,
+                   COALESCE(cb.category_ids, ARRAY[]::text[]) AS category_ids
+            FROM brands b
+            LEFT JOIN (
+                SELECT brand, business_id, COUNT(*) AS product_count
+                FROM products
+                WHERE brand IS NOT NULL AND brand <> ''
+                GROUP BY brand, business_id
+            ) p ON p.brand = b.name AND p.business_id = b.business_id
+            LEFT JOIN (
+                SELECT brand_id, ARRAY_AGG(category_id::text ORDER BY position) AS category_ids
+                FROM category_brands GROUP BY brand_id
+            ) cb ON cb.brand_id = b.id
+            WHERE b.business_id = :bid
+            ORDER BY b.position, b.name
+        """), {"bid": business_id})
+        return [dict(r._mapping) for r in res.fetchall()]
+
+    async def create_brand(self, data) -> "Brand":
+        from modules.products.models import Brand
+        from sqlalchemy import select
+        business_id = await self._get_current_business_id()
+        name = data.name.strip()
+        dup = await self.session.execute(
+            select(Brand).where(Brand.business_id == business_id, Brand.name == name)
+        )
+        if dup.scalar_one_or_none():
+            raise DomainException("Brand already exists", code="CONFLICT", status_code=409)
+        brand = Brand(
+            business_id=business_id, name=name,
+            slug=await self._brand_slug(name),
+            logo_url=data.logo_url, position=data.position,
+        )
+        self.session.add(brand)
+        await self.session.commit()
+        return brand
+
+    async def update_brand(self, brand_id: str, data) -> "Brand":
+        from modules.products.models import Brand
+        from sqlalchemy import select
+        business_id = await self._get_current_business_id()
+        result = await self.session.execute(
+            select(Brand).where(Brand.id == brand_id, Brand.business_id == business_id)
+        )
+        brand = result.scalar_one_or_none()
+        if not brand:
+            raise DomainException("Brand not found", code="NOT_FOUND", status_code=404)
+
+        updates = data.model_dump(exclude_unset=True)
+        old_name = brand.name
+        if "name" in updates:
+            new_name = (updates.pop("name") or "").strip()
+            if new_name and new_name != old_name:
+                dup = await self.session.execute(
+                    select(Brand).where(
+                        Brand.business_id == business_id, Brand.name == new_name, Brand.id != brand_id
+                    )
+                )
+                if dup.scalar_one_or_none():
+                    raise DomainException("Brand already exists", code="CONFLICT", status_code=409)
+                brand.name = new_name
+                brand.slug = await self._brand_slug(new_name)
+                # Rename cascades to the denormalized product text
+                await self.session.execute(
+                    text("UPDATE products SET brand = :new WHERE business_id = :bid AND brand = :old"),
+                    {"new": new_name, "bid": business_id, "old": old_name},
+                )
+        if "logo_url" in updates:
+            brand.logo_url = updates.pop("logo_url")
+        if "position" in updates:
+            brand.position = updates.pop("position")
+        await self.session.commit()
+        return brand
+
+    async def delete_brand(self, brand_id: str) -> None:
+        from modules.products.models import Brand
+        from sqlalchemy import select
+        business_id = await self._get_current_business_id()
+        result = await self.session.execute(
+            select(Brand).where(Brand.id == brand_id, Brand.business_id == business_id)
+        )
+        brand = result.scalar_one_or_none()
+        if not brand:
+            raise DomainException("Brand not found", code="NOT_FOUND", status_code=404)
+        usage = await self.session.execute(
+            text("SELECT COUNT(*) FROM products WHERE business_id = :bid AND brand = :name"),
+            {"bid": business_id, "name": brand.name},
+        )
+        if (usage.scalar() or 0) > 0:
+            raise DomainException(
+                "Brand is used by products — reassign them first",
+                code="CONFLICT", status_code=409,
+            )
+        await self.session.delete(brand)
+        await self.session.commit()
+
+    async def get_category_brands(self, category_id: str) -> List[dict]:
+        await self._get_current_business_id()
+        res = await self.session.execute(text("""
+            SELECT b.id, b.name, b.slug, b.logo_url, cb.position
+            FROM category_brands cb
+            JOIN brands b ON b.id = cb.brand_id
+            WHERE cb.category_id = :cid
+            ORDER BY cb.position, b.name
+        """), {"cid": category_id})
+        return [dict(r._mapping) for r in res.fetchall()]
+
+    async def set_category_brands(self, category_id: str, brand_ids: List[str]) -> List[dict]:
+        from modules.products.models import Category, CategoryBrand
+        from sqlalchemy import select
+        business_id = await self._get_current_business_id()
+        cat = await self.session.execute(
+            select(Category).where(Category.id == category_id, Category.business_id == business_id)
+        )
+        if not cat.scalar_one_or_none():
+            raise DomainException("Category not found", code="NOT_FOUND", status_code=404)
+        await self.session.execute(
+            text("DELETE FROM category_brands WHERE category_id = :cid"), {"cid": category_id}
+        )
+        for pos, bid in enumerate(brand_ids):
+            self.session.add(CategoryBrand(category_id=category_id, brand_id=bid, position=pos))
+        await self.session.commit()
+        return await self.get_category_brands(category_id)

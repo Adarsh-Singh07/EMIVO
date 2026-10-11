@@ -40,6 +40,7 @@ export default function ShopContent() {
   // Single source of truth: the URL. Local state mirrors it for inputs.
   const q = sp.get("q") ?? "";
   const category = sp.get("category") ?? "";
+  const brand = sp.get("brand") ?? "";
   const rawSort = sp.get("sort") ?? "relevance";
   const sort: SortValue = (SORT_VALUES as readonly string[]).includes(rawSort)
     ? (rawSort as SortValue)
@@ -80,7 +81,7 @@ export default function ShopContent() {
   const [offline, setOffline] = useState(false);
   const [error, setError] = useState("");
 
-  const fetchKey = `${q}|${category}|${sort}|${minPrice}|${maxPrice}|${inStockOnly}|${page}`;
+  const fetchKey = `${q}|${category}|${brand}|${sort}|${minPrice}|${maxPrice}|${inStockOnly}|${page}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -90,6 +91,7 @@ export default function ShopContent() {
       .listProducts({
         q: q || undefined,
         category: category || undefined,
+        brand: brand || undefined,
         sort,
         min_price: minPrice ? Number(minPrice) * 100 : undefined,
         max_price: maxPrice ? Number(maxPrice) * 100 : undefined,
@@ -110,6 +112,7 @@ export default function ShopContent() {
         // Offline fallback: filter the static catalog client-side.
         const list = PRODUCTS.filter((p) => {
           if (category && p.category !== category) return false;
+          if (brand && (p.brand || "").toLowerCase() !== brand.toLowerCase()) return false;
           if (q) {
             const hay = `${p.name} ${p.brand} ${p.category} ${p.tagline}`.toLowerCase();
             if (!hay.includes(q.toLowerCase())) return false;
@@ -141,6 +144,22 @@ export default function ShopContent() {
   /* ------------------------- Categories ------------------------- */
   const [categories, setCategories] = useState<StoreCategory[]>([]);
 
+  /* ------------------------- Brands (scoped facet) ------------------------- */
+  const [brandOptions, setBrandOptions] = useState<import("@/lib/store-api").StoreBrandFacet[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    storeApi
+      .getBrands(category || undefined)
+      .then((bs) => {
+        if (!cancelled && Array.isArray(bs) && bs.length > 0) setBrandOptions(bs);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [category]);
+
   useEffect(() => {
     let cancelled = false;
     storeApi
@@ -167,7 +186,7 @@ export default function ShopContent() {
   }, [categories]);
 
   const activeFilterCount =
-    (category ? 1 : 0) + (minPrice || maxPrice ? 1 : 0) + (inStockOnly ? 1 : 0) + (sort !== "relevance" ? 1 : 0);
+    (category ? 1 : 0) + (brand ? 1 : 0) + (minPrice || maxPrice ? 1 : 0) + (inStockOnly ? 1 : 0) + (sort !== "relevance" ? 1 : 0);
 
   const applyPrice = () => {
     const min = minDraft.trim() && /^\d+$/.test(minDraft.trim()) ? minDraft.trim() : "";
@@ -272,6 +291,38 @@ export default function ShopContent() {
           </Link>
         ))}
       </div>
+
+      {/* Brand chips — scoped to the active category when one is chosen */}
+      {brandOptions.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto no-scrollbar scroll-fade-x pb-2 mb-6 snap-x">
+          <span className="shrink-0 px-3 h-9 inline-flex items-center text-xs font-bold uppercase tracking-wide text-neutral-400">
+            Brand
+          </span>
+          <button
+            onClick={() => setParam({ brand: null })}
+            className={`shrink-0 px-4 h-9 inline-flex items-center rounded-full border text-sm font-medium transition-colors snap-start ${
+              brand
+                ? "border-neutral-200 text-neutral-600 hover:border-neutral-400"
+                : "border-neutral-950 bg-neutral-950 text-white"
+            }`}
+          >
+            All
+          </button>
+          {brandOptions.map((b) => (
+            <button
+              key={b.name}
+              onClick={() => setParam({ brand: b.name }, brand === b.name)}
+              className={`shrink-0 px-4 h-9 inline-flex items-center rounded-full border text-sm font-medium transition-colors snap-start ${
+                brand === b.name
+                  ? "border-neutral-950 bg-neutral-950 text-white"
+                  : "border-neutral-200 text-neutral-600 hover:border-neutral-400"
+              }`}
+            >
+              {b.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-[240px_1fr] gap-8">
         {/* Sidebar filters (desktop) */}

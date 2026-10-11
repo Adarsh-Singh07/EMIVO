@@ -86,19 +86,19 @@ export default function Footer() {
           <h4 className="text-white font-semibold mb-4">Shop</h4>
           <ul className="space-y-2 text-sm">
             <li>
-              <Link href="/shop?category=mobiles">Mobiles</Link>
+              <Link href="/categories/mobiles">Mobiles</Link>
             </li>
             <li>
-              <Link href="/shop?category=laptops">Laptops</Link>
+              <Link href="/categories/computing">Computing</Link>
             </li>
             <li>
-              <Link href="/shop?category=audio">Audio</Link>
+              <Link href="/categories/audio">Audio</Link>
             </li>
             <li>
-              <Link href="/shop?category=appliances">Appliances</Link>
+              <Link href="/categories/power-charging">Power &amp; Charging</Link>
             </li>
             <li>
-              <Link href="/shop?category=wearables">Wearables</Link>
+              <Link href="/categories/wearables">Wearables</Link>
             </li>
           </ul>
         </div>

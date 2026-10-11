@@ -62,6 +62,45 @@ class CategoryResponse(CategoryBase):
         from_attributes = True
 
 
+class BrandBase(BaseModel):
+    name: str = Field(..., max_length=120)
+    logo_url: Optional[str] = None
+    position: int = 0
+
+
+class BrandCreate(BrandBase):
+    @field_validator("logo_url")
+    @classmethod
+    def check_logo_url(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_media_url(v)
+
+
+class BrandUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, max_length=120)
+    logo_url: Optional[str] = None
+    position: Optional[int] = None
+
+    @field_validator("logo_url")
+    @classmethod
+    def check_logo_url(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_media_url(v)
+
+
+class BrandResponse(BrandBase):
+    id: str
+    slug: Optional[str] = None
+    product_count: Optional[int] = None
+    category_ids: Optional[List[str]] = None
+
+    class Config:
+        from_attributes = True
+
+
+class CategoryBrandsSet(BaseModel):
+    """Replace a category's ordered brand list (the 'X by Brand' facet)."""
+    brand_ids: List[str]
+
+
 class ProductMediaBase(BaseModel):
     media_url: str
     position: int = 0

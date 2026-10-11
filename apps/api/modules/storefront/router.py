@@ -10,7 +10,9 @@ from core.exceptions import DomainException
 from modules.storefront.catalog import CatalogService
 from modules.storefront.schemas import (
     SearchSuggestion,
+    StoreBrandFacet,
     StoreCategory,
+    StoreCategoryPage,
     StoreProduct,
     StoreProductList,
 )
@@ -76,9 +78,26 @@ async def store_categories(service: CatalogService = Depends(_catalog)):
     return await service.categories()
 
 
-@router.get("/brands", response_model=List[str])
-async def store_brands(service: CatalogService = Depends(_catalog)):
-    return await service.brands()
+@router.get("/brands", response_model=List[StoreBrandFacet])
+async def store_brands(
+    category: Optional[str] = Query(default=None, description="category slug or id to scope the brand facet"),
+    service: CatalogService = Depends(_catalog),
+):
+    """Brand facet — all brands, or scoped to a category tree when `category` is set."""
+    return await service.brands(category)
+
+
+@router.get("/category-pages/{slug}", response_model=StoreCategoryPage)
+async def store_category_page(
+    slug: str,
+    service: CatalogService = Depends(_catalog),
+):
+    """Flipkart-style category landing payload: node, children, brand facet,
+    auto price buckets, featured products, and admin overrides."""
+    page = await service.category_page(slug)
+    if not page:
+        raise DomainException("Category not found", code="NOT_FOUND", status_code=404)
+    return page
 
 
 @router.get("/config")
@@ -132,6 +151,7 @@ async def store_config(session: AsyncSession = Depends(optional_db_context)):
         "announcement": db_cfg.get("announcement"),
         "hero_slides": db_cfg.get("hero_slides", []),
         "promo_tiles": db_cfg.get("promo_tiles", []),
+        "category_pages": db_cfg.get("category_pages", {}),
     }
 
 @router.get("/shipping-estimate")

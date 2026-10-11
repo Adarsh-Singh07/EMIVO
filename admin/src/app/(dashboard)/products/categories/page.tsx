@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Image as ImageIcon, Loader2, Edit } from "lucide-react";
+import { Plus, Trash2, Image as ImageIcon, Loader2, Edit, ChevronRight } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { uploadMediaFile } from "@/lib/media";
 import { toast } from "sonner";
@@ -10,16 +10,33 @@ interface Category {
   id: string;
   name: string;
   slug: string;
+  parent_id?: string | null;
   image_url?: string;
   icon?: string;
   keywords?: string;
   position: number;
+  children?: Category[];
+}
+
+interface FlatRow {
+  cat: Category;
+  depth: number;
+  isChild: boolean;
+}
+
+function flattenTree(nodes: Category[], depth = 0): FlatRow[] {
+  const out: FlatRow[] = [];
+  for (const n of nodes) {
+    out.push({ cat: n, depth, isChild: depth > 0 });
+    if (n.children?.length) out.push(...flattenTree(n.children, depth + 1));
+  }
+  return out;
 }
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCat, setEditingCat] = useState<Partial<Category>>({});
@@ -34,7 +51,7 @@ export default function CategoriesPage() {
     try {
       setLoading(true);
       const data = await apiClient.get<Category[]>("/store/categories");
-      setCategories(data);
+      setCategories(data || []);
     } catch (err) {
       toast.error("Failed to load categories");
     } finally {
@@ -42,13 +59,29 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleOpenAdd = () => {
-    setEditingCat({ name: "", slug: "", position: 0, icon: "", keywords: "", image_url: "" });
+  const roots = categories;
+  const rows = flattenTree(categories);
+  // parent options = top-level categories only (two-level tree keeps navigation sane)
+  const parentOptions = roots.filter((r) => !r.parent_id);
+
+  const handleOpenAdd = (parent?: Category) => {
+    setEditingCat({
+      name: "",
+      slug: "",
+      position: 0,
+      icon: "",
+      keywords: "",
+      image_url: "",
+      parent_id: parent?.id ?? null,
+    });
     setModalOpen(true);
   };
 
   const handleOpenEdit = (c: Category) => {
-    setEditingCat({ ...c });
+    setEditingCat({
+      ...c,
+      parent_id: c.parent_id ?? null,
+    });
     setModalOpen(true);
   };
 
@@ -56,11 +89,20 @@ export default function CategoriesPage() {
     e.preventDefault();
     setSaving(true);
     try {
+      const payload: Record<string, unknown> = {
+        name: editingCat.name,
+        slug: editingCat.slug,
+        position: editingCat.position ?? 0,
+        icon: editingCat.icon || null,
+        keywords: editingCat.keywords || null,
+        image_url: editingCat.image_url || null,
+        parent_id: editingCat.parent_id || null,
+      };
       if (editingCat.id) {
-        await apiClient.put(`/products/categories/${editingCat.id}`, editingCat);
+        await apiClient.put(`/products/categories/${editingCat.id}`, payload);
         toast.success("Category updated");
       } else {
-        await apiClient.post("/products/categories", editingCat);
+        await apiClient.post("/products/categories", payload);
         toast.success("Category created");
       }
       setModalOpen(false);
@@ -86,10 +128,13 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleDelete = async (categoryId: string) => {
-    if (!window.confirm("Are you sure?")) return;
+  const handleDelete = async (c: Category) => {
+    const warn = c.children?.length
+      ? `Also deletes its ${c.children.length} subcategory(ies). `
+      : "";
+    if (!window.confirm(`${warn}Delete "${c.name}"?`)) return;
     try {
-      await apiClient.delete(`/products/categories/${categoryId}`);
+      await apiClient.delete(`/products/categories/${c.id}`);
       toast.success("Category deleted");
       loadCategories();
     } catch (err) {
@@ -104,11 +149,15 @@ export default function CategoriesPage() {
     <div className="space-y-6 relative">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Categories & Brands</h1>
-          <p className="mt-1 text-sm text-neutral-500">Manage your product categories and brand logos.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Categories</h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            Manage top-level categories and subcategories. Manage{" "}
+            <a href="/products/brands" className="text-blue-600 hover:underline">brands</a>{" "}
+            on their own page.
+          </p>
         </div>
         <button
-          onClick={handleOpenAdd}
+          onClick={() => handleOpenAdd()}
           className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-neutral-800"
         >
           <Plus className="h-4 w-4" />
@@ -124,40 +173,54 @@ export default function CategoriesPage() {
               <th className="px-6 py-4 font-medium text-neutral-500 w-20">Image</th>
               <th className="px-6 py-4 font-medium text-neutral-500">Name</th>
               <th className="px-6 py-4 font-medium text-neutral-500">Slug</th>
-              <th className="px-6 py-4 font-medium text-neutral-500">Icon</th>
-              <th className="px-6 py-4 font-medium text-neutral-500">Keywords</th>
-              <th className="px-6 py-4 font-medium text-neutral-500 text-right">Actions</th>
+              <th className="px-6 py-4 font-medium text-neutral-500">Level</th>
+              <th className="px-6 py-4 font-medium text-neutral-500">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">
-            {categories.map((c) => (
-              <tr key={c.id} className="hover:bg-neutral-50/50 transition-colors">
+            {rows.map(({ cat, depth, isChild }) => (
+              <tr key={cat.id} className="hover:bg-neutral-50/50 transition-colors">
                 <td className="px-6 py-4">
                   <div className="h-10 w-10 rounded-xl border border-neutral-200 bg-neutral-100 overflow-hidden flex items-center justify-center">
-                    {c.image_url ? (
-                      <img src={c.image_url} alt={c.name} className="h-full w-full object-contain" />
+                    {cat.image_url ? (
+                      <img src={cat.image_url} alt={cat.name} className="h-full w-full object-contain" />
                     ) : (
                       <ImageIcon className="h-5 w-5 text-neutral-400" />
                     )}
                   </div>
                 </td>
-                <td className="px-6 py-4 font-medium text-neutral-900">{c.name}</td>
-                <td className="px-6 py-4 text-neutral-500">{c.slug}</td>
-                <td className="px-6 py-4 text-neutral-500">{c.icon || "-"}</td>
-                <td className="px-6 py-4 text-neutral-500">{c.keywords || "-"}</td>
+                <td className="px-6 py-4 font-medium text-neutral-900">
+                  <span className="flex items-center gap-2">
+                    {isChild && <ChevronRight className="h-4 w-4 text-neutral-400 shrink-0" />}
+                    <span style={{ paddingLeft: depth * 14 }}>{cat.name}</span>
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-neutral-500">{cat.slug}</td>
+                <td className="px-6 py-4 text-neutral-500">
+                  {isChild ? "Subcategory" : "Top-level"}
+                </td>
                 <td className="px-6 py-4 text-right">
-                  <button onClick={() => handleOpenEdit(c)} className="p-2 text-neutral-400 hover:text-blue-600 transition-colors mr-2">
+                  {!isChild && (
+                    <button
+                      onClick={() => handleOpenAdd(cat)}
+                      className="p-2 text-neutral-400 hover:text-amber-600 transition-colors mr-1"
+                      title={`Add subcategory under ${cat.name}`}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button onClick={() => handleOpenEdit(cat)} className="p-2 text-neutral-400 hover:text-blue-600 transition-colors mr-2" title="Edit">
                     <Edit className="h-4 w-4" />
                   </button>
-                  <button onClick={() => handleDelete(c.id)} className="p-2 text-neutral-400 hover:text-red-600 transition-colors">
+                  <button onClick={() => handleDelete(cat)} className="p-2 text-neutral-400 hover:text-red-600 transition-colors" title="Delete">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </td>
               </tr>
             ))}
-            {categories.length === 0 && !loading && (
+            {rows.length === 0 && !loading && (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-neutral-500">No categories found.</td>
+                <td colSpan={5} className="px-6 py-8 text-center text-neutral-500">No categories found.</td>
               </tr>
             )}
           </tbody>
@@ -168,8 +231,14 @@ export default function CategoriesPage() {
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <form onSubmit={handleSave} className="bg-white rounded-2xl p-6 w-full max-w-xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-6">{editingCat.id ? "Edit Category" : "Add Category"}</h2>
-            
+            <h2 className="text-xl font-bold mb-6">
+              {editingCat.id
+                ? "Edit Category"
+                : editingCat.parent_id
+                  ? "Add Subcategory"
+                  : "Add Category"}
+            </h2>
+
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -186,17 +255,34 @@ export default function CategoriesPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>Parent Category</label>
+                  <select
+                    className={inputClass}
+                    value={editingCat.parent_id || ""}
+                    onChange={(e) => setEditingCat(prev => ({ ...prev, parent_id: e.target.value || null }))}
+                  >
+                    <option value="">None (top-level)</option>
+                    {parentOptions
+                      .filter((p) => p.id !== editingCat.id)
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                  </select>
+                  <p className="mt-1 text-xs text-neutral-400">Pick a parent to create a subcategory (e.g. Laptops under Computing).</p>
+                </div>
+                <div>
+                  <label className={labelClass}>Position / Priority (0 is first)</label>
+                  <input className={inputClass} type="number" value={editingCat.position ?? 0} onChange={(e) => setEditingCat(prev => ({ ...prev, position: parseInt(e.target.value) || 0 }))} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className={labelClass}>Icon Name (e.g. Smartphone)</label>
                   <input className={inputClass} value={editingCat.icon || ""} onChange={e => setEditingCat(prev => ({ ...prev, icon: e.target.value }))} />
                 </div>
-                
-                <div>
-                  <label className={labelClass}>Position / Priority (0 is first)</label>
-                  <input className={inputClass} type="number" value={editingCat.position || 0} onChange={(e) => setEditingCat(prev => ({ ...prev, position: parseInt(e.target.value) || 0 }))} />
-                </div>
-
                 <div>
                   <label className={labelClass}>Keywords (comma separated)</label>
                   <input className={inputClass} value={editingCat.keywords || ""} onChange={e => setEditingCat(prev => ({ ...prev, keywords: e.target.value }))} />

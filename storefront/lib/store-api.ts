@@ -84,7 +84,47 @@ export interface StoreCategory {
   slug: string;
   parent_id?: string | null;
   product_count?: number;
+  image_url?: string;
+  icon?: string;
+  keywords?: string;
   children?: StoreCategory[];
+}
+
+export interface StoreBrandFacet {
+  name: string;
+  slug?: string | null;
+  logo_url?: string | null;
+  product_count: number;
+}
+
+export interface StorePriceBucket {
+  label: string;
+  min_price?: number | null; // paise
+  max_price?: number | null; // paise
+  product_count?: number;
+}
+
+/** Per-category landing-page admin overrides (a subset; see admin editor). */
+export interface CategoryPageOverrides {
+  hero_title?: string;
+  hero_subtitle?: string;
+  hero_image?: string;
+  hero_link?: string;
+  brand_section_title?: string;
+  price_section_title?: string;
+  price_buckets?: StorePriceBucket[];
+  featured_product_ids?: string[];
+  seo_title?: string;
+  seo_description?: string;
+}
+
+export interface StoreCategoryPage {
+  category: StoreCategory;
+  children: StoreCategory[];
+  brands: StoreBrandFacet[];
+  price_buckets: StorePriceBucket[];
+  featured: StoreProduct[];
+  overrides: CategoryPageOverrides;
 }
 
 export interface ProductListParams {
@@ -438,8 +478,16 @@ export const storeApi = {
     return fetchApi<StoreCategory[]>("/store/categories");
   },
 
-  getBrands(): Promise<string[]> {
-    return fetchApi<string[]>("/store/brands");
+  /** Brand facet. Pass a category slug/id to scope to that category's tree. */
+  getBrands(category?: string): Promise<StoreBrandFacet[]> {
+    const qs = category ? `?category=${encodeURIComponent(category)}` : "";
+    return fetchApi<StoreBrandFacet[]>(`/store/brands${qs}`);
+  },
+
+  /** Flipkart-style category landing payload: node, children, brands, price
+   *  buckets, featured products and admin overrides. */
+  getCategoryPage(slug: string): Promise<StoreCategoryPage> {
+    return fetchApi<StoreCategoryPage>(`/store/category-pages/${encodeURIComponent(slug)}`);
   },
 
   /* ----- Cart (guest: X-Cart-Session; logged-in: Bearer) ----- */

@@ -61,6 +61,7 @@ DEFAULT_STORE_SETTINGS: dict = {
     "min_order_paise": None,
     "banner": None,                 # {title, subtitle, image_url, link, active}
     "announcement": None,           # header strip text
+    "category_pages": {},          # {category_slug: landing-page overrides}
 }
 
 
@@ -88,4 +89,5 @@ async def get_store_settings(session: AsyncSession) -> dict:
         "announcement": store_cfg.get("announcement"),
         "hero_slides": store_cfg.get("hero_slides", []),
         "promo_tiles": store_cfg.get("promo_tiles", []),
+        "category_pages": store_cfg.get("category_pages", {}),
     }

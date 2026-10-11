@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Heart,
@@ -26,17 +26,19 @@ import { getRememberedPincode, rememberPincode } from "@/lib/pincode-memory";
 import { useCompareIds } from "@/lib/compare";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
+import { storeApi, type StoreCategory } from "@/lib/store-api";
 
 const DEFAULT_PINCODE = "841508";
 
+// Category nav links are resolved live so they always match the catalogue;
+// the ones here are fallbacks when the API is unreachable.
 const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/shop", label: "Shop" },
-  { href: "/shop?category=mobiles", label: "Mobiles" },
-  { href: "/shop?category=laptops", label: "Laptops" },
-  { href: "/shop?category=audio", label: "Audio" },
-  { href: "/shop?category=appliances", label: "Appliances" },
-  { href: "/shop?category=wearables", label: "Wearables" },
+  { href: "/categories/mobiles", label: "Mobiles" },
+  { href: "/categories/computing", label: "Computing" },
+  { href: "/categories/audio", label: "Audio" },
+  { href: "/categories/wearables", label: "Wearables" },
   { href: "/blog", label: "Blog" },
   { href: "/contact", label: "Contact" },
 ];
@@ -115,6 +117,36 @@ export default function Header() {
   const [pinOpen, setPinOpen] = useState(false);
   const [pinError, setPinError] = useState("");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  // Live top-level categories so the nav points at real landing pages.
+  const [navCats, setNavCats] = useState<StoreCategory[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    storeApi
+      .getCategories()
+      .then((cats) => {
+        if (!cancelled) setNavCats(cats.filter((c) => !c.parent_id));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const navLinks = useMemo(() => {
+    if (navCats.length === 0) return NAV_LINKS;
+    const catLinks = navCats.slice(0, 4).map((c) => ({
+      href: `/categories/${encodeURIComponent(c.slug || c.id)}`,
+      label: c.name,
+    }));
+    return [
+      { href: "/", label: "Home" },
+      { href: "/shop", label: "Shop" },
+      ...catLinks,
+      { href: "/blog", label: "Blog" },
+      { href: "/contact", label: "Contact" },
+    ];
+  }, [navCats]);
 
   useEffect(() => {
     if (mobileOpen) {
@@ -361,7 +393,7 @@ export default function Header() {
         {/* Desktop category nav */}
         <nav aria-label="Primary" className="hidden lg:block border-t border-neutral-100">
           <div className="max-w-[1400px] mx-auto px-4 h-11 flex items-center gap-7 text-sm">
-            {NAV_LINKS.map((l) => (
+            {navLinks.map((l) => (
               <Link
                 key={l.label}
                 href={l.href}
@@ -438,7 +470,7 @@ export default function Header() {
             </div>
             <nav aria-label="Mobile menu" className="flex-1 flex flex-col p-4 gap-4 text-[15px] font-medium overflow-y-auto">
               
-              {NAV_LINKS.map((l) => (
+              {navLinks.map((l) => (
                 <Link key={l.label} href={l.href} onClick={() => setMobileOpen(false)}>
                   {l.label}
                 </Link>

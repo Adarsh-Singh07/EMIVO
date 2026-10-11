@@ -30,6 +30,32 @@ class StoreVariant(BaseModel):
     price: int
 
 
+class StoreBrandFacet(BaseModel):
+    """Brand tile / filter chip data for a (possibly category-scoped) facet."""
+    name: str
+    slug: Optional[str] = None
+    logo_url: Optional[str] = None
+    product_count: int = 0
+
+
+class StorePriceBucket(BaseModel):
+    """A 'Mobiles by Price' range tile. Prices in paise; None = open-ended."""
+    label: str
+    min_price: Optional[int] = None
+    max_price: Optional[int] = None
+    product_count: int = 0
+
+
+class StoreCategoryPage(BaseModel):
+    """One payload for a Flipkart-style category landing page."""
+    category: StoreCategory
+    children: List[StoreCategory] = []
+    brands: List[StoreBrandFacet] = []
+    price_buckets: List[StorePriceBucket] = []
+    featured: List["StoreProduct"] = []
+    overrides: dict = {}
+
+
 class StoreProduct(BaseModel):
     """Storefront product card / detail with server-computed pricing.
 

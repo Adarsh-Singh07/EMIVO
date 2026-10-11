@@ -19,6 +19,8 @@ import {
   Timer,
   Megaphone,
   Sparkles,
+  Award,
+  LayoutTemplate,
 } from "lucide-react";
 import Link from "next/link";
 import { ReactNode, useEffect, useState, useRef, useCallback } from "react";
@@ -46,7 +48,9 @@ const NAV_SECTIONS: Array<{
     links: [
       { href: "/orders", label: "Orders", icon: ShoppingCart },
       { href: "/products", label: "Products", icon: Package },
-      { href: "/products/categories", label: "Categories & Brands", icon: Package },
+      { href: "/products/categories", label: "Categories", icon: Package },
+      { href: "/products/brands", label: "Brands", icon: Award },
+      { href: "/products/category-pages", label: "Category Pages", icon: LayoutTemplate },
       { href: "/products/catalogues", label: "Homepage Catalogues", icon: Package },
       { href: "/inventory", label: "Inventory", icon: Boxes },
       { href: "/coupons", label: "Coupons", icon: Tag },

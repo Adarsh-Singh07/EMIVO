@@ -320,17 +320,260 @@ class CatalogService:
                 roots.append(node)
         return roots
 
-    async def brands(self) -> List[str]:
+    async def brands(self, category: Optional[str] = None) -> List[dict]:
+        """Brand facet. Scoped to a category tree when `category` (slug/id) is
+        given; product_count always computed live from ACTIVE products."""
         store_id = await self._store_business_id()
+        scope = ""
+        params: dict = {"bid": store_id}
+        if category:
+            params["cat"] = category
+            # products in this category or any of its children (parents are navigation nodes)
+            scope = """
+                AND p.category_id IN (
+                    SELECT c2.id FROM categories c2
+                    WHERE c2.business_id = :bid
+                      AND (c2.slug = :cat OR c2.id::text = :cat
+                           OR c2.parent_id IN (
+                               SELECT c3.id FROM categories c3
+                               WHERE c3.business_id = :bid
+                                 AND (c3.slug = :cat OR c3.id::text = :cat)))
+                )
+            """
         res = await self.session.execute(
-            text("""
-                SELECT DISTINCT brand FROM products
-                WHERE business_id = :bid AND status = 'ACTIVE' AND brand IS NOT NULL
-                ORDER BY brand
+            text(f"""
+                SELECT s.brand AS name,
+                       b.slug,
+                       b.logo_url,
+                       s.product_count
+                FROM (
+                    SELECT p.brand, COUNT(*) AS product_count
+                    FROM products p
+                    WHERE p.business_id = :bid
+                      AND p.status = 'ACTIVE'
+                      AND p.brand IS NOT NULL AND p.brand <> ''
+                      {scope}
+                    GROUP BY p.brand
+                ) s
+                LEFT JOIN brands b
+                    ON b.business_id = :bid AND b.name = s.brand
+                ORDER BY s.product_count DESC, s.brand ASC
             """),
-            {"bid": store_id},
+            params,
         )
-        return [r[0] for r in res]
+        out = []
+        for r in res.mappings():
+            if (r["name"] or "").strip():
+                out.append({
+                    "name": r["name"],
+                    "slug": r["slug"],
+                    "logo_url": r["logo_url"],
+                    "product_count": r["product_count"],
+                })
+        return out
+
+    # Round-number rupee thresholds (in paise) used to build price buckets.
+    _BUCKET_THRESHOLDS = [
+        100_000, 500_000, 1_000_000, 1_500_000, 2_000_000, 3_000_000,
+        5_000_000, 7_500_000, 10_000_000, 15_000_000, 20_000_000, 30_000_000, 50_000_000,
+    ]
+
+    @classmethod
+    def _rupee(cls, paise: int) -> str:
+        rupees = paise / 100
+        if rupees >= 100_000:
+            return f"₹{rupees / 100_000:.1f}L".replace(".0L", "L")
+        if rupees >= 1000:
+            return f"₹{rupees / 1000:.1f}k".replace(".0k", "k")
+        return f"₹{int(rupees)}"
+
+    async def _price_buckets(self, store_id: str, category_ids_sql: str, params: dict) -> list:
+        """Auto 'by Price' buckets from live prices: count products in each
+        round-number range, drop empties, label the bounds."""
+        rows = (
+            await self.session.execute(
+                text(f"""
+                    SELECT eff.br AS price FROM (
+                        SELECT {EFFECTIVE_PRICE_SQL} AS br
+                        FROM products p
+                        WHERE p.business_id = :bid AND p.status = 'ACTIVE'
+                        {category_ids_sql}
+                    ) eff
+                """),
+                params,
+            )
+        ).fetchall()
+        prices = [int(r[0]) for r in rows if r[0]]
+        if not prices:
+            return []
+        lo, hi = min(prices), max(prices)
+        # thresholds strictly inside (lo, hi) split the range
+        cuts = [t for t in self._BUCKET_THRESHOLDS if lo < t < hi]
+        if not cuts and hi <= self._BUCKET_THRESHOLDS[0]:
+            # everything fits under the smallest threshold — one capped bucket
+            bounds = [None, self._BUCKET_THRESHOLDS[0]]
+        else:
+            bounds = [None] + cuts + [None]  # bucket edges; None = open-ended
+        buckets = []
+        for i in range(len(bounds) - 1):
+            b_min = bounds[i]
+            b_max = bounds[i + 1]
+            count = sum(
+                1 for p in prices
+                if (b_min is None or p > b_min) and (b_max is None or p <= b_max)
+            )
+            if count == 0:
+                continue
+            if b_min is None and b_max is None:
+                label = f"All ({self._rupee(prices[0])})"
+            elif b_min is None and b_max is not None:
+                label = f"Under {self._rupee(b_max)}"
+            elif b_max is None and b_min is not None:
+                label = f"{self._rupee(b_min)} & above"
+            else:
+                label = f"{self._rupee(b_min)} – {self._rupee(b_max)}"
+            buckets.append({
+                "label": label,
+                "min_price": b_min,
+                "max_price": b_max,
+                "product_count": count,
+            })
+        return buckets
+
+    async def category_page(self, slug: str) -> Optional[dict]:
+        """Landing-page payload for a category slug: node, children, brand
+        facet, auto price buckets, featured products, and admin overrides."""
+        from modules.storefront.schemas import StoreCategory
+        store_id = await self._store_business_id()
+
+        # Resolve the category node (root or child — children get their own page)
+        node_row = (
+            await self.session.execute(
+                text("""
+                    SELECT c.id, c.name, c.slug, c.parent_id, c.image_url, c.icon, c.keywords
+                    FROM categories c
+                    WHERE c.business_id = :bid AND (c.slug = :s OR c.id::text = :s)
+                    LIMIT 1
+                """),
+                {"bid": store_id, "s": slug},
+            )
+        ).mappings().first()
+        if not node_row:
+            return None
+        cat = dict(node_row)
+
+        # Children with live counts
+        child_rows = (
+            await self.session.execute(
+                text("""
+                    SELECT c.id, c.name, c.slug, c.parent_id, c.image_url, c.icon, c.keywords,
+                           (SELECT count(*) FROM products p
+                            WHERE p.category_id = c.id AND p.status = 'ACTIVE') AS product_count
+                    FROM categories c
+                    WHERE c.business_id = :bid AND c.parent_id = :cid
+                    ORDER BY c.position, c.name
+                """),
+                {"bid": store_id, "cid": cat["id"]},
+            )
+        ).mappings().all()
+        children = [
+            StoreCategory(
+                id=r["id"], name=r["name"], slug=r["slug"], parent_id=r["parent_id"],
+                product_count=r["product_count"], image_url=r.get("image_url"),
+                icon=r.get("icon"), keywords=r.get("keywords"),
+            )
+            for r in child_rows
+        ]
+
+        # Category tree scope: this node + its children (parents are navigation)
+        cat_scope = "AND (p.category_id = :cid OR p.category_id IN (SELECT id FROM categories WHERE parent_id = :cid))"
+
+        # Brand facet via the scoped brands() (pass the slug)
+        brand_facet = await self.brands(cat["slug"])
+
+        # Featured products in the tree
+        featured_rows = (
+            await self.session.execute(
+                text(f"""
+                    SELECT p.id, p.name, p.slug, p.brand, p.price, p.mrp, p.sale_price,
+                           p.offer_name, p.offer_starts_at, p.offer_ends_at, p.category_id,
+                           c.name AS category_name, c.slug AS category_slug,
+                           {EFFECTIVE_PRICE_SQL} AS effective_price,
+                           p.return_policy, p.warranty_info, p.sku, p.description, p.tags
+                    FROM products p
+                    LEFT JOIN categories c ON c.id = p.category_id
+                    WHERE p.business_id = :bid AND p.status = 'ACTIVE' AND p.featured = true
+                    {cat_scope}
+                    ORDER BY p.created_at DESC
+                    LIMIT 12
+                """),
+                {"bid": store_id, "cid": cat["id"]},
+            )
+        ).mappings().all()
+        featured_ids = [r["id"] for r in featured_rows]
+        images = await self._load_images(featured_ids)
+        stocks = await self._load_stock(featured_ids)
+        featured = [
+            self._product_row_to_model(r, images.get(r["id"], []), stocks.get(r["id"]))
+            for r in featured_rows
+        ]
+
+        price_buckets = await self._price_buckets(store_id, cat_scope, {"bid": store_id, "cid": cat["id"]})
+
+        # Admin overrides live in business_settings.config.store.category_pages[slug]
+        overrides: dict = {}
+        try:
+            from core.store import get_store_settings
+            store_cfg = await get_store_settings(self.session)
+            page_cfg = (store_cfg.get("category_pages") or {}).get(cat["slug"]) or {}
+            overrides = page_cfg
+        except Exception:
+            overrides = {}
+
+        # Custom buckets override auto buckets when provided
+        if overrides.get("price_buckets"):
+            price_buckets = overrides["price_buckets"]
+
+        # Curated featured picks replace auto-featured when provided
+        if overrides.get("featured_product_ids"):
+            wanted = overrides["featured_product_ids"][:12]
+            cur_rows = (
+                await self.session.execute(
+                    text(f"""
+                        SELECT p.id, p.name, p.slug, p.brand, p.price, p.mrp, p.sale_price,
+                               p.offer_name, p.offer_starts_at, p.offer_ends_at, p.category_id,
+                               c.name AS category_name, c.slug AS category_slug,
+                               {EFFECTIVE_PRICE_SQL} AS effective_price,
+                               p.return_policy, p.warranty_info, p.sku, p.description, p.tags
+                        FROM products p
+                        LEFT JOIN categories c ON c.id = p.category_id
+                        WHERE p.business_id = :bid AND p.status = 'ACTIVE'
+                              AND p.id = ANY(:ids)
+                        ORDER BY array_position(:ids, p.id)
+                    """),
+                    {"bid": store_id, "ids": wanted},
+                )
+            ).mappings().all()
+            cur_ids = [r["id"] for r in cur_rows]
+            c_images = await self._load_images(cur_ids)
+            c_stocks = await self._load_stock(cur_ids)
+            featured = [
+                self._product_row_to_model(r, c_images.get(r["id"], []), c_stocks.get(r["id"]))
+                for r in cur_rows
+            ]
+
+        return {
+            "category": StoreCategory(
+                id=cat["id"], name=cat["name"], slug=cat["slug"], parent_id=cat["parent_id"],
+                product_count=0, image_url=cat.get("image_url"), icon=cat.get("icon"),
+                keywords=cat.get("keywords"),
+            ),
+            "children": children,
+            "brands": brand_facet,
+            "price_buckets": price_buckets,
+            "featured": featured,
+            "overrides": overrides,
+        }
 
     async def search_suggestions(self, q: str, limit: int = 8) -> List[SearchSuggestion]:
         if not q or len(q.strip()) < 2:

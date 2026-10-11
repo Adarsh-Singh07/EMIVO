@@ -11,7 +11,7 @@
  * lib/format.ts `inr()` to render.
  */
 
-import type { StoreProduct, ProductListParams, ProductPage } from "./store-api";
+import type { StoreProduct, ProductListParams, ProductPage, StoreCategoryPage } from "./store-api";
 
 /* ------------------------------------------------------------------ */
 /* UI types                                                            */
@@ -753,6 +753,21 @@ export async function getCategories(): Promise<Category[]> {
       }));
   } catch {
     return CATEGORIES;
+  }
+}
+
+/** Flipkart-style category landing payload (server-side, ISR-cached). */
+export async function getCategoryPageServer(slug: string): Promise<StoreCategoryPage | null> {
+  try {
+    const res = await serverFetch(
+      `${API_BASE}/store/category-pages/${encodeURIComponent(slug)}`,
+      { next: { revalidate: 60 } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data as StoreCategoryPage) || null;
+  } catch {
+    return null;
   }
 }
 
