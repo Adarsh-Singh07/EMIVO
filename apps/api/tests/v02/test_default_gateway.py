@@ -47,6 +47,10 @@ async def test_default_gateway_priority(
         pay_service, "_provider_configured",
         lambda name: configured.get(str(name).lower(), False),
     )
+    # Keep construction independent of real provider keys: __init__ builds
+    # self.provider via get_provider(), which would raise when the named env
+    # gateway has no keys (exactly the case under test).
+    monkeypatch.setattr(pay_service, "get_provider", lambda name=None: None)
 
     async def fake_store_settings(session):
         return {"default_gateway": admin_default}
