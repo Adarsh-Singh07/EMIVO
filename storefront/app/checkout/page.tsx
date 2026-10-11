@@ -176,7 +176,12 @@ function CheckoutContent() {
   /* ---------------- Auth guard ---------------- */
   useEffect(() => {
     if (!authLoading && !user) {
-      router.replace("/login?next=/checkout");
+      // Carry the current query through the login round-trip so a
+      // /checkout?buyNow=<id> (Buy Now) returns to the same single-item flow.
+      const full = typeof window !== "undefined"
+        ? window.location.pathname + window.location.search
+        : "/checkout";
+      router.replace(`/login?next=${encodeURIComponent(full)}`);
     }
   }, [authLoading, user, router]);
 
