@@ -133,7 +133,13 @@ async def store_config(session: AsyncSession = Depends(optional_db_context)):
     admin_default = str(db_cfg.get("default_gateway") or "").lower()
     env_default = (settings.payment_provider or "mock").lower()
     default_gateway = None
-    for cand in (admin_default, env_default, "cashfree", "easebuzz"):
+    # Same semantics as PaymentService._default_gateway: admin choice first,
+    # then the env default; an explicit env "mock" is a dev/test signal and
+    # does NOT pull a configured gateway in as the default.
+    candidates = [admin_default, env_default]
+    if env_default != "mock":
+        candidates += [c for c in ("cashfree", "easebuzz") if c != env_default]
+    for cand in candidates:
         if cand in configured_map and configured_map[cand]:
             default_gateway = cand
             break

@@ -122,8 +122,11 @@ class PaymentService:
         """Effective default gateway customers pay through.
 
         Priority: 1) admin-persisted `default_gateway` (store settings),
-        2) env `PAYMENT_PROVIDER`, 3) any configured gateway (cashfree first).
-        Never returns an unconfigured gateway when a configured one exists.
+        2) env `PAYMENT_PROVIDER` (when it names a configured gateway).
+        A named-but-unconfigured env gateway falls back to any configured
+        one (Cashfree preferred — the owner default). An explicit env
+        `mock` is honored as-is: it's the dev/test signal, and CI must not
+        be silently pointed at live gateways.
         """
         admin_default = ""
         try:
@@ -132,15 +135,27 @@ class PaymentService:
             admin_default = str(cfg.get("default_gateway") or "").lower()
         except Exception:
             admin_default = ""
+        if admin_default and _provider_configured(admin_default):
+            return admin_default
         env_default = (settings.payment_provider or "mock").lower()
-        for cand in (admin_default, env_default):
-            if cand and cand != "mock" and _provider_configured(cand):
-                return cand
-        # Fallback: any configured gateway, Cashfree preferred (owner default).
-        for cand in ("cashfree", "easebuzz"):
-            if _provider_configured(cand):
-                return cand
-        return env_default  # "mock" in dev when nothing is configured
+        if _provider_configured(env_default):
+            return env_default
+        if env_default != "mock":
+            # Env named a gateway whose keys are missing — fall back to any
+            # configured gateway so customers can still pay.
+            for cand in ("cashfree", "easebuzz"):
+                if _provider_configured(cand):
+                    logger.warning(
+                        "PAYMENT_PROVIDER=%s is not configured, falling back to %s",
+                        env_default, cand,
+                    )
+                    return cand
+        if env_default == "mock" and settings.is_prod:
+            # Production must never run on the mock provider.
+            for cand in ("cashfree", "easebuzz"):
+                if _provider_configured(cand):
+                    return cand
+        return env_default  # "mock" in dev/test when nothing is configured
 
     # ------------------------------------------------------------------ #
     # Initiation                                                          #

@@ -17,17 +17,20 @@ pytestmark = pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("admin_default", "env_default", "configured", "expected"),
     [
-        # Admin choice wins over env
-        ("cashfree", "easebuzz", {"cashfree": True, "easebuzz": True}, "cashfree"),
+        # Admin choice wins over env (even in a mock env)
+        ("cashfree", "mock", {"cashfree": True, "easebuzz": True}, "cashfree"),
         ("easebuzz", "cashfree", {"cashfree": True, "easebuzz": True}, "easebuzz"),
         # Admin unset -> env default (when it is a real, configured gateway)
         (None, "easebuzz", {"cashfree": True, "easebuzz": True}, "easebuzz"),
         # Admin choice unconfigured -> fall to env default
         ("cashfree", "easebuzz", {"cashfree": False, "easebuzz": True}, "easebuzz"),
-        # Neither admin nor env set a real gateway -> any configured, cashfree preferred
-        (None, "mock", {"cashfree": True, "easebuzz": False}, "cashfree"),
-        (None, "mock", {"cashfree": False, "easebuzz": True}, "easebuzz"),
-        # Nothing configured at all (pure CI) -> env default (mock)
+        # Env named an unconfigured gateway -> any configured one (cashfree preferred)
+        (None, "cashfree", {"cashfree": False, "easebuzz": True}, "easebuzz"),
+        (None, "cashfree", {"cashfree": True, "easebuzz": True}, "cashfree"),
+        # Explicit env "mock" is a dev/test signal: honored, NOT silently
+        # switched to a live gateway (CI sets cashfree keys; tests rely on mock)
+        (None, "mock", {"cashfree": True, "easebuzz": False}, "mock"),
+        (None, "mock", {"cashfree": False, "easebuzz": True}, "mock"),
         (None, "mock", {"cashfree": False, "easebuzz": False}, "mock"),
     ],
 )
