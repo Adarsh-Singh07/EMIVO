@@ -70,3 +70,17 @@ created on production, all test orders CANCELLED (stock released):
   payment_session_id verified, never paid), 2 abandoned e2e probes.
 - 2 payment rows: provider CASHFREE (CREATED) + EASEBUZZ (CREATED) — no
   money moved, no webhooks processed.
+
+**Addendum 2026-10-11 — category/brand dedupe for the category-page overhaul (owner-directed).**
+Pre-backup on the VPS: `/tmp/pre_dedupe.dump` (pg_dump -Fc). Applied
+`scripts/data_fixes/20261011_dedupe_categories_and_brands.sql` as one
+transaction (rollback verified by in-transaction checks):
+- Deleted 1,374 duplicate child-category rows (12 (parent, slug) groups —
+  e.g. "Chargers & Cables" ×19 under Power & Charging, "Smartphones" ×4 under
+  Mobiles); re-pointed 21 product rows to the kept row; 1,389 → 15 child rows.
+- Consolidated brand spellings (case drift): rewrote 14 `products.brand`
+  cells (vivo→Vivo, MOTOROLA→Motorola) and dropped 2 duplicate `brands` rows
+  (their `category_brands` links cascade away).
+- Computing subcategories (Laptops / Desktop PCs / Monitors) verified to
+  already exist in prod — no rows created.
+No orders, payments, or customer data touched.
