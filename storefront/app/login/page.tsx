@@ -163,13 +163,7 @@ function LoginForm() {
       </Link>
 
       <div className="rounded-3xl border border-neutral-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold tracking-tight mb-1">Sign in to your account</h1>
-        <p className="text-sm text-neutral-500 mb-6">
-          Don&apos;t have an account?{" "}
-          <Link href="/register" className="font-medium text-neutral-900 hover:underline underline-offset-2">
-            Create one
-          </Link>
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight mb-6">Sign in to your account</h1>
 
         <div className="flex gap-1 p-1 rounded-xl bg-neutral-100 mb-6">
           {modeTab("password", "Password", <Lock className="w-4 h-4" />)}
@@ -405,6 +399,16 @@ function LoginForm() {
             </div>
           </form>
         )}
+
+        <div className="mt-6 border-t border-neutral-200 pt-6">
+          <p className="text-center text-sm text-neutral-500 mb-3">Don&apos;t have an account?</p>
+          <Link
+            href="/register"
+            className="w-full h-11 rounded-xl border border-neutral-300 bg-white text-neutral-900 text-sm font-semibold hover:bg-neutral-50 transition-colors flex items-center justify-center"
+          >
+            Create Account
+          </Link>
+        </div>
       </div>
 
       <p className="text-center text-xs text-neutral-600 mt-6">
