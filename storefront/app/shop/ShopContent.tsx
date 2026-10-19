@@ -37,6 +37,13 @@ export default function ShopContent() {
   const router = useRouter();
   const sp = useSearchParams();
 
+  // WS8: bust the client-router cache on mount so Back-button returns land
+  // on fresh state (same pattern as the PDP). The data fetch below runs
+  // against the live API anyway; this handles router-level staleness.
+  useEffect(() => {
+    router.refresh();
+  }, [router]);
+
   // Single source of truth: the URL. Local state mirrors it for inputs.
   const q = sp.get("q") ?? "";
   const category = sp.get("category") ?? "";
@@ -205,6 +212,36 @@ export default function ShopContent() {
 
   const [searchDraft, setSearchDraft] = useState(q);
   useEffect(() => setSearchDraft(q), [q]);
+
+  // WS6: mobile filter bottom sheet (Flipkart-grade mobile pattern).
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [sheetMin, setSheetMin] = useState(minPrice);
+  const [sheetMax, setSheetMax] = useState(maxPrice);
+  const [sheetInStock, setSheetInStock] = useState(inStockOnly);
+  useEffect(() => {
+    if (filtersOpen) {
+      setSheetMin(minPrice);
+      setSheetMax(maxPrice);
+      setSheetInStock(inStockOnly);
+    }
+  }, [filtersOpen, minPrice, maxPrice, inStockOnly]);
+  const applySheet = () => {
+    const updates: Record<string, string | null> = {};
+    const mn = sheetMin.trim() && /^\d+$/.test(sheetMin.trim()) ? sheetMin.trim() : "";
+    const mx = sheetMax.trim() && /^\d+$/.test(sheetMax.trim()) ? sheetMax.trim() : "";
+    if (mn && mx && Number(mn) > Number(mx)) {
+      updates.min_price = mx;
+      updates.max_price = mn;
+    } else {
+      updates.min_price = mn || null;
+      updates.max_price = mx || null;
+    }
+    updates.in_stock = sheetInStock ? "1" : null;
+    setParam(updates);
+    setFiltersOpen(false);
+  };
+  const sheetActiveCount =
+    (sheetMin || sheetMax ? 1 : 0) + (sheetInStock ? 1 : 0);
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -389,6 +426,19 @@ export default function ShopContent() {
           <div className="lg:hidden flex items-center justify-between mb-4">
             <p className="text-sm text-neutral-500">{loading ? "Loading…" : `${total} products`}</p>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setFiltersOpen(true)}
+                className="relative h-9 px-3.5 inline-flex items-center gap-1.5 rounded-full border border-neutral-300 text-sm font-medium text-neutral-800"
+                aria-haspopup="dialog"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                Filters
+                {activeFilterCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-neutral-950 text-white text-[10px] font-bold grid place-items-center">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
               <label className="h-9 px-3.5 inline-flex items-center gap-1.5 rounded-full border border-neutral-200 text-sm font-medium text-neutral-800 cursor-pointer">
                 <input
                   type="checkbox"
@@ -551,6 +601,110 @@ export default function ShopContent() {
           )}
         </div>
       </div>
+
+      {/* WS6: mobile filter bottom sheet */}
+      {filtersOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Filters">
+          <div
+            className="absolute inset-0 bg-neutral-950/40 backdrop-blur-sm"
+            onClick={() => setFiltersOpen(false)}
+          />
+          <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto bg-white rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sheet-up">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <SlidersHorizontal className="w-5 h-5" /> Filters
+                {sheetActiveCount > 0 && (
+                  <span className="text-xs font-bold bg-neutral-950 text-white rounded-full px-2 py-0.5">
+                    {sheetActiveCount}
+                  </span>
+                )}
+              </h2>
+              <button
+                onClick={() => setFiltersOpen(false)}
+                className="p-2 -mr-2 text-neutral-500 hover:text-neutral-900"
+                aria-label="Close filters"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <h3 className="font-semibold mb-3 text-sm">Price (₹)</h3>
+                <div className="flex items-center gap-2">
+                  <input
+                    value={sheetMin}
+                    onChange={(e) => setSheetMin(e.target.value.replace(/\D/g, ""))}
+                    placeholder="Min"
+                    inputMode="numeric"
+                    aria-label="Minimum price"
+                    className="w-full h-11 border border-neutral-200 rounded-xl px-3 text-sm focus:outline-none focus:border-neutral-950"
+                  />
+                  <span className="text-neutral-300">—</span>
+                  <input
+                    value={sheetMax}
+                    onChange={(e) => setSheetMax(e.target.value.replace(/\D/g, ""))}
+                    placeholder="Max"
+                    inputMode="numeric"
+                    aria-label="Maximum price"
+                    className="w-full h-11 border border-neutral-200 rounded-xl px-3 text-sm focus:outline-none focus:border-neutral-950"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-3 text-sm">Availability</h3>
+                <label className="flex items-center gap-2.5 text-sm text-neutral-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={sheetInStock}
+                    onChange={(e) => setSheetInStock(e.target.checked)}
+                    className="accent-neutral-950 w-4 h-4"
+                  />
+                  In stock only
+                </label>
+              </div>
+
+              {(category || brand) && (
+                <div>
+                  <h3 className="font-semibold mb-3 text-sm">Active</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {category && (
+                      <span className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full bg-neutral-950 text-white text-xs font-medium">
+                        {headingCategory || category}
+                      </span>
+                    )}
+                    {brand && (
+                      <span className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full bg-neutral-950 text-white text-xs font-medium">
+                        {brand}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-8">
+              <button
+                onClick={() => {
+                  setSheetMin("");
+                  setSheetMax("");
+                  setSheetInStock(false);
+                }}
+                className="h-12 px-6 rounded-full border border-neutral-200 text-sm font-medium hover:bg-neutral-50"
+              >
+                Clear
+              </button>
+              <button
+                onClick={applySheet}
+                className="flex-1 h-12 rounded-full bg-neutral-950 text-white text-sm font-semibold hover:bg-neutral-800"
+              >
+                Show {loading ? "…" : `${total}`} product{total === 1 ? "" : "s"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

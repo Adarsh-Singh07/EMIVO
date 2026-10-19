@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Scale, Trash2, X, ShoppingBag, Loader2, Check, Minus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Scale, Trash2, X, ShoppingBag, Loader2, Check, Minus, RefreshCw } from "lucide-react";
 import { useCompareIds, clearCompare, toggleCompare } from "@/lib/compare";
 import { storeApi, type StoreProduct } from "@/lib/store-api";
+import { ApiError } from "@/lib/api-client";
 import { useCart } from "@/components/site/CartProvider";
 import { toast } from "sonner";
 import { inr } from "@/lib/format";
@@ -21,6 +23,7 @@ function availabilityOf(p: StoreProduct): number {
 }
 
 export default function ComparePage() {
+  const router = useRouter();
   const ids = useCompareIds();
   const { add } = useCart();
   const [products, setProducts] = useState<StoreProduct[]>([]);
@@ -28,26 +31,47 @@ export default function ComparePage() {
   const [failed, setFailed] = useState<string[]>([]);
   const [addingId, setAddingId] = useState<string | null>(null);
 
+  // WS8: same back-button cache-busting the PDP uses — the client router
+  // caches payloads, so a Back navigation can land on stale state where the
+  // first click after returning does nothing.
   useEffect(() => {
-    let cancelled = false;
+    router.refresh();
+  }, [router]);
+
+  /** Load one batch of ids. 404s are stale ids (product deleted/unlisted):
+   *  drop them from the compare list instead of failing forever. Other
+   *  errors go to `failed` with a retry affordance. */
+  const loadIds = useCallback(async (toLoad: string[], cancelledRef: { v: boolean }) => {
+    const loaded: StoreProduct[] = [];
+    const errored: string[] = [];
+    await Promise.all(
+      toLoad.map(async (id) => {
+        try {
+          loaded.push(await storeApi.getProduct(id));
+        } catch (err) {
+          if (err instanceof ApiError && err.status === 404) {
+            toggleCompare(id); // stale id — remove it
+            toast.info("Removed an unavailable product from compare");
+          } else {
+            errored.push(id);
+          }
+        }
+      })
+    );
+    return { loaded, errored, cancelled: cancelledRef.v };
+  }, []);
+
+  useEffect(() => {
+    const cancelledRef = { v: false };
     if (ids.length === 0) {
       setProducts([]);
       setLoading(false);
+      setFailed([]);
       return;
     }
     setLoading(true);
     (async () => {
-      const loaded: StoreProduct[] = [];
-      const errored: string[] = [];
-      await Promise.all(
-        ids.map(async (id) => {
-          try {
-            loaded.push(await storeApi.getProduct(id));
-          } catch {
-            errored.push(id);
-          }
-        })
-      );
+      const { loaded, errored, cancelled } = await loadIds(ids, cancelledRef);
       if (cancelled) return;
       // Preserve the order chosen by the user.
       const byId = new Map(loaded.map((p) => [p.id, p]));
@@ -56,9 +80,28 @@ export default function ComparePage() {
       setLoading(false);
     })();
     return () => {
-      cancelled = true;
+      cancelledRef.v = true;
     };
-  }, [ids]);
+  }, [ids, loadIds]);
+
+  const retryFailed = useCallback(async () => {
+    if (failed.length === 0) return;
+    const cancelledRef = { v: false };
+    const { loaded, errored } = await loadIds(failed, cancelledRef);
+    const byId = new Map(loaded.map((p) => [p.id, p]));
+    setProducts((prev) => {
+      const merged = [...prev];
+      const existing = new Set(prev.map((p) => p.id));
+      // Keep the user's chosen order: append retried items in ids order.
+      ids.forEach((id) => {
+        const p = byId.get(id);
+        if (p && !existing.has(id)) merged.push(p);
+      });
+      return merged;
+    });
+    setFailed(errored);
+    if (loaded.length > 0) toast.success("Compare updated");
+  }, [failed, ids, loadIds]);
 
   /** Union of spec names across all products (stable order). */
   const specRows: Array<{ name: string; values: Array<string | undefined> }> = [];
@@ -155,7 +198,7 @@ export default function ComparePage() {
           <div className="min-w-[800px] lg:min-w-0">
             {/* Header row - Product names & images */}
             <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] bg-neutral-50/50 border-b border-neutral-100">
-              <div className="p-4 pt-6 text-left text-xs uppercase tracking-wider text-neutral-400 font-medium">
+              <div className="p-4 pt-6 text-left text-xs uppercase tracking-wider text-neutral-400 font-medium sticky left-0 z-10 bg-neutral-50">
                 Product
               </div>
               {products.map((p) => (
@@ -209,7 +252,7 @@ export default function ComparePage() {
             <div className="divide-y divide-neutral-100 bg-white">
               {/* Price row */}
               <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] py-4 items-center">
-                <div className="px-4 text-neutral-500 font-medium text-sm">Price</div>
+                <div className="px-4 text-neutral-500 font-medium text-sm sticky left-0 z-10 bg-white">Price</div>
                 {products.map((p) => (
                   <div key={p.id} className="px-4">
                     <span className="font-semibold">{inr(p.effective_price)}</span>
@@ -222,7 +265,7 @@ export default function ComparePage() {
 
               {/* Discount row */}
               <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] bg-neutral-50/50 py-4 items-center">
-                <div className="px-4 text-neutral-500 font-medium text-sm">Discount</div>
+                <div className="px-4 text-neutral-500 font-medium text-sm sticky left-0 z-10 bg-neutral-50">Discount</div>
                 {products.map((p) => (
                   <div key={p.id} className="px-4">
                     {p.discount_percent ? (
@@ -236,7 +279,7 @@ export default function ComparePage() {
 
               {/* Brand row */}
               <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] py-4 items-center">
-                <div className="px-4 text-neutral-500 font-medium text-sm">Brand</div>
+                <div className="px-4 text-neutral-500 font-medium text-sm sticky left-0 z-10 bg-white">Brand</div>
                 {products.map((p) => (
                   <div key={p.id} className="px-4">
                     {p.brand || "—"}
@@ -246,7 +289,7 @@ export default function ComparePage() {
 
               {/* Category row */}
               <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] bg-neutral-50/50 py-4 items-center">
-                <div className="px-4 text-neutral-500 font-medium text-sm">Category</div>
+                <div className="px-4 text-neutral-500 font-medium text-sm sticky left-0 z-10 bg-neutral-50">Category</div>
                 {products.map((p) => (
                   <div key={p.id} className="px-4 capitalize">
                     {p.category_name || p.category_slug || "—"}
@@ -256,7 +299,7 @@ export default function ComparePage() {
 
               {/* Availability row */}
               <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] py-4 items-center">
-                <div className="px-4 text-neutral-500 font-medium text-sm">Availability</div>
+                <div className="px-4 text-neutral-500 font-medium text-sm sticky left-0 z-10 bg-white">Availability</div>
                 {products.map((p) => (
                   <div key={p.id} className="px-4">
                     <span
@@ -283,7 +326,7 @@ export default function ComparePage() {
                   key={row.name}
                   className={`grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] py-4 items-center ${ri % 2 ? "bg-neutral-50/50" : ""}`}
                 >
-                  <div className="px-4 text-neutral-500 font-medium text-sm capitalize">{row.name}</div>
+                  <div className={`px-4 text-neutral-500 font-medium text-sm capitalize sticky left-0 z-10 ${ri % 2 ? "bg-neutral-50" : "bg-white"}`}>{row.name}</div>
                   {row.values.map((v, i) => (
                     <div key={i} className="px-4">
                       {v || <span className="text-neutral-300">—</span>}
@@ -297,10 +340,18 @@ export default function ComparePage() {
       )}
 
       {failed.length > 0 && (
-        <p className="mt-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-          {failed.length} product{failed.length > 1 ? "s" : ""} could not be loaded and{" "}
-          {failed.length > 1 ? "were" : "was"} skipped.
-        </p>
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <p className="flex-1">
+            {failed.length} product{failed.length > 1 ? "s" : ""} could not be loaded and{" "}
+            {failed.length > 1 ? "were" : "was"} skipped.
+          </p>
+          <button
+            onClick={retryFailed}
+            className="shrink-0 inline-flex items-center gap-1.5 h-9 px-4 rounded-full bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Retry
+          </button>
+        </div>
       )}
     </div>
   );

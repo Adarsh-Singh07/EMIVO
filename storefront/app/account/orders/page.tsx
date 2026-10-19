@@ -24,6 +24,7 @@ import {
   Ban,
   Tag,
   LifeBuoy,
+  Search,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { storeApi, type OrderV2 } from "@/lib/store-api";
@@ -307,6 +308,14 @@ function OrderDetail({
 
   const addr = order.shipping_address as any;
 
+  // WS7: tracking must be the courier AWB — never mirror the order id.
+  const trackingNumber =
+    order.tracking_number &&
+    order.tracking_number !== order.id &&
+    order.tracking_number !== order.order_number
+      ? order.tracking_number
+      : null;
+
   return (
     <div className="max-w-[800px] mx-auto px-4 sm:px-6 py-8">
       <button
@@ -453,7 +462,7 @@ function OrderDetail({
             {(order.shipping_total ?? 0) > 0 && (
               <div className="flex justify-between text-neutral-600">
                 <span className="flex items-center gap-1">
-                  <Truck className="w-3.5 h-3.5" /> Shipping & COD fee
+                  <Truck className="w-3.5 h-3.5" /> Shipping fee
                 </span>
                 <span>{inr(order.shipping_total)}</span>
               </div>
@@ -490,7 +499,7 @@ function OrderDetail({
       )}
 
       {/* Tracking */}
-      {order.tracking_number && (
+      {trackingNumber && (
         <div className="border border-neutral-200 rounded-2xl p-5 bg-white mb-4">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <Truck className="w-4 h-4 text-neutral-500" /> Tracking
@@ -498,7 +507,7 @@ function OrderDetail({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-neutral-500">Tracking Number</p>
-              <p className="font-mono font-semibold mt-0.5">{order.tracking_number}</p>
+              <p className="font-mono font-semibold mt-0.5">{trackingNumber}</p>
             </div>
             {order.tracking_url && (
               <a
@@ -530,7 +539,7 @@ function OrderDetail({
               <p className="text-xs text-red-500 mt-0.5">
                 {order.status === "REFUNDED"
                   ? "Refund will reach your original payment method within 5–7 business days."
-                  : "No charges apply for COD orders."}
+                  : "Any amount paid will be refunded to the original payment method."}
               </p>
             </div>
           </div>
@@ -644,6 +653,13 @@ function OrderDetail({
 function OrderCard({ order, onClick }: { order: OrderV2; onClick: () => void }) {
   const st = statusStyle(order.status);
   const firstItem = order.items?.[0];
+  // WS7: never mirror the order id as a tracking number.
+  const trackingNumber =
+    order.tracking_number &&
+    order.tracking_number !== order.id &&
+    order.tracking_number !== order.order_number
+      ? order.tracking_number
+      : null;
 
   return (
     <button
@@ -700,13 +716,13 @@ function OrderCard({ order, onClick }: { order: OrderV2; onClick: () => void }) 
         </div>
       </div>
 
-      {order.tracking_number && (
+      {trackingNumber && (
         <div className="px-5 pb-3">
           <p className="text-xs text-neutral-500 flex items-center gap-1.5">
             <Truck className="w-3.5 h-3.5" />
             Tracking:{" "}
             <span className="font-mono font-medium text-neutral-700">
-              {order.tracking_number}
+              {trackingNumber}
             </span>
           </p>
         </div>
@@ -716,12 +732,71 @@ function OrderCard({ order, onClick }: { order: OrderV2; onClick: () => void }) 
 }
 
 /* ── Main Page ───────────────────────────────────────────────────────*/
+const STATUS_FILTERS = [
+  { key: "all", label: "All" },
+  { key: "on_the_way", label: "On the way" },
+  { key: "delivered", label: "Delivered" },
+  { key: "cancelled", label: "Cancelled" },
+  { key: "returned", label: "Returned" },
+] as const;
+
+const TIME_FILTERS = [
+  { key: "all", label: "All time" },
+  { key: "30d", label: "Last 30 days" },
+  { key: "6m", label: "Last 6 months" },
+  { key: "2026", label: "2026" },
+  { key: "older", label: "2025 & older" },
+] as const;
+
+const ON_THE_WAY = new Set(["CONFIRMED", "PROCESSING", "PACKED", "SHIPPED", "OUT_FOR_DELIVERY"]);
+
+function matchesStatus(order: OrderV2, key: string): boolean {
+  const s = (order.status || "").toUpperCase();
+  switch (key) {
+    case "all":
+      return true;
+    case "on_the_way":
+      return ON_THE_WAY.has(s);
+    case "delivered":
+      return s === "DELIVERED";
+    case "cancelled":
+      return s === "CANCELLED" || s === "PAYMENT_FAILED";
+    case "returned":
+      return s === "REFUNDED";
+    default:
+      return true;
+  }
+}
+
+function matchesTime(order: OrderV2, key: string): boolean {
+  if (key === "all" || !order.created_at) return true;
+  const t = Date.parse(order.created_at);
+  if (!Number.isFinite(t)) return true;
+  const now = Date.now();
+  switch (key) {
+    case "30d":
+      return now - t <= 30 * 24 * 3600 * 1000;
+    case "6m":
+      return now - t <= 182 * 24 * 3600 * 1000;
+    case "2026":
+      return new Date(t).getFullYear() === 2026;
+    case "older":
+      return new Date(t).getFullYear() <= 2025;
+    default:
+      return true;
+  }
+}
+
 export default function CustomerOrdersPage() {
   const { user, loading } = useAuth();
   const [orders, setOrders] = useState<OrderV2[]>([]);
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<OrderV2 | null>(null);
+  // WS7: Flipkart-style order filters (search + status + time).
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [timeFilter, setTimeFilter] = useState<string>("all");
 
   const loadOrders = useCallback(() => {
     if (!user) return;
@@ -743,6 +818,25 @@ export default function CustomerOrdersPage() {
     setOrders((prev) => prev.map((o) => (o.id === id ? updated : o)));
     if (selectedOrder?.id === id) setSelectedOrder(updated);
   };
+
+  // WS7: client-side search + status + time filters over the loaded orders.
+  const filteredOrders = orders.filter((o) => {
+    if (!matchesStatus(o, statusFilter)) return false;
+    if (!matchesTime(o, timeFilter)) return false;
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    const hay = [
+      o.order_number,
+      o.id,
+      ...(o.items || []).map((i: any) => i.product_name),
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return hay.includes(q);
+  });
+  const filtersActive =
+    search.trim() !== "" || statusFilter !== "all" || timeFilter !== "all";
 
   if (loading || (fetching && orders.length === 0)) {
     return (
@@ -789,12 +883,12 @@ export default function CustomerOrdersPage() {
 
   return (
     <div className="max-w-[900px] mx-auto px-4 sm:px-6 py-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">My Orders</h1>
           {orders.length > 0 && (
             <p className="text-neutral-500 text-sm mt-1">
-              {orders.length} order{orders.length !== 1 ? "s" : ""} found
+              {filteredOrders.length} of {orders.length} order{orders.length !== 1 ? "s" : ""} shown
             </p>
           )}
         </div>
@@ -805,6 +899,66 @@ export default function CustomerOrdersPage() {
           Continue Shopping →
         </Link>
       </div>
+
+      {/* WS7: search + status + time filters */}
+      {orders.length > 0 && (
+        <div className="mb-6 space-y-3">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by order number or product name"
+              aria-label="Search orders"
+              className="w-full h-11 rounded-full border border-neutral-200 pl-11 pr-4 text-sm focus:outline-none focus:border-neutral-950"
+            />
+          </div>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar scroll-fade-x pb-1 snap-x" role="group" aria-label="Filter by status">
+            {STATUS_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setStatusFilter(f.key)}
+                aria-pressed={statusFilter === f.key}
+                className={`shrink-0 px-4 h-9 inline-flex items-center rounded-full border text-sm font-medium transition-colors snap-start ${
+                  statusFilter === f.key
+                    ? "border-neutral-950 bg-neutral-950 text-white"
+                    : "border-neutral-200 text-neutral-600 hover:border-neutral-400"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar scroll-fade-x pb-1 snap-x" role="group" aria-label="Filter by time">
+            {TIME_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setTimeFilter(f.key)}
+                aria-pressed={timeFilter === f.key}
+                className={`shrink-0 px-3.5 h-8 inline-flex items-center rounded-full border text-xs font-medium transition-colors snap-start ${
+                  timeFilter === f.key
+                    ? "border-neutral-950 bg-neutral-950 text-white"
+                    : "border-neutral-200 text-neutral-600 hover:border-neutral-400"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          {filtersActive && (
+            <button
+              onClick={() => {
+                setSearch("");
+                setStatusFilter("all");
+                setTimeFilter("all");
+              }}
+              className="text-xs font-medium text-neutral-500 underline underline-offset-2"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
 
       {error && (
         <div className="flex items-center gap-3 p-4 rounded-xl bg-red-50 border border-red-100 mb-6">
@@ -836,7 +990,7 @@ export default function CustomerOrdersPage() {
       )}
 
       <div className="space-y-4">
-        {orders.map((order) => (
+        {filteredOrders.map((order) => (
           <OrderCard
             key={order.id}
             order={order}
@@ -844,6 +998,23 @@ export default function CustomerOrdersPage() {
           />
         ))}
       </div>
+
+      {filtersActive && filteredOrders.length === 0 && (
+        <div className="text-center py-16 border border-dashed border-neutral-200 rounded-3xl">
+          <Search className="w-10 h-10 text-neutral-300 mx-auto mb-4" />
+          <p className="font-medium text-neutral-900">No orders match your filters</p>
+          <button
+            onClick={() => {
+              setSearch("");
+              setStatusFilter("all");
+              setTimeFilter("all");
+            }}
+            className="mt-4 h-10 px-6 inline-flex items-center gap-2 bg-neutral-950 text-white rounded-full text-xs font-semibold hover:bg-neutral-800"
+          >
+            <X className="w-3.5 h-3.5" /> Clear filters
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -17,17 +17,13 @@ import type { LucideIcon } from "lucide-react";
 import HeroSlider from "@/components/site/HeroSlider";
 import NewsletterForm from "@/components/site/NewsletterForm";
 import RecentlyViewedStrip from "@/components/site/RecentlyViewedStrip";
-import CouponStrip from "@/components/site/CouponStrip";
-import BankOfferStrip from "@/components/site/BankOfferStrip";
 import CatalogueStrip from "@/components/site/CatalogueStrip";
 import {
   CATEGORIES,
   BRANDS,
   getCategories,
-  getActiveCoupons,
   fetchStoreConfigServer,
   fetchCatalogues,
-  fetchBankOffers,
   PROMO_TILES,
 } from "@/lib/products";
 
@@ -48,7 +44,7 @@ const FEATURES = [
   { icon: RotateCcw, title: "Easy Replacement", desc: "On Damaged/Defective Delivery", href: "/refund" },
 ];
 
-// ISR: revalidate frequently so banner/coupon changes reflect quickly.
+// ISR: revalidate frequently so banner/catalogue changes reflect quickly.
 export const revalidate = 30;
 
 /**
@@ -69,12 +65,10 @@ function isBannerInWindow(banner: Record<string, any> | undefined): boolean {
 
 
 export default async function Home() {
-  const [categories, config, coupons, catalogues, bankOffers] = await Promise.all([
+  const [categories, config, catalogues] = await Promise.all([
     getCategories(),
     fetchStoreConfigServer(),
-    getActiveCoupons(),
     fetchCatalogues(),
-    fetchBankOffers(),
   ]);
 
   const showBanner =
@@ -104,16 +98,15 @@ export default async function Home() {
         </section>
       )}
 
-      {/* Active Coupons */}
-      <CouponStrip coupons={coupons || []} />
-
-      {/* Bank card offers */}
-      <BankOfferStrip offers={bankOffers || []} />
+      {/* Coupons/offers intentionally NOT on the homepage (owner decision
+          2026-10-20, WS3): offers live on the PDP, cart and checkout
+          (Myntra/AJIO pattern). */}
 
 
 
-      {/* 2. Features strip — horizontal scroll on mobile, grid on desktop */}
-      <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* 2. Features strip — horizontal scroll on mobile, grid on desktop.
+          Mobile density (2026-10-20): tighter padding so more fits on phones. */}
+      <section className="max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-8 py-4 lg:py-6">
         <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 lg:grid lg:grid-cols-4 lg:overflow-visible">
           {FEATURES.map((f) => {
             const inner = (
@@ -144,11 +137,11 @@ export default async function Home() {
       </section>
 
       {/* 3. Shop by Category */}
-      <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-end justify-between mb-8">
+      <section className="max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-8 py-6 lg:py-8">
+        <div className="flex items-end justify-between mb-5 lg:mb-8">
           <div>
-            <h2 className="text-3xl font-semibold tracking-tight">Shop by Category</h2>
-            <p className="text-neutral-500 mt-2">Explore our curated collections</p>
+            <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Shop by Category</h2>
+            <p className="text-neutral-500 mt-2 text-sm sm:text-base">Explore our curated collections</p>
           </div>
           <Link
             href="/shop"
@@ -164,9 +157,9 @@ export default async function Home() {
               <Link
                 key={cat.slug}
                 href={`/categories/${encodeURIComponent(cat.slug)}`}
-                className="group flex-shrink-0 w-[90px] md:w-[150px] flex flex-col items-center gap-2 md:gap-3 rounded-2xl border border-neutral-200 p-3 md:p-5 hover:border-neutral-950 hover:shadow-sm transition-all snap-start"
+                className="group flex-shrink-0 w-[76px] md:w-[150px] flex flex-col items-center gap-2 md:gap-3 rounded-2xl border border-neutral-200 p-2.5 md:p-5 hover:border-neutral-950 hover:shadow-sm transition-all snap-start"
               >
-                                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-neutral-100 group-hover:bg-neutral-950 group-hover:text-white grid place-items-center transition-colors overflow-hidden">
+                                <div className="w-9 h-9 md:w-12 md:h-12 rounded-full bg-neutral-100 group-hover:bg-neutral-950 group-hover:text-white grid place-items-center transition-colors overflow-hidden">
                   {cat.image_url ? (
                     <img src={cat.image_url} alt={cat.name} className="w-5 h-5 md:w-6 md:h-6 object-contain" />
                   ) : (
@@ -181,7 +174,7 @@ export default async function Home() {
       </section>
 
       {/* 4. Promo tiles */}
-      <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <section className="max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-8 py-6 lg:py-8">
         <div className="flex overflow-x-auto scrollbar-hide gap-4 md:gap-6 pb-4 snap-x snap-mandatory">
           {(config?.promo_tiles?.length ? config.promo_tiles : PROMO_TILES).map((tile: any) => (
             <Link
@@ -193,6 +186,8 @@ export default async function Home() {
               <img
                 src={tile.img}
                 alt={tile.title}
+                loading="lazy"
+                decoding="async"
                 className="absolute inset-0 w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -232,9 +227,9 @@ export default async function Home() {
       <RecentlyViewedStrip />
 
       {/* 9. Newsletter CTA */}
-      <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="rounded-3xl bg-neutral-950 px-8 py-14 text-center">
-          <h2 className="text-3xl font-semibold text-white tracking-tight">Stay in the loop</h2>
+      <section className="max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-8 py-10 lg:py-16">
+        <div className="rounded-3xl bg-neutral-950 px-6 py-10 lg:px-8 lg:py-14 text-center">
+          <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">Stay in the loop</h2>
           <p className="text-neutral-400 mt-3 max-w-md mx-auto">
             Be first to know about drops, deals and restocks.
           </p>

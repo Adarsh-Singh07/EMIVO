@@ -32,11 +32,11 @@ export default function MobileBottomNav() {
         key={item.label}
         href={item.href}
         aria-current={active ? "page" : undefined}
-        className={`flex flex-col items-center justify-center gap-1 py-2.5 text-[10px] font-medium transition-colors ${
+        className={`flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${
           active ? "text-neutral-950" : "text-neutral-500 hover:text-neutral-950"
         }`}
       >
-        <item.icon className="h-5 w-5" strokeWidth={active ? 2.4 : 2} />
+        <item.icon className="h-[18px] w-[18px]" strokeWidth={active ? 2.4 : 2} />
         <span>{item.label}</span>
       </Link>
     );
@@ -53,10 +53,10 @@ export default function MobileBottomNav() {
         {/* Cart orb */}
         <button
           onClick={() => setDrawerOpen(true)}
-          className="relative flex flex-col items-center justify-end gap-1 pb-2.5 text-[10px] font-semibold text-neutral-950"
+          className="relative flex flex-col items-center justify-end gap-0.5 pb-2 text-[10px] font-semibold text-neutral-950"
         >
-          <span className="relative -mt-4 grid h-[46px] w-[46px] place-items-center rounded-xl bg-neutral-950 text-white shadow-lg ring-2 ring-white transition-transform active:scale-95">
-            <ShoppingBag className="h-5 w-5" strokeWidth={2.2} />
+          <span className="relative -mt-4 grid h-[42px] w-[42px] place-items-center rounded-xl bg-neutral-950 text-white shadow-lg ring-2 ring-white transition-transform active:scale-95">
+            <ShoppingBag className="h-[18px] w-[18px]" strokeWidth={2.2} />
             {count > 0 && (
               <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm ring-1 ring-white">
                 {count}

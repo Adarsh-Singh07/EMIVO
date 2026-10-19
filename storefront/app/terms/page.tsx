@@ -24,9 +24,9 @@ export default function TermsPage() {
           All product prices are subject to change without notice. We reserve the right to limit the quantity of items purchased and to cancel any order for reasons such as limited stock, inaccurate pricing, or suspected fraud.
         </p>
 
-        <h2 className="text-xl font-bold mt-8 mb-4">3. Payments and COD</h2>
+        <h2 className="text-xl font-bold mt-8 mb-4">3. Payments</h2>
         <p>
-          We offer secure online payments through Cashfree and Cash on Delivery (COD) options. For COD orders, you agree to pay the full amount in cash at the time of delivery. Failure to do so may result in your account being suspended for future COD orders.
+          All payments on ELEKTRIX are made online through our secure payment partners (such as Cashfree) using UPI, cards, net-banking or EMI. We do not offer Cash on Delivery — an order is confirmed only after successful online payment.
         </p>
 
         <h2 className="text-xl font-bold mt-8 mb-4">4. Shipping and Delivery</h2>

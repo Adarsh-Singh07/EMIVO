@@ -595,6 +595,13 @@ export const storeApi = {
 
   /* ----- Coupons (auth) ----- */
 
+  /** Active coupons for display (PDP offers, cart "Available coupons").
+   *  This is the public /store/coupons listing — validation still happens
+   *  server-side via validateCoupon() at checkout/cart apply time. */
+  listCoupons(): Promise<Array<{ code: string; description?: string } & Record<string, unknown>>> {
+    return fetchApi("/store/coupons");
+  },
+
   validateCoupon(code: string, cartSubtotal: number): Promise<CouponValidation> {
     return fetchApi<CouponValidation>("/coupons/validate", {
       method: "POST",

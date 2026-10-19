@@ -146,7 +146,7 @@ export default function Footer() {
       <div className="border-t border-neutral-900">
         <div className="max-w-[1400px] mx-auto px-4 py-5 text-xs text-neutral-400 flex flex-col sm:flex-row items-center justify-between gap-3">
           <span>© {new Date().getFullYear()} ELEKTRIX. All rights reserved.</span>
-          <span>Secured by VISA · MasterCard · UPI · Netbanking · COD</span>
+          <span>Secured by VISA · MasterCard · UPI · Netbanking</span>
         </div>
       </div>
     </footer>

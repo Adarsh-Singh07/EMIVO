@@ -136,6 +136,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={inter.variable}>
+      <head>
+        {/* WS9: warm up the origins every page talks to (API + R2 media CDN). */}
+        <link rel="preconnect" href="https://api.elektrix.in" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://media.elektrix.in" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://api.elektrix.in" />
+        <link rel="dns-prefetch" href="https://media.elektrix.in" />
+      </head>
       <body className="font-sans antialiased bg-white text-neutral-900 overflow-x-hidden">
         <a
           href="#main-content"

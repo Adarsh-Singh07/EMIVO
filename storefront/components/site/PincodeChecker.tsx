@@ -191,11 +191,10 @@ export default function PincodeChecker() {
 
                   {result.formatted_delivery_date && (
                     <p className="text-xs text-neutral-800 font-medium mt-0.5">
-                      Fastest delivery by{" "}
+                      Delivery by{" "}
                       <span className="font-bold text-neutral-950 underline decoration-emerald-500 decoration-2">
                         {result.formatted_delivery_date}
-                      </span>{" "}
-                      ({result.estimated_days} business days)
+                      </span>
                     </p>
                   )}
                 </div>

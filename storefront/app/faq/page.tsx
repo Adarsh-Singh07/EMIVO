@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react";
 const FAQS = [
   {
     q: "How long does delivery take?",
-    a: "Orders are dispatched same-day when placed before 6pm IST. Metro cities receive delivery in 1–2 days; most other locations in 2–4 days. Delivery is free on orders over ₹999.",
+    a: "Delivery is free on orders over ₹999. Your exact delivery date depends on your pincode — enter it on any product page or at checkout and we will show you the live delivery date from our courier partners before you pay.",
   },
   {
     q: "Do you offer EMI options?",
@@ -18,7 +18,7 @@ const FAQS = [
   },
   {
     q: "What is your return policy?",
-    a: "Every order is delivered with an open-box inspection — check the product at your doorstep before accepting. Once accepted, returns aren't accepted, but manufacturing defects are covered by the manufacturer's warranty through their authorised service centres. Orders can be cancelled any time before they go out for delivery. Full details are on our Return Policy page.",
+    a: "Every order is delivered with an open-box inspection — check the product at your doorstep before accepting. If the product is damaged or is not what you ordered, do not accept it, or report it to us the same day, and we will replace it or refund you. Once a product is accepted in good condition, returns aren't accepted; manufacturing defects are covered by the manufacturer's warranty through their authorised service centres. Orders can be cancelled any time before they go out for delivery. Full details are on our Return Policy page.",
   },
   {
     q: "How do coupon codes work?",

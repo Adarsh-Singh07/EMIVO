@@ -243,6 +243,19 @@ footer :focus-visible,
   animation: drawer-in 220ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+/* Mobile filter bottom-sheet entrance (shop). */
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.sheet-up {
+  animation: sheet-up 240ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
 /* Hero content entrance */
 @keyframes fadeIn {
   from {
@@ -276,21 +289,5 @@ footer :focus-visible,
 }
 
 
-/* Product-page trust badges: perpetual horizontal marquee on small screens
-   (pause on hover/focus, disabled for reduced-motion users). */
-@keyframes ex-marquee {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-.ex-marquee-track {
-  display: flex;
-  width: max-content;
-  animation: ex-marquee 22s linear infinite;
-}
-.ex-marquee:hover .ex-marquee-track,
-.ex-marquee:focus-within .ex-marquee-track {
-  animation-play-state: paused;
-}
-@media (prefers-reduced-motion: reduce) {
-  .ex-marquee-track { animation: none; }
-}
+/* (ex-marquee removed 2026-10-20 — the PDP trust badges are a static
+   "shop with confidence" strip now) */

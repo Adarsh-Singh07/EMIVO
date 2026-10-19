@@ -201,7 +201,10 @@ export default function Header() {
       <TopRibbon />
 
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-neutral-100">
-        <div className="max-w-[1400px] mx-auto px-2 sm:px-4 h-[72px] flex items-center gap-1 sm:gap-3 lg:gap-5">
+        {/* Mobile density (owner decision 2026-10-20): the app felt zoomed-in
+            on phones. Header is compact on mobile — h-14, smaller icons —
+            while desktop keeps the roomy layout. */}
+        <div className="max-w-[1400px] mx-auto px-2 sm:px-4 h-14 lg:h-[72px] flex items-center gap-1 sm:gap-3 lg:gap-5">
           {/* Mobile hamburger */}
           <button
             className="lg:hidden p-2 -ml-1"
@@ -209,14 +212,14 @@ export default function Header() {
             aria-label="Menu"
             aria-expanded={mobileOpen}
           >
-            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
 
           {/* Logo + tagline */}
           <Link href="/" className="flex flex-col items-start shrink-0 leading-none">
             <div className="flex items-center gap-1.5">
-              <img src="/branding/icon.png" alt="ELEKTRIX" className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg object-cover" />
-              <span className="text-[16px] sm:text-2xl font-bold tracking-tight">ELEKTRIX</span>
+              <img src="/branding/icon.png" alt="ELEKTRIX" className="w-5 h-5 sm:w-8 sm:h-8 rounded-lg object-cover" />
+              <span className="text-[15px] sm:text-2xl font-bold tracking-tight">ELEKTRIX</span>
             </div>
             <span className="hidden lg:block text-[10px] text-neutral-500 mt-0.5 ml-10">
               India&apos;s Premium Electronics Store
@@ -254,7 +257,7 @@ export default function Header() {
             aria-label="Search"
             onClick={() => setSearchOpen(true)}
           >
-            <Search className="w-5 h-5" />
+            <Search className="w-[18px] h-[18px]" />
           </button>
 
           {/* Right icons */}
@@ -351,7 +354,7 @@ export default function Header() {
               className="relative p-2 hover:bg-neutral-100 rounded-full "
               aria-label={`Wishlist (${wishlist.count} items)`}
             >
-              <Heart className="w-5 h-5" />
+              <Heart className="w-[18px] h-[18px]" />
               {wishlist.count > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-neutral-950 text-white text-[10px] grid place-items-center">
                   {wishlist.count}
@@ -378,10 +381,10 @@ export default function Header() {
         {/* Mobile pincode strip */}
         <button
           onClick={() => setPinOpen((v) => !v)}
-          className="lg:hidden w-full flex items-center gap-2 border-t border-neutral-100 px-4 py-2 text-xs text-neutral-600"
+          className="lg:hidden w-full flex items-center gap-2 border-t border-neutral-100 px-4 py-1.5 text-xs text-neutral-600"
           aria-label="Change delivery pincode"
         >
-          <MapPin className="w-4 h-4 text-neutral-400 shrink-0" />
+          <MapPin className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
           Delivering to <span className="font-semibold text-neutral-900">{pincode}</span>
           <ChevronDown
             className={`w-4 h-4 ml-auto text-neutral-400 transition-transform ${

@@ -33,6 +33,7 @@ import {
   Package,
   ExternalLink,
   Navigation,
+  RotateCcw,
 } from "lucide-react";
 import { useCart } from "@/components/site/CartProvider";
 import BankOfferHint from "@/components/site/BankOfferHint";
@@ -151,8 +152,27 @@ function CheckoutContent() {
   }, [buyNowId, buyNowVariant]);
 
   const isBuyNow = !!buyNowId;
-  const lines = isBuyNow && buyNowItem ? [buyNowItem] : cart.lines;
-  const subtotal = isBuyNow && buyNowItem ? buyNowItem.subtotal : cart.subtotal;
+  // WS4: cart selection — /checkout?sel=<cart-line-ids> checks out ONLY the
+  // selected lines; the rest stay in the cart. Unknown ids fall back to the
+  // whole cart rather than stranding the buyer on an empty checkout.
+  const selParam = searchParams.get("sel") || "";
+  const selIds = selParam.split(",").map((s) => s.trim()).filter(Boolean);
+  const cartSelLines =
+    selIds.length > 0 ? cart.lines.filter((l) => selIds.includes(l.id)) : cart.lines;
+  const effectiveCartLines =
+    selIds.length > 0 && cartSelLines.length === 0 ? cart.lines : cartSelLines;
+  const hasSelection = selIds.length > 0 && cartSelLines.length > 0;
+
+  const lines = isBuyNow && buyNowItem ? [buyNowItem] : effectiveCartLines;
+  const subtotal =
+    isBuyNow && buyNowItem
+      ? buyNowItem.subtotal
+      : hasSelection
+        ? effectiveCartLines.reduce((s, l) => s + l.quantity * l.unit_price, 0)
+        : cart.subtotal;
+  // WS4: Buy Now is a SINGLE page — address + offers + payment stacked, one
+  // sticky CTA. The cart flow keeps the 3-step in-page stepper.
+  const singlePage = isBuyNow;
   const cartLoading = isBuyNow ? buyNowLoading : cart.loading;
   const reloadCart = cart.reload;
 
@@ -192,7 +212,11 @@ function CheckoutContent() {
   useEffect(() => {
     storeApi.getStoreConfig().then((cfg) => {
       setOnlinePaymentAvailable(cfg.online_payment_available);
-      setCodEnabled(cfg.cod_enabled);
+      // OWNER DECISION 2026-10-20: COD is NOT offered. Force the COD card to
+      // "unavailable" regardless of the admin toggle (the live admin Settings
+      // toggle must also be OFF). Re-enable later only via admin Settings —
+      // then remove this override. The code path below stays intact.
+      setCodEnabled(false);
       setCodFeePaise(cfg.cod_fee_paise ?? 0);
       // Follow the store's effective default gateway (admin-selected in
       // Settings, env fallback resolved server-side). There is no per-buyer
@@ -202,14 +226,17 @@ function CheckoutContent() {
         setGateway(dg);
       }
       
-      if (!cfg.online_payment_available && cfg.cod_enabled) {
-        setPaymentMethod("COD");
-      } else if (!cfg.cod_enabled && cfg.online_payment_available) {
+      // COD is forced off (owner decision 2026-10-20): always default to
+      // online payment. The COD branch below is unreachable while forced.
+      if (cfg.online_payment_available) {
         setPaymentMethod("ONLINE");
       }
     }).catch(() => {
-      setOnlinePaymentAvailable(false);
-      setPaymentMethod("COD");
+      // Config unreachable: never invent COD availability. Default to
+      // online payment and keep COD hidden unless the store config
+      // explicitly enables it.
+      setCodEnabled(false);
+      setPaymentMethod("ONLINE");
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -432,7 +459,59 @@ function CheckoutContent() {
   const removeCoupon = () => {
     setAppliedCoupon(null);
     setCouponError("");
+    // Also drop the cart-carried coupon so it doesn't re-apply on reload.
+    try {
+      sessionStorage.removeItem("elektrix_applied_coupon");
+    } catch {
+      /* ignore */
+    }
   };
+
+  // Coupon carried over from the cart (WS3): validate it fresh server-side
+  // once the cart subtotal is known. Runs once per mount.
+  const cartCouponChecked = useRef(false);
+  useEffect(() => {
+    if (cartCouponChecked.current || appliedCoupon || isBuyNow) return;
+    if (cartLoading || subtotal <= 0) return;
+    cartCouponChecked.current = true;
+    let raw: string | null = null;
+    try {
+      raw = sessionStorage.getItem("elektrix_applied_coupon");
+    } catch {
+      return;
+    }
+    if (!raw) return;
+    let parsed: { code?: string } | null = null;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    if (!parsed?.code) return;
+    const code = parsed.code.toUpperCase();
+    storeApi
+      .validateCoupon(code, subtotal)
+      .then((result) => {
+        if (result.is_valid) {
+          setAppliedCoupon({
+            code,
+            discount: result.discount_amount || 0,
+            message: result.message || "Coupon applied",
+          });
+          toast.success(`${code} from your cart applied`);
+        } else {
+          try {
+            sessionStorage.removeItem("elektrix_applied_coupon");
+          } catch {
+            /* ignore */
+          }
+        }
+      })
+      .catch(() => {
+        /* leave the coupon off — buyer can retry manually */
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartLoading, subtotal]);
 
   /* ---------------- Payment step ---------------- */
   const [paymentMethod, setPaymentMethod] = useState<"COD" | "ONLINE">("ONLINE");
@@ -495,6 +574,18 @@ function CheckoutContent() {
         items: [{ product_id: buyNowItem.product_id, variant_id: buyNowVariant || undefined, quantity: 1 }],
       };
     }
+    // WS4: selected-subset checkout — explicit items so ONLY the selected
+    // lines are ordered; the buyer's saved cart keeps the rest.
+    if (hasSelection) {
+      return {
+        ...base,
+        items: effectiveCartLines.map((l) => ({
+          product_id: l.product_id,
+          variant_id: l.variant_id ?? undefined,
+          quantity: l.quantity,
+        })),
+      };
+    }
     return base;
   };
 
@@ -527,8 +618,7 @@ function CheckoutContent() {
         const loaded = await loadCashfreeScript();
         if (!loaded) {
           setPendingPayment({ order, paymentId });
-          toast.error("Online payment is temporarily unavailable. Please proceed with Cash on Delivery.");
-          setPaymentMethod("COD");
+          toast.error("Online payment is temporarily unavailable. Please try again in a few minutes.");
           return;
         }
 
@@ -678,6 +768,11 @@ function CheckoutContent() {
       } else {
         setPlacedOrder(response.order);
         setAppliedCoupon(null);
+        try {
+          sessionStorage.removeItem("elektrix_applied_coupon");
+        } catch {
+          /* ignore */
+        }
         sessionStorage.removeItem(IDEM_KEY_STORAGE);
         reloadCart();
         toast.success("Order placed successfully!");
@@ -698,8 +793,7 @@ function CheckoutContent() {
       } else if (apiErr?.code === "CART_EMPTY") {
         message = "Your cart is empty.";
       } else if (apiErr instanceof ApiError && (apiErr.status === 502 || apiErr.status === 503) && apiErr.code === "PAYMENT_FAILED") {
-        message = "Online payment is temporarily unavailable. Please proceed with Cash on Delivery.";
-        setPaymentMethod("COD");
+        message = "Online payment is temporarily unavailable. Please try again in a few minutes.";
       }
       setPlaceError(message);
       toast.error(message);
@@ -942,10 +1036,16 @@ function CheckoutContent() {
   ] as const;
 
   return (
-    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className={`max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 ${singlePage ? "pb-36 lg:pb-8" : ""}`}>
       <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-6">Checkout</h1>
+      {hasSelection && (
+        <p className="text-sm text-neutral-500 -mt-4 mb-6">
+          Checking out {lines.length} selected {lines.length === 1 ? "item" : "items"} — the rest stay in your cart.
+        </p>
+      )}
 
-      {/* Stepper */}
+      {/* Stepper — hidden on the single-page Buy Now flow (WS4) */}
+      {!singlePage && (
       <ol className="flex items-center gap-2 sm:gap-4 mb-8 text-sm overflow-x-auto no-scrollbar">
         {STEPS.map((s, i) => {
           const active = step === s.n;
@@ -981,11 +1081,12 @@ function CheckoutContent() {
           );
         })}
       </ol>
+      )}
 
       <div className="grid lg:grid-cols-[1fr_400px] gap-10 items-start">
         <div className="space-y-10 min-w-0">
           {/* ---------------- Step 1: Address ---------------- */}
-          {step === 1 && (
+          {(singlePage || step === 1) && (
             <section aria-label="Shipping address">
               <h2 className="flex items-center gap-2 font-semibold text-lg mb-4">
                 <MapPin className="w-5 h-5" /> Shipping Address
@@ -1253,7 +1354,7 @@ function CheckoutContent() {
                 </div>
               )}
 
-              {!showNewForm && addressReady && (
+              {!singlePage && !showNewForm && addressReady && (
                 <button
                   type="button"
                   onClick={() => setStep(2)}
@@ -1266,7 +1367,7 @@ function CheckoutContent() {
           )}
 
           {/* ---------------- Step 2: Offers ---------------- */}
-          {step === 2 && (
+          {(singlePage || step === 2) && (
             <section aria-label="Offers and coupons">
               <h2 className="flex items-center gap-2 font-semibold text-lg mb-4">
                 <Tag className="w-5 h-5" /> Offers & Coupons
@@ -1323,27 +1424,29 @@ function CheckoutContent() {
               {/* Bank card offers relevant to the current cart */}
               <BankOfferHint productIds={lines.map((l) => l.product_id)} />
 
-              <div className="mt-8 flex flex-col sm:flex-row gap-3">
-                <button
-                  type="button"
-                  onClick={() => setStep(3)}
-                  className="h-12 px-8 bg-neutral-950 text-white rounded-full text-sm font-medium hover:bg-neutral-800"
-                >
-                  Continue to payment
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="h-12 px-8 border border-neutral-200 rounded-full text-sm font-medium hover:bg-neutral-50"
-                >
-                  Back
-                </button>
-              </div>
+              {!singlePage && (
+                <div className="mt-8 flex flex-col sm:flex-row gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setStep(3)}
+                    className="h-12 px-8 bg-neutral-950 text-white rounded-full text-sm font-medium hover:bg-neutral-800"
+                  >
+                    Continue to payment
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="h-12 px-8 border border-neutral-200 rounded-full text-sm font-medium hover:bg-neutral-50"
+                  >
+                    Back
+                  </button>
+                </div>
+              )}
             </section>
           )}
 
           {/* ---------------- Step 3: Payment ---------------- */}
-          {step === 3 && (
+          {(singlePage || step === 3) && (
             <section aria-label="Payment method">
               <h2 className="flex items-center gap-2 font-semibold text-lg mb-4">
                 <CreditCard className="w-5 h-5" /> Payment Method
@@ -1354,7 +1457,7 @@ function CheckoutContent() {
                   <svg className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                   <p className="text-sm text-amber-800">
                     <span className="font-semibold">Online payment is temporarily unavailable.</span>{" "}
-                    Please continue with Cash on Delivery.
+                    Please try again in a few minutes, or contact support if the problem continues.
                   </p>
                 </div>
               )}
@@ -1418,15 +1521,17 @@ function CheckoutContent() {
                 amount is computed by the store at order time.
               </p>
 
-              <div className="mt-8 flex flex-col sm:flex-row gap-3">
-                <button
-                  type="button"
-                  onClick={() => setStep(2)}
-                  className="h-12 px-8 border border-neutral-200 rounded-full text-sm font-medium hover:bg-neutral-50"
-                >
-                  Back
-                </button>
-              </div>
+              {!singlePage && (
+                <div className="mt-8 flex flex-col sm:flex-row gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setStep(2)}
+                    className="h-12 px-8 border border-neutral-200 rounded-full text-sm font-medium hover:bg-neutral-50"
+                  >
+                    Back
+                  </button>
+                </div>
+              )}
             </section>
           )}
         </div>
@@ -1519,13 +1624,22 @@ function CheckoutContent() {
             </div>
           )}
 
+          {singlePage && (
+            <div className="mt-4 grid grid-cols-2 gap-2 text-[11px] text-neutral-500">
+              <span className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 shrink-0" /> Free delivery over ₹999</span>
+              <span className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5 shrink-0" /> Open-box delivery</span>
+              <span className="flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5 shrink-0" /> Brand warranty</span>
+              <span className="flex items-center gap-1.5"><RotateCcw className="w-3.5 h-3.5 shrink-0" /> Damaged/wrong? Replaced</span>
+            </div>
+          )}
+
           {step === 3 && belowMinOrder && (
             <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
               Minimum order value for delivery is <b>{inr(shipCfg.minOrderPaise)}</b> — add{" "}
               <b>{inr(shipCfg.minOrderPaise - subtotal)}</b> more to continue.
             </div>
           )}
-          {step === 3 ? (
+          {(singlePage || step === 3) ? (
             <button
               onClick={placeOrder}
               disabled={placing || !addressReady || belowMinOrder}
@@ -1561,6 +1675,34 @@ function CheckoutContent() {
           )}
         </aside>
       </div>
+
+      {/* WS4: sticky bottom CTA on mobile for the single-page Buy Now flow.
+          Sits above the MobileBottomNav (same offset the layout reserves). */}
+      {singlePage && placedOrder === null && pendingPayment === null && !redirecting && (
+        <div className="lg:hidden fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 px-4">
+          <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white/95 backdrop-blur px-4 py-3 shadow-xl">
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] text-neutral-500 leading-none">Total</p>
+              <p className="font-bold text-base leading-tight mt-0.5">{inr(total)}</p>
+            </div>
+            <button
+              onClick={placeOrder}
+              disabled={placing || !addressReady || belowMinOrder}
+              className="h-12 px-8 shrink-0 inline-flex items-center justify-center gap-2 bg-neutral-950 text-white rounded-full text-sm font-semibold hover:bg-neutral-800 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {placing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : null}
+              {placing ? "Placing…" : `Pay ${inr(total)}`}
+            </button>
+          </div>
+          {!addressReady && (
+            <p className="text-center text-[11px] text-amber-700 mt-1.5">
+              Add a delivery address to continue
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

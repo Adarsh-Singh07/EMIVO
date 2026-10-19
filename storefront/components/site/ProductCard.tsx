@@ -189,8 +189,6 @@ export default function ProductCard({ product }: { product: Product }) {
           <p className="text-[10px] text-amber-700 mt-1">Only {product.stockAvailable} left</p>
         )}
 
-        <p className="text-[10px] text-neutral-500 mt-1">Dispatched in 24-48 hrs</p>
-
         <div className="mt-auto pt-2">
           <button
             onClick={handleAdd}

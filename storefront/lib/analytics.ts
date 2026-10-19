@@ -11,7 +11,7 @@
  * - view_item        (product page view)
  * - add_to_cart      (card + PDP add, centralised in CartProvider.add)
  * - begin_checkout   (checkout page mount)
- * - purchase         (online payment confirmed / COD order placed)
+ * - purchase         (online payment confirmed / order placed)
  * - search           (header search submit)
  */
 
