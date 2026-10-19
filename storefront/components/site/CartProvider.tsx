@@ -58,6 +58,14 @@ interface CartCtxValue {
   removeLine: (itemId: string) => void;
   clear: () => Promise<void>;
   reload: () => Promise<void>;
+  /** WS4: per-line checkout selection. New lines default to selected;
+   *  `deselectedIds` holds the ids the buyer unchecked. */
+  deselectedIds: Set<string>;
+  toggleSelect: (itemId: string) => void;
+  selectAll: () => void;
+  selectedLines: CartLine[];
+  selectedSubtotal: number;
+  selectedCount: number;
 }
 
 const CartCtx = createContext<CartCtxValue | null>(null);
@@ -105,6 +113,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [meta, setMeta] = useState<MetaMap>({});
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [deselectedIds, setDeselectedIds] = useState<Set<string>>(new Set());
   const cartIdRef = useRef<string | null>(null);
   // Monotonic sequence guarding against out-of-order server responses: when
   // two mutations are in flight, an OLDER response must never clobber the
@@ -366,6 +375,29 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, [cart]);
 
+  /* ------------------------------ Selection ------------------------------ */
+
+  const toggleSelect = useCallback((itemId: string) => {
+    setDeselectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => setDeselectedIds(new Set()), []);
+
+  // Prune ids that no longer exist (line removed server-side).
+  const lineIds = useMemo(() => new Set((cart?.items ?? []).map((i) => i.id)), [cart]);
+  useEffect(() => {
+    setDeselectedIds((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Set([...prev].filter((id) => lineIds.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [lineIds]);
+
   /* ------------------------------ Derived ------------------------------ */
 
   const lines: CartLine[] = useMemo(
@@ -386,6 +418,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return (cart.items ?? []).reduce((s, i) => s + i.quantity * i.unit_price, 0);
   }, [cart]);
 
+  const selectedLines = useMemo(
+    () => lines.filter((l) => !deselectedIds.has(l.id)),
+    [lines, deselectedIds]
+  );
+
+  const selectedSubtotal = useMemo(
+    () => selectedLines.reduce((s, l) => s + l.quantity * l.unit_price, 0),
+    [selectedLines]
+  );
+
+  const selectedCount = useMemo(
+    () => selectedLines.reduce((s, l) => s + l.quantity, 0),
+    [selectedLines]
+  );
+
   const value = useMemo<CartCtxValue>(
     () => ({
       cart,
@@ -400,8 +447,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
       removeLine,
       clear,
       reload,
+      deselectedIds,
+      toggleSelect,
+      selectAll,
+      selectedLines,
+      selectedSubtotal,
+      selectedCount,
     }),
-    [cart, lines, loading, count, subtotal, drawerOpen, add, setQty, removeLine, clear, reload]
+    [cart, lines, loading, count, subtotal, drawerOpen, add, setQty, removeLine, clear, reload, deselectedIds, toggleSelect, selectAll, selectedLines, selectedSubtotal, selectedCount]
   );
 
   return <CartCtx.Provider value={value}>{children}</CartCtx.Provider>;

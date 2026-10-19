@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 const VALUES = [
-  { icon: Truck, title: "Fast Delivery", desc: "Same-day dispatch and 1–3 day delivery across India." },
+  { icon: Truck, title: "Fast Delivery", desc: "Live delivery dates for your pincode, shown on every product before you order." },
   { icon: BadgePercent, title: "Honest Pricing", desc: "Genuine deals on premium electronics, every day." },
   { icon: ShieldCheck, title: "100% Genuine", desc: "Every product sourced from authorised distributors." },
   { icon: RotateCcw, title: "Open-Box Delivery", desc: "Inspect your order at the doorstep before you accept it." },

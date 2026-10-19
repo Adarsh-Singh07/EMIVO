@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from "lucide-react";
+import { useState } from "react";
+import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Check } from "lucide-react";
 import { useCart } from "@/components/site/CartProvider";
 import RecentlyViewedStrip from "@/components/site/RecentlyViewedStrip";
+import CartCoupons, { readCartCoupon, type CartCoupon } from "@/components/site/CartCoupons";
 import { useStoreShippingConfig, computeShipping } from "@/lib/store-config";
 import { inr } from "@/lib/format";
+import { toast } from "sonner";
 
 /** Skeleton for a cart line. */
 function LineSkeleton() {
@@ -23,11 +26,38 @@ function LineSkeleton() {
 }
 
 export default function CartPage() {
-  const { lines, loading, setQty, removeLine, subtotal, count } = useCart();
+  const {
+    lines,
+    loading,
+    setQty,
+    removeLine,
+    count,
+    deselectedIds,
+    toggleSelect,
+    selectAll,
+    selectedLines,
+    selectedSubtotal,
+    selectedCount,
+  } = useCart();
+
+  // Coupon picked here carries over to checkout via sessionStorage (read by
+  // the checkout page on mount and re-validated server-side).
+  const [appliedCoupon, setAppliedCoupon] = useState<CartCoupon | null>(() => readCartCoupon());
+  const discount = appliedCoupon?.discount ?? 0;
 
   const shipCfg = useStoreShippingConfig();
-  const shipping = computeShipping(subtotal, 0, shipCfg);
-  const total = subtotal + shipping;
+  // WS4: summary reflects the SELECTION only; unselected lines stay in the
+  // cart for later.
+  const shipping = computeShipping(selectedSubtotal, discount, shipCfg);
+  const total = Math.max(0, selectedSubtotal - discount) + shipping;
+  const allSelected = deselectedIds.size === 0;
+
+  const checkoutHref =
+    selectedLines.length === 0
+      ? "#"
+      : allSelected
+        ? "/checkout"
+        : `/checkout?sel=${encodeURIComponent(selectedLines.map((l) => l.id).join(","))}`;
 
   if (loading && lines.length === 0) {
     return (
@@ -64,24 +94,57 @@ export default function CartPage() {
   return (
     <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-24 md:pb-8">
       <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-2">Your Cart</h1>
-      <p className="text-sm text-neutral-500 mb-8">
-        {count} {count === 1 ? "item" : "items"}
+      <p className="text-sm text-neutral-500 mb-6">
+        {selectedCount} of {count} {count === 1 ? "item" : "items"} selected
       </p>
 
       <div className="grid lg:grid-cols-[1fr_380px] gap-10 items-start">
         {/* Items */}
         <div className="space-y-4">
+          {/* Select-all row (WS4) */}
+          <div className="flex items-center justify-between px-1">
+            <button
+              onClick={() => (allSelected ? toast.info("Uncheck items to leave them for later") : selectAll())}
+              className="inline-flex items-center gap-2.5 text-sm font-medium text-neutral-700 hover:text-neutral-950"
+              aria-pressed={allSelected}
+            >
+              <span
+                className={`w-5 h-5 rounded-md border-2 grid place-items-center transition-colors ${
+                  allSelected ? "bg-neutral-950 border-neutral-950 text-white" : "border-neutral-300 bg-white"
+                }`}
+              >
+                {allSelected && <Check className="w-3.5 h-3.5" />}
+              </span>
+              {allSelected ? "All selected" : "Select all"}
+            </button>
+            {!allSelected && (
+              <p className="text-xs text-neutral-400">Unchecked items stay in your cart</p>
+            )}
+          </div>
+
           {lines.map((i) => {
             const stock = i.stock_available;
             const atStockCap = stock != null && stock > 0 && i.quantity >= stock;
             const overStock = stock != null && i.quantity > stock;
+            const selected = !deselectedIds.has(i.id);
             return (
               <div
                 key={i.id}
-                className={`flex gap-3 sm:gap-4 p-3 sm:p-4 border rounded-2xl ${
+                className={`flex gap-3 sm:gap-4 p-3 sm:p-4 border rounded-2xl transition-opacity ${
                   overStock ? "border-red-200 bg-red-50/40" : "border-neutral-200"
-                }`}
+                } ${selected ? "" : "opacity-60"}`}
               >
+                {/* WS4: per-line checkout checkbox */}
+                <button
+                  onClick={() => toggleSelect(i.id)}
+                  aria-pressed={selected}
+                  aria-label={selected ? `Deselect ${i.product_name}` : `Select ${i.product_name}`}
+                  className={`mt-1 w-5 h-5 rounded-md border-2 grid place-items-center shrink-0 transition-colors ${
+                    selected ? "bg-neutral-950 border-neutral-950 text-white" : "border-neutral-300 bg-white"
+                  }`}
+                >
+                  {selected && <Check className="w-3.5 h-3.5" />}
+                </button>
                 <Link
                   href={i.product_id ? `/product/${i.product_id}` : "#"}
                   className="relative w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-xl bg-neutral-100 overflow-hidden"
@@ -170,11 +233,24 @@ export default function CartPage() {
         <aside className="border border-neutral-200 rounded-3xl p-6 lg:sticky lg:top-24">
           <h2 className="font-semibold text-lg mb-4">Order Summary</h2>
 
+          <CartCoupons
+            subtotal={selectedSubtotal}
+            applied={appliedCoupon}
+            onApplied={setAppliedCoupon}
+            onRemoved={() => setAppliedCoupon(null)}
+          />
+
           <dl className="space-y-3 text-sm">
             <div className="flex justify-between">
-              <dt className="text-neutral-500">Subtotal</dt>
-              <dd className="font-medium">{inr(subtotal)}</dd>
+              <dt className="text-neutral-500">Subtotal ({selectedCount} selected)</dt>
+              <dd className="font-medium">{inr(selectedSubtotal)}</dd>
             </div>
+            {discount > 0 && (
+              <div className="flex justify-between text-green-600">
+                <dt>Coupon discount{appliedCoupon ? ` (${appliedCoupon.code})` : ""}</dt>
+                <dd className="font-medium">−{inr(discount)}</dd>
+              </div>
+            )}
             <div className="flex justify-between">
               <dt className="text-neutral-500">Shipping</dt>
               <dd className="font-medium">
@@ -187,7 +263,7 @@ export default function CartPage() {
             </div>
             {shipping > 0 && (
               <p className="text-xs text-neutral-400">
-                Add {inr(shipCfg.freeShippingThresholdPaise - subtotal)} more for free shipping
+                Add {inr(Math.max(0, shipCfg.freeShippingThresholdPaise - (selectedSubtotal - discount)))} more for free shipping
               </p>
             )}
             <div className="flex justify-between border-t border-neutral-200 pt-3 text-base">
@@ -196,15 +272,24 @@ export default function CartPage() {
             </div>
           </dl>
           <p className="text-[11px] text-neutral-400 mt-2">
-            Coupons and final shipping are confirmed at checkout.
+            Final shipping and coupon validation are confirmed at checkout.
           </p>
 
-          <Link
-            href="/checkout"
-            className="mt-5 w-full h-12 grid place-items-center bg-neutral-950 text-white rounded-full text-sm font-medium hover:bg-neutral-800"
-          >
-            Proceed to Checkout
-          </Link>
+          {selectedLines.length === 0 ? (
+            <button
+              onClick={() => toast.error("Select at least one item to check out")}
+              className="mt-5 w-full h-12 grid place-items-center bg-neutral-300 text-white rounded-full text-sm font-medium cursor-not-allowed"
+            >
+              Select items to continue
+            </button>
+          ) : (
+            <Link
+              href={checkoutHref}
+              className="mt-5 w-full h-12 grid place-items-center bg-neutral-950 text-white rounded-full text-sm font-medium hover:bg-neutral-800"
+            >
+              Proceed to Checkout · {inr(total)}
+            </Link>
+          )}
           <Link
             href="/shop"
             className="mt-3 w-full h-12 grid place-items-center border border-neutral-200 rounded-full text-sm font-medium hover:bg-neutral-50"

@@ -16,9 +16,9 @@ export default function RefundPage() {
           To ensure complete transparency and prevent fraud, ELEKTRIX mandates an <strong>Open-Box Delivery Policy</strong> for all shipments. You or your authorized receiver MUST open the package and inspect the product in the presence of the delivery executive before accepting the delivery and sharing the delivery OTP.
         </p>
 
-        <h2 className="text-xl font-bold mt-8 mb-4">2. No Returns After Acceptance</h2>
+        <h2 className="text-xl font-bold mt-8 mb-4">2. Returns After Acceptance — Damaged or Wrong Items Only</h2>
         <p>
-          Once a delivery is accepted following the open-box inspection, <strong>we do not accept returns or provide refunds</strong> under any circumstances for reasons such as physical damage, missing accessories, or incorrect products. By accepting the package, you confirm that the product was received in perfect physical condition.
+          Once a delivery is accepted following the open-box inspection, returns and refunds are available <strong>only if the product delivered is physically damaged or is a different product from what you ordered</strong>. If you notice damage or a wrong product during the inspection, please do not accept the delivery. If damage is discovered immediately after acceptance, report it to our support team the same day with photos so we can arrange a replacement or a refund. For any other reason, including a change of mind, returns are not accepted after the open-box acceptance — by accepting the package, you confirm that the product was received in good physical condition.
         </p>
 
         <h2 className="text-xl font-bold mt-8 mb-4">3. Manufacturing Defects & Warranty</h2>

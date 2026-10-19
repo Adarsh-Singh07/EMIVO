@@ -24,6 +24,7 @@ import {
 import PincodeChecker from "./PincodeChecker";
 import ProductCard from "./ProductCard";
 import ProductReviews from "./ProductReviews";
+import ProductOffers from "./ProductOffers";
 import BankOfferBadge from "./BankOfferBadge";
 import FlashSaleCountdown from "./FlashSaleCountdown";
 import { useCart } from "./CartProvider";
@@ -78,6 +79,16 @@ export default function ProductDetail({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  // Broken-image fallback (WS2): a dead image URL renders a neutral
+  // placeholder tile, never a black/broken block.
+  const [brokenImgs, setBrokenImgs] = useState<Set<number>>(new Set());
+  const markBroken = (i: number) =>
+    setBrokenImgs((prev) => {
+      if (prev.has(i)) return prev;
+      const next = new Set(prev);
+      next.add(i);
+      return next;
+    });
 
   // Description may be WYSIWYG HTML (admin editor) or markdown (imported /
   // AI-generated copy: #, ###, **bold**, - bullets). Convert markdown first,
@@ -125,6 +136,7 @@ export default function ProductDetail({
     setVariantIdx(null);
     setQty(1);
     setTab("description");
+    setBrokenImgs(new Set());
   }, [product.id]);
 
   const [orderedOrderId, setOrderedOrderId] = useState<string | null>(null);
@@ -262,7 +274,13 @@ export default function ProductDetail({
                 }`}
                 aria-label={`View image ${i + 1}`}
               >
-                <Image src={src} alt={`${product.name} — image ${i + 1}`} fill sizes="80px" className="object-contain p-1" />
+                {brokenImgs.has(i) ? (
+                  <span className="absolute inset-0 grid place-items-center bg-neutral-100 text-[9px] text-neutral-400 px-1 text-center leading-tight">
+                    {product.name.slice(0, 18)}
+                  </span>
+                ) : (
+                  <Image src={src} alt={`${product.name} — image ${i + 1}`} fill sizes="80px" className="object-contain p-1" onError={() => markBroken(i)} />
+                )}
               </button>
             ))}
           </div>
@@ -273,14 +291,21 @@ export default function ProductDetail({
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEndHandler}
           >
-            <Image
-              src={images[activeImg] || product.img}
-              alt={product.name}
-              fill
-              priority
-              sizes="(max-width: 1024px) 100vw, 50vw"
-              className="object-contain p-4"
-            />
+            {brokenImgs.has(activeImg) ? (
+              <span className="absolute inset-0 grid place-items-center bg-neutral-100 text-sm text-neutral-400 px-6 text-center">
+                {product.name}
+              </span>
+            ) : (
+              <Image
+                src={images[activeImg] || product.img}
+                alt={product.name}
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-contain p-4"
+                onError={() => markBroken(activeImg)}
+              />
+            )}
             {product.discount > 0 && !selectedVariant && (
               <span className="absolute top-4 left-4 bg-green-700 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
                 {product.discount}% OFF
@@ -369,8 +394,23 @@ export default function ProductDetail({
             )}
           </p>
           <p className="text-sm text-neutral-500 mt-1">
-            Inclusive of all taxes &nbsp;·&nbsp; Dispatched in 24-48 hrs
+            Inclusive of all taxes
           </p>
+
+          {/* Highlights, high on the PDP (owner spec WS2) */}
+          {product.highlights.length > 0 && (
+            <ul className="mt-4 space-y-1.5">
+              {product.highlights.slice(0, 5).map((h) => (
+                <li key={h} className="flex items-start gap-2 text-sm text-neutral-700">
+                  <Check className="w-4 h-4 mt-0.5 text-green-700 shrink-0" />
+                  {h}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Available offers under the price (Myntra/AJIO pattern, WS3) */}
+          {!selectedVariant && <ProductOffers />}
 
           <PincodeChecker />
 
@@ -507,21 +547,20 @@ export default function ProductDetail({
             </button>
           </div>
 
-          {/* Trust badges — perpetual horizontal marquee on phones (pauses
-              on touch/hover, static for reduced-motion users) */}
-          <div className="ex-marquee mt-8 overflow-hidden pb-2">
-            <div className="ex-marquee-track gap-6 pr-6">
-              {[0, 1].map((dup) => (
-                <div key={dup} className="flex gap-6 shrink-0" aria-hidden={dup === 1}>
-                  <div className="flex items-center gap-2 text-xs text-neutral-600 shrink-0">
-                    <Truck className="w-5 h-5 text-neutral-400 shrink-0" /> Free shipping over ₹999
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-neutral-600 shrink-0">
-                    <RotateCcw className="w-5 h-5 text-neutral-400 shrink-0" /> {product.return_policy || "Easy Replacement on Damaged/Defective Delivery"}
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-neutral-600 shrink-0">
-                    <ShieldCheck className="w-5 h-5 text-neutral-400 shrink-0" /> {product.warranty_info || "Brand warranty"}
-                  </div>
+          {/* Shop with confidence — static strip (WS2). Returns wording is
+              applied selectively: one line here, full policy on the refund
+              page only. */}
+          <div className="mt-8 rounded-2xl border border-neutral-200 bg-neutral-50/60 px-4 py-3.5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-2.5">
+              {[
+                { icon: Truck, label: "Free delivery over ₹999" },
+                { icon: ShoppingBag, label: "Open-box delivery" },
+                { icon: ShieldCheck, label: product.warranty_info || "Brand warranty" },
+                { icon: RotateCcw, label: product.return_policy || "Damaged / wrong items replaced or refunded" },
+              ].map(({ icon: Icon, label }) => (
+                <div key={label} className="flex items-center gap-2 text-xs text-neutral-600">
+                  <Icon className="w-4 h-4 text-neutral-500 shrink-0" />
+                  <span className="leading-tight">{label}</span>
                 </div>
               ))}
             </div>
@@ -638,7 +677,13 @@ export default function ProductDetail({
                {images.map((img, idx) => (
                  <div key={idx} className="w-full shrink-0 h-full relative snap-center flex items-center justify-center">
                    <div className="relative w-full h-[80vh] max-w-4xl max-h-4xl">
-                     <Image src={img} alt="" fill className="object-contain" sizes="100vw" />
+                     {brokenImgs.has(idx) ? (
+                       <span className="absolute inset-0 grid place-items-center text-neutral-500 text-sm">
+                         {product.name}
+                       </span>
+                     ) : (
+                       <Image src={img} alt="" fill className="object-contain" sizes="100vw" onError={() => markBroken(idx)} />
+                     )}
                    </div>
                  </div>
                ))}

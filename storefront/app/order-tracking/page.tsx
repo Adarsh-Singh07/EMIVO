@@ -77,6 +77,18 @@ function OrderTrackingContent() {
   const isCancelled = order && ["CANCELLED", "REFUNDED", "PAYMENT_FAILED"].includes(order.status.toUpperCase());
   const shippingAddr = order?.shipping_address;
 
+  // WS7: the tracking number must be the courier AWB — never mirror the
+  // order id/order number (a backend data bug the customer flagged).
+  const trackingNumber =
+    order?.tracking_number &&
+    order.tracking_number !== order.id &&
+    order.tracking_number !== order.order_number
+      ? order.tracking_number
+      : null;
+  const shippedStage = order
+    ? ["SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status.toUpperCase())
+    : false;
+
   return (
     <div className="max-w-[800px] mx-auto px-4 sm:px-6 lg:px-8 py-16">
       <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-neutral-500 mb-3">
@@ -176,14 +188,14 @@ function OrderTrackingContent() {
             </p>
           ) : null}
 
-          {/* Tracking link */}
-          {(order.tracking_number || order.tracking_url) && (
+          {/* Tracking link — courier AWB only, never the order id */}
+          {(trackingNumber || order.tracking_url) && (
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-2xl bg-neutral-50 border border-neutral-100 p-4">
               <div className="flex items-center gap-3 text-sm">
                 <Truck className="w-5 h-5 text-neutral-400" />
                 <span>
                   Tracking number:{" "}
-                  <span className="font-semibold text-neutral-900">{order.tracking_number}</span>
+                  <span className="font-semibold text-neutral-900">{trackingNumber}</span>
                 </span>
               </div>
               {order.tracking_url && (
@@ -196,6 +208,12 @@ function OrderTrackingContent() {
                   Track with carrier <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               )}
+            </div>
+          )}
+          {!trackingNumber && !order.tracking_url && shippedStage && !isCancelled && (
+            <div className="flex items-center gap-3 rounded-2xl bg-neutral-50 border border-neutral-100 p-4 text-sm text-neutral-500">
+              <Truck className="w-5 h-5 text-neutral-400 shrink-0" />
+              Tracking available after dispatch — the courier AWB appears here once your order ships.
             </div>
           )}
 
