@@ -19,7 +19,7 @@ type NavItem = { href: string; label: string; icon: typeof Home };
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
-  const { count, setDrawerOpen } = useCart();
+  const { count } = useCart();
   const router = useRouter();
 
   const isActive = (href: string) =>
@@ -50,9 +50,10 @@ export default function MobileBottomNav() {
       <div className="grid w-full grid-cols-5 min-w-0">
         {LEFT_ITEMS.map(renderItem)}
 
-        {/* Cart orb */}
-        <button
-          onClick={() => setDrawerOpen(true)}
+        {/* Cart orb — one single cart: the /cart page (owner directive) */}
+        <Link
+          href="/cart"
+          aria-current={isActive("/cart") ? "page" : undefined}
           className="relative flex flex-col items-center justify-end gap-0.5 pb-2 text-[10px] font-semibold text-neutral-950"
         >
           <span className="relative -mt-4 grid h-[42px] w-[42px] place-items-center rounded-xl bg-neutral-950 text-white shadow-lg ring-2 ring-white transition-transform active:scale-95">
@@ -64,7 +65,7 @@ export default function MobileBottomNav() {
             )}
           </span>
           <span>Cart</span>
-        </button>
+        </Link>
 
         {RIGHT_ITEMS.map(renderItem)}
       </div>

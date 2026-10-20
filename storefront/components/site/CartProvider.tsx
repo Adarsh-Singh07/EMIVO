@@ -51,8 +51,6 @@ interface CartCtxValue {
   loading: boolean;
   count: number;
   subtotal: number;
-  drawerOpen: boolean;
-  setDrawerOpen: (open: boolean) => void;
   add: (product: AddableProduct, qty?: number) => Promise<boolean>;
   setQty: (itemId: string, qty: number) => void;
   removeLine: (itemId: string) => void;
@@ -112,7 +110,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<Cart | null>(null);
   const [meta, setMeta] = useState<MetaMap>({});
   const [loading, setLoading] = useState(true);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [deselectedIds, setDeselectedIds] = useState<Set<string>>(new Set());
   const cartIdRef = useRef<string | null>(null);
   // Monotonic sequence guarding against out-of-order server responses: when
@@ -276,7 +273,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
               }
         );
       }
-      setDrawerOpen(true);
+      // One single cart (owner directive 2026-10-20): adding never opens
+      // a second cart UI — callers toast, the cart lives at /cart.
 
       // Guard this response against a newer mutation that lands first.
       const seq = ++seqRef.current;
@@ -440,8 +438,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
       loading,
       count,
       subtotal,
-      drawerOpen,
-      setDrawerOpen,
       add,
       setQty,
       removeLine,
@@ -454,7 +450,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       selectedSubtotal,
       selectedCount,
     }),
-    [cart, lines, loading, count, subtotal, drawerOpen, add, setQty, removeLine, clear, reload, deselectedIds, toggleSelect, selectAll, selectedLines, selectedSubtotal, selectedCount]
+    [cart, lines, loading, count, subtotal, add, setQty, removeLine, clear, reload, deselectedIds, toggleSelect, selectAll, selectedLines, selectedSubtotal, selectedCount]
   );
 
   return <CartCtx.Provider value={value}>{children}</CartCtx.Provider>;
