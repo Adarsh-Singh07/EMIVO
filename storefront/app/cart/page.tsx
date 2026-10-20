@@ -3,11 +3,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Check } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Check, Heart } from "lucide-react";
 import { useCart } from "@/components/site/CartProvider";
 import RecentlyViewedStrip from "@/components/site/RecentlyViewedStrip";
 import CartCoupons, { readCartCoupon, type CartCoupon } from "@/components/site/CartCoupons";
 import { useStoreShippingConfig, computeShipping } from "@/lib/store-config";
+import { useWishlist } from "@/lib/wishlist-context";
 import { inr } from "@/lib/format";
 import { toast } from "sonner";
 
@@ -46,6 +47,20 @@ export default function CartPage() {
   const discount = appliedCoupon?.discount ?? 0;
 
   const shipCfg = useStoreShippingConfig();
+  const wishlist = useWishlist();
+
+  // Myntra pattern (owner review 2026-10-20): move a line to the
+  // wishlist instead of only deleting it.
+  const moveToWishlist = async (lineId: string, productId: string | null) => {
+    if (!productId) return;
+    try {
+      if (!wishlist.ids.has(productId)) await wishlist.toggle(productId);
+      removeLine(lineId);
+      toast.success("Moved to wishlist");
+    } catch {
+      toast.error("Could not move to wishlist — please try again");
+    }
+  };
   // WS4: summary reflects the SELECTION only; unselected lines stay in the
   // cart for later.
   const shipping = computeShipping(selectedSubtotal, discount, shipCfg);
@@ -98,7 +113,7 @@ export default function CartPage() {
         {selectedCount} of {count} {count === 1 ? "item" : "items"} selected
       </p>
 
-      <div className="grid lg:grid-cols-[1fr_380px] gap-10 items-start">
+      <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[1fr_380px] gap-10 items-start">
         {/* Items */}
         <div className="space-y-4">
           {/* Select-all row (WS4) */}
@@ -223,6 +238,21 @@ export default function CartPage() {
                       </p>
                     </div>
                   </div>
+
+                  <div className="flex items-center gap-4 mt-3 pt-3 border-t border-neutral-100 text-xs font-medium">
+                    <button
+                      onClick={() => moveToWishlist(i.id, i.product_id)}
+                      className="inline-flex items-center gap-1.5 text-neutral-600 hover:text-neutral-950"
+                    >
+                      <Heart className="w-3.5 h-3.5" /> Move to wishlist
+                    </button>
+                    <button
+                      onClick={() => removeLine(i.id)}
+                      className="inline-flex items-center gap-1.5 text-neutral-600 hover:text-red-600"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Remove
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -230,7 +260,7 @@ export default function CartPage() {
         </div>
 
         {/* Summary */}
-        <aside className="border border-neutral-200 rounded-3xl p-6 lg:sticky lg:top-24">
+        <aside className="min-w-0 border border-neutral-200 rounded-3xl p-6 lg:sticky lg:top-24">
           <h2 className="font-semibold text-lg mb-4">Order Summary</h2>
 
           <CartCoupons

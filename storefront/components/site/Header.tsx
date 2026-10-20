@@ -18,7 +18,6 @@ import {
   Package,
 } from "lucide-react";
 import { useCart } from "./CartProvider";
-import CartDrawer from "./CartDrawer";
 import SearchBox from "./SearchBox";
 import NotificationsBell from "./NotificationsBell";
 import { useWishlist } from "@/lib/wishlist-context";
@@ -95,7 +94,16 @@ function TopRibbon() {
 
   return (
     <div className="bg-neutral-950 text-white text-xs overflow-hidden dark-surface">
-      <div className="flex w-max animate-marquee" aria-label="Announcements">
+      {/* Mobile: one calm static line — a scrolling marquee reads as
+          clipped links in a still view and moving links are hard to tap
+          (owner review 2026-10-20 screenshots). Marquee stays on sm+. */}
+      <div className="sm:hidden text-center px-4 py-2">
+        Enjoy free shipping on orders over ₹999!{" "}
+        <Link href="/shop" className="underline underline-offset-2 font-medium">
+          Shop Now
+        </Link>
+      </div>
+      <div className="hidden sm:flex w-max animate-marquee" aria-label="Announcements">
         {renderCopy(false)}
         <div aria-hidden="true">{renderCopy(true)}</div>
       </div>
@@ -104,7 +112,7 @@ function TopRibbon() {
 }
 
 export default function Header() {
-  const { count, setDrawerOpen } = useCart();
+  const { count } = useCart();
   const { user, logout } = useAuth();
   const wishlist = useWishlist();
   const compareIds = useCompareIds();
@@ -362,9 +370,9 @@ export default function Header() {
               )}
             </Link>
 
-            {/* Cart */}
-            <button
-              onClick={() => setDrawerOpen(true)}
+            {/* Cart — one single cart: the /cart page (owner directive) */}
+            <Link
+              href="/cart"
               className="relative p-2 hover:bg-neutral-100 rounded-full hidden lg:block"
               aria-label={`Cart (${count} items)`}
             >
@@ -374,7 +382,7 @@ export default function Header() {
                   {count}
                 </span>
               )}
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -530,8 +538,6 @@ export default function Header() {
           </div>
         </div>
       )}
-
-      <CartDrawer />
     </>
   );
 }

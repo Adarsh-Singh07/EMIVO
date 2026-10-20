@@ -36,7 +36,17 @@ type Coupon = {
   discount_type?: "PERCENTAGE" | "FIXED_AMOUNT";
   discount_value?: number;
   min_order_amount?: number;
+  max_discount_amount?: number;
 };
+
+/** Short benefit label, e.g. "10% off up to ₹500". Percentage values are
+ *  unambiguous; fixed amounts are described by the coupon description. */
+function benefitLabel(c: Coupon): string | null {
+  if (c.discount_type === "PERCENTAGE" && c.discount_value) {
+    return `${c.discount_value}% off${c.max_discount_amount ? ` up to ${inr(c.max_discount_amount)}` : ""}`;
+  }
+  return null;
+}
 
 /** "Available coupons" on the cart (WS3): every active coupon, one-tap
  *  apply, totals update instantly. Validation is server-side. */
@@ -99,6 +109,11 @@ export default function CartCoupons({
     onRemoved();
   };
 
+  // Myntra pattern (owner review 2026-10-20): coupons whose minimum
+  // order value is not met stay visible but grayed out, with the reason.
+  const locked = (c: Coupon) =>
+    (c.min_order_amount ?? 0) > 0 && subtotal < (c.min_order_amount ?? 0);
+
   if (applied) {
     return (
       <div className="rounded-2xl border border-green-200 bg-green-50 p-3.5 mb-4">
@@ -129,27 +144,45 @@ export default function CartCoupons({
         <Tag className="w-3.5 h-3.5" /> Available coupons
       </p>
       <ul className="space-y-2 max-h-44 overflow-y-auto">
-        {coupons.map((c) => (
-          <li
-            key={c.code}
-            className="flex items-center justify-between gap-2 bg-white rounded-xl border border-neutral-100 px-3 py-2"
-          >
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-neutral-900">{c.code}</p>
-              {c.description && (
-                <p className="text-[11px] text-neutral-500 truncate">{c.description}</p>
-              )}
-            </div>
-            <button
-              onClick={() => apply(c.code)}
-              disabled={applying !== null}
-              className="shrink-0 h-8 px-4 rounded-full bg-neutral-950 text-white text-xs font-semibold hover:bg-neutral-800 disabled:opacity-60 inline-flex items-center gap-1.5"
-            >
-              {applying === c.code && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              Apply
-            </button>
-          </li>
-        ))}
+        {[...coupons]
+          .sort((a, b) => Number(locked(a)) - Number(locked(b)))
+          .map((c) => {
+            const isLocked = locked(c);
+            const benefit = benefitLabel(c);
+            return (
+              <li
+                key={c.code}
+                className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 ${
+                  isLocked
+                    ? "bg-neutral-50 border-neutral-100 opacity-60 grayscale-[0.5]"
+                    : "bg-white border-neutral-100"
+                }`}
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-neutral-900">{c.code}</p>
+                  {isLocked ? (
+                    <p className="text-[11px] font-medium text-amber-700">
+                      Add {inr((c.min_order_amount ?? 0) - subtotal)} more to use this coupon
+                    </p>
+                  ) : (
+                    (benefit || c.description) && (
+                      <p className="text-[11px] text-neutral-500 truncate">
+                        {benefit ?? c.description}
+                      </p>
+                    )
+                  )}
+                </div>
+                <button
+                  onClick={() => apply(c.code)}
+                  disabled={applying !== null || isLocked}
+                  className="shrink-0 h-8 px-4 rounded-full bg-neutral-950 text-white text-xs font-semibold hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
+                >
+                  {applying === c.code && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  Apply
+                </button>
+              </li>
+            );
+          })}
       </ul>
     </div>
   );

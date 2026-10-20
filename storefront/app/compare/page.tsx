@@ -143,6 +143,14 @@ export default function ComparePage() {
 
   const productCount = products.length;
 
+  // Owner review 2026-10-20: the grid used to hardcode FOUR product
+  // columns at 800px min-width even for 2 products — on a phone the
+  // first product scrolled out of sight and empty slots ate the layout.
+  // Columns now match the actual product count (2 products nearly fit a
+  // phone screen; the label column stays sticky while sliding).
+  const colTemplate = `104px repeat(${Math.max(productCount, 1)}, minmax(128px, 1fr))`;
+  const tableMinWidth = 104 + Math.max(productCount, 1) * 128;
+
   return (
     <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
@@ -167,8 +175,11 @@ export default function ComparePage() {
 
       {loading && ids.length > 0 ? (
         <div className="overflow-x-auto rounded-3xl border border-neutral-200 animate-pulse">
-          <div className="min-w-[640px]">
-            <div className="grid grid-cols-[160px_repeat(4,minmax(140px,1fr))] gap-0">
+          <div style={{ minWidth: 104 + Math.max(ids.length, 1) * 128 }}>
+            <div
+              className="grid gap-0"
+              style={{ gridTemplateColumns: `104px repeat(${Math.max(ids.length, 1)}, minmax(128px, 1fr))` }}
+            >
               <div className="p-4" />
               {ids.map((id) => (
                 <div key={id} className="p-4 space-y-3">
@@ -195,10 +206,10 @@ export default function ComparePage() {
         </div>
       ) : (
         <div className="overflow-x-auto rounded-3xl border border-neutral-200">
-          <div className="min-w-[800px] lg:min-w-0">
+          <div className="lg:min-w-0" style={{ minWidth: tableMinWidth }}>
             {/* Header row - Product names & images */}
-            <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] bg-neutral-50/50 border-b border-neutral-100">
-              <div className="p-4 pt-6 text-left text-xs uppercase tracking-wider text-neutral-400 font-medium sticky left-0 z-10 bg-neutral-50">
+            <div className="grid bg-neutral-50/50 border-b border-neutral-100" style={{ gridTemplateColumns: colTemplate }}>
+              <div className="p-4 pt-6 text-left text-xs uppercase tracking-wider text-neutral-400 font-medium sticky left-0 z-10 bg-neutral-50 shadow-[8px_0_12px_-8px_rgba(0,0,0,0.25)]">
                 Product
               </div>
               {products.map((p) => (
@@ -251,8 +262,8 @@ export default function ComparePage() {
             {/* Spec rows - CSS Grid for equal heights */}
             <div className="divide-y divide-neutral-100 bg-white">
               {/* Price row */}
-              <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] py-4 items-center">
-                <div className="px-4 text-neutral-500 font-medium text-sm sticky left-0 z-10 bg-white">Price</div>
+              <div className="grid py-4 items-center" style={{ gridTemplateColumns: colTemplate }}>
+                <div className="px-4 text-neutral-500 font-medium text-sm sticky left-0 z-10 bg-white shadow-[8px_0_12px_-8px_rgba(0,0,0,0.25)]">Price</div>
                 {products.map((p) => (
                   <div key={p.id} className="px-4">
                     <span className="font-semibold">{inr(p.effective_price)}</span>
@@ -264,8 +275,8 @@ export default function ComparePage() {
               </div>
 
               {/* Discount row */}
-              <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] bg-neutral-50/50 py-4 items-center">
-                <div className="px-4 text-neutral-500 font-medium text-sm sticky left-0 z-10 bg-neutral-50">Discount</div>
+              <div className="grid bg-neutral-50/50 py-4 items-center" style={{ gridTemplateColumns: colTemplate }}>
+                <div className="px-4 text-neutral-500 font-medium text-sm sticky left-0 z-10 bg-neutral-50 shadow-[8px_0_12px_-8px_rgba(0,0,0,0.25)]">Discount</div>
                 {products.map((p) => (
                   <div key={p.id} className="px-4">
                     {p.discount_percent ? (
@@ -278,8 +289,8 @@ export default function ComparePage() {
               </div>
 
               {/* Brand row */}
-              <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] py-4 items-center">
-                <div className="px-4 text-neutral-500 font-medium text-sm sticky left-0 z-10 bg-white">Brand</div>
+              <div className="grid py-4 items-center" style={{ gridTemplateColumns: colTemplate }}>
+                <div className="px-4 text-neutral-500 font-medium text-sm sticky left-0 z-10 bg-white shadow-[8px_0_12px_-8px_rgba(0,0,0,0.25)]">Brand</div>
                 {products.map((p) => (
                   <div key={p.id} className="px-4">
                     {p.brand || "—"}
@@ -288,8 +299,8 @@ export default function ComparePage() {
               </div>
 
               {/* Category row */}
-              <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] bg-neutral-50/50 py-4 items-center">
-                <div className="px-4 text-neutral-500 font-medium text-sm sticky left-0 z-10 bg-neutral-50">Category</div>
+              <div className="grid bg-neutral-50/50 py-4 items-center" style={{ gridTemplateColumns: colTemplate }}>
+                <div className="px-4 text-neutral-500 font-medium text-sm sticky left-0 z-10 bg-neutral-50 shadow-[8px_0_12px_-8px_rgba(0,0,0,0.25)]">Category</div>
                 {products.map((p) => (
                   <div key={p.id} className="px-4 capitalize">
                     {p.category_name || p.category_slug || "—"}
@@ -298,8 +309,8 @@ export default function ComparePage() {
               </div>
 
               {/* Availability row */}
-              <div className="grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] py-4 items-center">
-                <div className="px-4 text-neutral-500 font-medium text-sm sticky left-0 z-10 bg-white">Availability</div>
+              <div className="grid py-4 items-center" style={{ gridTemplateColumns: colTemplate }}>
+                <div className="px-4 text-neutral-500 font-medium text-sm sticky left-0 z-10 bg-white shadow-[8px_0_12px_-8px_rgba(0,0,0,0.25)]">Availability</div>
                 {products.map((p) => (
                   <div key={p.id} className="px-4">
                     <span
@@ -324,9 +335,10 @@ export default function ComparePage() {
               {specRows.map((row, ri) => (
                 <div
                   key={row.name}
-                  className={`grid grid-cols-[160px_repeat(4,minmax(150px,1fr))] py-4 items-center ${ri % 2 ? "bg-neutral-50/50" : ""}`}
+                  className={`grid py-4 items-center ${ri % 2 ? "bg-neutral-50/50" : ""}`}
+                  style={{ gridTemplateColumns: colTemplate }}
                 >
-                  <div className={`px-4 text-neutral-500 font-medium text-sm capitalize sticky left-0 z-10 ${ri % 2 ? "bg-neutral-50" : "bg-white"}`}>{row.name}</div>
+                  <div className={`px-4 text-neutral-500 font-medium text-sm capitalize sticky left-0 z-10 shadow-[8px_0_12px_-8px_rgba(0,0,0,0.25)] ${ri % 2 ? "bg-neutral-50" : "bg-white"}`}>{row.name}</div>
                   {row.values.map((v, i) => (
                     <div key={i} className="px-4">
                       {v || <span className="text-neutral-300">—</span>}

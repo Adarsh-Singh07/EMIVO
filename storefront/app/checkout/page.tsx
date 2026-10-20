@@ -36,7 +36,6 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useCart } from "@/components/site/CartProvider";
-import BankOfferHint from "@/components/site/BankOfferHint";
 import { useStoreShippingConfig, computeShipping } from "@/lib/store-config";
 import { useAuth } from "@/lib/auth-context";
 import { storeApi, type Address, type OrderV2 } from "@/lib/store-api";
@@ -172,7 +171,10 @@ function CheckoutContent() {
         : cart.subtotal;
   // WS4: Buy Now is a SINGLE page — address + offers + payment stacked, one
   // sticky CTA. The cart flow keeps the 3-step in-page stepper.
-  const singlePage = isBuyNow;
+  // Owner directive 2026-10-20 (his review videos): ONE single-page
+  // checkout for every flow — products, address, payment on a single
+  // page. Offers live on the cart, never as a checkout step.
+  const singlePage = true;
   const cartLoading = isBuyNow ? buyNowLoading : cart.loading;
   const reloadCart = cart.reload;
 
@@ -241,8 +243,6 @@ function CheckoutContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ---------------- Stepper ---------------- */
-  const [step, setStep] = useState<1 | 2 | 3>(1);
 
   /* ---------------- Address step ---------------- */
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -406,7 +406,6 @@ function CheckoutContent() {
         setDraftAddress(null);
         setShowNewForm(false);
         toast.success("Address saved");
-        setStep(2);
       } catch (err) {
         toast.error(explainApiError(err).summary);
       } finally {
@@ -417,48 +416,18 @@ function CheckoutContent() {
       setDraftAddress({ ...form });
       setSelectedAddressId("");
       setShowNewForm(false);
-      setStep(2);
     }
   };
 
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId) || null;
   const addressReady = Boolean(selectedAddress || draftAddress);
 
-  /* ---------------- Offers step ---------------- */
-  const [couponInput, setCouponInput] = useState("");
+  /* ---------------- Coupon (applied on the cart; shown in the
+     summary — owner directive: offers live on the cart) ---------------- */
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
-  const [couponError, setCouponError] = useState("");
-  const [couponLoading, setCouponLoading] = useState(false);
-
-  const applyCoupon = async () => {
-    const code = couponInput.trim().toUpperCase();
-    if (!code) return;
-    setCouponLoading(true);
-    setCouponError("");
-    try {
-      const result = await storeApi.validateCoupon(code, subtotal);
-      if (result.is_valid) {
-        setAppliedCoupon({
-          code,
-          discount: result.discount_amount || 0,
-          message: result.message || "Coupon applied",
-        });
-        setCouponInput("");
-      } else {
-        setAppliedCoupon(null);
-        setCouponError(result.message || "This coupon is not valid for your cart");
-      }
-    } catch (err) {
-      setAppliedCoupon(null);
-      setCouponError(explainApiError(err).summary);
-    } finally {
-      setCouponLoading(false);
-    }
-  };
 
   const removeCoupon = () => {
     setAppliedCoupon(null);
-    setCouponError("");
     // Also drop the cart-carried coupon so it doesn't re-apply on reload.
     try {
       sessionStorage.removeItem("elektrix_applied_coupon");
@@ -696,7 +665,9 @@ function CheckoutContent() {
 
   const placeOrder = async () => {
     if (!addressReady) {
-      setStep(1);
+      document
+        .getElementById("checkout-address")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
       toast.error("Select or add a delivery address first");
       return;
     }
@@ -1029,12 +1000,6 @@ function CheckoutContent() {
   const inputErrorCls = (k: keyof typeof form) =>
     formErrors[k] ? "border-red-300 focus:border-red-500" : "";
 
-  const STEPS = [
-    { n: 1, label: "Address" },
-    { n: 2, label: "Offers" },
-    { n: 3, label: "Payment" },
-  ] as const;
-
   return (
     <div className={`max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 ${singlePage ? "pb-36 lg:pb-8" : ""}`}>
       <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-6">Checkout</h1>
@@ -1044,50 +1009,11 @@ function CheckoutContent() {
         </p>
       )}
 
-      {/* Stepper — hidden on the single-page Buy Now flow (WS4) */}
-      {!singlePage && (
-      <ol className="flex items-center gap-2 sm:gap-4 mb-8 text-sm overflow-x-auto no-scrollbar">
-        {STEPS.map((s, i) => {
-          const active = step === s.n;
-          const done = step > s.n;
-          return (
-            <li key={s.n} className="flex items-center gap-2 sm:gap-4 shrink-0">
-              <button
-                type="button"
-                onClick={() => setStep(s.n)}
-                className={`flex items-center gap-2 rounded-full pl-1.5 pr-4 py-1.5 border transition-colors ${
-                  active
-                    ? "border-neutral-950 bg-neutral-950 text-white"
-                    : done
-                      ? "border-green-200 bg-green-50 text-green-700"
-                      : "border-neutral-200 text-neutral-500"
-                }`}
-              >
-                <span
-                  className={`w-7 h-7 rounded-full grid place-items-center text-xs font-bold ${
-                    active
-                      ? "bg-white text-neutral-950"
-                      : done
-                        ? "bg-green-600 text-white"
-                        : "bg-neutral-100 text-neutral-500"
-                  }`}
-                >
-                  {done ? "✓" : s.n}
-                </span>
-                {s.label}
-              </button>
-              {i < STEPS.length - 1 && <span className="hidden sm:block w-8 h-px bg-neutral-200" />}
-            </li>
-          );
-        })}
-      </ol>
-      )}
-
-      <div className="grid lg:grid-cols-[1fr_400px] gap-10 items-start">
+      <div className="flex flex-col lg:grid lg:grid-cols-[1fr_400px] gap-10 items-start">
         <div className="space-y-10 min-w-0">
           {/* ---------------- Step 1: Address ---------------- */}
-          {(singlePage || step === 1) && (
-            <section aria-label="Shipping address">
+          {singlePage && (
+            <section id="checkout-address" aria-label="Shipping address" className="scroll-mt-28">
               <h2 className="flex items-center gap-2 font-semibold text-lg mb-4">
                 <MapPin className="w-5 h-5" /> Shipping Address
               </h2>
@@ -1354,99 +1280,12 @@ function CheckoutContent() {
                 </div>
               )}
 
-              {!singlePage && !showNewForm && addressReady && (
-                <button
-                  type="button"
-                  onClick={() => setStep(2)}
-                  className="mt-6 h-12 px-8 bg-neutral-950 text-white rounded-full text-sm font-medium hover:bg-neutral-800"
-                >
-                  Continue to offers
-                </button>
-              )}
-            </section>
-          )}
-
-          {/* ---------------- Step 2: Offers ---------------- */}
-          {(singlePage || step === 2) && (
-            <section aria-label="Offers and coupons">
-              <h2 className="flex items-center gap-2 font-semibold text-lg mb-4">
-                <Tag className="w-5 h-5" /> Offers & Coupons
-              </h2>
-
-              {appliedCoupon ? (
-                <div className="rounded-2xl border border-green-200 bg-green-50 text-green-700 p-4 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-semibold flex items-center gap-2">
-                      <Tag className="w-4 h-4" /> {appliedCoupon.code} applied
-                    </p>
-                    <p className="text-xs mt-1">{appliedCoupon.message}</p>
-                    <p className="text-sm font-medium mt-1">You save {inr(appliedCoupon.discount)}</p>
-                  </div>
-                  <button
-                    onClick={removeCoupon}
-                    className="p-2 hover:bg-green-100 rounded-full shrink-0"
-                    aria-label="Remove coupon"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  <label htmlFor="coupon" className="text-sm font-medium block mb-2">
-                    Have a coupon?
-                  </label>
-                  <div className="flex gap-2 max-w-md">
-                    <input
-                      id="coupon"
-                      value={couponInput}
-                      onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
-                      onKeyDown={(e) => e.key === "Enter" && applyCoupon()}
-                      placeholder="Enter code"
-                      className="flex-1 h-12 border border-neutral-200 rounded-xl px-4 text-sm focus:outline-none focus:border-neutral-950 uppercase min-w-0"
-                    />
-                    <button
-                      onClick={applyCoupon}
-                      disabled={couponLoading || !couponInput.trim()}
-                      className="h-12 px-6 bg-neutral-950 text-white rounded-xl text-sm font-medium hover:bg-neutral-800 disabled:opacity-60 inline-flex items-center gap-2 shrink-0"
-                    >
-                      {couponLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                      Apply
-                    </button>
-                  </div>
-                  {couponError && (
-                    <p className="text-sm text-red-600 mt-2 flex items-start gap-1.5">
-                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> {couponError}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Bank card offers relevant to the current cart */}
-              <BankOfferHint productIds={lines.map((l) => l.product_id)} />
-
-              {!singlePage && (
-                <div className="mt-8 flex flex-col sm:flex-row gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setStep(3)}
-                    className="h-12 px-8 bg-neutral-950 text-white rounded-full text-sm font-medium hover:bg-neutral-800"
-                  >
-                    Continue to payment
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStep(1)}
-                    className="h-12 px-8 border border-neutral-200 rounded-full text-sm font-medium hover:bg-neutral-50"
-                  >
-                    Back
-                  </button>
-                </div>
-              )}
+              
             </section>
           )}
 
           {/* ---------------- Step 3: Payment ---------------- */}
-          {(singlePage || step === 3) && (
+          {singlePage && (
             <section aria-label="Payment method">
               <h2 className="flex items-center gap-2 font-semibold text-lg mb-4">
                 <CreditCard className="w-5 h-5" /> Payment Method
@@ -1521,23 +1360,13 @@ function CheckoutContent() {
                 amount is computed by the store at order time.
               </p>
 
-              {!singlePage && (
-                <div className="mt-8 flex flex-col sm:flex-row gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setStep(2)}
-                    className="h-12 px-8 border border-neutral-200 rounded-full text-sm font-medium hover:bg-neutral-50"
-                  >
-                    Back
-                  </button>
-                </div>
-              )}
+              
             </section>
           )}
         </div>
 
         {/* ---------------- Order summary ---------------- */}
-        <aside className="border border-neutral-200 rounded-3xl p-6 lg:sticky lg:top-24">
+        <aside className="order-first lg:order-none w-full min-w-0 border border-neutral-200 rounded-3xl p-6 lg:sticky lg:top-24">
           <h2 className="font-semibold text-lg mb-4">Order Summary</h2>
 
           <div className="space-y-3 max-h-56 overflow-y-auto mb-4">
@@ -1633,17 +1462,16 @@ function CheckoutContent() {
             </div>
           )}
 
-          {step === 3 && belowMinOrder && (
+          {belowMinOrder && (
             <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
               Minimum order value for delivery is <b>{inr(shipCfg.minOrderPaise)}</b> — add{" "}
               <b>{inr(shipCfg.minOrderPaise - subtotal)}</b> more to continue.
             </div>
           )}
-          {(singlePage || step === 3) ? (
-            <button
+          <button
               onClick={placeOrder}
               disabled={placing || !addressReady || belowMinOrder}
-              className="mt-5 w-full h-12 grid place-items-center bg-neutral-950 text-white rounded-full text-sm font-medium hover:bg-neutral-800 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="mt-5 w-full h-12 hidden lg:grid place-items-center bg-neutral-950 text-white rounded-full text-sm font-medium hover:bg-neutral-800 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {placing ? (
                 <span className="inline-flex items-center gap-2">
@@ -1655,16 +1483,6 @@ function CheckoutContent() {
                 `Pay ${inr(total)}`
               )}
             </button>
-          ) : (
-            <button
-              onClick={() => setStep(step === 1 ? 2 : 3)}
-              disabled={!addressReady && step === 1}
-              className="mt-5 w-full h-12 grid place-items-center bg-neutral-950 text-white rounded-full text-sm font-medium hover:bg-neutral-800 disabled:opacity-60"
-            >
-              {step === 1 ? "Continue to offers" : "Continue to payment"}
-            </button>
-          )}
-
           <p className="flex items-center justify-center gap-1.5 text-xs text-neutral-500 mt-3">
             <ShieldCheck className="w-3.5 h-3.5" /> Secure checkout · Easy Replacement
           </p>
@@ -1678,7 +1496,7 @@ function CheckoutContent() {
 
       {/* WS4: sticky bottom CTA on mobile for the single-page Buy Now flow.
           Sits above the MobileBottomNav (same offset the layout reserves). */}
-      {singlePage && placedOrder === null && pendingPayment === null && !redirecting && (
+      {placedOrder === null && pendingPayment === null && !redirecting && (
         <div className="lg:hidden fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 px-4">
           <div className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white/95 backdrop-blur px-4 py-3 shadow-xl">
             <div className="flex-1 min-w-0">

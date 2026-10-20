@@ -39,7 +39,6 @@ import { type Product } from "@/lib/products";
 const TABS = [
   { id: "description", label: "Description" },
   { id: "specs", label: "Specifications" },
-  { id: "reviews", label: "Reviews" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -178,10 +177,13 @@ export default function ProductDetail({
   const lowStock = !outOfStock && stockAvailable != null && stockAvailable > 0 && stockAvailable <= 5;
   const maxQty = stockAvailable != null && stockAvailable > 0 ? stockAvailable : 10;
 
-  const images = useMemo(
-    () => (product.images.length > 0 ? product.images : [product.img]),
-    [product.images, product.img]
-  );
+  const images = useMemo(() => {
+    const isImageUrl = (u: string) => !/\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(u);
+    const list = (product.images.length > 0 ? product.images : [product.img]).filter(
+      (u) => u && isImageUrl(u)
+    );
+    return list.length > 0 ? list : [product.img];
+  }, [product.images, product.img]);
 
   const wished = wishlist.has(product.id);
   const comparing = compareIds.includes(product.id);
@@ -326,7 +328,7 @@ export default function ProductDetail({
           {typeof product.rating === "number" && !!product.reviews && product.reviews > 0 && (
             <button
               type="button"
-              onClick={() => setTab("reviews")}
+              onClick={() => document.getElementById("reviews")?.scrollIntoView({ behavior: "smooth", block: "start" })}
               className="mt-3 inline-flex items-center gap-2 text-sm"
               aria-label={`Rated ${product.rating} out of 5 from ${product.reviews} reviews — jump to reviews`}
             >
@@ -591,7 +593,7 @@ export default function ProductDetail({
             <div className="space-y-4 text-neutral-600">
               {safeDescription ? (
                 <div
-                  className="leading-relaxed text-neutral-600 [&>p]:mb-4 [&>ul]:list-disc [&>ul]:pl-5 [&>ul]:mb-4 [&>h1]:text-xl [&>h1]:font-bold [&>h1]:mb-2 [&>h1]:text-neutral-900 [&>h2]:text-xl [&>h2]:font-bold [&>h2]:mb-2 [&>h2]:text-neutral-900 [&>h3]:text-lg [&>h3]:font-semibold [&>h3]:mb-2 [&>h3]:text-neutral-800 [&>strong]:font-semibold [&>strong]:text-neutral-900"
+                  className="leading-relaxed text-neutral-600 [&>p]:mb-4 [&>ul]:list-disc [&>ul]:pl-5 [&>ul]:mb-4 [&>h1]:text-xl [&>h1]:font-bold [&>h1]:mb-2 [&>h1]:text-neutral-900 [&>h2]:text-xl [&>h2]:font-bold [&>h2]:mb-2 [&>h2]:text-neutral-900 [&>h3]:text-lg [&>h3]:font-semibold [&>h3]:mb-2 [&>h3]:text-neutral-800 [&>strong]:font-semibold [&>strong]:text-neutral-900 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-2xl [&_img]:my-4 [&_video]:max-w-full [&_video]:h-auto [&_video]:rounded-2xl [&_video]:my-4"
                   dangerouslySetInnerHTML={{ __html: safeDescription }}
                 />
               ) : (
@@ -641,9 +643,18 @@ export default function ProductDetail({
             </div>
           )}
 
-          {tab === "reviews" && <ProductReviews slug={product.slug} />}
         </div>
       </div>
+
+      {/* Reviews — a standalone, always-visible section above related
+          products (owner review 2026-10-20: reviews must not hide
+          behind a tab or below "You may also like"). */}
+      <section id="reviews" aria-label="Customer reviews" className="mt-4 scroll-mt-28">
+        <h2 className="text-2xl font-semibold tracking-tight mb-6">Reviews</h2>
+        <div className="max-w-3xl">
+          <ProductReviews slug={product.slug} />
+        </div>
+      </section>
 
       {/* Related products carousel */}
       {related.length > 0 && (
