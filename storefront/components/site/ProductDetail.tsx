@@ -277,7 +277,7 @@ export default function ProductDetail({
                 aria-label={`View image ${i + 1}`}
               >
                 {brokenImgs.has(i) ? (
-                  <span className="absolute inset-0 grid place-items-center bg-neutral-100 text-[9px] text-neutral-400 px-1 text-center leading-tight">
+                  <span className="absolute inset-0 grid place-items-center bg-neutral-100 text-[9px] text-neutral-700 px-1 text-center leading-tight">
                     {product.name.slice(0, 18)}
                   </span>
                 ) : (
@@ -294,7 +294,7 @@ export default function ProductDetail({
             onTouchEnd={onTouchEndHandler}
           >
             {brokenImgs.has(activeImg) ? (
-              <span className="absolute inset-0 grid place-items-center bg-neutral-100 text-sm text-neutral-400 px-6 text-center">
+              <span className="absolute inset-0 grid place-items-center bg-neutral-100 text-sm text-neutral-700 px-6 text-center">
                 {product.name}
               </span>
             ) : (
