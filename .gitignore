@@ -53,3 +53,7 @@ backups/
 # docs, logs. NEVER commit credentials or internal audit docs.
 internal/
 *.log
+
+docs/handover/
+.zcode/
+.freebuff/
