@@ -138,10 +138,26 @@ class OrderResponseV2(OrderResponse):
     shipped_at: Optional[datetime] = None
     delivered_at: Optional[datetime] = None
     payment_status: Optional[str] = None
+    carrier_status: Optional[dict] = None
     # Payment transaction details (populated from payments table join)
     payment_txnid: Optional[str] = None       # EaseBuzz txnid or provider reference
     payment_provider_id: Optional[str] = None  # Provider payment ID (easepayid etc.)
     payment_provider: Optional[str] = None    # Gateway used: "cashfree" | "easebuzz"
+
+
+class PickupLocationInput(BaseModel):
+    name: Optional[str] = Field(None, min_length=2, max_length=100)
+    add: Optional[str] = Field(None, min_length=5, max_length=255)
+    city: Optional[str] = Field(None, min_length=2, max_length=100)
+    state: Optional[str] = Field(None, min_length=2, max_length=100)
+    pin_code: Optional[str] = Field(None, pattern=r"^[1-9][0-9]{5}$")
+    country: Optional[str] = Field(None, max_length=50)
+    phone: Optional[str] = Field(None, pattern=r"^[0-9]{10}$")
+
+
+class ShipDelhiveryRequest(BaseModel):
+    pickup_location: Optional[PickupLocationInput] = None
+    seller_name: Optional[str] = None
 
 
 class CheckoutResponse(BaseModel):

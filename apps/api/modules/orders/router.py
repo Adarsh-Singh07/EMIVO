@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.dependencies import (
     STAFF_ROLES,
     get_current_user,
+    get_optional_user,
     require_staff,
     set_db_context,
 )
@@ -16,6 +17,7 @@ from modules.orders.schemas import (
     OrderResponseV2,
     OrderStatusUpdate, OrderNotesUpdate,
     PaginatedOrdersResponseV2,
+    ShipDelhiveryRequest,
 )
 from modules.orders.service import OrderService
 from modules.users.models import User
@@ -95,10 +97,23 @@ async def list_orders(
 async def track_order_by_number(
     order_number: str,
     service: OrderService = Depends(get_order_service),
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_user),
 ) -> Any:
-    """Order tracking by human order number (ownership enforced)."""
-    return await service.get_order_by_number(order_number, current_user, _is_staff(current_user))
+    """Order tracking by human order number (guest tracking or account owner)."""
+    is_staff = _is_staff(current_user) if current_user else False
+    order = await service.get_order_by_number(order_number, current_user, is_staff)
+    return OrderResponseV2.model_validate(order)
+
+
+@router.get("/{order_id}/tracking")
+async def get_order_carrier_tracking(
+    order_id: str,
+    service: OrderService = Depends(get_order_service),
+    current_user: Optional[User] = Depends(get_optional_user),
+) -> Any:
+    """Fetch live Delhivery carrier status and package checkpoint scans."""
+    is_staff = _is_staff(current_user) if current_user else False
+    return await service.get_order_carrier_tracking(order_id, current_user, is_staff)
 
 
 @router.get("/{order_id}", response_model=OrderResponseV2)
@@ -170,13 +185,17 @@ async def delete_order(
     """Soft delete / cancel an order (staff)."""
     await service.delete_order(order_id)
 
-@router.post("/{order_id}/ship-delhivery", dependencies=[Depends(require_staff)])
+@router.post("/{order_id}/ship-delhivery", response_model=OrderResponseV2, dependencies=[Depends(require_staff)])
 async def ship_order_delhivery(
     order_id: str,
+    payload: Optional[ShipDelhiveryRequest] = None,
     service: OrderService = Depends(get_order_service),
 ) -> Any:
     """Create a Delhivery shipment for the order and mark it shipped."""
-    return await service.create_delhivery_shipment(order_id)
+    pickup_dict = payload.pickup_location.model_dump(exclude_unset=True) if (payload and payload.pickup_location) else None
+    seller_name = payload.seller_name if payload else None
+    order = await service.create_delhivery_shipment(order_id, pickup_location=pickup_dict, seller_name=seller_name)
+    return OrderResponseV2.model_validate(order)
 
 # ---------------------------------------------------------------------------
 # Staff-only internal notes (never exposed on customer-facing endpoints)

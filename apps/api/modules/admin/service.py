@@ -361,6 +361,7 @@ class AdminService:
             "promo_tiles": fields.get("promo_tiles", current.get("promo_tiles", [])),
             "category_pages": fields.get("category_pages", current.get("category_pages", {})),
             "default_gateway": fields.get("default_gateway", current.get("default_gateway")),
+            "pickup_location": fields.get("pickup_location", current.get("pickup_location")),
         }
 
         await self.session.execute(text("""

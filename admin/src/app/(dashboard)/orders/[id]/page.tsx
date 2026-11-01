@@ -94,6 +94,7 @@ const NEXT_ACTIONS: Record<string, Array<{ label: string; target: string; style:
     { label: "Cancel", target: "CANCELLED", style: "danger", reason: true },
   ],
   CONFIRMED: [
+    { label: "Ship via Delhivery", target: "SHIPPED", style: "brand", delhivery: true },
     { label: "Start Processing", target: "PROCESSING", style: "primary" },
     { label: "Cancel", target: "CANCELLED", style: "danger", reason: true },
   ],
@@ -134,6 +135,17 @@ export default function OrderDetailPage() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
 
+  // Delhivery manifest modal
+  const [delhiveryOpen, setDelhiveryOpen] = useState(false);
+  const [delhiveryLoading, setDelhiveryLoading] = useState(false);
+  const [pickupName, setPickupName] = useState("ELEKTRIX");
+  const [pickupAdd, setPickupAdd] = useState("DS1, 109, Near Indian Petrol Pump, Vijayipur");
+  const [pickupCity, setPickupCity] = useState("Gopalganj");
+  const [pickupState, setPickupState] = useState("Bihar");
+  const [pickupPin, setPickupPin] = useState("841508");
+  const [pickupPhone, setPickupPhone] = useState("8092024066");
+  const [sellerName, setSellerName] = useState("ELEKTRIX");
+
   // Refund modal
   const [refundPayment, setRefundPayment] = useState<Payment | null>(null);
   const [refundAmount, setRefundAmount] = useState(""); // rupees, empty = full
@@ -151,6 +163,16 @@ export default function OrderDetailPage() {
       setOrder(o);
       setPayments(p?.items || []);
       apiClient.get<OrderNote[]>(`/orders/${id}/notes`).then(setNotes).catch(() => setNotes([]));
+      apiClient.get<any>("/admin/store-settings").then((cfg) => {
+        if (cfg?.pickup_location) {
+          setPickupName(cfg.pickup_location.name || "ELEKTRIX");
+          setPickupAdd(cfg.pickup_location.add || "DS1, 109, Near Indian Petrol Pump, Vijayipur");
+          setPickupCity(cfg.pickup_location.city || "Gopalganj");
+          setPickupState(cfg.pickup_location.state || "Bihar");
+          setPickupPin(cfg.pickup_location.pin_code || "841508");
+          setPickupPhone(cfg.pickup_location.phone || "8092024066");
+        }
+      }).catch(() => {});
     } catch (err) {
       setError(err instanceof ApiError ? `${err.message}${err.code ? ` (${err.code})` : ""}` : "Failed to load order");
     } finally {
@@ -177,17 +199,31 @@ export default function OrderDetailPage() {
     }
   };
 
-  const shipWithDelhivery = async () => {
-    setTransitioning(true);
+  const submitDelhiveryShipment = async () => {
+    if (!order) return;
+    setDelhiveryLoading(true);
     try {
-      if (!order) return;
-      await apiClient.post(`/orders/${order.id}/ship-delhivery`, {});
-      toast.success("Order shipped via Delhivery!");
+      const payload = {
+        pickup_location: {
+          name: pickupName.trim() || "ELEKTRIX",
+          add: pickupAdd.trim(),
+          city: pickupCity.trim(),
+          state: pickupState.trim(),
+          pin_code: pickupPin.trim(),
+          phone: pickupPhone.trim(),
+        },
+        seller_name: sellerName.trim() || "ELEKTRIX",
+      };
+      const updated = await apiClient.post<Order>(`/orders/${order.id}/ship-delhivery`, payload);
+      setOrder(updated);
+      toast.success(`Delhivery shipment created! AWB: ${updated.tracking_number || "Generated"}`);
+      setDelhiveryOpen(false);
       load();
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Delhivery integration failed");
+      toast.error(err instanceof ApiError ? err.message : err.response?.data?.detail || "Delhivery integration failed");
+    } finally {
+      setDelhiveryLoading(false);
     }
-    setTransitioning(false);
   };
 
   const applyTransition = async (
@@ -476,7 +512,7 @@ export default function OrderDetailPage() {
                   key={action.target}
                   onClick={() => {
                     if (action.delhivery) {
-                      shipWithDelhivery();
+                      setDelhiveryOpen(true);
                     } else if (action.tracking) {
                       setTrackingNumber("");
                       setTrackingUrl("");
@@ -692,6 +728,141 @@ export default function OrderDetailPage() {
               placeholder="e.g. customer request, out of stock"
               className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
             />
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delhivery Express Manifest Modal */}
+      <Modal
+        open={delhiveryOpen}
+        onClose={() => !delhiveryLoading && setDelhiveryOpen(false)}
+        title="Ship via Delhivery B2C Express"
+        footer={
+          <>
+            <button
+              onClick={() => setDelhiveryOpen(false)}
+              disabled={delhiveryLoading}
+              className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={submitDelhiveryShipment}
+              disabled={delhiveryLoading}
+              className="inline-flex items-center gap-2 rounded-xl bg-neutral-900 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-black disabled:opacity-50 shadow-md shadow-neutral-900/10"
+            >
+              {delhiveryLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4 text-amber-400" />}
+              {delhiveryLoading ? "Manifesting..." : "Confirm & Generate AWB"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+          {/* Destination Preview */}
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50/70 p-3.5 text-xs space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-neutral-800 uppercase tracking-wider flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 text-amber-600" /> Destination Customer
+              </span>
+              <span className="font-semibold px-2 py-0.5 rounded bg-white border border-neutral-200 text-neutral-700">
+                {order?.payment_method === "ONLINE" ? "PRE-PAID" : `COD: ${formatINR(order?.total || 0)}`}
+              </span>
+            </div>
+            <p className="font-medium text-neutral-900">{addr?.full_name || "Customer"}</p>
+            <p className="text-neutral-600">
+              {addr?.line1}{addr?.line2 ? `, ${addr.line2}` : ""}, {addr?.city}, {addr?.state} — {addr?.pincode}
+            </p>
+            <p className="text-neutral-500 font-mono">Phone: {addr?.phone || "Not specified"}</p>
+          </div>
+
+          {/* Pickup Warehouse / Multi-seller Origin Form */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold uppercase tracking-wider text-neutral-700">
+                Pickup Origin Warehouse
+              </label>
+              <span className="text-[11px] text-amber-700 font-medium bg-amber-50 border border-amber-200 rounded px-2 py-0.5">
+                Multi-Seller / Drop-shipping Ready
+              </span>
+            </div>
+            <p className="text-xs text-neutral-500">
+              The warehouse name must match the name registered in your Delhivery Client Portal.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-neutral-700">Warehouse Name</label>
+                <input
+                  value={pickupName}
+                  onChange={(e) => setPickupName(e.target.value)}
+                  placeholder="e.g. ELEKTRIX"
+                  className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-neutral-700">Seller / Vendor Name</label>
+                <input
+                  value={sellerName}
+                  onChange={(e) => setSellerName(e.target.value)}
+                  placeholder="e.g. ELEKTRIX"
+                  className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-neutral-700">Pickup Street Address</label>
+              <input
+                value={pickupAdd}
+                onChange={(e) => setPickupAdd(e.target.value)}
+                placeholder="e.g. DS1, 109, Near Indian Petrol Pump, Vijayipur"
+                className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-neutral-700">City</label>
+                <input
+                  value={pickupCity}
+                  onChange={(e) => setPickupCity(e.target.value)}
+                  placeholder="e.g. Gopalganj"
+                  className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-neutral-700">State</label>
+                <input
+                  value={pickupState}
+                  onChange={(e) => setPickupState(e.target.value)}
+                  placeholder="e.g. Bihar"
+                  className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-neutral-700">Origin Pincode</label>
+                <input
+                  value={pickupPin}
+                  onChange={(e) => setPickupPin(e.target.value)}
+                  placeholder="e.g. 841508"
+                  maxLength={6}
+                  className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-neutral-700">Warehouse Phone</label>
+                <input
+                  value={pickupPhone}
+                  onChange={(e) => setPickupPhone(e.target.value)}
+                  placeholder="10-digit mobile"
+                  maxLength={10}
+                  className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </Modal>

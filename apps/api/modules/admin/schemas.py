@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class DashboardStats(BaseModel):
@@ -39,6 +39,16 @@ class AdminUserList(BaseModel):
     page_size: int
 
 
+class PickupLocationSchema(BaseModel):
+    name: str = Field("ELEKTRIX", min_length=2, max_length=100)
+    add: str = Field(..., min_length=5, max_length=255)
+    city: str = Field(..., min_length=2, max_length=100)
+    state: str = Field(..., min_length=2, max_length=100)
+    pin_code: str = Field(..., pattern=r"^[1-9][0-9]{5}$")
+    country: str = Field("India", max_length=50)
+    phone: str = Field(..., pattern=r"^[0-9]{10}$")
+
+
 class StoreSettingsUpdate(BaseModel):
     cod_enabled: Optional[bool] = None
     cod_fee_paise: Optional[int] = None
@@ -46,6 +56,7 @@ class StoreSettingsUpdate(BaseModel):
     free_shipping_threshold_paise: Optional[int] = None
     flat_shipping_paise: Optional[int] = None
     min_order_paise: Optional[int] = None
+    pickup_location: Optional[PickupLocationSchema] = None
     banner_title: Optional[str] = None
     banner_subtitle: Optional[str] = None
     banner_image_url: Optional[str] = None
@@ -91,6 +102,7 @@ class StoreSettingsResponse(BaseModel):
     promo_tiles: Optional[List[dict]] = None
     category_pages: Optional[dict] = None
     default_gateway: Optional[str] = None
+    pickup_location: Optional[dict] = None
 
 class AdminInviteRequest(BaseModel):
     email: str

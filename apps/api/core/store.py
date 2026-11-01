@@ -63,6 +63,7 @@ DEFAULT_STORE_SETTINGS: dict = {
     "announcement": None,           # header strip text
     "category_pages": {},          # {category_slug: landing-page overrides}
     "default_gateway": None,       # admin-chosen default payment gateway
+    "pickup_location": None,       # {name, add, city, state, pin_code, country, phone}
 }
 
 
@@ -77,6 +78,18 @@ async def get_store_settings(session: AsyncSession) -> dict:
     )
     config = res.scalar() or {}
     store_cfg = config.get("store") or {}
+
+    default_pickup = {
+        "name": settings.delhivery_pickup_location_name,
+        "add": settings.delhivery_pickup_add,
+        "city": settings.delhivery_pickup_city,
+        "state": settings.delhivery_pickup_state,
+        "pin_code": settings.delhivery_origin_pincode,
+        "country": "India",
+        "phone": settings.delhivery_pickup_phone,
+    }
+    saved_pickup = store_cfg.get("pickup_location") or {}
+    pickup_location = {**default_pickup, **{k: v for k, v in saved_pickup.items() if v is not None and v != ""}}
 
     return {
         "cod_enabled": store_cfg.get("cod_enabled", settings.cod_enabled),
@@ -94,4 +107,5 @@ async def get_store_settings(session: AsyncSession) -> dict:
         # Admin-selected default payment gateway ("cashfree" | "easebuzz" | None
         # -> fall back to env PAYMENT_PROVIDER). The storefront follows it.
         "default_gateway": store_cfg.get("default_gateway"),
+        "pickup_location": pickup_location,
     }

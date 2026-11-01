@@ -28,6 +28,16 @@ interface StoreBanner {
   ends_at?: string | null;
 }
 
+interface PickupLocation {
+  name: string;
+  add: string;
+  city: string;
+  state: string;
+  pin_code: string;
+  country: string;
+  phone: string;
+}
+
 interface StoreSettings {
   cod_enabled: boolean;
   cod_fee_paise: number;
@@ -41,6 +51,7 @@ interface StoreSettings {
   promo_tiles?: any[];
   category_pages?: Record<string, any>;
   default_gateway?: string | null;
+  pickup_location?: PickupLocation | null;
 }
 
 const inputClass =
@@ -116,6 +127,14 @@ export default function SettingsPage() {
   const [heroSlides, setHeroSlides] = useState<any[]>([]);
   const [promoTiles, setPromoTiles] = useState<any[]>([]);
 
+  // Delhivery Pickup Warehouse (Origin Address)
+  const [pickupName, setPickupName] = useState("ELEKTRIX");
+  const [pickupAdd, setPickupAdd] = useState("DS1, 109, Near Indian Petrol Pump, Vijayipur");
+  const [pickupCity, setPickupCity] = useState("Gopalganj");
+  const [pickupState, setPickupState] = useState("Bihar");
+  const [pickupPin, setPickupPin] = useState("841508");
+  const [pickupPhone, setPickupPhone] = useState("8092024066");
+
   // Default payment gateway (customers pay through this; no buyer chooser).
   const [defaultGateway, setDefaultGateway] = useState<string>("cashfree");
   const [gwStatus, setGwStatus] = useState<{
@@ -165,6 +184,14 @@ export default function SettingsPage() {
       setHeroSlides(data.hero_slides || []);
       setPromoTiles(data.promo_tiles || []);
       setDefaultGateway(data.default_gateway || "cashfree");
+      if (data.pickup_location) {
+        setPickupName(data.pickup_location.name || "ELEKTRIX");
+        setPickupAdd(data.pickup_location.add || "DS1, 109, Near Indian Petrol Pump, Vijayipur");
+        setPickupCity(data.pickup_location.city || "Gopalganj");
+        setPickupState(data.pickup_location.state || "Bihar");
+        setPickupPin(data.pickup_location.pin_code || "841508");
+        setPickupPhone(data.pickup_location.phone || "8092024066");
+      }
     } catch (err) {
       setStoreError(err instanceof ApiError ? `${err.message}${err.code ? ` (${err.code})` : ""}` : "Could not load store settings");
     } finally {
@@ -232,6 +259,15 @@ export default function SettingsPage() {
         hero_slides: heroSlides,
         promo_tiles: promoTiles,
         default_gateway: defaultGateway,
+        pickup_location: {
+          name: pickupName.trim() || "ELEKTRIX",
+          add: pickupAdd.trim(),
+          city: pickupCity.trim(),
+          state: pickupState.trim(),
+          pin_code: pickupPin.trim(),
+          country: "India",
+          phone: pickupPhone.trim(),
+        },
       };
       const data = await apiClient.put<StoreSettings>("/admin/store-settings", payload);
       setStore(data);
@@ -437,6 +473,93 @@ export default function SettingsPage() {
                   placeholder="e.g. 199"
                   hint="Orders below this subtotal cannot check out (0 disables)."
                 />
+              </div>
+            </div>
+
+            {/* Delhivery Logistics & Pickup Address (Origin Warehouse) */}
+            <div className="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/50 p-4">
+              <div>
+                <span className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-900">
+                  <Truck className="h-4 w-4 text-amber-500" /> Delhivery Logistics &amp; Pickup Warehouse
+                </span>
+                <p className="mt-1 text-xs text-neutral-500">
+                  Default origin warehouse for Delhivery shipping manifests and return labels.
+                  The warehouse name must match the name registered in your Delhivery Client Portal.
+                  Multi-seller drop-shipping: when sellers are active, individual orders can override this pickup address.
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className={labelClass}>Registered Warehouse Name</label>
+                  <input
+                    type="text"
+                    className={inputClass}
+                    value={pickupName}
+                    onChange={(e) => setPickupName(e.target.value)}
+                    placeholder="e.g. ELEKTRIX"
+                    required
+                  />
+                  <p className="mt-1 text-xs text-neutral-400">Exact name registered in Delhivery Portal</p>
+                </div>
+                <div>
+                  <label className={labelClass}>Warehouse Contact Phone</label>
+                  <input
+                    type="tel"
+                    className={inputClass}
+                    value={pickupPhone}
+                    onChange={(e) => setPickupPhone(e.target.value)}
+                    placeholder="10-digit mobile number"
+                    maxLength={10}
+                    required
+                  />
+                  <p className="mt-1 text-xs text-neutral-400">Used by Delhivery dispatch riders</p>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className={labelClass}>Pickup Street Address</label>
+                  <input
+                    type="text"
+                    className={inputClass}
+                    value={pickupAdd}
+                    onChange={(e) => setPickupAdd(e.target.value)}
+                    placeholder="e.g. DS1, 109, Near Indian Petrol Pump, Vijayipur"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>City / District</label>
+                  <input
+                    type="text"
+                    className={inputClass}
+                    value={pickupCity}
+                    onChange={(e) => setPickupCity(e.target.value)}
+                    placeholder="e.g. Gopalganj"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>State</label>
+                  <input
+                    type="text"
+                    className={inputClass}
+                    value={pickupState}
+                    onChange={(e) => setPickupState(e.target.value)}
+                    placeholder="e.g. Bihar"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Origin Pincode</label>
+                  <input
+                    type="text"
+                    className={inputClass}
+                    value={pickupPin}
+                    onChange={(e) => setPickupPin(e.target.value)}
+                    placeholder="e.g. 841508"
+                    maxLength={6}
+                    required
+                  />
+                  <p className="mt-1 text-xs text-neutral-400">Official ELEKTRIX warehouse PIN</p>
+                </div>
               </div>
             </div>
 

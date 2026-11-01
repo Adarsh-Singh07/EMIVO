@@ -622,6 +622,24 @@ export const storeApi = {
     return fetchApi<OrderV2>(`/orders/track/${encodeURIComponent(orderNumber)}`);
   },
 
+  getCarrierTracking(orderId: string): Promise<{
+    order_id: string;
+    order_number: string;
+    status: string;
+    tracking_number?: string | null;
+    tracking_url?: string | null;
+    carrier?: string;
+    instructions?: string | null;
+    scans?: Array<{
+      date?: string;
+      status?: string;
+      location?: string;
+      instructions?: string;
+    }>;
+  }> {
+    return fetchApi(`/orders/${encodeURIComponent(orderId)}/tracking`);
+  },
+
   /** Ownership-checked fetch by order UUID (used by the /pay page). */
   getOrder(orderId: string): Promise<OrderV2> {
     return fetchApi<OrderV2>(`/orders/${encodeURIComponent(orderId)}`);

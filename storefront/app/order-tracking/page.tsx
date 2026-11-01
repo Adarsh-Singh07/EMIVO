@@ -33,6 +33,7 @@ function OrderTrackingContent() {
 
   const [orderNumberInput, setOrderNumberInput] = useState("");
   const [order, setOrder] = useState<OrderV2 | null>(null);
+  const [carrierTracking, setCarrierTracking] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState("");
@@ -49,8 +50,16 @@ function OrderTrackingContent() {
       // Allow guest tracking by order number
       const data = await storeApi.trackOrder(orderNumber.trim());
       setOrder(data);
+      if (data && data.tracking_number) {
+        storeApi.getCarrierTracking(data.id)
+          .then(setCarrierTracking)
+          .catch(() => setCarrierTracking(null));
+      } else {
+        setCarrierTracking(null);
+      }
     } catch (err) {
       setOrder(null);
+      setCarrierTracking(null);
       setError(err instanceof Error ? err.message : "Order not found");
     } finally {
       setLoading(false);
@@ -190,23 +199,47 @@ function OrderTrackingContent() {
 
           {/* Tracking link — courier AWB only, never the order id */}
           {(trackingNumber || order.tracking_url) && (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-2xl bg-neutral-50 border border-neutral-100 p-4">
-              <div className="flex items-center gap-3 text-sm">
-                <Truck className="w-5 h-5 text-neutral-400" />
-                <span>
-                  Tracking number:{" "}
-                  <span className="font-semibold text-neutral-900">{trackingNumber}</span>
-                </span>
+            <div className="rounded-2xl bg-neutral-50 border border-neutral-100 p-5 space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="w-10 h-10 rounded-full bg-white border border-neutral-200 grid place-items-center shrink-0">
+                    <Truck className="w-5 h-5 text-neutral-700" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-neutral-400 font-semibold uppercase tracking-wider">Courier</p>
+                    <p className="font-semibold text-neutral-900">Delhivery Express</p>
+                    <p className="text-xs text-neutral-600 font-mono mt-0.5">AWB: {trackingNumber}</p>
+                  </div>
+                </div>
+                {order.tracking_url && (
+                  <a
+                    href={order.tracking_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="h-10 px-5 inline-flex items-center gap-2 rounded-full bg-neutral-950 text-white text-xs font-semibold hover:bg-neutral-800 transition-colors shadow-sm"
+                  >
+                    Track Live on Delhivery <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
               </div>
-              {order.tracking_url && (
-                <a
-                  href={order.tracking_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="h-10 px-4 inline-flex items-center gap-2 rounded-full bg-neutral-950 text-white text-xs font-semibold hover:bg-neutral-800"
-                >
-                  Track with carrier <ExternalLink className="w-3.5 h-3.5" />
-                </a>
+
+              {/* Real-time checkpoint scans if available */}
+              {carrierTracking?.scans && carrierTracking.scans.length > 0 && (
+                <div className="pt-3 border-t border-neutral-200/60">
+                  <p className="text-xs font-bold uppercase tracking-wider text-neutral-500 mb-2">Latest Checkpoints</p>
+                  <div className="space-y-2">
+                    {carrierTracking.scans.slice(0, 3).map((scan: any, sIdx: number) => (
+                      <div key={sIdx} className="flex items-start gap-2.5 text-xs text-neutral-600">
+                        <div className="w-2 h-2 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                        <div>
+                          <span className="font-semibold text-neutral-900">{scan.status || "Checkpoint"}</span>
+                          {scan.location ? ` — ${scan.location}` : ""}
+                          {scan.date ? <span className="text-neutral-400 ml-1.5 font-mono">({new Date(scan.date).toLocaleString("en-IN")})</span> : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           )}

@@ -102,6 +102,11 @@ class Settings(BaseSettings):
     # Delhivery Configuration
     delhivery_api_key: SecretStr = Field(default=SecretStr(""))
     delhivery_origin_pincode: str = Field(default="841508")
+    delhivery_pickup_location_name: str = Field(default="ELEKTRIX")
+    delhivery_pickup_add: str = Field(default="DS1, 109, Near Indian Petrol Pump, Vijayipur")
+    delhivery_pickup_city: str = Field(default="Gopalganj")
+    delhivery_pickup_state: str = Field(default="Bihar")
+    delhivery_pickup_phone: str = Field(default="8092024066")
     # Require email-OTP verification at registration: a freshly registered
     # account cannot sign in with a password until its email is verified.
     # The integration test-suite disables it (conftest) so register+login

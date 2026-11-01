@@ -34,10 +34,10 @@ VALID_TRANSITIONS = {
     OrderStatus.PENDING: {OrderStatus.CONFIRMED, OrderStatus.CANCELLED, OrderStatus.PAYMENT_FAILED},
     OrderStatus.PAYMENT_PENDING: {OrderStatus.CONFIRMED, OrderStatus.CANCELLED, OrderStatus.PAYMENT_FAILED},
     OrderStatus.PAYMENT_FAILED: {OrderStatus.CANCELLED},
-    OrderStatus.CONFIRMED: {OrderStatus.PROCESSING, OrderStatus.CANCELLED},
-    OrderStatus.PROCESSING: {OrderStatus.PACKED, OrderStatus.CANCELLED},
+    OrderStatus.CONFIRMED: {OrderStatus.PROCESSING, OrderStatus.PACKED, OrderStatus.SHIPPED, OrderStatus.CANCELLED},
+    OrderStatus.PROCESSING: {OrderStatus.PACKED, OrderStatus.SHIPPED, OrderStatus.CANCELLED},
     OrderStatus.PACKED: {OrderStatus.SHIPPED, OrderStatus.CANCELLED},
-    OrderStatus.SHIPPED: {OrderStatus.OUT_FOR_DELIVERY, OrderStatus.CANCELLED},
+    OrderStatus.SHIPPED: {OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DELIVERED, OrderStatus.CANCELLED},
     OrderStatus.OUT_FOR_DELIVERY: {OrderStatus.DELIVERED, OrderStatus.CANCELLED},
     OrderStatus.DELIVERED: {OrderStatus.REFUNDED},
     OrderStatus.CANCELLED: set(),
@@ -665,7 +665,7 @@ class OrderService:
         await self.apply_payment_window(order)
         return order
 
-    async def get_order_by_number(self, order_number: str, user: User, is_staff: bool) -> Order:
+    async def get_order_by_number(self, order_number: str, user: Optional[User] = None, is_staff: bool = False) -> Order:
         res = await self.session.execute(
             select(Order).where(
                 Order.order_number == order_number, Order.deleted_at.is_(None)
@@ -674,12 +674,43 @@ class OrderService:
         order = res.scalar_one_or_none()
         if not order:
             raise DomainException("Order not found", code="NOT_FOUND", status_code=404)
-        if not is_staff and str(order.user_id) != str(user.id):
+        if user and not is_staff and str(order.user_id) != str(user.id):
             raise DomainException("Order not found", code="NOT_FOUND", status_code=404)
         fetched = await self.repository.get_by_id(order.id)
         order = fetched or order
         await self.apply_payment_window(order)
         return order
+
+    async def get_order_carrier_tracking(self, order_id: str, user: Optional[User] = None, is_staff: bool = False) -> dict:
+        """Fetch live courier scans and tracking milestones from Delhivery."""
+        order = await self.get_order(order_id)
+        if user and not is_staff and str(order.user_id) != str(user.id):
+            raise DomainException("Order not found", code="NOT_FOUND", status_code=404)
+
+        awb = order.tracking_number
+        if not awb:
+            return {
+                "order_id": str(order.id),
+                "order_number": order.order_number,
+                "status": order.status.value,
+                "tracking_number": None,
+                "tracking_url": None,
+                "carrier": "Delhivery Express",
+                "carrier_status": "Awaiting shipment manifestation",
+                "scans": [],
+            }
+
+        from modules.orders.delhivery import track_delhivery_package
+        tracking_info = await track_delhivery_package(awb)
+        return {
+            "order_id": str(order.id),
+            "order_number": order.order_number,
+            "status": order.status.value,
+            "tracking_number": awb,
+            "tracking_url": order.tracking_url or f"https://www.delhivery.com/track/package/{awb}",
+            "carrier": "Delhivery Express",
+            **tracking_info,
+        }
 
     async def cancel_order_by_number(self, order_number: str, user: User, reason: str = "") -> Order:
         """Customer-initiated cancellation via the support assistant:
@@ -708,63 +739,101 @@ class OrderService:
         await self.repository.update(order)
         await self.session.commit()
 
-    async def create_delhivery_shipment(self, order_id: str) -> dict:
+    async def create_delhivery_shipment(
+        self,
+        order_id: str,
+        pickup_location: Optional[dict] = None,
+        seller_name: Optional[str] = None,
+    ) -> Order:
+        """Manifest shipment via Delhivery B2C Express API and advance order status to SHIPPED.
+
+        Uses the order's JSON shipping address, store or seller pickup warehouse,
+        updates tracking AWB, writes outbox event for notifications, and sends
+        a confirmation email with live tracking link.
+        """
         from core.exceptions import DomainException
+        from core.store import get_store_settings
         from modules.orders.delhivery import create_delhivery_order
         from modules.orders.models import OrderStatus
-        
-        # Get order
-        order = await self.get_order_by_id(order_id)
+        from modules.orders.schemas import OrderStatusUpdate
+
+        order = await self.get_order(order_id)
         if not order:
             raise DomainException("Order not found", code="NOT_FOUND", status_code=404)
-            
-        if order.status != OrderStatus.CONFIRMED and order.status != OrderStatus.PROCESSING:
-            raise DomainException(f"Order must be CONFIRMED or PROCESSING to ship, currently {order.status}", code="INVALID_STATUS", status_code=400)
-            
-        # Get shipping address
-        addr_id = order.shipping_address_id
-        if not addr_id:
-            raise DomainException("Order missing shipping address", code="NO_ADDRESS", status_code=400)
-            
-        # Fetch Address
-        from modules.users.models import UserAddress
-        from sqlalchemy import select as _select
-        res = await self.session.execute(_select(UserAddress).where(UserAddress.id == addr_id))
-        address = res.scalar_one_or_none()
-        
-        if not address:
-            raise DomainException("Shipping address not found in DB", code="NO_ADDRESS", status_code=400)
-            
-        # Call Delhivery API
-        try:
-            awb = await create_delhivery_order(order, address)
-        except Exception as e:
-            raise DomainException(f"Delhivery integration failed: {str(e)}", code="SHIPPING_FAILED", status_code=500)
-            
-        # Update order with AWB and status
-        order.status = OrderStatus.SHIPPED
-        order.tracking_number = awb
-        order.tracking_url = f"https://www.delhivery.com/track/package/{awb}"
-        
-        self.session.add(order)
-        await self.session.commit()
-        await self.session.refresh(order)
-        
-        # Optional: Send notification
-        from modules.notifications.providers import get_email_provider
-        from modules.users.service import UserService
-        user_service = UserService(self.session)
-        user = await user_service.get_user(order.user_id)
-        if user:
-            provider = get_email_provider()
-            from modules.notifications.aliases import ALIAS_TRANSACTIONAL, REPLY_TO_SUPPORT
-            await provider.send_email(
-                to_email=user.email,
-                subject=f"Your order {order.order_number} has been shipped!",
-                html=f"<p>Hi {user.name}, your order is on the way. Tracking number: {awb}</p>",
-                from_address=ALIAS_TRANSACTIONAL,
-                reply_to=REPLY_TO_SUPPORT,
+
+        allowed_ship_statuses = {OrderStatus.CONFIRMED, OrderStatus.PROCESSING, OrderStatus.PACKED}
+        if order.status not in allowed_ship_statuses:
+            raise DomainException(
+                f"Order must be CONFIRMED, PROCESSING, or PACKED to ship via Delhivery, currently {order.status.value}",
+                code="INVALID_STATUS",
+                status_code=400,
             )
-            
-        from modules.orders.schemas import OrderResponseV2
-        return OrderResponseV2.model_validate(order)
+
+        # Shipping address from Order JSON
+        addr = order.shipping_address
+        if not addr or not isinstance(addr, dict):
+            raise DomainException("Order is missing shipping address details", code="NO_ADDRESS", status_code=400)
+
+        pincode = addr.get("pincode") or addr.get("postal_code") or addr.get("pin")
+        if not pincode:
+            raise DomainException("Shipping address is missing pincode", code="NO_PINCODE", status_code=400)
+
+        # Resolve store default pickup location
+        store_settings = await get_store_settings(self.session)
+        default_pickup = store_settings.get("pickup_location") or {}
+        effective_pickup = {**default_pickup, **(pickup_location or {})}
+
+        # Call Delhivery Manifestation API
+        try:
+            awb = await create_delhivery_order(
+                order=order,
+                address=addr,
+                pickup_location=effective_pickup,
+                seller_name=seller_name,
+            )
+        except Exception as e:
+            raise DomainException(
+                f"Delhivery shipment manifestation failed: {str(e)}",
+                code="SHIPPING_FAILED",
+                status_code=500,
+            )
+
+        # Update order status to SHIPPED via the standard state machine
+        tracking_url = f"https://www.delhivery.com/track/package/{awb}"
+        status_update = OrderStatusUpdate(
+            status=OrderStatus.SHIPPED,
+            tracking_number=awb,
+            tracking_url=tracking_url,
+            reason=f"Shipped via Delhivery Express (AWB: {awb})",
+        )
+        updated_order = await self.update_order_status(order_id, status_update)
+
+        # Transactional email notification (best-effort)
+        try:
+            from modules.users.models import User
+            user_res = await self.session.execute(select(User).where(User.id == order.user_id))
+            user = user_res.scalar_one_or_none()
+            if user and user.email:
+                from modules.notifications.providers import get_email_provider
+                from modules.notifications.aliases import ALIAS_TRANSACTIONAL, REPLY_TO_SUPPORT
+                provider = get_email_provider()
+                user_name = user.first_name or "Valued Customer"
+                order_num = order.order_number or str(order.id)[:8]
+                await provider.send_email(
+                    to_email=user.email,
+                    subject=f"Your ELEKTRIX order {order_num} has been shipped!",
+                    html=(
+                        f"<p>Hi {user_name},</p>"
+                        f"<p>Great news! Your order <strong>{order_num}</strong> is on the way via Delhivery Express.</p>"
+                        f"<p>Tracking Number (AWB): <strong>{awb}</strong></p>"
+                        f"<p><a href='{tracking_url}' style='display:inline-block;padding:10px 20px;background:#0a0a0a;color:#ffffff;text-decoration:none;border-radius:8px;'>Track Your Package</a></p>"
+                        f"<p>Thank you for shopping with ELEKTRIX!</p>"
+                    ),
+                    from_address=ALIAS_TRANSACTIONAL,
+                    reply_to=REPLY_TO_SUPPORT,
+                )
+        except Exception as ex:
+            import logging
+            logging.getLogger(__name__).warning("Failed to send shipment notification for order %s: %s", order.id, ex)
+
+        return updated_order
