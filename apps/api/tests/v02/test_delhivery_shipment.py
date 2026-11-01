@@ -2,6 +2,7 @@ import json
 from unittest.mock import AsyncMock, patch, MagicMock
 import pytest
 from httpx import Response
+from pydantic import SecretStr
 
 from core.config import settings
 from modules.orders.delhivery import (
@@ -12,6 +13,13 @@ from modules.orders.delhivery import (
 )
 from modules.orders.models import Order, OrderStatus
 from modules.orders.schemas import OrderStatusUpdate
+
+
+@pytest.fixture(autouse=True)
+def mock_delhivery_settings():
+    with patch.object(settings, "delhivery_api_key", SecretStr("mock-delhivery-test-key")), \
+         patch.object(settings, "delhivery_origin_pincode", "841508"):
+        yield
 
 
 class DummyItem:
