@@ -56,14 +56,14 @@ def build_template_components(event_type: str, values: Dict[str, Any]) -> Dict[s
         components["body_2"] = {"type": "text", "value": order_number}
         components["body_3"] = {"type": "text", "value": tracking_number}
         if order_number:
-            components["button_1"] = {"type": "text", "value": order_number}
+            components["button_1"] = {"subtype": "url", "type": "text", "value": order_number}
 
     elif event_type in ("order.delivered", "order.created", "order.confirmed", "order.cancelled"):
         # {{1}} = Customer Name, {{2}} = Order Number
         components["body_1"] = {"type": "text", "value": customer_name}
         components["body_2"] = {"type": "text", "value": order_number}
         if order_number:
-            components["button_1"] = {"type": "text", "value": order_number}
+            components["button_1"] = {"subtype": "url", "type": "text", "value": order_number}
 
     elif event_type == "order.out_for_delivery":
         # {{1}} = Customer Name, {{2}} = Order Number, {{3}} = Tracking AWB
@@ -71,7 +71,7 @@ def build_template_components(event_type: str, values: Dict[str, Any]) -> Dict[s
         components["body_2"] = {"type": "text", "value": order_number}
         components["body_3"] = {"type": "text", "value": tracking_number}
         if order_number:
-            components["button_1"] = {"type": "text", "value": order_number}
+            components["button_1"] = {"subtype": "url", "type": "text", "value": order_number}
 
     elif event_type in ("payment.captured", "payment.success"):
         # {{1}} = Customer Name, {{2}} = Amount, {{3}} = Order Number, {{4}} = Txn Ref ID
@@ -80,7 +80,7 @@ def build_template_components(event_type: str, values: Dict[str, Any]) -> Dict[s
         components["body_3"] = {"type": "text", "value": order_number}
         components["body_4"] = {"type": "text", "value": ref_id or "Completed"}
         if order_number:
-            components["button_1"] = {"type": "text", "value": order_number}
+            components["button_1"] = {"subtype": "url", "type": "text", "value": order_number}
 
     elif event_type == "payment.failed":
         # {{1}} = Customer Name, {{2}} = Order Number, {{3}} = Amount
@@ -88,7 +88,7 @@ def build_template_components(event_type: str, values: Dict[str, Any]) -> Dict[s
         components["body_2"] = {"type": "text", "value": order_number}
         components["body_3"] = {"type": "text", "value": amount_str}
         if order_number:
-            components["button_1"] = {"type": "text", "value": order_number}
+            components["button_1"] = {"subtype": "url", "type": "text", "value": order_number}
 
     elif event_type == "order.refunded":
         # {{1}} = Customer Name, {{2}} = Refund Amount, {{3}} = Order Number, {{4}} = Refund Ref
@@ -97,13 +97,13 @@ def build_template_components(event_type: str, values: Dict[str, Any]) -> Dict[s
         components["body_3"] = {"type": "text", "value": order_number}
         components["body_4"] = {"type": "text", "value": ref_id or "Processed"}
         if order_number:
-            components["button_1"] = {"type": "text", "value": order_number}
+            components["button_1"] = {"subtype": "url", "type": "text", "value": order_number}
 
     else:
         components["body_1"] = {"type": "text", "value": customer_name}
         components["body_2"] = {"type": "text", "value": order_number}
         if order_number:
-            components["button_1"] = {"type": "text", "value": order_number}
+            components["button_1"] = {"subtype": "url", "type": "text", "value": order_number}
 
     return components
 
