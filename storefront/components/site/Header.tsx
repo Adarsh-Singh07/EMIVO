@@ -230,7 +230,7 @@ export default function Header() {
               <span className="text-[15px] sm:text-2xl font-bold tracking-tight">ELEKTRIX</span>
             </div>
             <span className="hidden lg:block text-[10px] text-neutral-500 mt-0.5 ml-10">
-              India&apos;s Premium Electronics Store
+              India&apos;s Multi-Category E-Commerce Marketplace
             </span>
           </Link>
 

@@ -2,16 +2,19 @@
   "name": "elektrix-monorepo",
   "version": "0.2.0",
   "private": true,
-  "description": "ELEKTRIX e-commerce platform — backend API, workers, storefront, admin",
+  "description": "ELEKTRIX e-commerce platform — backend API, workers, storefront, admin, seller",
   "workspaces": [],
   "scripts": {
     "dev:api": "cd apps/api && uvicorn apps.api.main:app --reload --port 8000",
     "dev:storefront": "cd storefront && npm run dev",
     "dev:admin": "cd admin && npm run dev",
+    "dev:seller": "cd seller && npm run dev",
     "typecheck:storefront": "cd storefront && npm run typecheck",
     "typecheck:admin": "cd admin && npm run typecheck",
+    "typecheck:seller": "cd seller && npm run typecheck",
     "build:storefront": "cd storefront && npm run build",
     "build:admin": "cd admin && npm run build",
-    "check": "npm run typecheck:storefront && npm run typecheck:admin && bash scripts/security/check_secrets.sh && docker compose --env-file .env.example -f compose.dev.yaml config -q && docker compose --env-file .env.example -f compose.prod.vm1.yaml config -q"
+    "build:seller": "cd seller && npm run build",
+    "check": "npm run typecheck:storefront && npm run typecheck:admin && npm run typecheck:seller && bash scripts/security/check_secrets.sh && docker compose --env-file .env.example -f compose.dev.yaml config -q && docker compose --env-file .env.example -f compose.prod.vm1.yaml config -q"
   }
 }

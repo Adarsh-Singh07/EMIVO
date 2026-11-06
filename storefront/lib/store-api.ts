@@ -35,6 +35,22 @@ export interface StoreVariant {
   price: number; // paise
 }
 
+export interface StoreSellerOffer {
+  id: string; // seller_listing_id
+  seller_id: string;
+  seller_name: string;
+  price: number; // paise
+  mrp?: number;
+  discount_percent: number;
+  stock: number;
+  in_stock: boolean;
+  condition: string;
+  estimated_delivery_days: number;
+  rating: number;
+  rating_count: number;
+  city?: string;
+}
+
 export interface StoreProduct {
   id: string;
   name: string;
@@ -59,6 +75,12 @@ export interface StoreProduct {
   stock?: StoreStock | null;
   rating_avg?: number | null;
   rating_count?: number;
+  seller_id?: string;
+  seller_name?: string;
+  seller_listing_id?: string;
+  seller_rating?: number;
+  seller_delivery_days?: number;
+  sellers?: StoreSellerOffer[];
   created_at?: string;
 }
 

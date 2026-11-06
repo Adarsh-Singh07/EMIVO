@@ -20,7 +20,9 @@ import {
   ChevronRight,
   Loader2,
   Star,
+  Store,
 } from "lucide-react";
+import type { StoreSellerOffer } from "@/lib/products";
 import PincodeChecker from "./PincodeChecker";
 import ProductCard from "./ProductCard";
 import ProductReviews from "./ProductReviews";
@@ -136,6 +138,11 @@ export default function ProductDetail({
     setQty(1);
     setTab("description");
     setBrokenImgs(new Set());
+    if (product.sellers && product.sellers.length > 0) {
+      setSelectedSeller(product.sellers.find((s) => s.in_stock) || product.sellers[0]);
+    } else {
+      setSelectedSeller(null);
+    }
   }, [product.id]);
 
   const [orderedOrderId, setOrderedOrderId] = useState<string | null>(null);
@@ -169,7 +176,19 @@ export default function ProductDetail({
 
   const hasVariants = (product.variants?.length ?? 0) > 0;
   const selectedVariant = hasVariants && variantIdx != null ? product.variants![variantIdx] : null;
-  const displayPrice = selectedVariant ? selectedVariant.price : product.price;
+  const [selectedSeller, setSelectedSeller] = useState<StoreSellerOffer | null>(() => {
+    if (product.sellers && product.sellers.length > 0) {
+      return product.sellers.find((s) => s.in_stock) || product.sellers[0];
+    }
+    return null;
+  });
+  const [sellersModalOpen, setSellersModalOpen] = useState(false);
+
+  const displayPrice = selectedVariant
+    ? selectedVariant.price
+    : (selectedSeller ? selectedSeller.price : product.price);
+  const displayMrp = (selectedSeller?.mrp && selectedSeller.mrp > displayPrice) ? selectedSeller.mrp : product.mrp;
+  const displayDiscount = selectedSeller ? selectedSeller.discount_percent : product.discount;
 
   const stockAvailable = product.stockAvailable;
   const isComingSoon = product.status === "COMING_SOON";
@@ -196,9 +215,11 @@ export default function ProductDetail({
       name: product.name,
       brand: product.brand,
       price: displayPrice,
-      mrp: product.mrp,
+      mrp: displayMrp,
       img: product.img,
       variantId: selectedVariant?.id,
+      sellerId: selectedSeller?.seller_id,
+      sellerName: selectedSeller?.seller_name,
     });
     if (ok) toast.success("Added to cart");
     setAdding(false);
@@ -398,6 +419,50 @@ export default function ProductDetail({
           <p className="text-sm text-neutral-500 mt-1">
             Inclusive of all taxes
           </p>
+
+          {/* Amazon / Flipkart Multi-Seller Buy-Box Bar */}
+          <div className="mt-4 p-3.5 rounded-2xl bg-neutral-50/90 border border-neutral-200/90 space-y-2.5">
+            <div className="flex items-center justify-between flex-wrap gap-2 text-sm">
+              <div className="flex items-center gap-1.5">
+                <span className="text-neutral-500 text-xs uppercase tracking-wider font-medium">Sold by:</span>
+                <button
+                  type="button"
+                  onClick={() => setSellersModalOpen(true)}
+                  className="font-semibold text-neutral-900 hover:text-black hover:underline flex items-center gap-1.5 transition-colors"
+                  title="Click to view seller details"
+                >
+                  <span>{selectedSeller ? selectedSeller.seller_name : (product.sellerName || "ELEKTRIX Official")}</span>
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 font-bold text-xs">
+                    <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                    {(selectedSeller ? selectedSeller.rating : (product.sellerRating ?? 4.9)).toFixed(1)}
+                  </span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1.5 text-xs text-neutral-600 font-medium">
+                <Truck className="w-4 h-4 text-neutral-700 shrink-0" />
+                <span>
+                  Delivery in {selectedSeller ? selectedSeller.estimated_delivery_days : (product.sellerDeliveryDays ?? 2)} days
+                  {selectedSeller?.city ? ` (${selectedSeller.city})` : ""}
+                </span>
+              </div>
+            </div>
+
+            {product.sellers && product.sellers.length > 1 && (
+              <div className="pt-2 border-t border-neutral-200/70 flex items-center justify-between text-xs">
+                <span className="text-neutral-600">
+                  <span className="font-semibold text-neutral-900">{product.sellers.length} verified sellers</span> available
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSellersModalOpen(true)}
+                  className="font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                >
+                  Compare all sellers &rarr;
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Highlights, high on the PDP (owner spec WS2) */}
           {product.highlights.length > 0 && (
@@ -699,6 +764,141 @@ export default function ProductDetail({
                  </div>
                ))}
              </div>
+          </div>
+        </div>
+      )}
+      {/* Sellers Modal - Amazon & Flipkart comparison style */}
+      {sellersModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-neutral-100 overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="p-6 border-b border-neutral-100 flex items-start justify-between bg-neutral-50/50">
+              <div>
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                  <Store className="w-3.5 h-3.5 text-neutral-700" />
+                  Verified Marketplace Sellers
+                </div>
+                <h3 className="text-xl font-bold tracking-tight text-neutral-900 mt-1">
+                  All Offers for {product.name}
+                </h3>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  Select your preferred seller based on lowest price, fast delivery, or rating.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSellersModalOpen(false)}
+                className="p-2 rounded-full hover:bg-neutral-200/60 transition-colors text-neutral-500 hover:text-neutral-900"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-3.5">
+              {(product.sellers && product.sellers.length > 0 ? product.sellers : [
+                {
+                  id: "default-elektrix",
+                  seller_id: product.sellerId || "default",
+                  seller_name: product.sellerName || "ELEKTRIX Official",
+                  price: product.price,
+                  mrp: product.mrp,
+                  discount_percent: product.discount,
+                  stock: 10,
+                  in_stock: true,
+                  condition: "NEW",
+                  estimated_delivery_days: product.sellerDeliveryDays || 2,
+                  rating: product.sellerRating || 4.9,
+                  rating_count: 50,
+                  city: "Gopalganj"
+                } as StoreSellerOffer
+              ]).map((s: StoreSellerOffer, idx: number) => {
+                const isSelected = selectedSeller ? s.seller_id === selectedSeller.seller_id : idx === 0;
+                return (
+                  <div
+                    key={s.id}
+                    className={`p-4 rounded-2xl border transition-all ${
+                      isSelected
+                        ? "border-neutral-900 bg-neutral-50/80 ring-1 ring-neutral-900"
+                        : "border-neutral-200 hover:border-neutral-300 bg-white"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-base text-neutral-900">
+                            {s.seller_name}
+                          </span>
+                          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200/60 text-amber-800 font-bold text-xs">
+                            <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                            {s.rating.toFixed(1)}
+                          </span>
+                          {idx === 0 && (
+                            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-green-100 text-green-800">
+                              Lowest Price
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-3 text-xs text-neutral-500 mt-2">
+                          <span className="inline-flex items-center gap-1">
+                            <Truck className="w-3.5 h-3.5 text-neutral-600" />
+                            Delivery in {s.estimated_delivery_days} days
+                          </span>
+                          {s.city && <span>• Ships from {s.city}</span>}
+                        </div>
+
+                        <div className="mt-2 text-xs text-neutral-500 flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1 text-green-700 font-medium">
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            {s.condition} Condition • Genuine Warranty
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <div className="text-xl font-bold text-neutral-900">
+                          {inr(s.price)}
+                        </div>
+                        {s.mrp && s.mrp > s.price && (
+                          <div className="text-xs text-neutral-400 line-through">
+                            {inr(s.mrp)}
+                          </div>
+                        )}
+                        {s.discount_percent > 0 && (
+                          <div className="text-xs font-semibold text-green-700">
+                            {s.discount_percent}% OFF
+                          </div>
+                        )}
+
+                        <div className="mt-3">
+                          {isSelected ? (
+                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-neutral-900 text-white text-xs font-semibold">
+                              <Check className="w-3.5 h-3.5" /> Selected
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedSeller(s);
+                                setSellersModalOpen(false);
+                                toast.success(`Switched seller to ${s.seller_name}`);
+                              }}
+                              className="px-3.5 py-1.5 rounded-xl border border-neutral-300 hover:border-neutral-900 text-neutral-900 hover:bg-neutral-900 hover:text-white transition-all text-xs font-semibold"
+                            >
+                              Select Seller
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="p-4 bg-neutral-50 border-t border-neutral-100 text-center text-xs text-neutral-500">
+              All sellers on ELEKTRIX are verified and bound by standard warranty and easy returns.
+            </div>
           </div>
         </div>
       )}

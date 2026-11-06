@@ -11,7 +11,8 @@
  * lib/format.ts `inr()` to render.
  */
 
-import type { StoreProduct, ProductListParams, ProductPage, StoreCategoryPage } from "./store-api";
+import type { StoreProduct, StoreSellerOffer, ProductListParams, ProductPage, StoreCategoryPage } from "./store-api";
+export type { StoreSellerOffer };
 
 /* ------------------------------------------------------------------ */
 /* UI types                                                            */
@@ -74,6 +75,12 @@ export interface Product {
   isFlashSale?: boolean;
   offerEndsAt?: string | null;
   createdAt?: string;
+  sellerId?: string;
+  sellerName?: string;
+  sellerListingId?: string;
+  sellerRating?: number;
+  sellerDeliveryDays?: number;
+  sellers?: StoreSellerOffer[];
 }
 
 export interface HeroSlide {
@@ -524,6 +531,12 @@ export function mapStoreProduct(p: StoreProduct): Product {
     rating: (p as any).rating_avg ?? undefined,
     reviews: (p as any).rating_count ?? undefined,
     createdAt: p.created_at || undefined,
+    sellerId: p.seller_id,
+    sellerName: p.seller_name || "ELEKTRIX Official",
+    sellerListingId: p.seller_listing_id,
+    sellerRating: p.seller_rating ?? 4.9,
+    sellerDeliveryDays: p.seller_delivery_days ?? 2,
+    sellers: p.sellers || [],
   };
 }
 

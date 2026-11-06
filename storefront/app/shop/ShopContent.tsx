@@ -260,7 +260,7 @@ export default function ShopContent() {
           <p className="text-neutral-500 mt-2 max-w-2xl">
             {headingCategory
               ? `Genuine ${headingCategory.toLowerCase()} with brand warranty, open-box delivery at your doorstep and fast shipping across India.`
-              : "Genuine electronics with brand warranty, open-box delivery at your doorstep and fast shipping across India."}
+              : "Genuine products from verified marketplace sellers with brand warranty, open-box delivery and fast shipping across India."}
           </p>
           <p className="text-neutral-500 mt-1">
             {q ? (

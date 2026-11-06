@@ -42,8 +42,8 @@ export default function Footer() {
             <span className="text-2xl font-bold text-white">ELEKTRIX</span>
           </Link>
           <p className="mt-5 text-sm max-w-sm text-neutral-400">
-            Premium electronics store bringing you the latest mobiles, laptops, appliances and audio
-            gear with unbeatable prices and fast delivery.
+            Multi-category E-commerce marketplace bringing you genuine products from trusted sellers and brands
+            with unbeatable prices and fast delivery.
           </p>
           <div className="mt-6 space-y-2.5 text-sm text-neutral-400">
             <div className="flex items-center gap-2">

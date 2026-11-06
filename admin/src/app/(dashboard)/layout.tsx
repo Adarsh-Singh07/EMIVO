@@ -21,6 +21,8 @@ import {
   Sparkles,
   Award,
   LayoutTemplate,
+  CheckCircle2,
+  Store,
 } from "lucide-react";
 import Link from "next/link";
 import { ReactNode, useEffect, useState, useRef, useCallback } from "react";
@@ -49,6 +51,7 @@ const NAV_SECTIONS: Array<{
       { href: "/orders", label: "Orders", icon: ShoppingCart },
       { href: "/products", label: "Products", icon: Package },
       { href: "/products/categories", label: "Categories", icon: Package },
+      { href: "/products/categories/approvals", label: "Category Approvals", icon: CheckCircle2 },
       { href: "/products/brands", label: "Brands", icon: Award },
       { href: "/products/category-pages", label: "Category Pages", icon: LayoutTemplate },
       { href: "/products/catalogues", label: "Homepage Catalogues", icon: Package },
@@ -63,6 +66,7 @@ const NAV_SECTIONS: Array<{
   {
     label: "People",
     links: [
+      { href: "/sellers", label: "Sellers", icon: Store },
       { href: "/customers", label: "Customers", icon: UserCheck },
       { href: "/users", label: "Users", icon: Users },
     ],

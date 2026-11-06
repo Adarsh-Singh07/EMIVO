@@ -178,6 +178,11 @@ export default function ProductCard({ product }: { product: Product }) {
               <span className="text-green-700 text-[11px] font-semibold">{product.discount}% OFF</span>
             )}
           </div>
+          {product.sellerName && (
+            <p className="text-[10px] text-neutral-500 truncate">
+              Sold by: <span className="text-neutral-700 font-medium">{product.sellerName}</span>
+            </p>
+          )}
           {product.onOffer && (
             <span className="text-amber-700 text-[11px] font-bold tracking-tight">
               ✦ {product.offerName || "Festival Offer"}

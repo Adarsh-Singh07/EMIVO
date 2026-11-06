@@ -17,6 +17,7 @@ from modules.storefront.schemas import (
     StoreCategory,
     StoreProduct,
     StoreProductList,
+    StoreSellerOffer,
     StoreVariant,
 )
 
@@ -130,6 +131,46 @@ class CatalogService:
             )
         return out
 
+    async def _load_sellers(self, product_ids: List[str]) -> dict:
+        if not product_ids:
+            return {}
+        res = await self.session.execute(
+            text("""
+                SELECT 
+                    sl.id, sl.product_id, sl.seller_id, b.name as seller_name,
+                    b.settings->>'city' as city,
+                    sl.price, sl.mrp, sl.stock, sl.is_active, sl.condition,
+                    sl.estimated_delivery_days, sl.rating, sl.rating_count
+                FROM seller_listings sl
+                JOIN businesses b ON b.id = sl.seller_id
+                WHERE sl.product_id = ANY(:pids) AND sl.is_active = TRUE AND b.is_active = TRUE
+                ORDER BY sl.price ASC, sl.rating DESC
+            """),
+            {"pids": product_ids},
+        )
+        rows = res.mappings().all()
+        out: dict = {}
+        for r in rows:
+            mrp = r["mrp"] or r["price"]
+            disc = int(round((mrp - r["price"]) / mrp * 100)) if mrp > 0 else 0
+            offer = StoreSellerOffer(
+                id=str(r["id"]),
+                seller_id=str(r["seller_id"]),
+                seller_name=str(r["seller_name"]),
+                price=int(r["price"]),
+                mrp=int(mrp),
+                discount_percent=max(disc, 0),
+                stock=int(r["stock"]),
+                in_stock=int(r["stock"]) > 0,
+                condition=str(r.get("condition") or "NEW"),
+                estimated_delivery_days=int(r.get("estimated_delivery_days") or 3),
+                rating=float(r.get("rating") or 4.8),
+                rating_count=int(r.get("rating_count") or 0),
+                city=r.get("city"),
+            )
+            out.setdefault(str(r["product_id"]), []).append(offer)
+        return out
+
     _BASE_SELECT = f"""
         SELECT p.id, p.name, p.slug, p.description, p.brand, p.return_policy, p.warranty_info, p.sku, p.price, p.mrp,
                p.sale_price, p.offer_name, p.status, p.featured, p.specs, p.tags, p.category_id,
@@ -223,10 +264,25 @@ class CatalogService:
         images = await self._load_images(ids)
         stocks = await self._load_stock(ids)
         variants = await self._load_variants(ids)
+        sellers_map = await self._load_sellers(ids)
         items = []
         for r in rows:
             m = self._product_row_to_model(r, images.get(r["id"], []), stocks.get(r["id"]))
             m.variants = [StoreVariant(**v) for v in variants.get(r["id"], [])]
+            p_sellers = sellers_map.get(m.id, [])
+            m.sellers = p_sellers
+            if p_sellers:
+                best = next((s for s in p_sellers if s.in_stock), p_sellers[0])
+                m.seller_id = best.seller_id
+                m.seller_name = best.seller_name
+                m.seller_listing_id = best.id
+                m.seller_rating = best.rating
+                m.seller_delivery_days = best.estimated_delivery_days
+                m.effective_price = best.price
+                m.price = best.price
+                if best.mrp:
+                    m.mrp = best.mrp
+                    m.discount_percent = best.discount_percent
             items.append(m)
 
         return StoreProductList(
@@ -253,8 +309,25 @@ class CatalogService:
         images = await self._load_images([row["id"]])
         stock = (await self._load_stock([row["id"]])).get(row["id"])
         variants = await self._load_variants([row["id"]])
+        sellers_map = await self._load_sellers([row["id"]])
+        p_sellers = sellers_map.get(row["id"], [])
+
         m = self._product_row_to_model(row, images.get(row["id"], []), stock)
         m.variants = [StoreVariant(**v) for v in variants.get(row["id"], [])]
+        m.sellers = p_sellers
+
+        if p_sellers:
+            best = next((s for s in p_sellers if s.in_stock), p_sellers[0])
+            m.seller_id = best.seller_id
+            m.seller_name = best.seller_name
+            m.seller_listing_id = best.id
+            m.seller_rating = best.rating
+            m.seller_delivery_days = best.estimated_delivery_days
+            m.effective_price = best.price
+            m.price = best.price
+            if best.mrp:
+                m.mrp = best.mrp
+                m.discount_percent = best.discount_percent
         return m
 
     async def related_products(self, product_id: str, limit: int = 8) -> List[StoreProduct]:

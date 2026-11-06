@@ -1,7 +1,7 @@
 {
-  "name": "Elektrix \u2014 Premium Electronics Store",
+  "name": "Elektrix \u2014 Online E-Commerce Marketplace",
   "short_name": "Elektrix",
-  "description": "Shop the latest mobiles, laptops, appliances and accessories at Elektrix.",
+  "description": "Shop multi-category products and deals at Elektrix.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

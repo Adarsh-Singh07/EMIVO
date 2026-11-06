@@ -43,6 +43,8 @@ export type AddableProduct = {
   mrp?: number; // paise
   img?: string;
   variantId?: string;
+  sellerId?: string;
+  sellerName?: string;
 };
 
 interface CartCtxValue {

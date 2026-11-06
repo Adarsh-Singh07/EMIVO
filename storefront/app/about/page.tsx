@@ -5,12 +5,12 @@ import { Truck, BadgePercent, ShieldCheck, RotateCcw } from "lucide-react";
 export const metadata: Metadata = {
   title: "About Us",
   description:
-    "ELEKTRIX is a Gopalganj-based electronics store selling genuine mobiles, laptops, appliances, audio and wearables with brand warranty, open-box delivery and honest pricing.",
+    "ELEKTRIX is a Gopalganj-based E-commerce marketplace offering multi-category products from genuine sellers with brand warranty, open-box delivery and honest pricing.",
 };
 
 const VALUES = [
   { icon: Truck, title: "Fast Delivery", desc: "Live delivery dates for your pincode, shown on every product before you order." },
-  { icon: BadgePercent, title: "Honest Pricing", desc: "Genuine deals on premium electronics, every day." },
+  { icon: BadgePercent, title: "Honest Pricing", desc: "Genuine deals on multi-category products, every day." },
   { icon: ShieldCheck, title: "100% Genuine", desc: "Every product sourced from authorised distributors." },
   { icon: RotateCcw, title: "Open-Box Delivery", desc: "Inspect your order at the doorstep before you accept it." },
 ];
@@ -22,8 +22,8 @@ export default function AboutPage() {
       <h1 className="text-4xl font-semibold tracking-tight mb-8">Hardware Built for Performance</h1>
       <div className="prose prose-neutral max-w-none text-neutral-600 dark:text-neutral-400 space-y-4">
         <p>
-          ELEKTRIX is an electronics store for people who care about what they carry, wear and plug in. We curate
-          mobiles, laptops, appliances, audio and wearables from the brands you trust — Apple, Samsung, Sony, JBL,
+          ELEKTRIX is an E-commerce marketplace for people who value authenticity and quality. We curate
+          multi-category products across electronics, fashion, lifestyle and home from trusted sellers and brands — Apple, Samsung, Sony, JBL,
           Bose and more — and price them honestly.
         </p>
         <p>
@@ -52,7 +52,7 @@ export default function AboutPage() {
           href="/shop"
           className="inline-flex items-center justify-center h-12 px-8 bg-white text-neutral-950 rounded-full text-sm font-medium hover:bg-neutral-200"
         >
-          Shop Electronics
+          Explore Marketplace
         </Link>
       </div>
     </div>

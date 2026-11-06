@@ -28,6 +28,7 @@ from modules.admin.carts_router import router as admin_carts_router
 from modules.admin.marketing_router import router as admin_marketing_router
 from modules.chatbot.router import router as chatbot_router
 from modules.admin_assistant.router import router as admin_assistant_router
+from modules.sellers.router import router as sellers_router
 from modules.catalogues.router import router as catalogues_router, admin_router as catalogues_admin_router
 from modules.bank_offers.router import router as bank_offers_router, admin_router as bank_offers_admin_router
 from contextlib import asynccontextmanager
@@ -244,6 +245,7 @@ app.include_router(admin_carts_router)
 app.include_router(admin_marketing_router)
 app.include_router(chatbot_router)
 app.include_router(admin_assistant_router)
+app.include_router(sellers_router)
 
 if __name__ == "__main__":
     import uvicorn

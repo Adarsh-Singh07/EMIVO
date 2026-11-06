@@ -426,7 +426,7 @@ def welcome(p: dict, storefront_url: str) -> tuple[str, str]:
         )
     )
     body = (
-        f"Hi {name}, welcome to ELEKTRIX — India's premium electronics store. "
+        f"Hi {name}, welcome to ELEKTRIX — India's premier E-commerce marketplace. "
         "Your account is ready. Here's what you can do with it:"
         f"<table role='presentation' cellpadding='0' cellspacing='0' style='margin:14px 0 0;'>{perks}</table>"
     )

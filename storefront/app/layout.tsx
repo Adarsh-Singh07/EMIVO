@@ -31,7 +31,7 @@ const organizationJsonLd = {
   url: SITE_URL,
   logo: `${SITE_URL}/icons/icon-192.png`,
   description:
-    "India's premium electronics store — mobiles, laptops, appliances, audio and wearables.",
+    "India's premier E-commerce marketplace — shop multi-category products with brand warranty and fast delivery.",
   sameAs: [
     "https://x.com/elektrix_in",
     "https://www.linkedin.com/company/elektrix-in/",
@@ -78,7 +78,7 @@ export const metadata: Metadata = {
   // Vercel deploy of THIS commit is live before running checks against prod.
   other: { build: process.env.VERCEL_GIT_COMMIT_SHA || "local" },
   title: {
-    default: "ELEKTRIX — Premium Electronics Store",
+    default: "ELEKTRIX — Online E-Commerce Marketplace",
     template: "%s — ELEKTRIX",
   },
   applicationName: "ELEKTRIX",
@@ -86,7 +86,7 @@ export const metadata: Metadata = {
     "Shop genuine smartphones, laptops, appliances, audio and wearables at ELEKTRIX. Brand warranty, no-cost EMI and fast delivery across India.",
   keywords: ["electronics", "laptops", "mobiles", "audio", "wearables", "elektrix"],
   openGraph: {
-    title: "ELEKTRIX — Premium Electronics Store",
+    title: "ELEKTRIX — Online E-Commerce Marketplace",
     description:
       "Shop genuine smartphones, laptops, appliances, audio and wearables at ELEKTRIX. Brand warranty, no-cost EMI and fast delivery across India.",
     siteName: "ELEKTRIX",
@@ -102,7 +102,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: "ELEKTRIX — Premium Electronics Store",
+    title: "ELEKTRIX — Online E-Commerce Marketplace",
     description:
       "Shop genuine smartphones, laptops, appliances, audio and wearables at ELEKTRIX. Brand warranty, no-cost EMI and fast delivery across India.",
     images: ["/icons/icon-512.png"],

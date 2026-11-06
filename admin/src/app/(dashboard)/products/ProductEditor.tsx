@@ -116,12 +116,19 @@ export function ProductEditor({ productId }: { productId?: string }) {
   const [formError, setFormError] = useState<string | null>(null);
 
   const [categories, setCategories] = useState<Array<{ id: string; name: string; depth: number; parent: string | null }>>([]);
+  const [categoryTree, setCategoryTree] = useState<CategoryNode[]>([]);
+  const [selectedRootCatId, setSelectedRootCatId] = useState("");
+  const [selectedSubCatId, setSelectedSubCatId] = useState("");
   const [brandOptions, setBrandOptions] = useState<string[]>([]);
   const [addingBrand, setAddingBrand] = useState(false);
   const [newBrand, setNewBrand] = useState("");
   const [newCatName, setNewCatName] = useState("");
   const [newCatParent, setNewCatParent] = useState("");
   const [showNewCat, setShowNewCat] = useState(false);
+
+  const toTitleCase = (val: string) => {
+    return val.replace(/\b\w/g, (c) => c.toUpperCase());
+  };
 
   // Form state
   const [name, setName] = useState("");
@@ -166,13 +173,34 @@ export function ProductEditor({ productId }: { productId?: string }) {
         apiClient.get<CategoryNode[]>("/store/categories").catch(() => [] as CategoryNode[]),
       ]);
       setCategories(flattenCategories(cats));
+      setCategoryTree(cats || []);
+      const currentCatId = p.category_id || "";
+      setCategoryId(currentCatId);
+      if (currentCatId && cats?.length) {
+        const rootMatch = cats.find((c) => c.id === currentCatId);
+        if (rootMatch) {
+          setSelectedRootCatId(currentCatId);
+          setSelectedSubCatId("");
+        } else {
+          const parentMatch = cats.find((c) => (c.children || []).some((ch) => ch.id === currentCatId));
+          if (parentMatch) {
+            setSelectedRootCatId(parentMatch.id);
+            setSelectedSubCatId(currentCatId);
+          } else {
+            setSelectedRootCatId("");
+            setSelectedSubCatId("");
+          }
+        }
+      } else {
+        setSelectedRootCatId("");
+        setSelectedSubCatId("");
+      }
       setName(p.name || "");
       setBrand(p.brand || "");
       setReturnPolicy(p.return_policy || "");
       setWarrantyInfo(p.warranty_info || "");
       setSku(p.sku || "");
       setDescription(p.description || "");
-      setCategoryId(p.category_id || "");
       setPrice(paiseToRupeeInput(p.price));
       setMrp(paiseToRupeeInput(p.mrp));
       setSalePrice(paiseToRupeeInput(p.sale_price));
@@ -211,8 +239,14 @@ export function ProductEditor({ productId }: { productId?: string }) {
     } else {
       apiClient
         .get<CategoryNode[]>("/store/categories")
-        .then((cats) => setCategories(flattenCategories(cats)))
-        .catch(() => setCategories([]));
+        .then((cats) => {
+          setCategoryTree(cats || []);
+          setCategories(flattenCategories(cats));
+        })
+        .catch(() => {
+          setCategoryTree([]);
+          setCategories([]);
+        });
     }
   }, [isEdit, loadProduct]);
 
@@ -256,7 +290,15 @@ export function ProductEditor({ productId }: { productId?: string }) {
       });
       toast.success("Category created");
       const cats = await apiClient.get<CategoryNode[]>("/store/categories");
+      setCategoryTree(cats || []);
       setCategories(flattenCategories(cats));
+      if (parentSel) {
+        setSelectedRootCatId(parentSel);
+        setSelectedSubCatId(res.id);
+      } else {
+        setSelectedRootCatId(res.id);
+        setSelectedSubCatId("");
+      }
       setCategoryId(res.id);
       setNewCatName("");
       setShowNewCat(false);
@@ -658,56 +700,101 @@ export function ProductEditor({ productId }: { productId?: string }) {
                 <label className={labelClass}>SKU</label>
                 <input className={inputClass} value={sku} onChange={(e) => setSku(e.target.value)} placeholder="e.g. HVL-BLD-750" />
               </div>
-              <div className="relative">
-                <label className={labelClass}>Category</label>
-                <div className="flex gap-2">
-                  <select className={`${inputClass} flex-1`} value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-                    <option value="">No category</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {"   ".repeat(c.depth)}
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => setShowNewCat((v) => !v)}
-                    className="shrink-0 px-3 py-2 text-sm font-semibold text-neutral-700 bg-neutral-100 rounded-xl hover:bg-neutral-200"
-                  >
-                    {showNewCat ? "✕" : "+ New"}
-                  </button>
-                </div>
-                {showNewCat && (
-                  <div className="mt-2 rounded-xl border border-neutral-200 bg-neutral-50 p-3 space-y-2">
-                    <input
-                      className={inputClass}
-                      value={newCatName}
-                      onChange={(e) => setNewCatName(e.target.value)}
-                      placeholder="New category / subcategory name"
-                      autoFocus
-                    />
-                    <select className={inputClass} value={newCatParent} onChange={(e) => setNewCatParent(e.target.value)}>
-                      <option value="">Top-level category</option>
-                      {categories
-                        .filter((c) => c.depth === 0)
-                        .map((c) => (
-                          <option key={c.id} value={c.id}>
-                            Under {c.name} (subcategory)
-                          </option>
-                        ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => createCategory(newCatParent)}
-                      disabled={!newCatName.trim()}
-                      className="w-full h-10 rounded-xl bg-neutral-900 text-white text-sm font-semibold disabled:opacity-40"
-                    >
-                      Create category
-                    </button>
-                  </div>
-                )}
-              </div>
+                             <div className="space-y-3">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                   <div>
+                     <label className={labelClass}>Main Category</label>
+                     <select
+                       className={inputClass}
+                       value={selectedRootCatId}
+                       onChange={(e) => {
+                         const rootId = e.target.value;
+                         setSelectedRootCatId(rootId);
+                         setSelectedSubCatId("");
+                         setCategoryId(rootId);
+                       }}
+                     >
+                       <option value="">Select Main Category</option>
+                       {categoryTree.map((c) => (
+                         <option key={c.id} value={c.id}>
+                           {c.name}
+                         </option>
+                       ))}
+                     </select>
+                   </div>
+                   <div>
+                     <label className={labelClass}>Subcategory</label>
+                     <select
+                       className={inputClass}
+                       disabled={!selectedRootCatId}
+                       value={selectedSubCatId}
+                       onChange={(e) => {
+                         const subId = e.target.value;
+                         setSelectedSubCatId(subId);
+                         setCategoryId(subId || selectedRootCatId);
+                       }}
+                     >
+                       <option value="">
+                         {!selectedRootCatId
+                           ? "Select a category first"
+                           : (categoryTree.find((c) => c.id === selectedRootCatId)?.children?.length ?? 0) === 0
+                           ? "No subcategories available"
+                           : "Select Subcategory"}
+                       </option>
+                       {(categoryTree.find((c) => c.id === selectedRootCatId)?.children || []).map((sc) => (
+                         <option key={sc.id} value={sc.id}>
+                           {sc.name}
+                         </option>
+                       ))}
+                     </select>
+                   </div>
+                 </div>
+
+                 <div className="flex items-center justify-between pt-1">
+                   <p className="text-xs text-neutral-500">
+                     Active Assignment:{" "}
+                     <span className="font-semibold text-neutral-800">
+                       {categories.find((c) => c.id === categoryId)?.name || "None"}
+                     </span>
+                   </p>
+                   <button
+                     type="button"
+                     onClick={() => setShowNewCat((v) => !v)}
+                     className="px-2.5 py-1 text-xs font-semibold text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200"
+                   >
+                     {showNewCat ? "✕ Cancel" : "+ Create Category / Subcategory"}
+                   </button>
+                 </div>
+
+                 {showNewCat && (
+                   <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-3 space-y-2">
+                     <p className="text-xs font-semibold text-neutral-700">Add New Category or Subcategory</p>
+                     <input
+                       className={inputClass}
+                       value={newCatName}
+                       onChange={(e) => setNewCatName(toTitleCase(e.target.value))}
+                       placeholder="e.g. Smart Watches or Home Decor (Auto-Capitalized)"
+                       autoFocus
+                     />
+                     <select className={inputClass} value={newCatParent} onChange={(e) => setNewCatParent(e.target.value)}>
+                       <option value="">Top-level category (Root)</option>
+                       {categoryTree.map((c) => (
+                         <option key={c.id} value={c.id}>
+                           Under {c.name} (Subcategory)
+                         </option>
+                       ))}
+                     </select>
+                     <button
+                       type="button"
+                       onClick={() => createCategory(newCatParent)}
+                       disabled={!newCatName.trim()}
+                       className="w-full h-10 rounded-xl bg-neutral-900 text-white text-sm font-semibold disabled:opacity-40"
+                     >
+                       Create Category
+                     </button>
+                   </div>
+                 )}
+               </div>
               <div>
                 <label className={labelClass}>Status</label>
                 <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value)}>

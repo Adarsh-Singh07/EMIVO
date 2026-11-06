@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { Package, Search, RefreshCw, AlertCircle, PlusCircle, Star, Archive, RotateCcw, Pencil, Trash2 } from "lucide-react";
+import { Package, Search, RefreshCw, AlertCircle, Star, Archive, Store, ExternalLink } from "lucide-react";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { formatINR } from "@/lib/money";
 import { ProductStatusBadge, StockBadge } from "@/components/admin/status-badges";
@@ -22,6 +22,8 @@ interface Product {
   mrp?: number | null;
   status: "ACTIVE" | "ARCHIVED" | "DRAFT";
   featured: boolean;
+  seller_id?: string | null;
+  seller_name?: string | null;
   media?: Array<{ media_url: string; position: number }>;
   variants?: Array<{ id: string }>;
 }
@@ -54,7 +56,7 @@ export default function ProductsPage() {
       setLoading(true);
       setError(null);
       const [productsRes, inventoryRes] = await Promise.allSettled([
-        apiClient.get<Product[]>("/products/"),
+        apiClient.get<Product[]>("/products/?limit=500"),
         apiClient.get<{ items: InventoryRow[] }>("/inventory?page_size=999"),
       ]);
       if (productsRes.status === "fulfilled") {
@@ -92,7 +94,8 @@ export default function ProductsPage() {
       if (q) {
         const matches = p.name.toLowerCase().includes(q) ||
           (p.sku || "").toLowerCase().includes(q) ||
-          (p.brand || "").toLowerCase().includes(q);
+          (p.brand || "").toLowerCase().includes(q) ||
+          (p.seller_name || "").toLowerCase().includes(q);
         if (!matches) continue;
       }
 
@@ -127,22 +130,6 @@ export default function ProductsPage() {
     }
   };
 
-  const deleteProduct = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete or archive '${name}'?\n\nIf it has never been ordered, it will be hard deleted permanently. Otherwise, it will be safely archived.`)) return;
-    setBusyId(id);
-    try {
-      await apiClient.delete(`/products/${id}`);
-      setProducts((prev) => prev.filter((p) => p.id !== id));
-      toast.success("Product deleted or archived successfully");
-      load();
-    } catch (err) {
-      const message = err instanceof ApiError ? `${err.message}${err.code ? ` (${err.code})` : ""}` : "Delete failed";
-      toast.error(message);
-    } finally {
-      setBusyId(null);
-    }
-  };
-
   const thumbFor = (p: Product): string | null => {
     const media = [...(p.media || [])].sort((a, b) => (a.position || 0) - (b.position || 0));
     return media[0]?.media_url || null;
@@ -156,6 +143,7 @@ export default function ProductsPage() {
             <th className="px-5 py-3.5">Product</th>
             <th className="px-5 py-3.5">SKU</th>
             <th className="px-5 py-3.5">Brand</th>
+            <th className="px-5 py-3.5">Seller</th>
             <th className="px-5 py-3.5 text-right">Price / MRP</th>
             <th className="px-5 py-3.5">Stock</th>
             <th className="px-5 py-3.5">Status</th>
@@ -168,6 +156,8 @@ export default function ProductsPage() {
             const archived = (product.status || "ACTIVE").toUpperCase() === "ARCHIVED";
             const thumb = thumbFor(product);
             const onOffer = product.sale_price != null && product.sale_price > 0;
+            const sellerDisplayName = product.seller_name || "Apna Enterprises";
+
             return (
               <tr key={product.id} className={`transition-colors hover:bg-neutral-50/60 ${archived ? 'opacity-80' : ''}`}>
                 <td className="px-5 py-3.5">
@@ -183,12 +173,9 @@ export default function ProductsPage() {
                       )}
                     </div>
                     <div className="min-w-0">
-                      <Link
-                        href={`/products/${product.id}`}
-                        className="block max-w-[220px] truncate font-semibold text-neutral-900 hover:text-amber-600 transition-colors"
-                      >
+                      <span className="block max-w-[220px] truncate font-semibold text-neutral-900">
                         {product.name}
-                      </Link>
+                      </span>
                       <div className="flex items-center gap-1.5">
                         {product.featured && <Star className="h-3 w-3 fill-amber-400 text-amber-400" />}
                         {(product.variants?.length || 0) > 0 && (
@@ -202,6 +189,12 @@ export default function ProductsPage() {
                 </td>
                 <td className="px-5 py-3.5 font-mono text-xs text-neutral-500">{product.sku || "—"}</td>
                 <td className="px-5 py-3.5 text-neutral-600">{product.brand || "—"}</td>
+                <td className="px-5 py-3.5">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900 border border-amber-200/60">
+                    <Store className="h-3 w-3 text-amber-600" />
+                    {sellerDisplayName}
+                  </span>
+                </td>
                 <td className="px-5 py-3.5 text-right">
                   <div className="font-semibold text-neutral-900">
                     {formatINR(onOffer ? product.sale_price! : product.price)}
@@ -220,15 +213,8 @@ export default function ProductsPage() {
                 <td className="px-5 py-3.5">
                   <ProductStatusBadge status={product.status || "ACTIVE"} />
                 </td>
-                <td className="px-5 py-3.5">
+                <td className="px-5 py-3.5 text-right">
                   <div className="flex items-center justify-end gap-1">
-                    <Link
-                      href={`/products/${product.id}`}
-                      className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 transition-colors"
-                      title="Edit product"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Link>
                     {!archived && (
                       <button
                         onClick={() =>
@@ -249,22 +235,15 @@ export default function ProductsPage() {
                         <Star className={`h-4 w-4 ${product.featured ? "fill-amber-400" : ""}`} />
                       </button>
                     )}
-                    <button
-                      onClick={() => {
-                        if (archived) {
-                          patchProduct(product.id, { status: "ACTIVE" }, "Product restored")
-                        } else {
-                          // Normally patchProduct(product.id, {status: "ARCHIVED"})
-                          // But we want to trigger deleteProduct so it hard deletes if no orders, or archives if orders exist.
-                          deleteProduct(product.id, product.name);
-                        }
-                      }}
-                      disabled={busyId === product.id}
-                      className={`rounded-lg p-1.5 transition-colors disabled:opacity-40 ${archived ? 'text-amber-500 hover:bg-amber-50' : 'text-neutral-400 hover:bg-red-50 hover:text-red-600'}`}
-                      title={archived ? "Restore product" : "Hard delete (if no orders) or Archive"}
+                    <a
+                      href={`https://elektrix.in/product/${product.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 transition-colors"
+                      title="View in Storefront"
                     >
-                      {archived ? <RotateCcw className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
-                    </button>
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
                   </div>
                 </td>
               </tr>
@@ -282,10 +261,10 @@ export default function ProductsPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-neutral-900 flex items-center gap-3">
             <Package className="w-8 h-8 text-amber-500" />
-            Product Catalog
+            Marketplace Catalog
           </h1>
           <p className="text-neutral-500 text-sm mt-1">
-            Manage catalog items, pricing, offers and stock across your {BRAND_CONFIG.name} store.
+            Global catalog inspection across all sellers and inventories on {BRAND_CONFIG.name}.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -300,6 +279,27 @@ export default function ProductsPage() {
         </div>
       </div>
 
+      {/* Seller Portal Notification Banner */}
+      <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
+            <Store className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="font-semibold text-neutral-900">Marketplace Notice</p>
+            <p className="text-xs text-neutral-600 mt-0.5">
+              Direct catalog operations (adding, editing, stock & price updates) are handled by verified sellers via the dedicated <strong>Seller Portal (sell.elektrix.in)</strong>. All original store products are assigned to <strong>Apna Enterprises</strong>.
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/sellers"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-neutral-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-neutral-800 transition-colors whitespace-nowrap shadow-sm"
+        >
+          Manage Sellers
+        </Link>
+      </div>
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
@@ -308,7 +308,7 @@ export default function ProductsPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search products by name, SKU, or brand..."
+            placeholder="Search products by name, SKU, brand, or seller..."
             className="h-10 w-full rounded-xl border border-neutral-200 bg-white pl-10 pr-4 text-sm text-neutral-900 placeholder-neutral-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
           />
         </div>
@@ -349,21 +349,13 @@ export default function ProductsPage() {
             <Package className="h-8 w-8" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-neutral-900">No active products found</h3>
+            <h3 className="text-lg font-bold text-neutral-900">No products found</h3>
             <p className="text-sm text-neutral-500">
               {search || statusFilter !== "ALL"
-                ? "No products match the current filters."
-                : `Create your first product catalog entry in ${BRAND_CONFIG.name} to get started.`}
+                ? "No products match the current search or filters."
+                : `No active products available in the ${BRAND_CONFIG.name} marketplace.`}
             </p>
           </div>
-          {!search && statusFilter === "ALL" && (
-            <Link
-              href="/products/new"
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 transition-all hover:from-amber-600 hover:to-orange-700"
-            >
-              <PlusCircle className="h-4 w-4" /> Add Product
-            </Link>
-          )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">

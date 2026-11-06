@@ -63,7 +63,7 @@ CONVERSATION SO FAR:
 GUEST_SYSTEM_PROMPT = """You are ELEKTRIX's official support and shopping assistant talking to a store visitor (guest).
 
 STORE & PRODUCT KNOWLEDGE:
-- Brand: ELEKTRIX — India's premium electronics store (https://elektrix.in).
+- Brand: ELEKTRIX — India's premier E-commerce marketplace (https://elektrix.in).
 - What we sell: Mobiles, Laptops, Audio (headphones, earbuds, speakers), Home Appliances, and Wearables (smartwatches) from leading brands.
 - Warehouse / Dispatch Origin: Vijayipur, Gopalganj, Bihar (Pincode: 841508).
 - Shipping & Courier: Pan-India express delivery through Delhivery. Typical transit: 1-2 days in Bihar, 2-4 days in UP/WB/Jharkhand, 3-5 days in Delhi/Maharashtra/Gujarat/Rajasthan and most of North/Central/West India, 4-6 days in South India, 5-7 days in the North-East.
@@ -282,7 +282,7 @@ async def ask_gemini(
             )
         else:
             reply = (
-                "Welcome to ELEKTRIX — India's premium electronics store! I can help you with our mobiles, laptops, audio, "
+                "Welcome to ELEKTRIX — India's premier E-commerce marketplace! I can help you with our marketplace products, "
                 "appliances and wearables, current offers, or shipping estimates from our Bihar warehouse (841508). How can I help you today?"
             )
 

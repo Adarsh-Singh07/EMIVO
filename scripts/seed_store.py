@@ -251,15 +251,19 @@ async def main() -> None:
             )).scalar())
             # children (leaf categories the products attach to)
             for child_name, child_slug in children:
-                await s.execute(text("""
-                    INSERT INTO categories (id, business_id, name, slug, parent_id)
-                    VALUES (:i, :b, :n, :s, :p)
-                    ON CONFLICT DO NOTHING
-                """), {"i": str(uuidlib.uuid4()), "b": business_id,
-                       "n": child_name, "s": child_slug, "p": cat_ids[slug]})
+                child_existing = (await s.execute(
+                    text("SELECT id FROM categories WHERE business_id = :b AND slug = :s AND parent_id = :p"),
+                    {"b": business_id, "s": child_slug, "p": cat_ids[slug]},
+                )).scalar()
+                if not child_existing:
+                    await s.execute(text("""
+                        INSERT INTO categories (id, business_id, name, slug, parent_id)
+                        VALUES (:i, :b, :n, :s, :p)
+                    """), {"i": str(uuidlib.uuid4()), "b": business_id,
+                           "n": child_name, "s": child_slug, "p": cat_ids[slug]})
                 cat_ids[child_slug] = str((await s.execute(
-                    text("SELECT id FROM categories WHERE business_id = :b AND slug = :s"),
-                    {"b": business_id, "s": child_slug},
+                    text("SELECT id FROM categories WHERE business_id = :b AND slug = :s AND parent_id = :p"),
+                    {"b": business_id, "s": child_slug, "p": cat_ids[slug]},
                 )).scalar())
         await s.commit()
         print(f"[seed] categories ready ({len(cat_ids)})")

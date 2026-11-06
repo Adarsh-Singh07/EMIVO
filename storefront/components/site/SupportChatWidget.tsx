@@ -77,7 +77,7 @@ export default function SupportChatWidget() {
         setMsgs([
           {
             from: "bot",
-            text: "Hi! 👋 Welcome to ELEKTRIX — India's premium electronics store. Ask me about our mobiles, laptops, audio, appliances and wearables, delivery timelines from our Bihar warehouse (PIN 841508), or current offers like WELCOME10. How can I help you today?",
+            text: "Hi! 👋 Welcome to ELEKTRIX — India's premier E-commerce marketplace. Ask me about our multi-category products, delivery timelines from our Bihar warehouse (PIN 841508), or current offers like WELCOME10. How can I help you today?",
           },
         ]);
       }

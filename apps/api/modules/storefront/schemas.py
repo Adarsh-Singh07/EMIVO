@@ -23,6 +23,22 @@ class StoreCategory(BaseModel):
     children: List["StoreCategory"] = []
 
 
+class StoreSellerOffer(BaseModel):
+    id: str  # seller_listing_id
+    seller_id: str
+    seller_name: str
+    price: int  # paise
+    mrp: Optional[int] = None
+    discount_percent: int = 0
+    stock: int = 0
+    in_stock: bool = True
+    condition: str = "NEW"
+    estimated_delivery_days: int = 3
+    rating: float = 4.8
+    rating_count: int = 0
+    city: Optional[str] = None
+
+
 class StoreVariant(BaseModel):
     id: str
     name: str
@@ -95,6 +111,14 @@ class StoreProduct(BaseModel):
     # Live review aggregates (product_reviews table; None/0 when no reviews)
     rating_avg: Optional[float] = None
     rating_count: int = 0
+
+    # Multi-seller marketplace fields
+    seller_id: Optional[str] = None
+    seller_name: Optional[str] = "ELEKTRIX Official"
+    seller_listing_id: Optional[str] = None
+    seller_rating: Optional[float] = 4.9
+    seller_delivery_days: Optional[int] = 2
+    sellers: List[StoreSellerOffer] = []
 
     created_at: Optional[datetime] = None
 

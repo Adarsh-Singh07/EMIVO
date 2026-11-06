@@ -36,7 +36,7 @@ export async function generateMetadata({
   if (q) {
     return {
       title: `Search results for “${q}”`,
-      description: `Browse “${q}” at ELEKTRIX — genuine electronics with brand warranty, open-box delivery and fast shipping across India.`,
+      description: `Browse “${q}” at ELEKTRIX — genuine multi-category products with brand warranty, open-box delivery and fast shipping across India.`,
       robots: { index: false },
       alternates: { canonical: "/shop" },
     };

@@ -270,12 +270,39 @@ class ProductService:
 
     async def create_category(self, data) -> "Category":
         from modules.products.models import Category
-        from sqlalchemy import select
+        from sqlalchemy import select, func
         business_id = await self._get_current_business_id()
+
+        # Format name to Title Case
+        raw_name = (data.name or "").strip()
+        words = raw_name.split()
+        title_words = []
+        for w in words:
+            if w.upper() in ("PC", "PCS", "GPS", "TWS", "ANC", "5G", "4G", "AMOLED", "LED", "USB", "&"):
+                title_words.append(w.upper())
+            elif w.lower() in ("and", "or", "of", "in", "for"):
+                title_words.append(w.lower())
+            else:
+                title_words.append(w.capitalize())
+        formatted_name = " ".join(title_words)
+        if formatted_name and formatted_name[0].islower():
+            formatted_name = formatted_name[0].upper() + formatted_name[1:]
+
+        # Case-insensitive deduplication check
+        norm_name = formatted_name.lower().strip()
+        existing_stmt = select(Category).where(
+            Category.business_id == business_id,
+            func.lower(func.trim(Category.name)) == norm_name,
+            (Category.parent_id == data.parent_id) if data.parent_id else (Category.parent_id.is_(None)),
+        )
+        existing = (await self.session.execute(existing_stmt)).scalar_one_or_none()
+        if existing:
+            return existing
+
         category = Category(
             business_id=business_id,
-            name=data.name,
-            slug=_slugify(data.name),
+            name=formatted_name,
+            slug=_slugify(formatted_name),
             parent_id=data.parent_id,
             position=data.position,
             image_url=data.image_url,
