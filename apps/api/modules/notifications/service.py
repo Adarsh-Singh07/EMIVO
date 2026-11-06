@@ -124,7 +124,7 @@ class NotificationService:
                 )
 
         # 2. WhatsApp (optional, env-gated; order.* events only)
-        if event_type.startswith("order."):
+        if event_type.startswith("order.") or event_type.startswith("payment."):
             try:
                 from modules.notifications.whatsapp import maybe_send_order_whatsapp
                 await maybe_send_order_whatsapp(self.session, event_type, payload)
