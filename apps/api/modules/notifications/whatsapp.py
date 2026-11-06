@@ -40,68 +40,78 @@ def format_inr(paise: int | float | None) -> str:
     return f"₹{rupees:,.2f}"
 
 
-def build_template_values(event_type: str, values: Dict[str, Any]) -> Dict[str, str]:
-    """Map dynamic template variables according to approved MSG91/Meta schemas."""
-    customer_name = values.get("customer_name") or "Valued Customer"
-    order_number = values.get("order_number") or ""
-    tracking_number = values.get("tracking_number") or ""
-    amount_str = values.get("amount_formatted") or ""
-    ref_id = values.get("reference_id") or ""
+def build_template_components(event_type: str, values: Dict[str, Any]) -> Dict[str, Any]:
+    """Map dynamic template variables into MSG91's to_and_components schema."""
+    customer_name = str(values.get("customer_name") or "Valued Customer")
+    order_number = str(values.get("order_number") or "")
+    tracking_number = str(values.get("tracking_number") or "")
+    amount_str = str(values.get("amount_formatted") or "")
+    ref_id = str(values.get("reference_id") or "")
+
+    components: Dict[str, Any] = {}
 
     if event_type == "order.shipped":
         # {{1}} = Customer Name, {{2}} = Order Number, {{3}} = Tracking AWB
-        return {
-            "1": customer_name,
-            "2": order_number,
-            "3": tracking_number,
-        }
+        components["body_1"] = {"type": "text", "value": customer_name}
+        components["body_2"] = {"type": "text", "value": order_number}
+        components["body_3"] = {"type": "text", "value": tracking_number}
+        if order_number:
+            components["button_1"] = {"type": "text", "value": order_number}
+
     elif event_type in ("order.delivered", "order.created", "order.confirmed", "order.cancelled"):
         # {{1}} = Customer Name, {{2}} = Order Number
-        return {
-            "1": customer_name,
-            "2": order_number,
-        }
+        components["body_1"] = {"type": "text", "value": customer_name}
+        components["body_2"] = {"type": "text", "value": order_number}
+        if order_number:
+            components["button_1"] = {"type": "text", "value": order_number}
+
     elif event_type == "order.out_for_delivery":
         # {{1}} = Customer Name, {{2}} = Order Number, {{3}} = Tracking AWB
-        return {
-            "1": customer_name,
-            "2": order_number,
-            "3": tracking_number,
-        }
+        components["body_1"] = {"type": "text", "value": customer_name}
+        components["body_2"] = {"type": "text", "value": order_number}
+        components["body_3"] = {"type": "text", "value": tracking_number}
+        if order_number:
+            components["button_1"] = {"type": "text", "value": order_number}
+
     elif event_type in ("payment.captured", "payment.success"):
         # {{1}} = Customer Name, {{2}} = Amount, {{3}} = Order Number, {{4}} = Txn Ref ID
-        return {
-            "1": customer_name,
-            "2": amount_str,
-            "3": order_number,
-            "4": ref_id or "Completed",
-        }
+        components["body_1"] = {"type": "text", "value": customer_name}
+        components["body_2"] = {"type": "text", "value": amount_str}
+        components["body_3"] = {"type": "text", "value": order_number}
+        components["body_4"] = {"type": "text", "value": ref_id or "Completed"}
+        if order_number:
+            components["button_1"] = {"type": "text", "value": order_number}
+
     elif event_type == "payment.failed":
         # {{1}} = Customer Name, {{2}} = Order Number, {{3}} = Amount
-        return {
-            "1": customer_name,
-            "2": order_number,
-            "3": amount_str,
-        }
+        components["body_1"] = {"type": "text", "value": customer_name}
+        components["body_2"] = {"type": "text", "value": order_number}
+        components["body_3"] = {"type": "text", "value": amount_str}
+        if order_number:
+            components["button_1"] = {"type": "text", "value": order_number}
+
     elif event_type == "order.refunded":
         # {{1}} = Customer Name, {{2}} = Refund Amount, {{3}} = Order Number, {{4}} = Refund Ref
-        return {
-            "1": customer_name,
-            "2": amount_str,
-            "3": order_number,
-            "4": ref_id or "Processed",
-        }
-    return {
-        "1": customer_name,
-        "2": order_number,
-        "3": tracking_number,
-    }
+        components["body_1"] = {"type": "text", "value": customer_name}
+        components["body_2"] = {"type": "text", "value": amount_str}
+        components["body_3"] = {"type": "text", "value": order_number}
+        components["body_4"] = {"type": "text", "value": ref_id or "Processed"}
+        if order_number:
+            components["button_1"] = {"type": "text", "value": order_number}
+
+    else:
+        components["body_1"] = {"type": "text", "value": customer_name}
+        components["body_2"] = {"type": "text", "value": order_number}
+        if order_number:
+            components["button_1"] = {"type": "text", "value": order_number}
+
+    return components
 
 
 class Msg91WhatsAppProvider:
     """MSG91 WhatsApp outbound (template messages only — no free-form text)."""
 
-    API_URL = "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound"
+    API_URL = "https://control.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/"
 
     def __init__(self, auth_key: str, from_number: str, templates: Dict[str, str]):
         self._auth_key = auth_key
@@ -115,34 +125,47 @@ class Msg91WhatsAppProvider:
         mobile = to_phone.lstrip("+").strip().replace(" ", "").replace("-", "")
         if len(mobile) == 10:
             mobile = f"91{mobile}"
-        
-        template_values = build_template_values(event_type, values)
-        button_val = values.get("order_number") or ""
+
+        components = build_template_components(event_type, values)
 
         payload = {
-            "integratedNumber": self._from,
-            "contentType": "template",
+            "integrated_number": self._from,
+            "content_type": "template",
             "payload": {
-                "to": mobile,
+                "messaging_product": "whatsapp",
                 "type": "template",
                 "template": {
                     "name": template_name,
-                    "language": "en",
-                    "buttonUrlData": {"1": button_val},
-                    "values": template_values,
+                    "language": {
+                        "code": "en",
+                        "policy": "deterministic",
+                    },
+                    "to_and_components": [
+                        {
+                            "to": [mobile],
+                            "components": components,
+                        }
+                    ],
                 },
             },
         }
+
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 resp = await client.post(
                     self.API_URL,
                     json=payload,
                     headers={"authkey": self._auth_key, "Content-Type": "application/json"},
+                    follow_redirects=True,
                 )
             if resp.status_code >= 400:
                 logger.error("whatsapp send failed %s: %s", resp.status_code, resp.text[:200])
                 return False
+            data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+            if data.get("hasError") is True:
+                logger.error("whatsapp msg91 error: %s", data.get("errors"))
+                return False
+            logger.info("whatsapp msg91 sent successfully: request_id=%s", data.get("request_id"))
             return True
         except httpx.RequestError as exc:
             logger.error("whatsapp send error: %s", exc)
@@ -188,12 +211,12 @@ async def maybe_send_order_whatsapp(session, event_type: str, payload: dict) -> 
     # 1. Lookup user phone & name if missing
     if user_id and (not phone or not customer_name):
         res = (await session.execute(
-            text("SELECT phone, first_name, full_name FROM users WHERE id = :uid"),
+            text("SELECT phone, first_name, last_name FROM users WHERE id = :uid"),
             {"uid": str(user_id)},
         )).first()
         if res:
             phone = phone or res[0]
-            customer_name = customer_name or res[1] or (res[2].split()[0] if res[2] else "")
+            customer_name = customer_name or res[1] or res[2] or ""
 
     # 2. Check order shipping_address if phone or name is still missing
     if (not phone or not customer_name) and order_id:
