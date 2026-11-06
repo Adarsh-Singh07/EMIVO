@@ -44,6 +44,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.coupons TO emivo_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.coupon_usages TO emivo_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.business_settings TO emivo_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.outbox_events TO emivo_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.sellers TO emivo_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.seller_listings TO emivo_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.alembic_version TO emivo_app;
 
 -- Grant sequence usage for auto-increment/UUID generation

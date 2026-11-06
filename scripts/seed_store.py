@@ -324,6 +324,24 @@ async def main() -> None:
         await s.commit()
         print(f"[seed] products ready ({len(PRODUCTS)})")
 
+        # ---- Canonical seller listings ----------------------------------------
+        await s.execute(text("""
+            INSERT INTO seller_listings (
+                id, product_id, seller_id, sku, price, mrp, stock, is_active,
+                estimated_delivery_days, rating, rating_count
+            )
+            SELECT gen_random_uuid()::text, p.id, p.business_id, coalesce(p.sku, 'SKU-' || substr(p.id, 1, 8)),
+                   p.price, coalesce(p.mrp, p.price), coalesce(i.on_hand, 25), (p.status = 'ACTIVE'),
+                   2, 4.90, 150
+            FROM products p
+            LEFT JOIN inventory i ON i.product_id = p.id
+            ON CONFLICT (seller_id, product_id) DO UPDATE SET
+                price = EXCLUDED.price,
+                stock = EXCLUDED.stock,
+                is_active = EXCLUDED.is_active
+        """))
+        await s.commit()
+
         # ---- Coupons ----------------------------------------------------------
         for code, ctype, value, min_order_p, max_disc_p, usage_limit, per_user, window in COUPONS:
             exists = (await s.execute(
