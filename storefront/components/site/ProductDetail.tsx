@@ -822,10 +822,10 @@ export default function ProductDetail({
                         : "border-neutral-200 hover:border-neutral-300 bg-white"
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-base text-neutral-900">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-base text-neutral-900 truncate">
                             {s.seller_name}
                           </span>
                           <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200/60 text-amber-800 font-bold text-xs">
@@ -839,9 +839,9 @@ export default function ProductDetail({
                           )}
                         </div>
 
-                        <div className="flex items-center gap-3 text-xs text-neutral-500 mt-2">
+                        <div className="flex items-center gap-3 text-xs text-neutral-500 mt-2 flex-wrap">
                           <span className="inline-flex items-center gap-1">
-                            <Truck className="w-3.5 h-3.5 text-neutral-600" />
+                            <Truck className="w-3.5 h-3.5 text-neutral-600 shrink-0" />
                             Delivery in {s.estimated_delivery_days} days
                           </span>
                           {s.city && <span>• Ships from {s.city}</span>}
@@ -849,30 +849,34 @@ export default function ProductDetail({
 
                         <div className="mt-2 text-xs text-neutral-500 flex items-center gap-2">
                           <span className="inline-flex items-center gap-1 text-green-700 font-medium">
-                            <ShieldCheck className="w-3.5 h-3.5" />
+                            <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
                             {s.condition} Condition • Genuine Warranty
                           </span>
                         </div>
                       </div>
 
-                      <div className="text-right shrink-0">
-                        <div className="text-xl font-bold text-neutral-900">
-                          {inr(s.price)}
+                      <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 pt-2.5 sm:pt-0 border-t sm:border-t-0 border-neutral-100 shrink-0">
+                        <div className="text-left sm:text-right">
+                          <div className="text-lg sm:text-xl font-bold text-neutral-900 leading-tight">
+                            {inr(s.price)}
+                          </div>
+                          <div className="flex items-center gap-1.5 sm:justify-end">
+                            {s.mrp && s.mrp > s.price && (
+                              <span className="text-xs text-neutral-400 line-through">
+                                {inr(s.mrp)}
+                              </span>
+                            )}
+                            {s.discount_percent > 0 && (
+                              <span className="text-xs font-semibold text-green-700">
+                                {s.discount_percent}% OFF
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        {s.mrp && s.mrp > s.price && (
-                          <div className="text-xs text-neutral-400 line-through">
-                            {inr(s.mrp)}
-                          </div>
-                        )}
-                        {s.discount_percent > 0 && (
-                          <div className="text-xs font-semibold text-green-700">
-                            {s.discount_percent}% OFF
-                          </div>
-                        )}
 
-                        <div className="mt-3">
+                        <div className="sm:mt-2">
                           {isSelected ? (
-                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-neutral-900 text-white text-xs font-semibold">
+                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-neutral-900 text-white text-xs font-semibold shadow-sm">
                               <Check className="w-3.5 h-3.5" /> Selected
                             </span>
                           ) : (
@@ -883,7 +887,7 @@ export default function ProductDetail({
                                 setSellersModalOpen(false);
                                 toast.success(`Switched seller to ${s.seller_name}`);
                               }}
-                              className="px-3.5 py-1.5 rounded-xl border border-neutral-300 hover:border-neutral-900 text-neutral-900 hover:bg-neutral-900 hover:text-white transition-all text-xs font-semibold"
+                              className="px-3.5 py-1.5 rounded-xl border border-neutral-300 hover:border-neutral-900 text-neutral-900 hover:bg-neutral-900 hover:text-white transition-all text-xs font-semibold shadow-sm"
                             >
                               Select Seller
                             </button>
