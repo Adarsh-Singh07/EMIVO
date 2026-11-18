@@ -257,19 +257,19 @@ async def handle_contact_form(form: ContactForm):
     user_html = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">
         <div style="text-align: center; padding: 20px 0; border-bottom: 2px solid #f3f4f6;">
-            <h1 style="color: #0f172a; margin: 0; font-size: 24px;">Apna Enterprises</h1>
+            <h1 style="color: #0f172a; margin: 0; font-size: 24px;">Apana Enterprises</h1>
         </div>
         <div style="padding: 30px 20px;">
             <h2 style="font-size: 18px; color: #111;">Hi {form.esc(form.name)},</h2>
-            <p style="margin-bottom: 20px;">Thank you for contacting <strong>Apna Enterprises</strong>. We have received your message regarding "<strong>{form.esc(form.subject)}</strong>".</p>
+            <p style="margin-bottom: 20px;">Thank you for contacting <strong>Apana Enterprises</strong>. We have received your message regarding "<strong>{form.esc(form.subject)}</strong>".</p>
             <p style="margin-bottom: 20px;">Our support team is reviewing your request and will get back to you within 24 hours.</p>
             <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
                 <p style="margin: 0; font-size: 14px; color: #4b5563;"><strong>For urgent queries:</strong><br>Please call us at +91 80920 24066</p>
             </div>
-            <p style="margin: 0;">Best regards,<br><strong>The Apna Enterprises Support Team</strong></p>
+            <p style="margin: 0;">Best regards,<br><strong>The Apana Enterprises Support Team</strong></p>
         </div>
         <div style="text-align: center; padding: 20px; font-size: 12px; color: #6b7280; border-top: 1px solid #f3f4f6;">
-            Apna Enterprises | DS1, 109, Near Indian Petrol Pump, Vijayipur, Gopalganj, Bihar - 841508
+            Apana Enterprises | DS1, 109, Near Indian Petrol Pump, Vijayipur, Gopalganj, Bihar - 841508
         </div>
     </div>
     """

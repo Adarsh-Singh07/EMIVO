@@ -431,7 +431,7 @@ export default function ProductDetail({
                   className="font-semibold text-neutral-900 hover:text-black hover:underline flex items-center gap-1.5 transition-colors"
                   title="Click to view seller details"
                 >
-                  <span>{selectedSeller ? selectedSeller.seller_name : (product.sellerName || "ELEKTRIX Official")}</span>
+                  <span>{selectedSeller ? selectedSeller.seller_name : (product.sellerName || "Apana Enterprises")}</span>
                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 font-bold text-xs">
                     <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
                     {(selectedSeller ? selectedSeller.rating : (product.sellerRating ?? 4.9)).toFixed(1)}
@@ -799,7 +799,7 @@ export default function ProductDetail({
                 {
                   id: "default-elektrix",
                   seller_id: product.sellerId || "default",
-                  seller_name: product.sellerName || "ELEKTRIX Official",
+                  seller_name: product.sellerName || "Apana Enterprises",
                   price: product.price,
                   mrp: product.mrp,
                   discount_percent: product.discount,

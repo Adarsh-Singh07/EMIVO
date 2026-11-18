@@ -49,7 +49,7 @@ const NAV_SECTIONS: Array<{
     label: "Commerce",
     links: [
       { href: "/orders", label: "Orders", icon: ShoppingCart },
-      { href: "/products", label: "Products", icon: Package },
+      { href: "/products", label: "Marketplace Catalog", icon: Package },
       { href: "/products/categories", label: "Categories", icon: Package },
       { href: "/products/categories/approvals", label: "Category Approvals", icon: CheckCircle2 },
       { href: "/products/brands", label: "Brands", icon: Award },

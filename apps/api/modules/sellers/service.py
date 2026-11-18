@@ -249,7 +249,7 @@ class SellerService:
         from modules.products.models import Product, ProductMedia
         from modules.inventory.models import Inventory
 
-        # Ensure business_id is set (use Apna Enterprises business or store business id)
+        # Ensure business_id is set (use Apana Enterprises business or store business id)
         store_bid = (await self.session.execute(text("SELECT id FROM businesses WHERE name = 'ELEKTRIX' LIMIT 1"))).scalar() or seller_id
 
         pid = str(uuid.uuid4())
@@ -409,7 +409,7 @@ class SellerService:
                 oi.quantity,
                 oi.unit_price,
                 oi.total,
-                coalesce(oi.seller_name, s.business_name, 'Apna Enterprises') as seller_name,
+                coalesce(oi.seller_name, s.business_name, 'Apana Enterprises') as seller_name,
                 o.status as order_status,
                 o.shipping_address->>'city' as customer_city,
                 o.shipping_address->>'pincode' as customer_pincode,

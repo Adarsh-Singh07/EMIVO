@@ -114,7 +114,7 @@ class StoreProduct(BaseModel):
 
     # Multi-seller marketplace fields
     seller_id: Optional[str] = None
-    seller_name: Optional[str] = "ELEKTRIX Official"
+    seller_name: Optional[str] = "Apana Enterprises"
     seller_listing_id: Optional[str] = None
     seller_rating: Optional[float] = 4.9
     seller_delivery_days: Optional[int] = 2

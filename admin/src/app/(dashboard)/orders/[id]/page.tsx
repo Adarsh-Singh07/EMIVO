@@ -144,7 +144,7 @@ export default function OrderDetailPage() {
   const [pickupState, setPickupState] = useState("Bihar");
   const [pickupPin, setPickupPin] = useState("841508");
   const [pickupPhone, setPickupPhone] = useState("8092024066");
-  const [sellerName, setSellerName] = useState("ELEKTRIX");
+  const [sellerName, setSellerName] = useState("Apana Enterprises");
 
   // Refund modal
   const [refundPayment, setRefundPayment] = useState<Payment | null>(null);
@@ -212,7 +212,7 @@ export default function OrderDetailPage() {
           pin_code: pickupPin.trim(),
           phone: pickupPhone.trim(),
         },
-        seller_name: sellerName.trim() || "ELEKTRIX",
+        seller_name: sellerName.trim() || "Apana Enterprises",
       };
       const updated = await apiClient.post<Order>(`/orders/${order.id}/ship-delhivery`, payload);
       setOrder(updated);

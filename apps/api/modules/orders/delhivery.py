@@ -84,7 +84,7 @@ async def create_delhivery_order(
 
     # Pickup warehouse & Seller resolution
     pickup = resolve_pickup_location(pickup_location)
-    resolved_seller_name = seller_name or pickup.get("name") or "ELEKTRIX"
+    resolved_seller_name = seller_name or pickup.get("name") or "Apana Enterprises"
 
     # Payment mode & amounts
     pay_method = (getattr(order, "payment_method", None) or "").upper()

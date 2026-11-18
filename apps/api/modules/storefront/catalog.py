@@ -137,13 +137,15 @@ class CatalogService:
         res = await self.session.execute(
             text("""
                 SELECT 
-                    sl.id, sl.product_id, sl.seller_id, b.name as seller_name,
-                    b.settings->>'city' as city,
+                    sl.id, sl.product_id, sl.seller_id,
+                    coalesce(s.business_name, b.name, 'Apana Enterprises') as seller_name,
+                    coalesce(s.city, b.settings->>'city', 'Gopalganj') as city,
                     sl.price, sl.mrp, sl.stock, sl.is_active, sl.condition,
                     sl.estimated_delivery_days, sl.rating, sl.rating_count
                 FROM seller_listings sl
-                JOIN businesses b ON b.id = sl.seller_id
-                WHERE sl.product_id = ANY(:pids) AND sl.is_active = TRUE AND b.is_active = TRUE
+                LEFT JOIN sellers s ON s.id = sl.seller_id
+                LEFT JOIN businesses b ON b.id = sl.seller_id
+                WHERE sl.product_id = ANY(:pids) AND sl.is_active = TRUE
                 ORDER BY sl.price ASC, sl.rating DESC
             """),
             {"pids": product_ids},

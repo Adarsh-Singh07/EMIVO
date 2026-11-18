@@ -1,4 +1,4 @@
-"""Create sellers table, add seller_id to products, seed Apna Enterprises, and migrate products."""
+"""Create sellers table, add seller_id to products, seed Apana Enterprises, and migrate products."""
 
 import os
 import uuid
@@ -51,15 +51,15 @@ try:
         UPDATE categories SET status = 'APPROVED' WHERE status IS NULL;
     """)
 
-    print("[4] Inserting or updating Apna Enterprises seller...")
-    cur.execute("SELECT id FROM sellers WHERE email = %s OR business_name = %s;", ('admin@elektrix.in', 'Apna Enterprises'))
+    print("[4] Inserting or updating Apana Enterprises seller...")
+    cur.execute("SELECT id FROM sellers WHERE email = %s OR business_name = %s;", ('admin@elektrix.in', 'Apana Enterprises'))
     row = cur.fetchone()
     if row:
         apna_seller_id = row[0]
         cur.execute("""
             UPDATE sellers 
-            SET business_name = 'Apna Enterprises', 
-                name = 'Admin / Apna Enterprises', 
+            SET business_name = 'Apana Enterprises', 
+                name = 'Admin / Apana Enterprises', 
                 email = 'admin@elektrix.in',
                 city = 'Gopalganj',
                 pincode = '841428',
@@ -70,19 +70,19 @@ try:
         apna_seller_id = str(uuid.uuid4())
         cur.execute("""
             INSERT INTO sellers (id, name, business_name, email, phone, city, pincode, address, status, rating, rating_count)
-            VALUES (%s, 'Admin / Apna Enterprises', 'Apna Enterprises', 'admin@elektrix.in', '+918092024066', 'Gopalganj', '841428', 'Main Market, Gopalganj, Bihar', 'ACTIVE', 4.90, 150);
+            VALUES (%s, 'Admin / Apana Enterprises', 'Apana Enterprises', 'admin@elektrix.in', '+918092024066', 'Gopalganj', '841428', 'Main Market, Gopalganj, Bihar', 'ACTIVE', 4.90, 150);
         """, (apna_seller_id,))
 
-    print(f"    Apna Enterprises Seller ID: {apna_seller_id}")
+    print(f"    Apana Enterprises Seller ID: {apna_seller_id}")
 
-    print("[5] Migrating all products to Apna Enterprises seller...")
+    print("[5] Migrating all products to Apana Enterprises seller...")
     cur.execute("""
         UPDATE products 
         SET seller_id = %s 
         WHERE seller_id IS NULL;
     """, (apna_seller_id,))
     migrated_count = cur.rowcount
-    print(f"    Migrated {migrated_count} products to Apna Enterprises.")
+    print(f"    Migrated {migrated_count} products to Apana Enterprises.")
 
     conn.commit()
     print("[SUCCESS] Database migration for sellers & categories completed!")

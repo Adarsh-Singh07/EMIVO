@@ -19,14 +19,14 @@ try:
             ON CONFLICT (id) DO UPDATE SET business_name = EXCLUDED.business_name;
         """, (bid, bname, bname, bemail or f"{bslug}@elektrix.in", bphone or "+919876543210"))
 
-    # Also insert Apna Enterprises in businesses with settings = '{}'
+    # Also insert Apana Enterprises in businesses with settings = '{}'
     cur.execute("""
         INSERT INTO businesses (id, name, slug, is_active, is_seller, contact_email, contact_phone, settings)
-        VALUES (%s, 'Apna Enterprises', 'apna-enterprises', TRUE, TRUE, 'admin@elektrix.in', '+918092024066', '{}'::json)
-        ON CONFLICT (id) DO UPDATE SET name = 'Apna Enterprises';
+        VALUES (%s, 'Apana Enterprises', 'apana-enterprises', TRUE, TRUE, 'admin@elektrix.in', '+918092024066', '{}'::json)
+        ON CONFLICT (id) DO UPDATE SET name = 'Apana Enterprises';
     """, ('baa3a2a4-98f7-4501-a8a3-6d1cda4412de',))
 
-    # Update seller_listings to point to Apna Enterprises
+    # Update seller_listings to point to Apana Enterprises
     cur.execute("""
         UPDATE seller_listings 
         SET seller_id = 'baa3a2a4-98f7-4501-a8a3-6d1cda4412de' 

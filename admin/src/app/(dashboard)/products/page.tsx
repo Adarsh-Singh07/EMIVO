@@ -156,7 +156,7 @@ export default function ProductsPage() {
             const archived = (product.status || "ACTIVE").toUpperCase() === "ARCHIVED";
             const thumb = thumbFor(product);
             const onOffer = product.sale_price != null && product.sale_price > 0;
-            const sellerDisplayName = product.seller_name || "Apna Enterprises";
+            const sellerDisplayName = product.seller_name || "Apana Enterprises";
 
             return (
               <tr key={product.id} className={`transition-colors hover:bg-neutral-50/60 ${archived ? 'opacity-80' : ''}`}>
@@ -288,7 +288,7 @@ export default function ProductsPage() {
           <div>
             <p className="font-semibold text-neutral-900">Marketplace Notice</p>
             <p className="text-xs text-neutral-600 mt-0.5">
-              Direct catalog operations (adding, editing, stock & price updates) are handled by verified sellers via the dedicated <strong>Seller Portal (sell.elektrix.in)</strong>. All original store products are assigned to <strong>Apna Enterprises</strong>.
+              Direct catalog operations (adding, editing, stock & price updates) are handled by verified sellers via the dedicated <strong>Seller Portal (sell.elektrix.in)</strong>. All original store products are assigned to <strong>Apana Enterprises</strong>.
             </p>
           </div>
         </div>

@@ -532,7 +532,7 @@ export function mapStoreProduct(p: StoreProduct): Product {
     reviews: (p as any).rating_count ?? undefined,
     createdAt: p.created_at || undefined,
     sellerId: p.seller_id,
-    sellerName: p.seller_name || "ELEKTRIX Official",
+    sellerName: p.seller_name || "Apana Enterprises",
     sellerListingId: p.seller_listing_id,
     sellerRating: p.seller_rating ?? 4.9,
     sellerDeliveryDays: p.seller_delivery_days ?? 2,

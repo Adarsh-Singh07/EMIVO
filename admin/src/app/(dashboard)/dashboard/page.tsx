@@ -15,6 +15,7 @@ import {
   Tag,
   Boxes,
   ArrowUpRight,
+  Store,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { apiClient, ApiError } from "@/lib/api-client";
@@ -178,11 +179,11 @@ export default function DashboardPage() {
               Refresh
             </button>
             <Link
-              href="/products/new"
+              href="/sellers"
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-sm font-semibold text-white hover:from-amber-600 hover:to-orange-700 transition-all shadow-lg shadow-amber-500/20"
             >
-              <Plus className="w-4 h-4" />
-              New Product
+              <Store className="w-4 h-4" />
+              Manage Sellers
             </Link>
           </div>
         </div>

@@ -155,7 +155,7 @@ export default function SellerLoginPage() {
                   />
                 </div>
                 <p className="mt-1.5 text-xs text-slate-400">
-                  Tip: For in-house catalog access, use <strong>admin@elektrix.in</strong> (Apna Enterprises).
+                  Tip: For in-house catalog access, use <strong>admin@elektrix.in</strong> (Apana Enterprises).
                 </p>
               </div>
 
