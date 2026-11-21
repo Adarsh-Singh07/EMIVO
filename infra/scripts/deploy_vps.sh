@@ -64,6 +64,9 @@ bash infra/scripts/setup_ssl.sh || echo "  (cert step reported issues — contin
 echo "=== [7/9] Rollout ==="
 $COMPOSE up -d --remove-orphans
 sleep 8
+# Force restart nginx so it re-evaluates bind-mounted infra/nginx/nginx.conf
+$COMPOSE restart nginx
+sleep 3
 $COMPOSE exec -T nginx nginx -s reload || true
 
 echo "=== [8/9] Store seed (idempotent) ==="

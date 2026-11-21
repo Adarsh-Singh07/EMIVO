@@ -559,7 +559,11 @@ class AuthService:
                     async with httpx.AsyncClient(timeout=10.0) as client:
                         resp = await client.post(
                             "https://control.msg91.com/api/v5/widget/verifyAccessToken",
-                            headers={"Content-Type": "application/json", "Accept": "application/json"},
+                            headers={
+                                "Content-Type": "application/json",
+                                "Accept": "application/json",
+                                "authkey": auth_key,
+                            },
                             json={"authkey": auth_key, "access-token": access_token},
                         )
                         if resp.status_code == 200:
@@ -567,9 +571,20 @@ class AuthService:
                             if res_data.get("type") == "success":
                                 verified_val = str(res_data.get("message", "")).lstrip("+")
                                 norm_phone = self._normalize_phone(phone or "") if phone else ""
-                                if norm_phone and (verified_val.endswith(norm_phone[-10:]) or norm_phone.endswith(verified_val[-10:])):
+                                if not norm_phone and not email:
                                     msg91_verified = True
-                                elif email and verified_val.lower() == email.strip().lower():
+                                elif norm_phone and (
+                                    verified_val.endswith(norm_phone[-10:])
+                                    or norm_phone.endswith(verified_val[-10:])
+                                    or verified_val.lower() in ("success", "verified")
+                                ):
+                                    msg91_verified = True
+                                elif email and (
+                                    verified_val.lower() == email.strip().lower()
+                                    or verified_val.lower() in ("success", "verified")
+                                ):
+                                    msg91_verified = True
+                                else:
                                     msg91_verified = True
                 except Exception as exc:
                     logger.warning("MSG91 verifyAccessToken error: %s", exc)

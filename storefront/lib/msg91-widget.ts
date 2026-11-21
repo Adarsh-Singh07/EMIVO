@@ -200,8 +200,8 @@ export async function verifyWidgetOtp(
     try {
       window.verifyOtp!(
         code.trim(),
-        (data) => {
-          const token =
+        async (data) => {
+          let token =
             (typeof data === "string"
               ? data
               : data?.message ||
@@ -209,6 +209,15 @@ export async function verifyWidgetOtp(
                 data?.["access-token"]) ||
             lastVerifiedToken ||
             "";
+          if (!token) {
+            for (let i = 0; i < 6; i++) {
+              await new Promise((r) => setTimeout(r, 50));
+              if (lastVerifiedToken) {
+                token = lastVerifiedToken;
+                break;
+              }
+            }
+          }
           lastVerifiedToken = token;
           resolve({ success: true, token });
         },
