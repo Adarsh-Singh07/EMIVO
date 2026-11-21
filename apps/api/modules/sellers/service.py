@@ -869,13 +869,12 @@ class SellerService:
                 pcat.name as parent_name,
                 c.requested_by_seller_id,
                 s.business_name as seller_name,
-                c.status,
-                c.created_at
+                c.status
             FROM categories c
             LEFT JOIN categories pcat ON pcat.id = c.parent_id
             LEFT JOIN sellers s ON s.id = c.requested_by_seller_id
             WHERE c.status = 'PENDING_APPROVAL'
-            ORDER BY c.created_at DESC;
+            ORDER BY c.position ASC, c.name ASC;
         """)
         res = await self.session.execute(query)
         rows = res.mappings().all()
@@ -890,7 +889,7 @@ class SellerService:
                 requested_by_seller_id=r.get("requested_by_seller_id"),
                 seller_name=r.get("seller_name") or "Marketplace Seller",
                 status=r["status"],
-                created_at=r.get("created_at"),
+                created_at=None,
             )
             for r in rows
         ]
@@ -1152,7 +1151,7 @@ class SellerService:
             LEFT JOIN categories c ON c.id = p.category_id
             LEFT JOIN order_items oi ON oi.product_id = p.id
             WHERE p.status = 'ACTIVE'
-            GROUP BY p.id, c.name
+            GROUP BY p.id, p.name, p.brand, p.category_id, p.price, p.created_at, c.name
             ORDER BY p.created_at DESC
             LIMIT 100;
         """)
@@ -1217,8 +1216,7 @@ class SellerService:
                             )
                             VALUES (
                                 :id, :pa, :pb, :master, :sim, :conf, :reason, :title, 'PENDING_REVIEW', NOW()
-                            )
-                            ON CONFLICT (product_a_id, product_b_id) DO NOTHING;
+                            );
                         """), {
                             "id": cid,
                             "pa": str(p1["id"]),

@@ -27,9 +27,10 @@ export default function CategoryApprovalsPage() {
     try {
       setLoading(true);
       const data = await apiClient.get<CategoryApprovalItem[]>("/admin/categories/pending");
-      setItems(data || []);
+      setItems(Array.isArray(data) ? data : []);
     } catch (err) {
       toast.error("Failed to load pending category requests");
+      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -100,7 +101,7 @@ export default function CategoryApprovalsPage() {
         <div className="flex items-center justify-center p-12 bg-white rounded-2xl border border-neutral-200">
           <RefreshCw className="w-6 h-6 animate-spin text-neutral-400" />
         </div>
-      ) : items.length === 0 ? (
+      ) : (items || []).length === 0 ? (
         <div className="flex flex-col items-center justify-center p-16 bg-white rounded-2xl border border-neutral-200 text-center">
           <div className="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center text-green-600 mb-4">
             <CheckCircle2 className="w-7 h-7" />
@@ -129,7 +130,7 @@ export default function CategoryApprovalsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200">
-              {items.map((item) => (
+              {(items || []).map((item) => (
                 <tr key={item.id} className="hover:bg-neutral-50/60 transition-colors">
                   <td className="px-6 py-4">
                     <div className="font-semibold text-neutral-900 text-base">{item.name}</div>

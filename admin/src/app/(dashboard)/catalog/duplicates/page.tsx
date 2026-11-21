@@ -172,7 +172,7 @@ export default function DuplicateMergesPage() {
           <div className="h-40 bg-white border border-neutral-200 rounded-2xl animate-pulse" />
           <div className="h-40 bg-white border border-neutral-200 rounded-2xl animate-pulse" />
         </div>
-      ) : candidates.length === 0 ? (
+      ) : (candidates || []).length === 0 ? (
         <div className="rounded-2xl border border-neutral-200 bg-white p-12 text-center space-y-3">
           <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-6 h-6" />
@@ -184,7 +184,7 @@ export default function DuplicateMergesPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {candidates.map((c) => (
+          {(candidates || []).map((c) => (
             <div
               key={c.id}
               className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm space-y-4 hover:border-neutral-300 transition-all"

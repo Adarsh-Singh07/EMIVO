@@ -21,6 +21,24 @@ class DomainException(Exception):
         self.status_code = status_code
 
 
+def _get_cors_headers(request: Request) -> dict[str, str]:
+    from core.config import settings
+
+    origin = request.headers.get("origin")
+    headers: dict[str, str] = {}
+    if origin and (
+        origin in settings.cors_origins_list
+        or origin.endswith(".elektrix.in")
+        or origin.startswith("http://localhost")
+        or origin.startswith("http://127.0.0.1")
+    ):
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+        headers["Access-Control-Allow-Headers"] = "*"
+        headers["Access-Control-Allow-Methods"] = "*"
+    return headers
+
+
 async def domain_exception_handler(request: Request, exc: DomainException):
     request_id = (
         request.state.request_id if hasattr(request.state, "request_id") else None
@@ -28,6 +46,7 @@ async def domain_exception_handler(request: Request, exc: DomainException):
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": exc.message, "code": exc.code, "request_id": request_id},
+        headers=_get_cors_headers(request),
     )
 
 
@@ -47,4 +66,5 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
             "code": "INTERNAL_ERROR",
             "request_id": request_id,
         },
+        headers=_get_cors_headers(request),
     )

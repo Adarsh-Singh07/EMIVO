@@ -79,6 +79,7 @@ def upgrade() -> None:
             created_at TIMESTAMPTZ DEFAULT NOW(),
             updated_at TIMESTAMPTZ DEFAULT NOW()
         )""",
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_catalog_duplicate_pair ON catalog_duplicate_candidates (product_a_id, product_b_id)",
     ]
     for stmt in statements:
         op.execute(stmt)
