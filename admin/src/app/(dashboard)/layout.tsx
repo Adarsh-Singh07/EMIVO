@@ -23,6 +23,7 @@ import {
   LayoutTemplate,
   CheckCircle2,
   Store,
+  GitMerge,
 } from "lucide-react";
 import Link from "next/link";
 import { ReactNode, useEffect, useState, useRef, useCallback } from "react";
@@ -50,6 +51,7 @@ const NAV_SECTIONS: Array<{
     links: [
       { href: "/orders", label: "Orders", icon: ShoppingCart },
       { href: "/products", label: "Marketplace Catalog", icon: Package },
+      { href: "/catalog/duplicates", label: "Duplicate Merges", icon: GitMerge },
       { href: "/products/categories", label: "Categories", icon: Package },
       { href: "/products/categories/approvals", label: "Category Approvals", icon: CheckCircle2 },
       { href: "/products/brands", label: "Brands", icon: Award },

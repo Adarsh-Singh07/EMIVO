@@ -151,6 +151,11 @@ class Settings(BaseSettings):
     agnes_base_url: str = Field(default="https://apihub.agnes-ai.com/v1")
     agnes_chat_model: str = Field(default="agnes-3.0-flash")
 
+    # 100MillionSeek AI Gateway (100M free tokens/day, deepseek-v4.1-flash-free & jev-1.13-free)
+    seek100m_base_url: str = Field(default="https://100milionseek.top/v1")
+    seek100m_api_key: SecretStr = Field(default=SecretStr(""))
+    seek100m_model: str = Field(default="deepseek-v4.1-flash-free")
+
     # SMS for OTP login. "console" only logs codes and refuses to operate in
     # prod; switch to "msg91" and set the auth key + DLT-approved OTP template
     # (with an #OTP# variable) to send real SMS.

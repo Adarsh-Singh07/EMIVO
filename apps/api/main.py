@@ -36,10 +36,44 @@ from core.redis import lifespan_redis
 from core.exceptions import DomainException, domain_exception_handler, unhandled_exception_handler
 
 
+async def _nightly_catalog_dedup_loop():
+    """Background worker that sleeps until midnight and executes catalog AI deduplication."""
+    import asyncio
+    from datetime import datetime, timezone, timedelta
+    from core.database import async_session_maker
+    from modules.sellers.service import SellerService
+
+    while True:
+        try:
+            # Calculate seconds to next 00:00:00 IST (18:30:00 UTC)
+            now = datetime.now(timezone.utc)
+            target = now.replace(hour=18, minute=30, second=0, microsecond=0)
+            if target <= now:
+                target += timedelta(days=1)
+            sleep_secs = max((target - now).total_seconds(), 60.0)
+
+            logger.info("Nightly catalog dedup scheduled in %.0f seconds (~%.1f hrs)", sleep_secs, sleep_secs / 3600)
+            await asyncio.sleep(sleep_secs)
+
+            logger.info("Executing scheduled nightly AI catalog deduplication audit...")
+            async with async_session_maker() as session:
+                res = await SellerService(session).run_ai_catalog_deduplication()
+                logger.info("Nightly dedup audit completed: %s", res)
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.warning("Nightly catalog dedup background loop encountered error: %s", e)
+            await asyncio.sleep(300)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with lifespan_redis():
-        yield
+        dedup_task = asyncio.create_task(_nightly_catalog_dedup_loop())
+        try:
+            yield
+        finally:
+            dedup_task.cancel()
 
 
 app = FastAPI(

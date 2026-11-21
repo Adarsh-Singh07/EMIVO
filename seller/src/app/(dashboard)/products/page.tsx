@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { 
   Package, 
   Search, 
@@ -37,6 +38,7 @@ interface SellerProduct {
 }
 
 export default function SellerProductsPage() {
+  const router = useRouter();
   const [products, setProducts] = useState<SellerProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -337,9 +339,9 @@ export default function SellerProductsPage() {
                           ) : (
                             <>
                               <button
-                                onClick={() => startEdit(product)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-slate-100 transition-colors"
-                                title="Quick Edit Price & Stock"
+                                onClick={() => router.push(`/products/${product.id}`)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-neutral-900 hover:bg-slate-100 transition-colors"
+                                title="Edit Full Details (Images, Specs, Warranty)"
                               >
                                 <Edit3 className="w-4 h-4" />
                               </button>

@@ -3,18 +3,25 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { 
-  PlusCircle, 
   ArrowLeft, 
-  Package, 
+  Search, 
   Sparkles, 
   Image as ImageIcon, 
-  Check, 
   Plus, 
-  Trash2,
-  FolderPlus,
-  HelpCircle
+  Trash2, 
+  HelpCircle, 
+  FolderPlus, 
+  Check, 
+  Layers, 
+  ShieldCheck, 
+  Truck, 
+  Tag, 
+  ExternalLink,
+  Store,
+  AlertCircle
 } from "lucide-react";
 import { apiClient, ApiError } from "@/lib/api-client";
+import { formatINR } from "@/lib/money";
 import { toast } from "sonner";
 
 interface CategoryNode {
@@ -25,8 +32,21 @@ interface CategoryNode {
   children?: CategoryNode[];
 }
 
+interface CatalogMatchItem {
+  id: string;
+  name: string;
+  brand?: string;
+  category_id?: string;
+  category_name?: string;
+  price: number;
+  mrp?: number;
+  image?: string;
+  lowest_offer_price: number;
+  seller_count: number;
+}
+
 function toTitleCase(str: string): string {
-  const upperWords = ["PC", "PCS", "GPS", "TWS", "ANC", "5G", "4G", "AMOLED", "LED", "USB", "HD", "4K", "TV", "AC"];
+  const upperWords = ["PC", "PCS", "GPS", "TWS", "ANC", "5G", "4G", "AMOLED", "LED", "USB", "HD", "4K", "TV", "AC", "GB", "TB", "RAM"];
   const lowerWords = ["and", "or", "of", "in", "for", "with", "the", "a", "an"];
   
   return str
@@ -44,10 +64,34 @@ function toTitleCase(str: string): string {
 
 export default function AddProductPage() {
   const router = useRouter();
+
+  // Mode: "SEARCH_FIRST" (Default - Find in Catalog) vs "CREATE_NEW" (Create new master product)
+  const [mode, setMode] = useState<"SEARCH_FIRST" | "CREATE_NEW">("SEARCH_FIRST");
+
+  // ---------------------------------------------------------------------------
+  // MODE 1: Search & Match Existing Catalog
+  // ---------------------------------------------------------------------------
+  const [searchQuery, setSearchQuery] = useState("");
+  const [brandFilter, setBrandFilter] = useState("");
+  const [catalogResults, setCatalogResults] = useState<CatalogMatchItem[]>([]);
+  const [searchingCatalog, setSearchingCatalog] = useState(false);
+
+  // Offer Attachment Sheet/Modal State
+  const [selectedCatalogProduct, setSelectedCatalogProduct] = useState<CatalogMatchItem | null>(null);
+  const [offerPrice, setOfferPrice] = useState("");
+  const [offerMrp, setOfferMrp] = useState("");
+  const [offerStock, setOfferStock] = useState("10");
+  const [offerCondition, setOfferCondition] = useState("NEW");
+  const [offerDeliveryDays, setOfferDeliveryDays] = useState("3");
+  const [offerSku, setOfferSku] = useState("");
+  const [submittingOffer, setSubmittingOffer] = useState(false);
+
+  // ---------------------------------------------------------------------------
+  // MODE 2: Create New Master Product
+  // ---------------------------------------------------------------------------
   const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [loadingCats, setLoadingCats] = useState(true);
 
-  // Form State
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
   const [sku, setSku] = useState("");
@@ -55,18 +99,25 @@ export default function AddProductPage() {
   const [mrp, setMrp] = useState("");
   const [stock, setStock] = useState("");
   const [description, setDescription] = useState("");
-  
+  const [warrantyInfo, setWarrantyInfo] = useState("1 Year Manufacturer Domestic Warranty");
+  const [returnPolicy, setReturnPolicy] = useState("7 Days Replacement Only");
+
   // Cascading Category Dropdown State
   const [selectedMainCatId, setSelectedMainCatId] = useState("");
   const [selectedSubCatId, setSelectedSubCatId] = useState("");
 
-  // Media URLs
-  const [images, setImages] = useState<string[]>([""]);
+  // Media URLs & Gallery
+  const [imageUrlInput, setImageUrlInput] = useState("");
+  const [images, setImages] = useState<string[]>([]);
 
   // Specifications
   const [specs, setSpecs] = useState<Array<{ name: string; value: string }>>([
-    { name: "", value: "" },
+    { name: "Brand", value: "" },
+    { name: "Model", value: "" },
   ]);
+
+  // AI Generation State
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
   // Category Suggestion Modal
   const [showSuggestModal, setShowSuggestModal] = useState(false);
@@ -74,7 +125,7 @@ export default function AddProductPage() {
   const [suggestIsSubcategory, setSuggestIsSubcategory] = useState(true);
   const [suggesting, setSuggesting] = useState(false);
 
-  const [submitting, setSubmitting] = useState(false);
+  const [submittingProduct, setSubmittingProduct] = useState(false);
 
   // Load category tree
   useEffect(() => {
@@ -99,28 +150,141 @@ export default function AddProductPage() {
     return mainCat?.children || [];
   }, [categories, selectedMainCatId]);
 
-  // Handle main category change
-  const handleMainCategoryChange = (catId: string) => {
-    setSelectedMainCatId(catId);
-    setSelectedSubCatId(""); // Reset subcategory when main category changes
+  // Search existing catalog
+  const handleCatalogSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!searchQuery.trim() && !brandFilter.trim()) {
+      toast.error("Please enter a product name or brand to search");
+      return;
+    }
+
+    setSearchingCatalog(true);
+    try {
+      const q = encodeURIComponent(searchQuery.trim());
+      const b = encodeURIComponent(brandFilter.trim());
+      const data = await apiClient.get<CatalogMatchItem[]>(`/seller/catalog/search?q=${q}&brand=${b}`);
+      setCatalogResults(Array.isArray(data) ? data : []);
+      if (!data || data.length === 0) {
+        toast.info("No matching products found in catalog. You can create a new listing below.");
+      }
+    } catch (err) {
+      toast.error("Search failed. Please try again.");
+    } finally {
+      setSearchingCatalog(false);
+    }
   };
 
-  // Add / Remove media inputs
-  const handleAddImage = () => {
-    setImages([...images, ""]);
+  // Open offer modal for matched product
+  const handleOpenOfferModal = (item: CatalogMatchItem) => {
+    setSelectedCatalogProduct(item);
+    setOfferPrice((item.lowest_offer_price / 100).toString());
+    setOfferMrp(item.mrp ? (item.mrp / 100).toString() : (item.lowest_offer_price / 100).toString());
+    setOfferStock("10");
+    setOfferSku("");
   };
 
-  const handleImageChange = (index: number, val: string) => {
-    const updated = [...images];
-    updated[index] = val;
-    setImages(updated);
+  // Submit Offer on Existing Product
+  const handleSubmitOffer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCatalogProduct) return;
+
+    const pNum = Number(offerPrice);
+    if (!offerPrice || isNaN(pNum) || pNum <= 0) {
+      toast.error("Please enter a valid selling price");
+      return;
+    }
+    const sNum = Number(offerStock);
+    if (isNaN(sNum) || sNum < 0) {
+      toast.error("Stock units cannot be negative");
+      return;
+    }
+
+    setSubmittingOffer(true);
+    try {
+      await apiClient.post("/seller/catalog/attach-offer", {
+        product_id: selectedCatalogProduct.id,
+        price: pNum,
+        mrp: offerMrp ? Number(offerMrp) : undefined,
+        stock: sNum,
+        sku: offerSku.trim() || undefined,
+        condition: offerCondition,
+        estimated_delivery_days: Number(offerDeliveryDays) || 3,
+      });
+
+      toast.success(`Your offer for "${selectedCatalogProduct.name}" has been listed!`);
+      router.push("/products");
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Failed to attach seller offer";
+      toast.error(msg);
+    } finally {
+      setSubmittingOffer(false);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // AI Agent: Auto-Fill Title, HTML Description, Specs, Warranty & Return Policy
+  // ---------------------------------------------------------------------------
+  const handleGenerateAI = async () => {
+    if (!name.trim()) {
+      toast.error("Please enter a product title or keyword first (e.g. Sony WH-1000XM5)");
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    toast.info("Generating professional e-commerce details using AI...");
+    try {
+      const res = await apiClient.post<{
+        title: string;
+        description_html: string;
+        specs: Array<{ name: string; value: string }>;
+        warranty_info: string;
+        return_policy: string;
+        suggested_category?: string;
+        suggested_subcategory?: string;
+      }>("/seller/catalog/ai-generate", {
+        name: name.trim(),
+        brand: brand.trim() || undefined,
+        existing_desc: description.trim() || undefined,
+      });
+
+      if (res.title) setName(toTitleCase(res.title));
+      if (res.description_html) setDescription(res.description_html);
+      if (res.warranty_info) setWarrantyInfo(res.warranty_info);
+      if (res.return_policy) setReturnPolicy(res.return_policy);
+      if (res.specs && Array.isArray(res.specs) && res.specs.length > 0) {
+        setSpecs(res.specs);
+      }
+
+      toast.success("AI generated title, rich HTML description, specs & warranty!");
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "AI generation failed";
+      toast.error(msg);
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
+  // Media Gallery Helpers
+  const handleAddImageUrl = () => {
+    const url = imageUrlInput.trim();
+    if (!url) {
+      toast.error("Please enter an image URL");
+      return;
+    }
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      toast.error("Image URL must start with http:// or https://");
+      return;
+    }
+    setImages((prev) => [...prev, url]);
+    setImageUrlInput("");
+    toast.success("Image URL added to gallery");
   };
 
   const handleRemoveImage = (index: number) => {
     setImages(images.filter((_, i) => i !== index));
   };
 
-  // Add / Remove spec rows
+  // Specs Helpers
   const handleAddSpec = () => {
     setSpecs([...specs, { name: "", value: "" }]);
   };
@@ -135,7 +299,7 @@ export default function AddProductPage() {
     setSpecs(specs.filter((_, i) => i !== index));
   };
 
-  // Handle Category Suggestion
+  // Suggest Category
   const handleSuggestCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!suggestName.trim()) {
@@ -147,40 +311,12 @@ export default function AddProductPage() {
     setSuggesting(true);
     try {
       const parentId = suggestIsSubcategory ? (selectedMainCatId || null) : null;
-      const res = await apiClient.post<{
-        id: string;
-        name: string;
-        status: string;
-        message: string;
-      }>("/seller/categories/suggest", {
-        name: titleCased,
-        parent_id: parentId,
-      });
+      const res = await apiClient.post<{ id: string; name: string; status: string; message: string }>(
+        "/seller/categories/suggest",
+        { name: titleCased, parent_id: parentId }
+      );
 
       toast.success(res.message || "Category suggestion submitted for admin review");
-
-      // Add temporarily to local category state so seller can immediately select it
-      if (parentId) {
-        setCategories((prev) =>
-          prev.map((c) => {
-            if (c.id === parentId) {
-              return {
-                ...c,
-                children: [...(c.children || []), { id: res.id, name: res.name, slug: res.id, parent_id: parentId }],
-              };
-            }
-            return c;
-          })
-        );
-        setSelectedSubCatId(res.id);
-      } else {
-        setCategories((prev) => [
-          ...prev,
-          { id: res.id, name: res.name, slug: res.id, children: [] },
-        ]);
-        setSelectedMainCatId(res.id);
-      }
-
       setShowSuggestModal(false);
       setSuggestName("");
     } catch (err) {
@@ -191,8 +327,8 @@ export default function AddProductPage() {
     }
   };
 
-  // Submit product creation
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Submit Brand New Product Listing
+  const handleCreateNewProduct = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!name.trim()) {
@@ -212,13 +348,10 @@ export default function AddProductPage() {
       return;
     }
 
-    // Determine category ID: prefer selected subcategory; if none, use selected main category
     const finalCategoryId = selectedSubCatId || selectedMainCatId || null;
-
-    const filteredImages = images.filter((img) => img.trim().length > 0);
     const filteredSpecs = specs.filter((s) => s.name.trim() && s.value.trim());
 
-    setSubmitting(true);
+    setSubmittingProduct(true);
     try {
       await apiClient.post("/seller/products", {
         name: toTitleCase(name),
@@ -229,7 +362,9 @@ export default function AddProductPage() {
         stock: stockNum,
         category_id: finalCategoryId,
         description: description.trim() || undefined,
-        images: filteredImages,
+        warranty_info: warrantyInfo.trim() || undefined,
+        return_policy: returnPolicy.trim() || undefined,
+        images: images,
         specs: filteredSpecs,
       });
 
@@ -239,7 +374,7 @@ export default function AddProductPage() {
       const msg = err instanceof ApiError ? err.message : "Failed to create product";
       toast.error(msg);
     } finally {
-      setSubmitting(false);
+      setSubmittingProduct(false);
     }
   };
 
@@ -248,418 +383,738 @@ export default function AddProductPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <a
-            href="/products"
-            className="p-2 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-slate-900 transition-colors"
+          <button
+            type="button"
+            onClick={() => router.push("/products")}
+            className="p-2 rounded-xl text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
-          </a>
+          </button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Add New Product
+            <h1 className="text-xl font-bold tracking-tight text-neutral-900">
+              Add Products to Inventory
             </h1>
-            <p className="text-xs text-slate-500">
-              List a new item in your Elektrix seller inventory with title, category, pricing, and stock.
+            <p className="text-xs text-neutral-500">
+              Search Elektrix catalog to sell an existing product or publish a new master listing.
             </p>
           </div>
         </div>
+
+        {/* Workflow Mode Switcher */}
+        <div className="flex rounded-xl bg-neutral-100 p-1 border border-neutral-200">
+          <button
+            type="button"
+            onClick={() => setMode("SEARCH_FIRST")}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              mode === "SEARCH_FIRST"
+                ? "bg-white text-neutral-900 shadow-sm"
+                : "text-neutral-500 hover:text-neutral-900"
+            }`}
+          >
+            Find in Catalog
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("CREATE_NEW")}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              mode === "CREATE_NEW"
+                ? "bg-white text-neutral-900 shadow-sm"
+                : "text-neutral-500 hover:text-neutral-900"
+            }`}
+          >
+            + Create New Listing
+          </button>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Basic Details Card */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
-          <h2 className="text-base font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Package className="w-4 h-4 text-amber-500" />
-            Basic Information
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="md:col-span-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                Product Title <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onBlur={() => setName(toTitleCase(name))}
-                placeholder="e.g. Wireless Noise Cancelling Headphones Over Ear"
-                className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-              <p className="text-[11px] text-slate-400 mt-1">
-                Titles are automatically formatted with proper Title Casing.
-              </p>
-            </div>
-
+      {/* --------------------------------------------------------------------- */}
+      {/* MODE 1: SEARCH & SELL EXISTING PRODUCT IN CATALOG                     */}
+      {/* --------------------------------------------------------------------- */}
+      {mode === "SEARCH_FIRST" && (
+        <div className="space-y-6">
+          {/* Search Card */}
+          <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm space-y-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                Brand Name
-              </label>
-              <input
-                type="text"
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-                placeholder="e.g. Sony, Boat, Apple, Elektrix"
-                className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                SKU / Barcode (Optional)
-              </label>
-              <input
-                type="text"
-                value={sku}
-                onChange={(e) => setSku(e.target.value.toUpperCase())}
-                placeholder="Leave blank to auto-generate"
-                className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Categories Section (Cascading Dropdowns) */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <FolderPlus className="w-4 h-4 text-amber-500" />
-                Category & Classification
+              <h2 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+                <Search className="w-4 h-4 text-amber-600" />
+                Search Existing Elektrix Master Catalog
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Select main category, then choose subcategory from the dynamic dropdown.
+              <p className="text-xs text-neutral-500 mt-0.5">
+                Save time: If an item already exists in the catalog, you don&apos;t need to write descriptions or upload photos. Just enter your price and stock.
               </p>
             </div>
+
+            <form onSubmit={handleCatalogSearch} className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+              <div className="sm:col-span-4">
+                <input
+                  type="text"
+                  value={brandFilter}
+                  onChange={(e) => setBrandFilter(e.target.value)}
+                  placeholder="Filter Brand (e.g. Apple, Sony)"
+                  className="w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                />
+              </div>
+
+              <div className="sm:col-span-6">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by product name or model (e.g. iPhone 15, Headphones)..."
+                  className="w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <button
+                  type="submit"
+                  disabled={searchingCatalog}
+                  className="w-full h-full py-2.5 px-4 rounded-xl bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50 shadow-sm"
+                >
+                  {searchingCatalog ? "Searching..." : "Search"}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Results Grid */}
+          {catalogResults.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                Matching Catalog Items ({catalogResults.length})
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {catalogResults.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm hover:border-neutral-300 transition-all flex flex-col justify-between"
+                  >
+                    <div className="flex items-start gap-3.5">
+                      <div className="w-16 h-16 rounded-xl bg-neutral-50 border border-neutral-100 p-1 flex items-center justify-center shrink-0 overflow-hidden">
+                        {item.image ? (
+                          <img src={item.image} alt={item.name} className="w-full h-full object-contain" />
+                        ) : (
+                          <ImageIcon className="w-6 h-6 text-neutral-300" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        {item.brand && (
+                          <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/50">
+                            {item.brand}
+                          </span>
+                        )}
+                        <h4 className="text-sm font-semibold text-neutral-900 mt-1 line-clamp-2">
+                          {item.name}
+                        </h4>
+                        <div className="flex items-center gap-2 mt-1.5 text-xs">
+                          <span className="font-bold text-neutral-900">
+                            Lowest: {formatINR(item.lowest_offer_price)}
+                          </span>
+                          <span className="text-neutral-400">• {item.seller_count} active seller(s)</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-neutral-100 flex items-center justify-between">
+                      <span className="text-[11px] text-neutral-400 truncate">
+                        {item.category_name || "General"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenOfferModal(item)}
+                        className="px-3.5 py-1.5 rounded-xl bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition-colors shadow-sm"
+                      >
+                        Sell This Item
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Quick Create New Banner if search returned nothing */}
+          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-center space-y-3">
+            <h3 className="text-sm font-bold text-neutral-900">Can&apos;t find your product in the catalog?</h3>
+            <p className="text-xs text-neutral-500 max-w-md mx-auto">
+              If this is a completely new brand or SKU not yet sold on Elektrix, create a master listing. Our AI agent will help format the specifications and description automatically.
+            </p>
             <button
               type="button"
-              onClick={() => setShowSuggestModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100 transition-colors"
+              onClick={() => setMode("CREATE_NEW")}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white border border-neutral-300 text-neutral-900 text-xs font-semibold hover:bg-neutral-100 shadow-sm transition-all"
             >
-              <Plus className="w-3.5 h-3.5 text-amber-600" />
-              Suggest New Category
+              <Plus className="w-3.5 h-3.5" />
+              Create New Master Product
             </button>
           </div>
+        </div>
+      )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Main Category Dropdown */}
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                1. Main Category
-              </label>
-              <select
-                value={selectedMainCatId}
-                onChange={(e) => handleMainCategoryChange(e.target.value)}
-                disabled={loadingCats}
-                className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+      {/* --------------------------------------------------------------------- */}
+      {/* MODAL: FAST OFFER ATTACHMENT                                          */}
+      {/* --------------------------------------------------------------------- */}
+      {selectedCatalogProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-neutral-200 space-y-5">
+            <div className="flex items-start justify-between border-b border-neutral-100 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-neutral-900">List Your Offer</h3>
+                <p className="text-xs text-neutral-500">Provide your price & stock for this catalog item.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedCatalogProduct(null)}
+                className="text-neutral-400 hover:text-neutral-600 text-sm p-1"
               >
-                <option value="">-- Choose Category --</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
+                ✕
+              </button>
             </div>
 
-            {/* Subcategory Dropdown (Cascading) */}
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                2. Subcategory
-              </label>
-              <select
-                value={selectedSubCatId}
-                onChange={(e) => setSelectedSubCatId(e.target.value)}
-                disabled={!selectedMainCatId || availableSubcategories.length === 0}
-                className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-slate-50 disabled:text-slate-400"
-              >
-                <option value="">
-                  {selectedMainCatId
-                    ? availableSubcategories.length > 0
-                      ? "-- Choose Subcategory --"
-                      : "-- No subcategories (main category will be used) --"
-                    : "-- First select Main Category above --"}
-                </option>
-                {availableSubcategories.map((sub) => (
-                  <option key={sub.id} value={sub.id}>
-                    {sub.name}
-                  </option>
-                ))}
-              </select>
+            <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200 flex items-center gap-3">
+              <div className="w-12 h-12 rounded-lg bg-white border border-neutral-200 p-1 flex items-center justify-center shrink-0">
+                {selectedCatalogProduct.image ? (
+                  <img src={selectedCatalogProduct.image} alt="" className="w-full h-full object-contain" />
+                ) : (
+                  <ImageIcon className="w-5 h-5 text-neutral-300" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-neutral-900 line-clamp-1">{selectedCatalogProduct.name}</p>
+                <p className="text-[11px] text-neutral-500">Current Lowest: {formatINR(selectedCatalogProduct.lowest_offer_price)}</p>
+              </div>
             </div>
+
+            <form onSubmit={handleSubmitOffer} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700">
+                    Your Selling Price (₹) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={offerPrice}
+                    onChange={(e) => setOfferPrice(e.target.value)}
+                    placeholder="999"
+                    className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2 text-sm font-semibold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700">Your List Price / MRP (₹)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={offerMrp}
+                    onChange={(e) => setOfferMrp(e.target.value)}
+                    placeholder="1499"
+                    className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700">
+                    Stock <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={offerStock}
+                    onChange={(e) => setOfferStock(e.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2 text-sm font-semibold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700">Condition</label>
+                  <select
+                    value={offerCondition}
+                    onChange={(e) => setOfferCondition(e.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3 py-2 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  >
+                    <option value="NEW">Brand New</option>
+                    <option value="REFURBISHED">Refurbished</option>
+                    <option value="OPEN_BOX">Open Box</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-700">Transit Days</label>
+                  <select
+                    value={offerDeliveryDays}
+                    onChange={(e) => setOfferDeliveryDays(e.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3 py-2 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  >
+                    <option value="2">2 Days (Express)</option>
+                    <option value="3">3 Days (Standard)</option>
+                    <option value="5">5 Days</option>
+                    <option value="7">7 Days</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700">Your SKU / Item Code (Optional)</label>
+                <input
+                  type="text"
+                  value={offerSku}
+                  onChange={(e) => setOfferSku(e.target.value)}
+                  placeholder="e.g. WH-BLACK-01"
+                  className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCatalogProduct(null)}
+                  className="px-4 py-2 text-xs font-semibold text-neutral-600 hover:text-neutral-900"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingOffer}
+                  className="px-5 py-2.5 rounded-xl bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50 shadow-sm"
+                >
+                  {submittingOffer ? "Publishing Offer..." : "Publish to My Inventory"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
+      )}
 
-        {/* Pricing & Stock Card */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
-          <h2 className="text-base font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Sparkles className="w-4 h-4 text-amber-500" />
-            Pricing & Inventory
-          </h2>
+      {/* --------------------------------------------------------------------- */}
+      {/* MODE 2: CREATE NEW MASTER PRODUCT (WITH AI & ANTISLOP)                */}
+      {/* --------------------------------------------------------------------- */}
+      {mode === "CREATE_NEW" && (
+        <form onSubmit={handleCreateNewProduct} className="space-y-6">
+          {/* Card 1: Core Details & AI Autofill */}
+          <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
+              <div>
+                <h2 className="text-sm font-bold text-neutral-900">Product Title & Brand</h2>
+                <p className="text-xs text-neutral-500">Provide the brand name and base product title.</p>
+              </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                Selling Price (₹) <span className="text-red-500">*</span>
-              </label>
-              <div className="mt-1.5 relative rounded-xl">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
+              {/* Agentic AI Autofill Button */}
+              <button
+                type="button"
+                onClick={handleGenerateAI}
+                disabled={isGeneratingAI}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition-all disabled:opacity-50 shadow-sm"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                {isGeneratingAI ? "AI Generating..." : "✨ Auto-Fill with AI"}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700">
+                  Brand Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={brand}
+                  onChange={(e) => setBrand(e.target.value)}
+                  placeholder="e.g. Apple, Sony, boAt"
+                  className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-neutral-700">
+                  Product Title (Proper Title Case) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onBlur={() => setName(toTitleCase(name))}
+                  placeholder="e.g. Sony WH-1000XM5 Wireless Headphones (Midnight Black)"
+                  className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm font-semibold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                />
+                <p className="mt-1 text-[11px] text-neutral-400">
+                  Standard convention: [Brand] + [Model] + ([Key Specs/Color]) + [Type].
+                </p>
+              </div>
+            </div>
+
+            {/* Cascading Category Dropdowns */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-neutral-700">
+                    Main Category <span className="text-red-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSuggestIsSubcategory(false);
+                      setShowSuggestModal(true);
+                    }}
+                    className="text-[11px] text-amber-600 hover:text-amber-700 flex items-center gap-1"
+                  >
+                    <FolderPlus className="w-3 h-3" /> + Suggest New
+                  </button>
+                </div>
+                <select
+                  required
+                  value={selectedMainCatId}
+                  onChange={(e) => {
+                    setSelectedMainCatId(e.target.value);
+                    setSelectedSubCatId("");
+                  }}
+                  className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                >
+                  <option value="">-- Choose Category --</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-neutral-700">
+                    Subcategory (Opens automatically)
+                  </label>
+                  {selectedMainCatId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSuggestIsSubcategory(true);
+                        setShowSuggestModal(true);
+                      }}
+                      className="text-[11px] text-amber-600 hover:text-amber-700 flex items-center gap-1"
+                    >
+                      <FolderPlus className="w-3 h-3" /> + Suggest Subcategory
+                    </button>
+                  )}
+                </div>
+                <select
+                  value={selectedSubCatId}
+                  onChange={(e) => setSelectedSubCatId(e.target.value)}
+                  disabled={!selectedMainCatId || availableSubcategories.length === 0}
+                  className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 disabled:bg-neutral-50 disabled:text-neutral-400"
+                >
+                  <option value="">
+                    {selectedMainCatId
+                      ? availableSubcategories.length > 0
+                        ? "-- Choose Subcategory --"
+                        : "-- No subcategories available --"
+                      : "-- First select Main Category --"}
+                  </option>
+                  {availableSubcategories.map((sub) => (
+                    <option key={sub.id} value={sub.id}>
+                      {sub.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Pricing & Inventory */}
+          <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm space-y-4">
+            <h2 className="text-sm font-bold text-neutral-900 border-b border-neutral-100 pb-3">
+              Pricing & Stock Units
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700">
+                  Selling Price (₹) <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="number"
                   required
                   min="1"
-                  step="1"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
                   placeholder="999"
-                  className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm font-bold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                 />
               </div>
-              <p className="text-[11px] text-slate-400 mt-1">Price customer pays at checkout.</p>
-            </div>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                List Price / MRP (₹)
-              </label>
-              <div className="mt-1.5 relative rounded-xl">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₹</span>
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700">List Price / MRP (₹)</label>
                 <input
                   type="number"
                   min="1"
-                  step="1"
                   value={mrp}
                   onChange={(e) => setMrp(e.target.value)}
                   placeholder="1499"
-                  className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                 />
               </div>
-              <p className="text-[11px] text-slate-400 mt-1">Shown crossed out if higher than selling price.</p>
-            </div>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                Stock On Hand <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                required
-                min="0"
-                step="1"
-                value={stock}
-                onChange={(e) => setStock(e.target.value)}
-                placeholder="25"
-                className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-              <p className="text-[11px] text-slate-400 mt-1">Available units in your warehouse.</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Media Images Card */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <ImageIcon className="w-4 h-4 text-amber-500" />
-              Product Images
-            </h2>
-            <button
-              type="button"
-              onClick={handleAddImage}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 hover:text-amber-700"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add another image URL
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {images.map((url, idx) => (
-              <div key={idx} className="flex items-center gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700">
+                  Stock Units <span className="text-red-500">*</span>
+                </label>
                 <input
-                  type="url"
-                  value={url}
-                  onChange={(e) => handleImageChange(idx, e.target.value)}
-                  placeholder="https://images.unsplash.com/... or CDN image URL"
-                  className="flex-1 rounded-xl border border-slate-200 px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  type="number"
+                  required
+                  min="0"
+                  value={stock}
+                  onChange={(e) => setStock(e.target.value)}
+                  placeholder="25"
+                  className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm font-bold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                 />
-                {images.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveImage(idx)}
-                    className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Description & Specs Card */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
-          <h2 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
-            Description & Specifications
-          </h2>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-              Product Description
-            </label>
-            <textarea
-              rows={4}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Highlight key features, benefits, usage instructions, and product specifications..."
-              className="mt-1.5 w-full rounded-xl border border-slate-200 p-3.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            />
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700">SKU Code</label>
+                <input
+                  type="text"
+                  value={sku}
+                  onChange={(e) => setSku(e.target.value)}
+                  placeholder="e.g. SONY-XM5-BLK"
+                  className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-700">
-                Specifications (Key & Value pairs)
-              </span>
+          {/* Card 3: Working Image URLs & Gallery */}
+          <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm space-y-4">
+            <div>
+              <h2 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-neutral-500" />
+                Product Images & Live Previews
+              </h2>
+              <p className="text-xs text-neutral-500 mt-0.5">
+                Add image URLs. The first image will be used as the primary catalog thumbnail.
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={imageUrlInput}
+                onChange={(e) => setImageUrlInput(e.target.value)}
+                placeholder="https://images.unsplash.com/... or public image URL"
+                className="flex-1 rounded-xl border border-neutral-200 px-3.5 py-2 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+              />
               <button
                 type="button"
-                onClick={handleAddSpec}
-                className="text-xs font-semibold text-amber-600 hover:text-amber-700"
+                onClick={handleAddImageUrl}
+                className="px-4 py-2 rounded-xl bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition-colors shadow-sm"
               >
-                + Add specification
+                + Add Image
               </button>
             </div>
 
-            {specs.map((spec, idx) => (
-              <div key={idx} className="flex items-center gap-3">
-                <input
-                  type="text"
-                  value={spec.name}
-                  onChange={(e) => handleSpecChange(idx, "name", e.target.value)}
-                  placeholder="Spec name (e.g. Color)"
-                  className="w-1/3 rounded-xl border border-slate-200 px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-                <input
-                  type="text"
-                  value={spec.value}
-                  onChange={(e) => handleSpecChange(idx, "value", e.target.value)}
-                  placeholder="Value (e.g. Midnight Black)"
-                  className="flex-1 rounded-xl border border-slate-200 px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-                {specs.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveSpec(idx)}
-                    className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg"
+            {images.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                {images.map((imgUrl, idx) => (
+                  <div
+                    key={idx}
+                    className="relative group rounded-xl border border-neutral-200 bg-neutral-50 p-2 overflow-hidden flex flex-col items-center"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
+                    <div className="w-full h-28 flex items-center justify-center overflow-hidden rounded-lg bg-white">
+                      <img
+                        src={imgUrl}
+                        alt={`Product ${idx}`}
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src =
+                            "https://placehold.co/400x400?text=Invalid+Image+URL";
+                        }}
+                      />
+                    </div>
+                    <div className="mt-2 w-full flex items-center justify-between text-[11px]">
+                      <span className="font-semibold text-neutral-500">
+                        {idx === 0 ? "★ Primary" : `#${idx + 1}`}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(idx)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Submit Button */}
-        <div className="flex items-center justify-end gap-4 pt-2">
-          <a
-            href="/products"
-            className="px-5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-          >
-            Cancel
-          </a>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 px-6 py-2.5 text-sm font-bold text-slate-950 shadow-lg shadow-amber-500/20 hover:from-amber-300 hover:to-amber-400 transition-all disabled:opacity-50"
-          >
-            {submitting ? (
-              <span className="inline-block animate-spin mr-1">⟳</span>
             ) : (
-              <PlusCircle className="w-4 h-4" />
+              <p className="text-xs text-neutral-400 italic">No images added yet. At least one image is recommended.</p>
             )}
-            Publish to Catalog
-          </button>
-        </div>
-      </form>
+          </div>
 
-      {/* Suggest Category Modal */}
-      {showSuggestModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <FolderPlus className="w-5 h-5 text-amber-500" />
-                Suggest New Category
-              </h3>
-              <button
-                onClick={() => setShowSuggestModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-lg leading-none"
-              >
-                &times;
-              </button>
+          {/* Card 4: Description & Warranty & Return Policy */}
+          <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm space-y-4">
+            <h2 className="text-sm font-bold text-neutral-900 border-b border-neutral-100 pb-3">
+              Description, Warranty & Return Policy
+            </h2>
+
+            <div>
+              <label className="block text-xs font-semibold text-neutral-700">
+                Product Description (Supports HTML for rich storefront display)
+              </label>
+              <textarea
+                rows={5}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Highlight key features, benefits, in-the-box contents, and usage details..."
+                className="mt-1.5 w-full rounded-xl border border-neutral-200 p-3 text-xs font-mono text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 leading-relaxed"
+              />
             </div>
 
-            <p className="text-xs text-slate-500">
-              New category proposals are sent to the Elektrix Admin Approvals queue. You will be able to immediately assign this product to it.
-            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700">
+                  Warranty Information <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={warrantyInfo}
+                  onChange={(e) => setWarrantyInfo(e.target.value)}
+                  placeholder="e.g. 1 Year Manufacturer Domestic Warranty"
+                  className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-700">
+                  Return / Replacement Policy <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={returnPolicy}
+                  onChange={(e) => setReturnPolicy(e.target.value)}
+                  placeholder="e.g. 7 Days Replacement Only"
+                  className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                />
+              </div>
+            </div>
+
+            {/* Specifications Key-Value Rows */}
+            <div className="pt-2 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-neutral-700">Technical Specifications</span>
+                <button
+                  type="button"
+                  onClick={handleAddSpec}
+                  className="text-xs font-semibold text-amber-600 hover:text-amber-700"
+                >
+                  + Add Spec Row
+                </button>
+              </div>
+
+              {specs.map((spec, idx) => (
+                <div key={idx} className="flex items-center gap-2.5">
+                  <input
+                    type="text"
+                    value={spec.name}
+                    onChange={(e) => handleSpecChange(idx, "name", e.target.value)}
+                    placeholder="Attribute (e.g. Color)"
+                    className="w-1/3 rounded-xl border border-neutral-200 px-3 py-1.5 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  />
+                  <input
+                    type="text"
+                    value={spec.value}
+                    onChange={(e) => handleSpecChange(idx, "value", e.target.value)}
+                    placeholder="Value (e.g. Midnight Black)"
+                    className="flex-1 rounded-xl border border-neutral-200 px-3 py-1.5 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  />
+                  {specs.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveSpec(idx)}
+                      className="p-1.5 text-neutral-400 hover:text-red-600"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Form Actions */}
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-neutral-200">
+            <button
+              type="button"
+              onClick={() => router.push("/products")}
+              className="px-4 py-2 text-xs font-semibold text-neutral-600 hover:text-neutral-900"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submittingProduct}
+              className="px-6 py-2.5 rounded-xl bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50 shadow-sm"
+            >
+              {submittingProduct ? "Publishing Listing..." : "Create & Publish Product"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* --------------------------------------------------------------------- */}
+      {/* MODAL: SUGGEST NEW CATEGORY / SUBCATEGORY                             */}
+      {/* --------------------------------------------------------------------- */}
+      {showSuggestModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-neutral-200 space-y-4">
+            <div className="flex items-start justify-between border-b border-neutral-100 pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-neutral-900">
+                  {suggestIsSubcategory ? "Suggest Subcategory" : "Suggest Main Category"}
+                </h3>
+                <p className="text-xs text-neutral-500">Submitted for immediate Admin approval.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSuggestModal(false)}
+                className="text-neutral-400 hover:text-neutral-600"
+              >
+                ✕
+              </button>
+            </div>
 
             <form onSubmit={handleSuggestCategory} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                  Category Name <span className="text-red-500">*</span>
-                </label>
+                <label className="block text-xs font-semibold text-neutral-700">Category Name</label>
                 <input
                   type="text"
                   required
                   value={suggestName}
                   onChange={(e) => setSuggestName(e.target.value)}
-                  onBlur={() => setSuggestName(toTitleCase(suggestName))}
-                  placeholder="e.g. Smart Wearables or Organic Spices"
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  placeholder="e.g. Wireless Audio"
+                  className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                 />
               </div>
 
-              {selectedMainCatId && (
-                <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs space-y-2">
-                  <p className="font-semibold text-slate-700">Hierarchy Placement:</p>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="cat_type"
-                      checked={suggestIsSubcategory}
-                      onChange={() => setSuggestIsSubcategory(true)}
-                      className="text-amber-500 focus:ring-amber-500"
-                    />
-                    <span>
-                      Subcategory under <strong className="text-slate-900">{categories.find((c) => c.id === selectedMainCatId)?.name}</strong>
-                    </span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="cat_type"
-                      checked={!suggestIsSubcategory}
-                      onChange={() => setSuggestIsSubcategory(false)}
-                      className="text-amber-500 focus:ring-amber-500"
-                    />
-                    <span>Stand-alone New Main Category</span>
-                  </label>
-                </div>
-              )}
-
-              <div className="flex items-center justify-end gap-3 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowSuggestModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                  className="px-3.5 py-1.5 text-xs text-neutral-600 hover:text-neutral-900"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={suggesting}
-                  className="px-4 py-2 rounded-xl bg-amber-500 text-xs font-bold text-slate-950 hover:bg-amber-400 disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 disabled:opacity-50"
                 >
                   {suggesting ? "Submitting..." : "Submit Suggestion"}
                 </button>

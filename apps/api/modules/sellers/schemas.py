@@ -58,6 +58,10 @@ class SellerProductItem(BaseModel):
     category_id: Optional[str] = None
     category_name: Optional[str] = None
     parent_category_name: Optional[str] = None
+    description: Optional[str] = None
+    warranty_info: Optional[str] = None
+    return_policy: Optional[str] = None
+    specs: Optional[List[Dict[str, Any]]] = None
     images: List[str] = []
     created_at: Optional[datetime] = None
 
@@ -71,6 +75,8 @@ class SellerProductCreate(BaseModel):
     stock: int = 10
     sku: Optional[str] = None
     description: Optional[str] = None
+    warranty_info: Optional[str] = None
+    return_policy: Optional[str] = None
     specs: Optional[List[Dict[str, str]]] = None
     images: Optional[List[str]] = None
 
@@ -81,7 +87,81 @@ class SellerProductUpdate(BaseModel):
     stock: Optional[int] = None
     status: Optional[str] = None
     name: Optional[str] = None
+    brand: Optional[str] = None
+    category_id: Optional[str] = None
     description: Optional[str] = None
+    warranty_info: Optional[str] = None
+    return_policy: Optional[str] = None
+    specs: Optional[List[Dict[str, str]]] = None
+    images: Optional[List[str]] = None
+
+
+class SellerPasswordLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class SellerProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    business_name: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None  # Line 1
+    address_line2: Optional[str] = None  # Line 2 / Landmark
+    city: Optional[str] = None
+    state: Optional[str] = None
+    pincode: Optional[str] = None
+    gstin: Optional[str] = None
+
+
+class SellerPasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class SellerAttachOffer(BaseModel):
+    product_id: str
+    price: int  # rupees
+    mrp: Optional[int] = None  # rupees
+    stock: int = 10
+    sku: Optional[str] = None
+    condition: Optional[str] = "NEW"
+    estimated_delivery_days: Optional[int] = 3
+
+
+class AIGenerateRequest(BaseModel):
+    name: str
+    brand: Optional[str] = None
+    category_name: Optional[str] = None
+    existing_desc: Optional[str] = None
+
+
+class DuplicateCandidateItem(BaseModel):
+    id: str
+    product_a_id: str
+    product_a_name: str
+    product_a_brand: Optional[str] = None
+    product_a_price: int
+    product_a_seller_name: Optional[str] = None
+    product_a_image: Optional[str] = None
+    product_b_id: str
+    product_b_name: str
+    product_b_brand: Optional[str] = None
+    product_b_price: int
+    product_b_seller_name: Optional[str] = None
+    product_b_image: Optional[str] = None
+    suggested_master_id: Optional[str] = None
+    similarity_score: int
+    confidence_score: int
+    ai_reason: Optional[str] = None
+    suggested_clean_title: Optional[str] = None
+    status: str
+    detected_at: Optional[datetime] = None
+
+
+class DuplicateMergeRequest(BaseModel):
+    master_product_id: str
+    clean_title: Optional[str] = None
 
 
 class SellerOrderItem(BaseModel):

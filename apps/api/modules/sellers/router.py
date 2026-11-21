@@ -4,20 +4,28 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.ai_gateway import AIGateway
 from core.config import settings
 from core.database import get_db_session
 from core.exceptions import DomainException
 from modules.sellers.models import Seller
 from modules.sellers.schemas import (
+    AIGenerateRequest,
     CategoryApprovalItem,
     CategorySuggestion,
+    DuplicateCandidateItem,
+    DuplicateMergeRequest,
+    SellerAttachOffer,
     SellerCreateAdmin,
     SellerOrderItem,
     SellerOtpRequest,
     SellerOtpVerify,
+    SellerPasswordChange,
+    SellerPasswordLogin,
     SellerProductCreate,
     SellerProductItem,
     SellerProductUpdate,
+    SellerProfileUpdate,
     SellerResponse,
     SellerStatusUpdate,
 )
@@ -66,8 +74,13 @@ async def get_current_seller(
 
 
 # -----------------------------------------------------------------------------
-# Seller Authentication (Email OTP)
+# Seller Authentication (Password & Email OTP)
 # -----------------------------------------------------------------------------
+
+@router.post("/api/v1/seller/auth/login")
+async def login_seller_password(data: SellerPasswordLogin, service: SellerService = Depends(_get_service)):
+    return await service.login_with_password(data.email, data.password)
+
 
 @router.post("/api/v1/seller/auth/otp/request")
 async def request_seller_otp(data: SellerOtpRequest, service: SellerService = Depends(_get_service)):
@@ -85,14 +98,37 @@ async def get_seller_profile(seller: Seller = Depends(get_current_seller)):
         "id": str(seller.id),
         "name": seller.name,
         "business_name": seller.business_name,
+        "contact_person": seller.contact_person,
         "email": seller.email,
         "phone": seller.phone,
+        "address": seller.address,
+        "address_line2": seller.address_line2,
         "city": seller.city,
+        "state": seller.state,
         "pincode": seller.pincode,
+        "gstin": seller.gstin,
         "status": seller.status,
         "rating": float(seller.rating),
         "rating_count": seller.rating_count,
     }
+
+
+@router.put("/api/v1/seller/me")
+async def update_seller_profile(
+    data: SellerProfileUpdate,
+    seller: Seller = Depends(get_current_seller),
+    service: SellerService = Depends(_get_service),
+):
+    return await service.update_profile(seller.id, data)
+
+
+@router.post("/api/v1/seller/me/change-password")
+async def change_seller_password(
+    data: SellerPasswordChange,
+    seller: Seller = Depends(get_current_seller),
+    service: SellerService = Depends(_get_service),
+):
+    return await service.change_password(seller.id, data.current_password, data.new_password)
 
 
 # -----------------------------------------------------------------------------
@@ -105,6 +141,15 @@ async def list_seller_products(
     service: SellerService = Depends(_get_service),
 ):
     return await service.list_seller_products(seller.id)
+
+
+@router.get("/api/v1/seller/products/{product_id}")
+async def get_seller_product(
+    product_id: str,
+    seller: Seller = Depends(get_current_seller),
+    service: SellerService = Depends(_get_service),
+):
+    return await service.get_seller_product(seller.id, product_id)
 
 
 @router.post("/api/v1/seller/products", status_code=status.HTTP_201_CREATED)
@@ -133,6 +178,41 @@ async def delete_seller_product(
     service: SellerService = Depends(_get_service),
 ):
     await service.delete_seller_product(seller.id, product_id)
+
+
+# -----------------------------------------------------------------------------
+# Catalog Matching & Agentic AI Product Generation
+# -----------------------------------------------------------------------------
+
+@router.get("/api/v1/seller/catalog/search")
+async def search_catalog(
+    q: Optional[str] = "",
+    brand: Optional[str] = None,
+    service: SellerService = Depends(_get_service),
+):
+    return await service.search_catalog(query=q or "", brand=brand)
+
+
+@router.post("/api/v1/seller/catalog/attach-offer")
+async def attach_seller_offer(
+    data: SellerAttachOffer,
+    seller: Seller = Depends(get_current_seller),
+    service: SellerService = Depends(_get_service),
+):
+    return await service.attach_seller_offer(seller.id, data)
+
+
+@router.post("/api/v1/seller/catalog/ai-generate")
+async def ai_generate_product_details(
+    data: AIGenerateRequest,
+    seller: Seller = Depends(get_current_seller),
+):
+    return await AIGateway.generate_product_details(
+        name=data.name,
+        brand=data.brand,
+        existing_desc=data.existing_desc,
+        category_name=data.category_name,
+    )
 
 
 # -----------------------------------------------------------------------------
@@ -214,3 +294,31 @@ async def admin_approve_category(category_id: str, service: SellerService = Depe
 @router.post("/api/v1/admin/categories/{category_id}/reject")
 async def admin_reject_category(category_id: str, service: SellerService = Depends(_get_service)):
     return await service.reject_category(category_id)
+
+
+# -----------------------------------------------------------------------------
+# Admin Catalog Deduplication Governance
+# -----------------------------------------------------------------------------
+
+@router.get("/api/v1/admin/catalog/duplicates", response_model=List[DuplicateCandidateItem])
+async def admin_list_duplicates(service: SellerService = Depends(_get_service)):
+    return await service.list_duplicate_candidates()
+
+
+@router.post("/api/v1/admin/catalog/duplicates/{id}/merge")
+async def admin_merge_duplicate(
+    id: str,
+    data: DuplicateMergeRequest,
+    service: SellerService = Depends(_get_service),
+):
+    return await service.merge_duplicate_products(id, data.master_product_id, data.clean_title)
+
+
+@router.post("/api/v1/admin/catalog/duplicates/{id}/dismiss")
+async def admin_dismiss_duplicate(id: str, service: SellerService = Depends(_get_service)):
+    return await service.dismiss_duplicate(id)
+
+
+@router.post("/api/v1/admin/catalog/duplicates/trigger-scan")
+async def admin_trigger_duplicate_scan(service: SellerService = Depends(_get_service)):
+    return await service.run_ai_catalog_deduplication()

@@ -133,6 +133,46 @@ class ProductService:
         if "tags" in provided:
             product.tags = data.tags
 
+        # Handle variants update
+        if data.variants is not None:
+            from modules.products.models import ProductVariant
+            from sqlalchemy import select
+            
+            # Fetch existing variants
+            res = await self.session.execute(select(ProductVariant).where(ProductVariant.product_id == product.id))
+            existing_variants = {v.id: v for v in res.scalars().all()}
+            
+            incoming_ids = set()
+            for v_data in data.variants:
+                if v_data.id and v_data.id in existing_variants:
+                    # Update
+                    pv = existing_variants[v_data.id]
+                    if v_data.name is not None: pv.name = v_data.name
+                    if v_data.sku is not None: pv.sku = v_data.sku
+                    if v_data.price is not None: pv.price = v_data.price
+                    if v_data.attributes is not None: pv.attributes = v_data.attributes
+                    if v_data.is_active is not None: pv.is_active = v_data.is_active
+                    incoming_ids.add(pv.id)
+                else:
+                    # Create new
+                    pv = ProductVariant(
+                        product_id=product.id,
+                        name=v_data.name,
+                        sku=v_data.sku,
+                        price=v_data.price,
+                        attributes=v_data.attributes,
+                        is_active=v_data.is_active if v_data.is_active is not None else True,
+                    )
+                    self.session.add(pv)
+                    await self.session.flush()
+                    await self.inventory.ensure_row(product.id, await self._get_current_business_id(), 0, variant_id=pv.id)
+                    incoming_ids.add(pv.id)
+            
+            # Delete removed variants
+            for vid, pv in existing_variants.items():
+                if vid not in incoming_ids:
+                    await self.session.delete(pv)
+
         await self.sync_product_brand_facet(product.brand, product.category_id)
         await self.repository.update(product)
         await self.session.commit()
@@ -225,46 +265,6 @@ class ProductService:
                 text("UPDATE product_media SET position = :pos WHERE id = :mid AND product_id = :pid"),
                 {"pos": pos, "mid": mid, "pid": product_id},
             )
-        # Handle variants update
-        if data.variants is not None:
-            from modules.products.models import ProductVariant
-            from sqlalchemy import select
-            
-            # Fetch existing variants
-            res = await self.session.execute(select(ProductVariant).where(ProductVariant.product_id == product.id))
-            existing_variants = {v.id: v for v in res.scalars().all()}
-            
-            incoming_ids = set()
-            for v_data in data.variants:
-                if v_data.id and v_data.id in existing_variants:
-                    # Update
-                    pv = existing_variants[v_data.id]
-                    if v_data.name is not None: pv.name = v_data.name
-                    if v_data.sku is not None: pv.sku = v_data.sku
-                    if v_data.price is not None: pv.price = v_data.price
-                    if v_data.attributes is not None: pv.attributes = v_data.attributes
-                    if v_data.is_active is not None: pv.is_active = v_data.is_active
-                    incoming_ids.add(pv.id)
-                else:
-                    # Create new
-                    pv = ProductVariant(
-                        product_id=product.id,
-                        name=v_data.name,
-                        sku=v_data.sku,
-                        price=v_data.price,
-                        attributes=v_data.attributes,
-                        is_active=v_data.is_active if v_data.is_active is not None else True,
-                    )
-                    self.session.add(pv)
-                    await self.session.flush()
-                    await self.inventory.ensure_row(product.id, await self._get_current_business_id(), 0, variant_id=pv.id)
-                    incoming_ids.add(pv.id)
-            
-            # Delete removed variants
-            for vid, pv in existing_variants.items():
-                if vid not in incoming_ids:
-                    await self.session.delete(pv)
-                    
         await self.session.commit()
         return await self.repository.get_by_id(product_id)
 
