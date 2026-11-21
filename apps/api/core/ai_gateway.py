@@ -232,6 +232,7 @@ class AIGateway:
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Elektrix/1.0",
         }
         url = f"{base_url.rstrip('/')}/chat/completions"
         payload = {
