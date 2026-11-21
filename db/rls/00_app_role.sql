@@ -45,6 +45,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.coupon_usages TO emivo_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.business_settings TO emivo_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.outbox_events TO emivo_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.alembic_version TO emivo_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO emivo_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO emivo_app;
 
 -- Grant sequence usage for auto-increment/UUID generation
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO emivo_app;
