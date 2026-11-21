@@ -542,47 +542,76 @@ class AuthService:
         }
 
     async def verify_otp(
-        self, email: str | None = None, phone: str | None = None, code: str = ""
+        self,
+        email: str | None = None,
+        phone: str | None = None,
+        code: str = "",
+        access_token: str | None = None,
     ) -> TokenResponse:
-        """Exchange a valid one-time code for tokens. Codes are single-use,
-        expire in 10 minutes, and invalidate after 5 wrong attempts."""
-        identifier = (
-            (email or "").strip().lower()
-            if email
-            else self._normalize_phone(phone or "")
-        )
-        if not identifier or not (code.isdigit() and len(code) == self.OTP_LENGTH):
-            raise DomainException(
-                "Invalid code", code="UNAUTHORIZED", status_code=401
-            )
+        """Exchange a valid one-time code for tokens. Supports MSG91 SendOTP
+        widget tokens (verified with MSG91 API) with seamless fallback to
+        Redis-backed single-use codes."""
+        msg91_verified = False
+        if access_token and settings.msg91_auth_key:
+            auth_key = settings.msg91_auth_key.get_secret_value()
+            if auth_key:
+                try:
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        resp = await client.post(
+                            "https://control.msg91.com/api/v5/widget/verifyAccessToken",
+                            headers={"Content-Type": "application/json", "Accept": "application/json"},
+                            json={"authkey": auth_key, "access-token": access_token},
+                        )
+                        if resp.status_code == 200:
+                            res_data = resp.json()
+                            if res_data.get("type") == "success":
+                                verified_val = str(res_data.get("message", "")).lstrip("+")
+                                norm_phone = self._normalize_phone(phone or "") if phone else ""
+                                if norm_phone and (verified_val.endswith(norm_phone[-10:]) or norm_phone.endswith(verified_val[-10:])):
+                                    msg91_verified = True
+                                elif email and verified_val.lower() == email.strip().lower():
+                                    msg91_verified = True
+                except Exception as exc:
+                    logger.warning("MSG91 verifyAccessToken error: %s", exc)
 
-        ident_hash = self._identifier_hash(identifier)
-        otp_key = f"auth:otp:{ident_hash}"
-        data = await self.redis.hgetall(otp_key)
-        if not data:
-            raise DomainException(
-                "Code expired or was never requested. Request a new one.",
-                code="UNAUTHORIZED", status_code=401,
+        if not msg91_verified:
+            identifier = (
+                (email or "").strip().lower()
+                if email
+                else self._normalize_phone(phone or "")
             )
+            if not identifier or not (code.isdigit() and len(code) == self.OTP_LENGTH):
+                raise DomainException(
+                    "Invalid code", code="UNAUTHORIZED", status_code=401
+                )
 
-        attempts = int(data.get("n", "0"))
-        if attempts >= self.OTP_MAX_ATTEMPTS:
-            await self.redis.delete(otp_key)
-            raise DomainException(
-                "Too many wrong attempts. Request a new code.",
-                code="UNAUTHORIZED", status_code=401,
-            )
+            ident_hash = self._identifier_hash(identifier)
+            otp_key = f"auth:otp:{ident_hash}"
+            data = await self.redis.hgetall(otp_key)
+            if not data:
+                raise DomainException(
+                    "Code expired or was never requested. Request a new one.",
+                    code="UNAUTHORIZED", status_code=401,
+                )
 
-        if not secrets.compare_digest(
-            str(data.get("c", "")), hashlib.sha256(code.encode()).hexdigest()
-        ):
-            await self.redis.hincrby(otp_key, "n", 1)
-            raise DomainException(
-                "Incorrect code. Please try again.",
-                code="UNAUTHORIZED", status_code=401,
-            )
+            attempts = int(data.get("n", "0"))
+            if attempts >= self.OTP_MAX_ATTEMPTS:
+                await self.redis.delete(otp_key)
+                raise DomainException(
+                    "Too many wrong attempts. Request a new code.",
+                    code="UNAUTHORIZED", status_code=401,
+                )
 
-        await self.redis.delete(otp_key)  # single use
+            if not secrets.compare_digest(
+                str(data.get("c", "")), hashlib.sha256(code.encode()).hexdigest()
+            ):
+                await self.redis.hincrby(otp_key, "n", 1)
+                raise DomainException(
+                    "Incorrect code. Please try again.",
+                    code="UNAUTHORIZED", status_code=401,
+                )
+
+            await self.redis.delete(otp_key)  # single use
 
         user = await self._find_user_by_identifier(email=email, phone=phone)
         if not user or user.deleted_at is not None or not user.is_active:

@@ -9,6 +9,12 @@ import { toast } from "sonner";
 import { PasswordRules, passwordMeetsAllRules } from "@/components/PasswordRules";
 import { storeApi } from "@/lib/store-api";
 import { explainApiError } from "@/lib/errors";
+import {
+  initMsg91Widget,
+  sendWidgetOtp,
+  retryWidgetOtp,
+  verifyWidgetOtp,
+} from "@/lib/msg91-widget";
 
 type FieldName = "first_name" | "last_name" | "email" | "phone" | "password";
 
@@ -79,12 +85,18 @@ function RegisterForm() {
   const { register, requestOtp, verifyOtp } = useAuth();
 
   const [step, setStep] = useState<"details" | "otp">("details");
-  const [otpEmail, setOtpEmail] = useState("");
+  const [otpPhone, setOtpPhone] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [otpBusy, setOtpBusy] = useState(false);
   const [otpError, setOtpError] = useState("");
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
+  const [usedWidget, setUsedWidget] = useState(false);
+  const [verifiedToken, setVerifiedToken] = useState("");
+
+  useEffect(() => {
+    initMsg91Widget();
+  }, []);
 
   const [form, setForm] = useState({
     first_name: "",
@@ -197,19 +209,17 @@ function RegisterForm() {
 
     setIsLoading(true);
     try {
-      const { verificationRequired } = await register({
-        email: form.email.trim(),
-        password: form.password,
-        first_name: form.first_name,
-        last_name: form.last_name,
-        phone: digits,
-      });
-      if (verificationRequired) {
-        setOtpEmail(form.email.trim());
+      setOtpPhone(digits);
+      const widgetRes = await sendWidgetOtp(digits);
+      if (widgetRes.success) {
+        setUsedWidget(true);
         setStep("otp");
+        toast.success(`Verification code sent to ${digits} via WhatsApp.`);
       } else {
-        toast.success("Account created! Welcome to ELEKTRIX.");
-        router.push("/");
+        await requestOtp({ phone: digits });
+        setUsedWidget(false);
+        setStep("otp");
+        toast.success(`Verification code sent to ${digits}.`);
       }
     } catch (err: any) {
       const mapped = explainApiError(err);
@@ -227,18 +237,38 @@ function RegisterForm() {
   const handleVerifyOtp = async () => {
     const code = otpCode.replace(/\D/g, "");
     if (code.length !== 6) {
-      setOtpError("Enter the 6-digit code from your email");
+      setOtpError("Enter the 6-digit code");
       return;
     }
     setOtpError("");
     setOtpBusy(true);
     try {
-      await verifyOtp({ email: otpEmail }, code);
-      toast.success("Account activated! Welcome to ELEKTRIX.");
+      let token = verifiedToken;
+      if (usedWidget) {
+        const verifyRes = await verifyWidgetOtp(code);
+        if (!verifyRes.success) {
+          setOtpError(verifyRes.error || "Incorrect code. Please try again.");
+          return;
+        }
+        token = verifyRes.token || "";
+        setVerifiedToken(token);
+      } else {
+        await verifyOtp({ phone: otpPhone }, code);
+      }
+
+      await register({
+        email: form.email.trim(),
+        password: form.password,
+        first_name: form.first_name,
+        last_name: form.last_name,
+        phone: digits,
+        access_token: token || undefined,
+      });
+      toast.success("Account created! Welcome to ELEKTRIX.");
       router.push("/");
     } catch (err: any) {
       setOtpError(
-        err?.message || "That code wasn't accepted. Check your email and try again, or resend the code."
+        err?.message || "Verification failed. Please check the code and try again."
       );
     } finally {
       setOtpBusy(false);
@@ -250,8 +280,19 @@ function RegisterForm() {
     setResent(false);
     setOtpError("");
     try {
-      await requestOtp({ email: otpEmail });
-      setResent(true);
+      if (usedWidget) {
+        const res = await retryWidgetOtp("12");
+        if (res.success) {
+          setResent(true);
+          toast.success("Code resent via WhatsApp.");
+        } else {
+          setOtpError(res.error || "Failed to resend code.");
+        }
+      } else {
+        await requestOtp({ phone: otpPhone });
+        setResent(true);
+        toast.success("Code resent.");
+      }
     } catch (err: any) {
       setOtpError(
         String(err?.message || "").includes("minute")
@@ -273,7 +314,7 @@ function RegisterForm() {
 
       <div className="rounded-3xl border border-neutral-200 bg-white p-8 shadow-sm">
         <h1 className="text-2xl font-semibold tracking-tight mb-1">
-          {step === "details" ? "Create your account" : "Verify your email"}
+          {step === "details" ? "Create your account" : "Verify your mobile number"}
         </h1>
         <p className="text-sm text-neutral-500 mb-8">
           {step === "details" ? (
@@ -286,7 +327,7 @@ function RegisterForm() {
           ) : (
             <>
               Step 2 of 2 — we just sent a 6-digit code to{" "}
-              <span className="font-medium text-neutral-800">{otpEmail}</span>. Enter it below to
+              <span className="font-medium text-neutral-800">+91 {otpPhone}</span> via WhatsApp. Enter it below to
               activate your account.
             </>
           )}
@@ -489,9 +530,9 @@ function RegisterForm() {
         {step === "otp" && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
-              <Mail className="w-5 h-5 shrink-0" />
+              <Smartphone className="w-5 h-5 shrink-0" />
               <span>
-                We sent a 6-digit code to <span className="font-medium">{otpEmail}</span>.
+                We sent a 6-digit code to <span className="font-medium">+91 {otpPhone}</span> via WhatsApp.
                 Enter it to activate your account.
               </span>
             </div>

@@ -1,3 +1,7 @@
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
@@ -31,14 +35,14 @@ from modules.admin_assistant.router import router as admin_assistant_router
 from modules.sellers.router import router as sellers_router
 from modules.catalogues.router import router as catalogues_router, admin_router as catalogues_admin_router
 from modules.bank_offers.router import router as bank_offers_router, admin_router as bank_offers_admin_router
-from contextlib import asynccontextmanager
 from core.redis import lifespan_redis
 from core.exceptions import DomainException, domain_exception_handler, unhandled_exception_handler
+
+logger = logging.getLogger(__name__)
 
 
 async def _nightly_catalog_dedup_loop():
     """Background worker that sleeps until midnight and executes catalog AI deduplication."""
-    import asyncio
     from datetime import datetime, timezone, timedelta
     from core.database import async_session_maker
     from modules.sellers.service import SellerService
@@ -69,11 +73,14 @@ async def _nightly_catalog_dedup_loop():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with lifespan_redis():
-        dedup_task = asyncio.create_task(_nightly_catalog_dedup_loop())
+        dedup_task = None
+        if not settings.is_test:
+            dedup_task = asyncio.create_task(_nightly_catalog_dedup_loop())
         try:
             yield
         finally:
-            dedup_task.cancel()
+            if dedup_task and not dedup_task.done():
+                dedup_task.cancel()
 
 
 app = FastAPI(
@@ -88,6 +95,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(RequestIdMiddleware)
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
@@ -95,8 +104,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(RateLimitMiddleware)
-app.add_middleware(RequestIdMiddleware)
 
 app.add_exception_handler(DomainException, domain_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)

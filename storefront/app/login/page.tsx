@@ -6,6 +6,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Mail, Lock, AlertCircle, Loader2, Smartphone, KeyRound } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
+import {
+  initMsg91Widget,
+  sendWidgetOtp,
+  retryWidgetOtp,
+  verifyWidgetOtp,
+} from "@/lib/msg91-widget";
 
 type AuthMode = "password" | "otp";
 type OtpStep = "identifier" | "code";
@@ -30,7 +36,12 @@ function LoginForm() {
   const [deliveredVia, setDeliveredVia] = useState<"email" | "sms">("email");
   const [otpCode, setOtpCode] = useState("");
   const [resendIn, setResendIn] = useState(0);
+  const [usedWidget, setUsedWidget] = useState(false);
   const resendTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    initMsg91Widget();
+  }, []);
 
   // v0.2 guards use ?next=…; the legacy ?callbackUrl=… keeps working.
   // Only same-origin relative paths are honoured — absolute URLs would turn
@@ -93,9 +104,33 @@ function LoginForm() {
     }
     setIsLoading(true);
     try {
+      if (otpChannel === "phone") {
+        if (isResend && usedWidget) {
+          const res = await retryWidgetOtp("12");
+          if (res.success) {
+            setOtpStep("code");
+            setResendIn(60);
+            toast.success(`OTP resent to ${id} via WhatsApp.`);
+            return;
+          }
+        }
+
+        const widgetRes = await sendWidgetOtp(id);
+        if (widgetRes.success) {
+          setUsedWidget(true);
+          setOtpStep("code");
+          setDeliveredVia("sms");
+          setResendIn(60);
+          if (!isResend) setOtpCode("");
+          toast.success(`Verification code sent to ${id} via WhatsApp.`);
+          return;
+        }
+      }
+
       const { channel, maskedEmail } = await requestOtp(
         otpChannel === "email" ? { email: id } : { phone: id }
       );
+      setUsedWidget(false);
       setOtpStep("code");
       setDeliveredVia(channel);
       setResendIn(60);
@@ -125,9 +160,20 @@ function LoginForm() {
     }
     setIsLoading(true);
     try {
+      let accessToken: string | undefined = undefined;
+      if (usedWidget) {
+        const verifyRes = await verifyWidgetOtp(otpCode);
+        if (!verifyRes.success) {
+          setError(verifyRes.error || "Incorrect code. Please try again.");
+          return;
+        }
+        accessToken = verifyRes.token;
+      }
+
       await verifyOtp(
         otpChannel === "email" ? { email: otpEmail.trim() } : { phone: otpPhone.trim() },
-        otpCode
+        otpCode,
+        accessToken
       );
       toast.success("Welcome back!");
       router.push(callbackUrl);

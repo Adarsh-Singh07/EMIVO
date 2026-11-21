@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { apiClient } from "@/lib/api-client";
 import { toast } from "sonner";
-import { ArrowLeft, User, Mail, Lock, Phone, Eye, EyeOff, Loader2, Trash2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, User, Mail, Lock, Phone, Eye, EyeOff, Loader2, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
-  const { user, refreshUser, logout } = useAuth();
+  const { user, refreshUser, logout, requestOtp, verifyOtp } = useAuth();
   const router = useRouter();
 
   /* ── Profile state ── */
@@ -18,6 +18,10 @@ export default function ProfilePage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
+  const [verifyingEmail, setVerifyingEmail] = useState(false);
+  const [emailOtpCode, setEmailOtpCode] = useState("");
+  const [sendingEmailOtp, setSendingEmailOtp] = useState(false);
+  const [confirmingEmailOtp, setConfirmingEmailOtp] = useState(false);
 
   /* ── Password state ── */
   const [currentPassword, setCurrentPassword] = useState("");
@@ -61,6 +65,39 @@ export default function ProfilePage() {
       toast.error(err.message || "Failed to update profile");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRequestEmailOtp = async () => {
+    if (!email) return;
+    setSendingEmailOtp(true);
+    try {
+      await requestOtp({ email });
+      setVerifyingEmail(true);
+      toast.success(`Verification code sent to ${email}`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send code");
+    } finally {
+      setSendingEmailOtp(false);
+    }
+  };
+
+  const handleConfirmEmailOtp = async () => {
+    if (emailOtpCode.length !== 6) {
+      toast.error("Enter the 6-digit code");
+      return;
+    }
+    setConfirmingEmailOtp(true);
+    try {
+      await verifyOtp({ email }, emailOtpCode);
+      await refreshUser();
+      setVerifyingEmail(false);
+      setEmailOtpCode("");
+      toast.success("Email verified successfully!");
+    } catch (err: any) {
+      toast.error(err.message || "Invalid or expired code");
+    } finally {
+      setConfirmingEmailOtp(false);
     }
   };
 
@@ -138,7 +175,31 @@ export default function ProfilePage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-neutral-700">Email Address</label>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-neutral-700 flex items-center">
+                Email Address
+                {user.is_email_verified ? (
+                  <span className="inline-flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-medium ml-2">
+                    <CheckCircle2 className="w-3 h-3" /> Verified
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full font-medium ml-2">
+                    Unverified
+                  </span>
+                )}
+              </label>
+              {!user.is_email_verified && !verifyingEmail && (
+                <button
+                  type="button"
+                  onClick={handleRequestEmailOtp}
+                  disabled={sendingEmailOtp}
+                  className="text-xs text-neutral-900 font-medium hover:underline underline-offset-2 flex items-center gap-1"
+                >
+                  {sendingEmailOtp ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                  Verify Email
+                </button>
+              )}
+            </div>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-neutral-400">
                 <Mail className="h-4 w-4" />
@@ -151,6 +212,33 @@ export default function ProfilePage() {
                 required
               />
             </div>
+            {verifyingEmail && (
+              <div className="mt-2 p-3 bg-neutral-50 border border-neutral-200 rounded-xl flex items-center gap-2">
+                <input
+                  type="text"
+                  maxLength={6}
+                  placeholder="Enter 6-digit code"
+                  value={emailOtpCode}
+                  onChange={(e) => setEmailOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  className="w-36 px-3 py-1.5 border border-neutral-300 rounded-lg text-sm text-center font-semibold tracking-widest outline-none focus:border-neutral-950"
+                />
+                <button
+                  type="button"
+                  onClick={handleConfirmEmailOtp}
+                  disabled={confirmingEmailOtp || emailOtpCode.length !== 6}
+                  className="px-3 py-1.5 bg-neutral-950 text-white rounded-lg text-xs font-medium hover:bg-neutral-800 disabled:opacity-50"
+                >
+                  {confirmingEmailOtp ? "Verifying..." : "Confirm"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVerifyingEmail(false)}
+                  className="text-xs text-neutral-500 hover:text-neutral-700 ml-1"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="space-y-1.5">

@@ -32,6 +32,7 @@ class UserCreate(UserBase):
     # Mobile number is compulsory at signup and unique across accounts.
     # Accepts 10-digit Indian mobiles (with/without +91 / 0); stored normalized.
     phone: str = Field(..., min_length=10, max_length=15, pattern=r"^[0-9+\-\s]+$")
+    access_token: Optional[str] = None
 
     @field_validator("password")
     @classmethod
@@ -84,6 +85,7 @@ class OtpVerifyIn(BaseModel):
         None, min_length=8, max_length=15, pattern=r"^\+?[0-9\s\-]{8,15}$"
     )
     code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
+    access_token: Optional[str] = None
 
     @model_validator(mode="after")
     def exactly_one_identifier(self):

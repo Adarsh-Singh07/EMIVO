@@ -18,16 +18,76 @@ jobs:
 
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          SEEK100M_API_KEY: ${{ secrets.SEEK100M_API_KEY }}
+          SEEK100M_BASE_URL: ${{ secrets.SEEK100M_BASE_URL }}
+          SEEK100M_MODEL: ${{ secrets.SEEK100M_MODEL }}
+          AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
+          AGNES_BASE_URL: ${{ secrets.AGNES_BASE_URL }}
+          AGNES_CHAT_MODEL: ${{ secrets.AGNES_CHAT_MODEL }}
+          CASHFREE_CLIENT_ID: ${{ secrets.CASHFREE_CLIENT_ID }}
+          CASHFREE_CLIENT_SECRET: ${{ secrets.CASHFREE_CLIENT_SECRET }}
+          CASHFREE_ENVIRONMENT: ${{ secrets.CASHFREE_ENVIRONMENT }}
+          CASHFREE_WEBHOOK_SECRET: ${{ secrets.CASHFREE_WEBHOOK_SECRET }}
+          MSG91_AUTH_KEY: ${{ secrets.MSG91_AUTH_KEY }}
+          MSG91_OTP_WIDGET_ID: ${{ secrets.MSG91_OTP_WIDGET_ID }}
+          MSG91_OTP_TOKEN_AUTH: ${{ secrets.MSG91_OTP_TOKEN_AUTH }}
+          NEXT_PUBLIC_MSG91_OTP_WIDGET_ID: ${{ secrets.NEXT_PUBLIC_MSG91_OTP_WIDGET_ID }}
+          NEXT_PUBLIC_MSG91_OTP_TOKEN_AUTH: ${{ secrets.NEXT_PUBLIC_MSG91_OTP_TOKEN_AUTH }}
+          WHATSAPP_ENABLED: ${{ secrets.WHATSAPP_ENABLED }}
+          MSG91_WHATSAPP_FROM: ${{ secrets.MSG91_WHATSAPP_FROM }}
+          MSG91_WHATSAPP_TEMPLATES: ${{ secrets.MSG91_WHATSAPP_TEMPLATES }}
         with:
           host: ${{ secrets.VPS_SSH_HOST }}
           username: ${{ secrets.VPS_SSH_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_SSH_PORT || '22' }}
+          envs: SEEK100M_API_KEY,SEEK100M_BASE_URL,SEEK100M_MODEL,AGNES_API_KEY,AGNES_BASE_URL,AGNES_CHAT_MODEL,CASHFREE_CLIENT_ID,CASHFREE_CLIENT_SECRET,CASHFREE_ENVIRONMENT,CASHFREE_WEBHOOK_SECRET,MSG91_AUTH_KEY,MSG91_OTP_WIDGET_ID,MSG91_OTP_TOKEN_AUTH,NEXT_PUBLIC_MSG91_OTP_WIDGET_ID,NEXT_PUBLIC_MSG91_OTP_TOKEN_AUTH,WHATSAPP_ENABLED,MSG91_WHATSAPP_FROM,MSG91_WHATSAPP_TEMPLATES
           # Docker builds of api+workers (pip resolving unpinned deps) ran
           # past the 10-minute default and silently killed every deploy.
           command_timeout: 60m
           script: |
             cd /opt/elektrix
+            # Securely sync environment variables passed from encrypted GitHub Secrets
+            python3 -c "
+            import os
+            sync_vars = [
+                'SEEK100M_API_KEY', 'SEEK100M_BASE_URL', 'SEEK100M_MODEL',
+                'AGNES_API_KEY', 'AGNES_BASE_URL', 'AGNES_CHAT_MODEL',
+                'CASHFREE_CLIENT_ID', 'CASHFREE_CLIENT_SECRET', 'CASHFREE_ENVIRONMENT', 'CASHFREE_WEBHOOK_SECRET',
+                'MSG91_AUTH_KEY', 'MSG91_OTP_WIDGET_ID', 'MSG91_OTP_TOKEN_AUTH',
+                'NEXT_PUBLIC_MSG91_OTP_WIDGET_ID', 'NEXT_PUBLIC_MSG91_OTP_TOKEN_AUTH',
+                'WHATSAPP_ENABLED', 'MSG91_WHATSAPP_FROM', 'MSG91_WHATSAPP_TEMPLATES'
+            ]
+            if os.path.exists('.env'):
+                with open('.env', 'r') as f:
+                    lines = f.readlines()
+                env_map = {}
+                for idx, line in enumerate(lines):
+                    line_s = line.strip()
+                    if line_s and not line_s.startswith('#') and '=' in line_s:
+                        k, _ = line_s.split('=', 1)
+                        env_map[k.strip()] = idx
+                modified = False
+                for var in sync_vars:
+                    val = os.environ.get(var)
+                    if val:
+                        new_line = f'{var}={val}\n'
+                        if var in env_map:
+                            if lines[env_map[var]] != new_line:
+                                lines[env_map[var]] = new_line
+                                modified = True
+                        else:
+                            lines.append(new_line)
+                            env_map[var] = len(lines) - 1
+                            modified = True
+                if modified:
+                    with open('.env', 'w') as f:
+                        f.writelines(lines)
+                    print('VPS .env updated securely.')
+            "
+            grep -q "SMS_PROVIDER" .env && sed -i 's/^SMS_PROVIDER=.*/SMS_PROVIDER=msg91/' .env || echo "SMS_PROVIDER=msg91" >> .env
+            sed -i 's/\r$//' .env
             bash infra/scripts/deploy_vps.sh
 
 

@@ -117,4 +117,9 @@ async def otp_verify(
 ):
     """Exchange a valid one-time code for an access/refresh token pair.
     Codes are single-use and invalidate after 5 wrong attempts."""
-    return await service.verify_otp(email=data.email, phone=data.phone, code=data.code)
+    return await service.verify_otp(
+        email=data.email,
+        phone=data.phone,
+        code=data.code,
+        access_token=data.access_token,
+    )

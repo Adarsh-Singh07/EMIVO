@@ -22,6 +22,8 @@ export interface User {
   last_name: string;
   role: "customer" | "staff" | "owner" | "platform_admin";
   is_active: boolean;
+  is_email_verified?: boolean;
+  phone?: string;
 }
 
 interface LoginPayload {
@@ -37,10 +39,11 @@ interface OtpIdentifier {
 
 interface RegisterPayload {
   email: string;
-  password: string;
+  password?: string;
   first_name: string;
   last_name: string;
   phone: string;
+  access_token?: string;
 }
 
 interface AuthCtxValue {
@@ -48,7 +51,7 @@ interface AuthCtxValue {
   loading: boolean;
   login: (payload: LoginPayload) => Promise<void>;
   requestOtp: (identifier: OtpIdentifier) => Promise<{ channel: "email" | "sms"; maskedEmail?: string }>;
-  verifyOtp: (identifier: OtpIdentifier, code: string) => Promise<void>;
+  verifyOtp: (identifier: OtpIdentifier, code: string, accessToken?: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<{ verificationRequired: boolean }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -122,25 +125,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback(
-    async ({ email, password, first_name, last_name, phone }: RegisterPayload) => {
+    async ({ email, password, first_name, last_name, phone, access_token }: RegisterPayload) => {
       // Backend /auth/register returns UserResponse + verification_required.
-      // When email-OTP verification is enforced, do NOT auto-login: the
-      // account cannot authenticate until its emailed code is redeemed.
-      // The caller finishes with verifyOtp({ email }, code), which signs the
-      // user in and flips is_email_verified server-side.
       const res = await apiClient.post<{ verification_required?: boolean }>(
         "/auth/register",
-        { email, password, first_name, last_name, phone },
+        { email, password, first_name, last_name, phone, access_token },
         true,
       );
       if (res?.verification_required) return { verificationRequired: true };
 
-      // Verification not enforced (dev flag off): auto-login as before.
-      const tokenData = await apiClient.post<{
-        access_token: string;
-        refresh_token: string;
-      }>("/auth/login", { email, password }, true);
-      setTokens(tokenData.access_token, tokenData.refresh_token);
+      // Verification not enforced (or phone already verified with OTP): auto-login.
+      if (password) {
+        try {
+          const tokenData = await apiClient.post<{
+            access_token: string;
+            refresh_token: string;
+          }>("/auth/login", { email, password }, true);
+          setTokens(tokenData.access_token, tokenData.refresh_token);
+        } catch {
+          /* if login fails, continue */
+        }
+      }
 
       // Best-effort guest-cart merge (same as login).
       try {
@@ -150,8 +155,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         /* best-effort */
       }
 
-      const me = await apiClient.get<User>("/users/me");
-      setUser(me);
+      try {
+        const me = await apiClient.get<User>("/users/me");
+        setUser(me);
+      } catch {
+        /* best-effort */
+      }
       return { verificationRequired: false };
     },
     []
@@ -181,25 +190,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /** Exchange the one-time code for tokens, then finish the same post-login
    * steps as the password flow (guest-cart merge + profile fetch). */
-  const verifyOtp = useCallback(async ({ email, phone }: OtpIdentifier, code: string) => {
-    const data = await apiClient.post<{
-      access_token: string;
-      refresh_token: string;
-      user?: User;
-    }>("/auth/otp/verify", { email: email ?? null, phone: phone ?? null, code }, true);
-    setTokens(data.access_token, data.refresh_token);
+  const verifyOtp = useCallback(
+    async ({ email, phone }: OtpIdentifier, code: string, accessToken?: string) => {
+      const data = await apiClient.post<{
+        access_token: string;
+        refresh_token: string;
+        user?: User;
+      }>(
+        "/auth/otp/verify",
+        {
+          email: email ?? null,
+          phone: phone ?? null,
+          code,
+          access_token: accessToken ?? null,
+        },
+        true
+      );
+      setTokens(data.access_token, data.refresh_token);
 
-    if (data.user) setUser(data.user);
-    else setUser(await apiClient.get<User>("/users/me"));
-    (async () => {
-      try {
-        const sessionId = getCartSessionId();
-        if (sessionId) await storeApi.mergeCart(sessionId);
-      } catch {
-        /* best-effort */
-      }
-    })();
-  }, []);
+      if (data.user) setUser(data.user);
+      else setUser(await apiClient.get<User>("/users/me"));
+      (async () => {
+        try {
+          const sessionId = getCartSessionId();
+          if (sessionId) await storeApi.mergeCart(sessionId);
+        } catch {
+          /* best-effort */
+        }
+      })();
+    },
+    []
+  );
 
   const logout = useCallback(async () => {
     const refreshToken = getRefreshToken();

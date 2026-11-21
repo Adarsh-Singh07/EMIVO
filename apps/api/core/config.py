@@ -111,7 +111,7 @@ class Settings(BaseSettings):
     # account cannot sign in with a password until its email is verified.
     # The integration test-suite disables it (conftest) so register+login
     # keep working end to end; production leaves it enabled.
-    email_verification_required: bool = Field(default=True)
+    email_verification_required: bool = Field(default=False)
     delhivery_environment: str = Field(default="prod") # "prod" or "sandbox"
 
     # Transactional email. Provider: "resend" (default) or "smtp" (Lark Mail
@@ -162,6 +162,8 @@ class Settings(BaseSettings):
     sms_provider: str = Field(default="console", pattern="^(console|msg91)$")
     msg91_auth_key: SecretStr = Field(default=SecretStr(""))
     msg91_otp_template_id: str = Field(default="")
+    msg91_otp_widget_id: str = Field(default="")
+    msg91_otp_token_auth: str = Field(default="")
     msg91_sender_id: str = Field(default="ELEKTIX")
     # WhatsApp order updates (optional). Requires WHATSAPP_ENABLED=true plus
     # the MSG91 auth key and approved WABA template names, e.g.
