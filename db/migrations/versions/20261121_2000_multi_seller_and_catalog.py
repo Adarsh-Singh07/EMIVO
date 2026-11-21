@@ -17,11 +17,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.execute("""
-        ALTER TABLE businesses 
-        ADD COLUMN IF NOT EXISTS is_seller BOOLEAN DEFAULT TRUE;
-
-        CREATE TABLE IF NOT EXISTS sellers (
+    statements = [
+        "ALTER TABLE businesses ADD COLUMN IF NOT EXISTS is_seller BOOLEAN DEFAULT TRUE",
+        """CREATE TABLE IF NOT EXISTS sellers (
             id VARCHAR(36) PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
             business_name VARCHAR(255) NOT NULL,
@@ -41,16 +39,11 @@ def upgrade() -> None:
             rating_count INTEGER NOT NULL DEFAULT 1,
             created_at TIMESTAMPTZ DEFAULT NOW(),
             updated_at TIMESTAMPTZ DEFAULT NOW()
-        );
-
-        ALTER TABLE products 
-        ADD COLUMN IF NOT EXISTS seller_id VARCHAR(36) REFERENCES sellers(id);
-
-        ALTER TABLE categories 
-        ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'APPROVED',
-        ADD COLUMN IF NOT EXISTS requested_by_seller_id VARCHAR(36) REFERENCES sellers(id);
-
-        CREATE TABLE IF NOT EXISTS seller_listings (
+        )""",
+        "ALTER TABLE products ADD COLUMN IF NOT EXISTS seller_id VARCHAR(36) REFERENCES sellers(id)",
+        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'APPROVED'",
+        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS requested_by_seller_id VARCHAR(36) REFERENCES sellers(id)",
+        """CREATE TABLE IF NOT EXISTS seller_listings (
             id VARCHAR(36) PRIMARY KEY,
             product_id VARCHAR(36) NOT NULL REFERENCES products(id) ON DELETE CASCADE,
             seller_id VARCHAR(36) NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
@@ -65,14 +58,12 @@ def upgrade() -> None:
             rating_count INTEGER NOT NULL DEFAULT 24,
             created_at TIMESTAMPTZ DEFAULT NOW(),
             updated_at TIMESTAMPTZ DEFAULT NOW()
-        );
-
-        CREATE INDEX IF NOT EXISTS ix_seller_listings_product ON seller_listings (product_id);
-        CREATE INDEX IF NOT EXISTS ix_seller_listings_seller ON seller_listings (seller_id);
-        CREATE INDEX IF NOT EXISTS ix_seller_listings_price ON seller_listings (product_id, price, is_active);
-        CREATE UNIQUE INDEX IF NOT EXISTS uq_seller_product ON seller_listings (seller_id, product_id);
-
-        CREATE TABLE IF NOT EXISTS catalog_duplicate_candidates (
+        )""",
+        "CREATE INDEX IF NOT EXISTS ix_seller_listings_product ON seller_listings (product_id)",
+        "CREATE INDEX IF NOT EXISTS ix_seller_listings_seller ON seller_listings (seller_id)",
+        "CREATE INDEX IF NOT EXISTS ix_seller_listings_price ON seller_listings (product_id, price, is_active)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_seller_product ON seller_listings (seller_id, product_id)",
+        """CREATE TABLE IF NOT EXISTS catalog_duplicate_candidates (
             id VARCHAR(36) PRIMARY KEY,
             product_a_id VARCHAR(36) NOT NULL,
             product_b_id VARCHAR(36) NOT NULL,
@@ -87,17 +78,21 @@ def upgrade() -> None:
             reviewed_by VARCHAR(255),
             created_at TIMESTAMPTZ DEFAULT NOW(),
             updated_at TIMESTAMPTZ DEFAULT NOW()
-        );
-    """)
+        )""",
+    ]
+    for stmt in statements:
+        op.execute(stmt)
 
 
 def downgrade() -> None:
-    op.execute("""
-        DROP TABLE IF EXISTS catalog_duplicate_candidates CASCADE;
-        DROP TABLE IF EXISTS seller_listings CASCADE;
-        DROP TABLE IF EXISTS sellers CASCADE;
-        ALTER TABLE products DROP COLUMN IF EXISTS seller_id;
-        ALTER TABLE categories DROP COLUMN IF EXISTS requested_by_seller_id;
-        ALTER TABLE categories DROP COLUMN IF EXISTS status;
-        ALTER TABLE businesses DROP COLUMN IF EXISTS is_seller;
-    """)
+    statements = [
+        "DROP TABLE IF EXISTS catalog_duplicate_candidates CASCADE",
+        "DROP TABLE IF EXISTS seller_listings CASCADE",
+        "DROP TABLE IF EXISTS sellers CASCADE",
+        "ALTER TABLE products DROP COLUMN IF EXISTS seller_id",
+        "ALTER TABLE categories DROP COLUMN IF EXISTS requested_by_seller_id",
+        "ALTER TABLE categories DROP COLUMN IF EXISTS status",
+        "ALTER TABLE businesses DROP COLUMN IF EXISTS is_seller",
+    ]
+    for stmt in statements:
+        op.execute(stmt)
