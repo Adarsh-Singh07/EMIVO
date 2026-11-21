@@ -426,7 +426,7 @@ class AuthService:
         if email:
             stmt = select(User).where(User.email == email.strip().lower())
             result = await self.session.execute(stmt)
-            return result.scalar_one_or_none()
+            return result.scalars().first()
         normalized = self._normalize_phone(phone or "")
         if not normalized:
             return None
@@ -438,7 +438,7 @@ class AuthService:
             | (func.right(User.phone, 10) == normalized[-10:])
         )
         result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+        return result.scalars().first()
 
     async def request_otp(self, email: str | None = None, phone: str | None = None) -> None:
         """Issue a single-use login code. The endpoint always reports success
@@ -614,7 +614,49 @@ class AuthService:
             await self.redis.delete(otp_key)  # single use
 
         user = await self._find_user_by_identifier(email=email, phone=phone)
-        if not user or user.deleted_at is not None or not user.is_active:
+        if not user:
+            # Auto-provision verified customer account on successful OTP verification
+            digits = re.sub(r"\D", "", phone or "")
+            digits_10 = digits[-10:] if len(digits) >= 10 else digits
+            user_email = (email or f"{digits_10}@users.elektrix.in").strip().lower()
+            norm_phone = self._normalize_phone(phone or "") if phone else None
+            user = User(
+                email=user_email,
+                password_hash=self.get_password_hash(secrets.token_urlsafe(32)),
+                first_name="Customer",
+                last_name="",
+                phone=norm_phone,
+                is_active=True,
+                is_email_verified=bool(email),
+            )
+            self.session.add(user)
+            await self.session.flush()
+
+            from core.store import get_store_business_id
+            import uuid
+            business_id = await get_store_business_id(self.session)
+            await self.session.execute(text("SELECT set_config('app.business_id', :bid, true)"), {"bid": str(business_id)})
+            await self.session.execute(text("""
+                INSERT INTO customers (id, business_id, name, email)
+                VALUES (:id, :bid, :name, :email)
+                ON CONFLICT (business_id, email) DO NOTHING
+            """), {
+                "id": str(uuid.uuid4()),
+                "bid": business_id,
+                "name": "Customer",
+                "email": user_email,
+            })
+            await self.session.commit()
+            await self.session.refresh(user)
+
+        if getattr(user, "suspended", False):
+            reason = (user.suspension_reason or "policy violation").strip()
+            raise DomainException(
+                f"Your account has been suspended. Reason: {reason}. "
+                "Please contact support at support@elektrix.in or +91 80920 24066 to resolve this.",
+                code="ACCOUNT_SUSPENDED", status_code=403,
+            )
+        if user.deleted_at is not None or not user.is_active:
             raise DomainException(
                 "Invalid credentials", code="UNAUTHORIZED", status_code=401
             )

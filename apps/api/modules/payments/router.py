@@ -20,6 +20,7 @@ from modules.payments.schemas import (
     PaginatedPaymentsResponse,
     PaymentSuccessVerification,
     PaymentRefundRequest,
+    PaymentFailureRequest,
 )
 from modules.payments.service import PaymentService, get_provider
 
@@ -123,6 +124,24 @@ async def verify_payment_success(
         provider_payment_id=verification_data.provider_payment_id,
         provider_signature=verification_data.provider_signature or "",
         provider_order_id=verification_data.provider_order_id,
+    )
+
+
+@router.post(
+    "/{payment_id}/fail",
+    response_model=PaymentResponse,
+)
+async def record_payment_failure(
+    payment_id: str,
+    failure_data: PaymentFailureRequest,
+    service: PaymentService = Depends(get_payment_service),
+    current_user: User = Depends(get_current_user),
+):
+    """Record payment failure when modal is dismissed or failed by the customer."""
+    return await service.record_client_failure(
+        payment_id=payment_id,
+        reason=failure_data.reason or "Payment cancelled or failed at checkout",
+        user_id=str(current_user.id),
     )
 
 

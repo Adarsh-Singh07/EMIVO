@@ -593,8 +593,9 @@ class PaymentService:
             payment.id, "payment_failed", {"reason": reason},
         )
         order = await self.order_repository.get_by_id(payment.order_id)
-        if order and order.status == OrderStatus.PENDING:
-            order.status = OrderStatus.PAYMENT_FAILED
+        if order and order.status in (OrderStatus.PENDING, OrderStatus.PAYMENT_FAILED):
+            if order.status == OrderStatus.PENDING:
+                order.status = OrderStatus.PAYMENT_FAILED
             order.notes = (order.notes or "") + f"\n[payment failed: {reason}]".strip()
             await self.order_repository.update(order)
             # Stock intentionally STAYS reserved: the buyer has a 2-hour
@@ -626,11 +627,25 @@ class PaymentService:
                     "order_id": str(order.id),
                     "order_number": order.order_number,
                     "user_id": str(order.user_id),
+                    "amount": order.total,
+                    "total": order.total,
                     "reason": reason,
                 },
             ))
         await self.db.commit()
         return await self.repository.get_by_id(payment.id)
+
+    async def record_client_failure(
+        self, payment_id: str, reason: str, user_id: str
+    ) -> PaymentResponse:
+        payment = await self.repository.get_by_id(payment_id)
+        if not payment:
+            raise DomainException("Payment not found", code="NOT_FOUND", status_code=404)
+        if str(payment.user_id) != str(user_id):
+            raise DomainException("Payment does not belong to user", code="FORBIDDEN", status_code=403)
+        if payment.status in (PaymentStatus.CAPTURED, PaymentStatus.REFUNDED):
+            return payment
+        return await self.record_failure(payment, reason)
 
     # ------------------------------------------------------------------ #
     # Refunds (staff)                                                     #

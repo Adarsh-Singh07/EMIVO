@@ -756,6 +756,14 @@ export const storeApi = {
     });
   },
 
+  /** Record a payment failure or cancellation from client checkout lightbox. */
+  recordPaymentFailure(paymentId: string, reason?: string): Promise<{ id: string; status?: string }> {
+    return fetchApi(`/payments/${encodeURIComponent(paymentId)}/fail`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
+  },
+
   /* ----- Notifications (auth) ----- */
 
   listNotifications(params: { unread_only?: boolean; limit?: number } = {}): Promise<NotificationPage> {

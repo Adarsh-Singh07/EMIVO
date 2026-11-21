@@ -605,7 +605,15 @@ function CheckoutContent() {
         }).then(async (result: any) => {
           if (result.error) {
             setPendingPayment({ order, paymentId });
-            toast.error(result.error.message || "Payment was cancelled or failed");
+            const msg = result.error.message || "Payment was cancelled or failed";
+            toast.error(msg);
+            try {
+              if (paymentId) {
+                await storeApi.recordPaymentFailure(paymentId, msg);
+              }
+            } catch {
+              /* best effort */
+            }
             return;
           }
           if (result.redirect) {

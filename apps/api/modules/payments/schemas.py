@@ -69,6 +69,10 @@ class PaymentRefundRequest(BaseModel):
     reason: Optional[str] = None
 
 
+class PaymentFailureRequest(BaseModel):
+    reason: Optional[str] = "Payment cancelled or failed at checkout"
+
+
 class PaymentInitiationResponse(BaseModel):
     """Everything the storefront needs to open the provider checkout widget."""
     payment: PaymentResponse
