@@ -1,7 +1,7 @@
 """Add multi-seller tables and catalog duplicate candidates.
 
 Revision ID: 20261121_2000
-Revises: 20261012_1000
+Revises: 20261106_2200
 Create Date: 2026-11-21 20:00:00.000000
 
 """
@@ -11,7 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision: str = "20261121_2000"
-down_revision: Union[str, None] = "20261012_1000"
+down_revision: Union[str, None] = "20261106_2200"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
