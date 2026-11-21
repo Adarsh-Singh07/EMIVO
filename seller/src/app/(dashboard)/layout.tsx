@@ -73,7 +73,7 @@ export default function SellerDashboardLayout({
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-900 text-neutral-400">
         <div className="flex items-center gap-3">
-          <Store className="w-5 h-5 animate-pulse text-amber-500" />
+          <Store className="w-5 h-5 text-amber-500" />
           <span className="text-sm font-medium">Loading Seller Central...</span>
         </div>
       </div>

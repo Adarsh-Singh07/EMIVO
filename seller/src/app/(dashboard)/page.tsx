@@ -90,7 +90,7 @@ export default function SellerDashboardPage() {
                 <ShieldCheck className="w-3 h-3 text-emerald-600" />
                 ELEKTRIX Verified Merchant
               </span>
-              <span className="text-xs text-neutral-400 font-mono">Central Logistics</span>
+              <span className="text-xs text-neutral-400">Central Logistics</span>
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
               Welcome, {sellerName}
