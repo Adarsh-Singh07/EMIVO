@@ -78,20 +78,18 @@ function StatCard({
   hint?: string;
 }) {
   const inner = (
-    <Card className="bg-white border-neutral-200 shadow-sm transition-all hover:shadow-md">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-neutral-500">{title}</CardTitle>
+    <div className="bg-white border border-neutral-200/90 rounded-xl p-4 shadow-sm transition-all hover:border-neutral-300">
+      <div className="flex items-center justify-between pb-1">
+        <span className="text-xs font-semibold uppercase tracking-wider text-neutral-500">{title}</span>
         <Icon className={`h-4 w-4 ${iconClass}`} />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold text-neutral-900">{value}</div>
-        {hint && <p className="mt-1 text-xs text-neutral-500">{hint}</p>}
-      </CardContent>
-    </Card>
+      </div>
+      <div className="mt-2 text-2xl font-bold tracking-tight text-neutral-900">{value}</div>
+      {hint && <p className="mt-1 text-xs text-neutral-500 truncate">{hint}</p>}
+    </div>
   );
   return href ? (
     <Link href={href} className="block group">
-      <div className="relative">{inner}</div>
+      {inner}
     </Link>
   ) : (
     inner
@@ -154,35 +152,35 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent border border-neutral-200 p-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+      {/* Operational Header */}
+      <div className="rounded-xl border border-neutral-200/90 bg-white p-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/30">
-                Store Operations
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-neutral-100 text-neutral-800 border border-neutral-200">
+                ELEKTRIX Marketplace Operations
               </span>
-              <span className="text-xs text-neutral-500 font-mono">v0.2</span>
+              <span className="text-xs text-neutral-400 font-mono">v0.2</span>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-neutral-900">Welcome back, {userName}</h1>
-            <p className="text-neutral-500 text-sm mt-1">
-              Here is what is happening across your {BRAND_CONFIG.name} store today.
+            <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Welcome, {userName}</h1>
+            <p className="text-neutral-500 text-xs sm:text-sm mt-0.5">
+              Live operational metrics across catalog, sellers, and order fulfillment.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={fetchDashboard}
               disabled={loading}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-neutral-900 border border-neutral-800 text-sm font-semibold text-white hover:bg-neutral-800 transition-all disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white border border-neutral-300 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors disabled:opacity-50"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               Refresh
             </button>
             <Link
               href="/sellers"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-sm font-semibold text-white hover:from-amber-600 hover:to-orange-700 transition-all shadow-lg shadow-amber-500/20"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-neutral-950 text-xs font-semibold text-white hover:bg-neutral-800 transition-colors"
             >
-              <Store className="w-4 h-4" />
+              <Store className="w-3.5 h-3.5 text-amber-400" />
               Manage Sellers
             </Link>
           </div>
@@ -220,9 +218,9 @@ export default function DashboardPage() {
           <div className="grid gap-6 md:grid-cols-3">
             <Card className="bg-white border-neutral-200 shadow-sm md:col-span-2">
               <CardHeader>
-                <CardTitle className="text-lg text-neutral-900 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-amber-500" />
-                  Revenue — last 14 days
+                <CardTitle className="text-base font-bold text-neutral-900 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-amber-500" />
+                  Revenue: Last 14 Days
                 </CardTitle>
                 <CardDescription className="text-neutral-500">
                   Daily gross revenue (cancelled and refunded orders excluded).
@@ -332,7 +330,7 @@ export default function DashboardPage() {
                               {o.order_number || o.id.slice(0, 8)}
                             </Link>
                           </td>
-                          <td className="px-6 py-3.5 text-neutral-600">{o.customer_name || "—"}</td>
+                          <td className="px-6 py-3.5 text-neutral-600">{o.customer_name || "Guest"}</td>
                           <td className="px-6 py-3.5">
                             <OrderStatusBadge status={o.status} />
                           </td>
@@ -343,7 +341,7 @@ export default function DashboardPage() {
                             {formatINR(o.total)}
                           </td>
                           <td className="px-6 py-3.5 text-right font-mono text-xs text-neutral-400">
-                            {o.created_at ? new Date(o.created_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"}
+                            {o.created_at ? new Date(o.created_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "N/A"}
                           </td>
                         </tr>
                       ))}

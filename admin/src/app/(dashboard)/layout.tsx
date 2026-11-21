@@ -24,8 +24,10 @@ import {
   CheckCircle2,
   Store,
   GitMerge,
+  ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ReactNode, useEffect, useState, useRef, useCallback } from "react";
 import { PageTransition } from "@/components/animations/PageTransition";
 import { BrandLogo } from "@/components/branding/BrandLogo";
@@ -215,8 +217,8 @@ function NotificationBell() {
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
-  // Start collapsed on phones/tablets so the content (not the drawer) is
-  // what loads — the hamburger opens it as an overlay.
+  const pathname = usePathname();
+  // Start collapsed on phones/tablets so content loads cleanly without obstruction.
   const [sidebarOpen, setSidebarOpen] = useState(
     () => typeof window !== "undefined" && window.innerWidth >= 1024
   );
@@ -237,9 +239,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             />
           )}
           <aside className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r border-neutral-200 bg-white transition-all duration-300 ease-in-out ${sidebarOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full overflow-hidden opacity-0'}`}>
-            <div className="h-16 flex-shrink-0 flex items-center px-6 border-b border-neutral-200 w-64">
+            <div className="h-16 flex-shrink-0 flex items-center px-5 border-b border-neutral-200 w-64 justify-between">
               <Link href="/dashboard" className="flex items-center gap-3">
-                <BrandLogo variant="wordmark" size={30} />
+                <BrandLogo variant="wordmark" size={32} subtitle="ADMIN CONSOLE" />
               </Link>
             </div>
             <nav className="flex-1 min-h-0 overflow-y-auto py-4 px-3 space-y-4 w-64">
@@ -248,26 +250,33 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
                     {section.label}
                   </p>
-                  {section.links.map(({ href, label, icon: Icon }) => (
-                    <Link
-                      key={href}
-                      href={href}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 transition-all"
-                    >
-                      <Icon className="w-5 h-5 text-neutral-500" />
-                      {label}
-                    </Link>
-                  ))}
+                  {section.links.map(({ href, label, icon: Icon }) => {
+                    const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
+                          isActive
+                            ? "bg-neutral-950 text-white font-semibold shadow-sm"
+                            : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 font-medium"
+                        }`}
+                      >
+                        <Icon className={`w-4 h-4 ${isActive ? "text-amber-400" : "text-neutral-400"}`} />
+                        <span>{label}</span>
+                      </Link>
+                    );
+                  })}
                 </div>
               ))}
             </nav>
-            <div className="p-4 border-t border-neutral-200 w-64">
+            <div className="p-3 border-t border-neutral-200 w-64 space-y-1">
               <button
                 onClick={logout}
-                className="flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50/50 transition-colors"
+                className="flex w-full items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
               >
-                <LogOut className="w-5 h-5" />
-                Log Out
+                <LogOut className="w-4 h-4" />
+                Sign Out
               </button>
             </div>
           </aside>
@@ -275,26 +284,46 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           {/* Main Content */}
           <main className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${sidebarOpen ? 'lg:ml-64' : 'ml-0'}`}>
             {/* Topbar */}
-            <header className="sticky top-0 z-30 h-14 sm:h-16 flex-shrink-0 border-b border-neutral-200 bg-white/80 backdrop-blur-md flex items-center justify-between px-3 sm:px-6">
+            <header className="sticky top-0 z-30 h-14 sm:h-16 flex-shrink-0 border-b border-neutral-200 bg-white/95 backdrop-blur-md flex items-center justify-between px-3 sm:px-6">
               <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className="p-2 -ml-2 rounded-xl text-neutral-500 hover:bg-neutral-100 transition-colors"
+                  className="p-2 -ml-2 rounded-lg text-neutral-500 hover:bg-neutral-100 transition-colors"
                   aria-label="Toggle Sidebar"
                 >
                   <Menu className="w-5 h-5" />
                 </button>
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-700 border border-neutral-200 hidden sm:inline-block">
-                  {BRAND_CONFIG.name} Operations
-                </span>
+                <div className="hidden sm:flex items-center gap-2">
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-neutral-100 text-neutral-700 border border-neutral-200">
+                    ELEKTRIX Central Operations
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <a
+                  href="https://sell.elektrix.in"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-200 bg-white text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors"
+                >
+                  <Store className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Seller Central</span>
+                </a>
+                <a
+                  href="https://elektrix.in"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-200 bg-white text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-neutral-400" />
+                  <span>Live Storefront</span>
+                </a>
                 <NotificationBell />
-                <Link href="/profile" className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-neutral-50 transition-colors">
-                  <div className="w-8 h-8 rounded-full bg-neutral-950 flex items-center justify-center text-white text-sm font-bold shadow-md">
+                <Link href="/profile" className="flex items-center gap-2.5 p-1 rounded-lg hover:bg-neutral-50 transition-colors">
+                  <div className="w-7 h-7 rounded-full bg-neutral-950 flex items-center justify-center text-white text-xs font-bold">
                     {userInitial}
                   </div>
-                  <span className="text-sm font-medium text-neutral-700 hidden sm:block">
+                  <span className="text-xs font-medium text-neutral-700 hidden sm:block max-w-[120px] truncate">
                     {userName}
                   </span>
                 </Link>

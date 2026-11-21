@@ -72,17 +72,14 @@ function LoginForm() {
 
   return (
     <motion.div
-      className="relative overflow-hidden rounded-2xl bg-neutral-900/80 backdrop-blur-xl border border-neutral-800 shadow-2xl p-8 sm:p-10"
+      className="relative overflow-hidden rounded-2xl bg-neutral-900 border border-neutral-800 shadow-2xl p-8 sm:p-10"
       variants={itemVariants}
     >
-      {/* Top accent */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600" />
-
       {/* Header */}
       <FadeIn direction="up" delay={0.1} className="text-center mb-8 flex flex-col items-center">
-        <BrandLogo variant="icon" size={56} className="mb-4" />
-        <h1 className="text-3xl font-bold tracking-tight text-white">{BRAND_CONFIG.name}</h1>
-        <p className="mt-2 text-neutral-400 text-sm">{BRAND_CONFIG.tagline}</p>
+        <BrandLogo variant="icon" size={48} className="mb-3" />
+        <h1 className="text-2xl font-bold tracking-tight text-white">{BRAND_CONFIG.name} Admin Console</h1>
+        <p className="mt-1 text-neutral-400 text-xs">Operations, Marketplace Governance & Store Management</p>
       </FadeIn>
 
       {/* Error Message */}

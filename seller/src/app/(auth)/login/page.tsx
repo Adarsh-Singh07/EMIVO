@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Store, Mail, Lock, KeyRound, ArrowRight, ShieldCheck, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, KeyRound, ArrowRight, ShieldCheck, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { apiClient, ApiError, authStorage } from "@/lib/api-client";
+import { BrandLogo } from "@/components/branding/BrandLogo";
 import { toast } from "sonner";
 
 export default function SellerLoginPage() {
@@ -134,14 +135,9 @@ export default function SellerLoginPage() {
     <div className="min-h-screen bg-neutral-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 text-neutral-100 relative">
       <div className="sm:mx-auto sm:w-full sm:max-w-md px-4">
         {/* Brand Header */}
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-neutral-900 border border-neutral-800 text-amber-500 shadow-sm mb-4">
-            <Store className="w-7 h-7" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
-            ELEKTRIX Seller Central
-          </h1>
-          <p className="mt-1 text-xs text-neutral-400">
+        <div className="text-center flex flex-col items-center">
+          <BrandLogo size={44} subtitle="SELLER CENTRAL" className="mb-3" />
+          <p className="text-xs text-neutral-400">
             Marketplace Merchant Portal & Fulfillment Management
           </p>
         </div>
