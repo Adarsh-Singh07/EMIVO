@@ -103,11 +103,11 @@ function NotificationBell() {
   const load = useCallback(async () => {
     try {
       const data = await apiClient.get<{ items?: ActivityItem[] }>("/admin/activity?limit=15");
-      const list = data?.items || [];
+      const list = Array.isArray(data?.items) ? data.items : [];
       setItems(list);
-      const seen = localStorage.getItem("admin_activity_seen");
+      const seen = typeof window !== "undefined" ? localStorage.getItem("admin_activity_seen") : null;
       const seenTs = seen ? Date.parse(seen) : 0;
-      setUnread(list.filter((i) => Date.parse(i.at) > seenTs).length);
+      setUnread(list.filter((i) => i?.at && Date.parse(i.at) > seenTs).length);
     } catch {
       // Non-critical; leave the bell quiet when unavailable.
     }

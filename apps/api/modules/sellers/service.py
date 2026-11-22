@@ -843,23 +843,35 @@ class SellerService:
         cid = str(uuid.uuid4())
         store_bid = (await self.session.execute(text("SELECT id FROM businesses WHERE name = 'ELEKTRIX' LIMIT 1"))).scalar() or seller_id
 
+        # Master Seller (Apana Enterprises) bypasses approval workflow
+        is_master = False
+        seller_row = (await self.session.execute(
+            text("SELECT email, business_name FROM sellers WHERE id = :sid"),
+            {"sid": seller_id},
+        )).fetchone()
+        if seller_row and (seller_row[0] == "admin@elektrix.in" or "Apana" in (seller_row[1] or "")):
+            is_master = True
+
+        init_status = "APPROVED" if is_master else "PENDING_APPROVAL"
+
         await self.session.execute(text("""
             INSERT INTO categories (id, business_id, name, slug, parent_id, status, requested_by_seller_id)
-            VALUES (:id, :bid, :name, :slug, :pid, 'PENDING_APPROVAL', :sid);
+            VALUES (:id, :bid, :name, :slug, :pid, :st, :sid);
         """), {
             "id": cid,
             "bid": store_bid,
             "name": formatted_name,
             "slug": slug,
             "pid": data.parent_id,
+            "st": init_status,
             "sid": seller_id,
         })
         await self.session.commit()
         return {
             "id": cid,
             "name": formatted_name,
-            "status": "PENDING_APPROVAL",
-            "message": "Category submitted for Admin review",
+            "status": init_status,
+            "message": "Category created and auto-approved for Master Seller" if is_master else "Category submitted for Admin review",
         }
 
     async def list_pending_categories(self) -> List[CategoryApprovalItem]:
@@ -1140,6 +1152,7 @@ class SellerService:
     async def run_ai_catalog_deduplication(self) -> Dict[str, Any]:
         """Scans catalog products, finds candidate duplicate pairs, evaluates
         with Gemini/100MillionSeek AI, and saves to catalog_duplicate_candidates."""
+        import asyncio
         import uuid
 
         candidates_found = 0
@@ -1160,9 +1173,13 @@ class SellerService:
             res = await self.session.execute(query)
             prods = [dict(r) for r in res.mappings().all()]
 
-            # Pairwise comparison
+            # Pairwise comparison with strict heuristics & bounded AI evaluation
+            ai_calls = 0
             for i in range(len(prods)):
                 for j in range(i + 1, len(prods)):
+                    if ai_calls >= 8:
+                        break
+
                     p1 = prods[i]
                     p2 = prods[j]
 
@@ -1179,33 +1196,47 @@ class SellerService:
                         if exists:
                             continue
 
-                        # Heuristic filter: token overlap or brand match
+                        # High-confidence heuristic filter: token overlap >= 60% or (same brand and >= 50%)
                         name1_words = set(re.findall(r"\w+", p1["name"].lower()))
                         name2_words = set(re.findall(r"\w+", p2["name"].lower()))
                         overlap = len(name1_words & name2_words) / max(len(name1_words | name2_words), 1)
 
                         same_brand = bool(p1.get("brand") and p2.get("brand") and p1["brand"].lower() == p2["brand"].lower())
 
-                        if overlap >= 0.40 or (same_brand and overlap >= 0.25):
-                            # Invoke AI Gateway to analyze
-                            eval_res = await AIGateway.detect_duplicate_pair(
-                                {
-                                    "id": str(p1["id"]),
-                                    "name": p1["name"],
-                                    "brand": p1.get("brand"),
-                                    "category_name": p1.get("category_name"),
-                                    "price_rupees": p1["price"] // 100 if p1["price"] > 10000 else p1["price"],
-                                    "order_count": p1.get("order_count") or 0,
-                                },
-                                {
-                                    "id": str(p2["id"]),
-                                    "name": p2["name"],
-                                    "brand": p2.get("brand"),
-                                    "category_name": p2.get("category_name"),
-                                    "price_rupees": p2["price"] // 100 if p2["price"] > 10000 else p2["price"],
-                                    "order_count": p2.get("order_count") or 0,
-                                },
-                            )
+                        if overlap >= 0.60 or (same_brand and overlap >= 0.50):
+                            ai_calls += 1
+                            # Invoke AI Gateway to analyze with 8s timeout
+                            try:
+                                eval_res = await asyncio.wait_for(
+                                    AIGateway.detect_duplicate_pair(
+                                        {
+                                            "id": str(p1["id"]),
+                                            "name": p1["name"],
+                                            "brand": p1.get("brand"),
+                                            "category_name": p1.get("category_name"),
+                                            "price_rupees": p1["price"] // 100 if p1["price"] > 10000 else p1["price"],
+                                            "order_count": p1.get("order_count") or 0,
+                                        },
+                                        {
+                                            "id": str(p2["id"]),
+                                            "name": p2["name"],
+                                            "brand": p2.get("brand"),
+                                            "category_name": p2.get("category_name"),
+                                            "price_rupees": p2["price"] // 100 if p2["price"] > 10000 else p2["price"],
+                                            "order_count": p2.get("order_count") or 0,
+                                        },
+                                    ),
+                                    timeout=8.0,
+                                )
+                            except Exception as ai_timeout_or_err:
+                                logger.warning("AI deduplication call timed out or failed: %s, using heuristic", ai_timeout_or_err)
+                                eval_res = {
+                                    "is_duplicate": overlap >= 0.75,
+                                    "confidence_score": int(overlap * 100),
+                                    "suggested_master_id": str(p1["id"]) if (p1.get("order_count") or 0) >= (p2.get("order_count") or 0) else str(p2["id"]),
+                                    "reason": f"High lexical title overlap ({int(overlap*100)}%) with identical brand.",
+                                    "suggested_clean_title": p1["name"],
+                                }
 
                             if eval_res.get("is_duplicate") and eval_res.get("confidence_score", 0) >= 70:
                                 cid = str(uuid.uuid4())
@@ -1222,11 +1253,11 @@ class SellerService:
                                     "id": cid,
                                     "pa": str(p1["id"]),
                                     "pb": str(p2["id"]),
-                                    "master": eval_res.get("suggested_master_id"),
+                                    "master": eval_res.get("suggested_master_id") or str(p1["id"]),
                                     "sim": int(overlap * 100),
                                     "conf": eval_res.get("confidence_score", 85),
                                     "reason": eval_res.get("reason"),
-                                    "title": eval_res.get("suggested_clean_title"),
+                                    "title": eval_res.get("suggested_clean_title") or p1["name"],
                                 })
                                 candidates_found += 1
                     except Exception as pair_err:
