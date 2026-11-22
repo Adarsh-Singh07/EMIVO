@@ -68,14 +68,15 @@ export default function SellerProductsPage() {
   }, [loadProducts]);
 
   const filtered = useMemo(() => {
+    const list = Array.isArray(products) ? products : [];
     const q = search.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
+    if (!q) return list;
+    return list.filter(
       (p) =>
-        p.name.toLowerCase().includes(q) ||
-        (p.sku || "").toLowerCase().includes(q) ||
-        (p.brand || "").toLowerCase().includes(q) ||
-        (p.category_name || "").toLowerCase().includes(q)
+        (p?.name || "").toLowerCase().includes(q) ||
+        (p?.sku || "").toLowerCase().includes(q) ||
+        (p?.brand || "").toLowerCase().includes(q) ||
+        (p?.category_name || "").toLowerCase().includes(q)
     );
   }, [products, search]);
 
@@ -185,13 +186,13 @@ export default function SellerProductsPage() {
       )}
 
       {/* Products Table */}
-      {loading && products.length === 0 ? (
+      {loading && (products || []).length === 0 ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="h-16 animate-pulse rounded-lg border border-neutral-200 bg-white" />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : (filtered || []).length === 0 ? (
         <div className="rounded-xl border border-dashed border-neutral-300 bg-white p-12 text-center">
           <Layers className="w-9 h-9 text-neutral-400 mx-auto mb-2" />
           <h3 className="text-sm font-bold text-neutral-900">No products found</h3>
@@ -222,9 +223,9 @@ export default function SellerProductsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
-                {filtered.map((product) => {
+                {(filtered || []).map((product) => {
                   const isEditing = editingId === product.id;
-                  const thumb = product.images && product.images[0];
+                  const thumb = Array.isArray(product.images) && product.images[0];
 
                   return (
                     <tr key={product.id} className="hover:bg-neutral-50/70 transition-colors">

@@ -2,8 +2,10 @@ import secrets
 import json
 import hashlib
 import re
+import logging
 from datetime import datetime, timedelta, timezone
 
+import httpx
 from jose import jwt
 from passlib.hash import argon2
 from sqlalchemy import func, select, text
@@ -14,6 +16,8 @@ from core.exceptions import DomainException
 from core.redis import redis_manager
 from modules.auth.schemas import TokenResponse, UserCreate, UserLogin
 from modules.users.models import User, BusinessMember, RoleType
+
+logger = logging.getLogger(__name__)
 
 
 class AuthService:
@@ -586,6 +590,8 @@ class AuthService:
                                     msg91_verified = True
                                 else:
                                     msg91_verified = True
+                                if not phone and verified_val and any(c.isdigit() for c in verified_val):
+                                    phone = verified_val
                 except Exception as exc:
                     logger.warning("MSG91 verifyAccessToken error: %s", exc)
 

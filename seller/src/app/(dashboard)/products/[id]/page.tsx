@@ -86,8 +86,8 @@ export default function EditProductPage() {
         setDescription(prod.description || "");
         setWarrantyInfo(prod.warranty_info || "1 Year Manufacturer Domestic Warranty");
         setReturnPolicy(prod.return_policy || "7 Days Replacement Only");
-        setImages(prod.images || []);
-        setSpecs(prod.specs && prod.specs.length > 0 ? prod.specs : [{ name: "Brand", value: prod.brand || "" }]);
+        setImages(Array.isArray(prod.images) ? prod.images : []);
+        setSpecs(Array.isArray(prod.specs) && prod.specs.length > 0 ? prod.specs : [{ name: "Brand", value: prod.brand || "" }]);
 
         if (prod.parent_category_id) {
           setSelectedMainCatId(prod.parent_category_id);
@@ -106,9 +106,9 @@ export default function EditProductPage() {
   }, [productId, router]);
 
   const availableSubcategories = useMemo(() => {
-    if (!selectedMainCatId) return [];
-    const mainCat = categories.find((c) => c.id === selectedMainCatId);
-    return mainCat?.children || [];
+    if (!selectedMainCatId || !Array.isArray(categories)) return [];
+    const mainCat = categories.find((c) => c && c.id === selectedMainCatId);
+    return Array.isArray(mainCat?.children) ? mainCat.children : [];
   }, [categories, selectedMainCatId]);
 
   const handleGenerateAI = async () => {
@@ -135,7 +135,18 @@ export default function EditProductPage() {
       if (res.description_html) setDescription(res.description_html);
       if (res.warranty_info) setWarrantyInfo(res.warranty_info);
       if (res.return_policy) setReturnPolicy(res.return_policy);
-      if (res.specs && Array.isArray(res.specs) && res.specs.length > 0) setSpecs(res.specs);
+      if (res.specs && Array.isArray(res.specs)) {
+        const cleanSpecs = res.specs
+          .filter(Boolean)
+          .map((s: any) => ({
+            name: String(s?.name || s?.key || s?.attribute || "").trim(),
+            value: String(s?.value || s?.val || "").trim(),
+          }))
+          .filter((s) => s.name && s.value);
+        if (cleanSpecs.length > 0) {
+          setSpecs(cleanSpecs);
+        }
+      }
 
       toast.success("AI generated updated title, HTML description, specs & warranty!");
     } catch {
@@ -188,7 +199,9 @@ export default function EditProductPage() {
     }
 
     const finalCategoryId = selectedSubCatId || selectedMainCatId || null;
-    const filteredSpecs = specs.filter((s) => s.name.trim() && s.value.trim());
+    const filteredSpecs = (specs || [])
+      .filter((s) => s && (s.name || "").trim() && (s.value || "").trim())
+      .map((s) => ({ name: s.name.trim(), value: s.value.trim() }));
 
     setSaving(true);
     try {
@@ -204,7 +217,7 @@ export default function EditProductPage() {
         warranty_info: warrantyInfo.trim() || undefined,
         return_policy: returnPolicy.trim() || undefined,
         specs: filteredSpecs,
-        images: images,
+        images: images || [],
       });
 
       toast.success("Product details and inventory updated successfully!");
@@ -304,7 +317,7 @@ export default function EditProductPage() {
                 className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
               >
                 <option value="">-- Choose Category --</option>
-                {categories.map((c) => (
+                {(categories || []).map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
@@ -317,13 +330,13 @@ export default function EditProductPage() {
               <select
                 value={selectedSubCatId}
                 onChange={(e) => setSelectedSubCatId(e.target.value)}
-                disabled={!selectedMainCatId || availableSubcategories.length === 0}
+                disabled={!selectedMainCatId || (availableSubcategories || []).length === 0}
                 className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 disabled:bg-neutral-50"
               >
                 <option value="">
-                  {availableSubcategories.length > 0 ? "-- Choose Subcategory --" : "-- None --"}
+                  {(availableSubcategories || []).length > 0 ? "-- Choose Subcategory --" : "-- None --"}
                 </option>
-                {availableSubcategories.map((sub) => (
+                {(availableSubcategories || []).map((sub) => (
                   <option key={sub.id} value={sub.id}>
                     {sub.name}
                   </option>
@@ -414,9 +427,9 @@ export default function EditProductPage() {
             </button>
           </div>
 
-          {images.length > 0 && (
+          {(images || []).length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-              {images.map((imgUrl, idx) => (
+              {(images || []).map((imgUrl, idx) => (
                 <div
                   key={idx}
                   className="rounded-xl border border-neutral-200 bg-neutral-50 p-2 overflow-hidden flex flex-col items-center"
@@ -493,7 +506,7 @@ export default function EditProductPage() {
               </button>
             </div>
 
-            {specs.map((spec, idx) => (
+            {(specs || []).map((spec, idx) => (
               <div key={idx} className="flex items-center gap-2.5">
                 <input
                   type="text"
@@ -509,7 +522,7 @@ export default function EditProductPage() {
                   placeholder="Value"
                   className="flex-1 rounded-xl border border-neutral-200 px-3 py-1.5 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                 />
-                {specs.length > 1 && (
+                {(specs || []).length > 1 && (
                   <button
                     type="button"
                     onClick={() => handleRemoveSpec(idx)}

@@ -63,14 +63,15 @@ export default function SellerOrdersPage() {
   }, [loadOrders]);
 
   const filtered = useMemo(() => {
-    return orders.filter((o) => {
+    const list = Array.isArray(orders) ? orders : [];
+    return list.filter((o) => {
       if (statusFilter !== "ALL" && o.fulfillment_status !== statusFilter) {
         return false;
       }
       if (!search.trim()) return true;
       const q = search.trim().toLowerCase();
       return (
-        o.product_name.toLowerCase().includes(q) ||
+        (o.product_name || "").toLowerCase().includes(q) ||
         (o.order_number || "").toLowerCase().includes(q) ||
         (o.customer_city || "").toLowerCase().includes(q) ||
         (o.customer_pincode || "").includes(q)
@@ -162,13 +163,13 @@ export default function SellerOrdersPage() {
       )}
 
       {/* Orders Table */}
-      {loading && orders.length === 0 ? (
+      {loading && (orders || []).length === 0 ? (
         <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-16 animate-pulse rounded-lg border border-neutral-200 bg-white" />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : (filtered || []).length === 0 ? (
         <div className="rounded-xl border border-dashed border-neutral-300 bg-white p-12 text-center">
           <Box className="w-9 h-9 text-neutral-400 mx-auto mb-2" />
           <h3 className="text-sm font-bold text-neutral-900">No orders found</h3>
@@ -194,7 +195,7 @@ export default function SellerOrdersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
-                {filtered.map((item) => {
+                {(filtered || []).map((item) => {
                   const isPending = item.fulfillment_status === "PENDING";
                   const isBusy = packingItemId === item.item_id;
 

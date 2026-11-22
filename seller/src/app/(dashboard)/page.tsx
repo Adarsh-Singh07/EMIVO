@@ -112,7 +112,7 @@ export default function SellerDashboardPage() {
               className="inline-flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3.5 py-2 text-xs font-semibold text-neutral-800 hover:bg-neutral-50 transition-colors"
             >
               <ShoppingCart className="w-3.5 h-3.5 text-neutral-500" />
-              <span>Orders to Pack ({pendingOrders.length})</span>
+              <span>Orders to Pack ({(pendingOrders || []).length})</span>
             </Link>
           </div>
         </div>
@@ -128,7 +128,7 @@ export default function SellerDashboardPage() {
             <Package className="w-4 h-4 text-neutral-400" />
           </div>
           <p className="mt-2 text-2xl font-bold tracking-tight text-neutral-900">
-            {loading ? "0" : products.length}
+            {loading ? "0" : (products || []).length}
           </p>
           <p className="mt-0.5 text-xs text-neutral-400">Products active in Elektrix catalog</p>
         </div>
@@ -154,7 +154,7 @@ export default function SellerDashboardPage() {
             <ShoppingCart className="w-4 h-4 text-amber-500" />
           </div>
           <p className="mt-2 text-2xl font-bold tracking-tight text-neutral-900">
-            {loading ? "0" : pendingOrders.length}
+            {loading ? "0" : (pendingOrders || []).length}
           </p>
           <p className="mt-0.5 text-xs text-neutral-400">Awaiting packaging for pickup</p>
         </div>
@@ -198,14 +198,14 @@ export default function SellerDashboardPage() {
           <div className="p-4 flex-1 divide-y divide-neutral-100">
             {loading ? (
               <p className="text-xs text-neutral-400 py-6 text-center">Loading orders...</p>
-            ) : pendingOrders.length === 0 ? (
+            ) : (pendingOrders || []).length === 0 ? (
               <div className="py-8 text-center text-neutral-400">
                 <CheckCircle2 className="w-7 h-7 text-emerald-500 mx-auto mb-1.5" />
                 <p className="text-sm font-medium text-neutral-800">All orders are packed and up to date</p>
                 <p className="text-xs text-neutral-400 mt-0.5">New purchases from customers will appear here automatically.</p>
               </div>
             ) : (
-              pendingOrders.slice(0, 5).map((ord) => (
+              (pendingOrders || []).slice(0, 5).map((ord) => (
                 <div key={ord.item_id} className="py-3 flex items-center justify-between">
                   <div className="min-w-0 pr-4">
                     <p className="text-xs font-semibold text-neutral-900 truncate">{ord.product_name}</p>
@@ -240,7 +240,7 @@ export default function SellerDashboardPage() {
           <div className="p-4 flex-1">
             {loading ? (
               <p className="text-xs text-neutral-400 py-6 text-center">Loading inventory...</p>
-            ) : products.length === 0 ? (
+            ) : (products || []).length === 0 ? (
               <div className="py-8 text-center text-neutral-400">
                 <Store className="w-7 h-7 text-neutral-400 mx-auto mb-1.5" />
                 <p className="text-sm font-medium text-neutral-800">No active products in inventory</p>
@@ -255,14 +255,14 @@ export default function SellerDashboardPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {lowStockProducts.length > 0 && (
+                {(lowStockProducts || []).length > 0 && (
                   <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 text-xs text-amber-900 flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>{lowStockProducts.length} product(s) are low on stock (5 units or fewer).</span>
+                    <span>{(lowStockProducts || []).length} product(s) are low on stock (5 units or fewer).</span>
                   </div>
                 )}
                 <div className="divide-y divide-neutral-100">
-                  {products.slice(0, 5).map((prod) => (
+                  {(products || []).slice(0, 5).map((prod) => (
                     <div key={prod.id} className="py-2.5 flex items-center justify-between">
                       <div className="min-w-0 pr-4">
                         <p className="text-xs font-semibold text-neutral-900 truncate">{prod.name}</p>

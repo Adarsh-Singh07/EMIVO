@@ -235,7 +235,7 @@ export default function AddProductPage() {
       const b = encodeURIComponent(brandFilter.trim());
       const data = await apiClient.get<CatalogMatchItem[]>(`/seller/catalog/search?q=${q}&brand=${b}`);
       setCatalogResults(Array.isArray(data) ? data : []);
-      if (!data || data.length === 0) {
+      if (!Array.isArray(data) || data.length === 0) {
         toast.info("No matching products found in catalog. You can create a new listing below.");
       }
     } catch (err) {

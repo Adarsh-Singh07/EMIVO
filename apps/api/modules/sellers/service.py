@@ -300,7 +300,7 @@ class SellerService:
                 settings = jsonb_set(
                     coalesce(settings, '{}'::jsonb), 
                     '{city}', 
-                    to_jsonb(:city::text)
+                    to_jsonb(CAST(:city AS text))
                 )
             WHERE id = :sid
         """), {
@@ -386,9 +386,20 @@ class SellerService:
 
         items = []
         for r in rows:
+            raw_specs = r.get("specs")
+            parsed_specs = []
+            if isinstance(raw_specs, list):
+                parsed_specs = raw_specs
+            elif isinstance(raw_specs, str):
+                try:
+                    parsed_specs = json.loads(raw_specs)
+                except Exception:
+                    parsed_specs = []
+
+            pid_str = str(r["id"])
             items.append(
                 SellerProductItem(
-                    id=str(r["id"]),
+                    id=pid_str,
                     name=r["name"],
                     slug=r.get("slug"),
                     sku=r.get("sku"),
@@ -404,8 +415,8 @@ class SellerService:
                     description=r.get("description"),
                     warranty_info=r.get("warranty_info"),
                     return_policy=r.get("return_policy"),
-                    specs=r.get("specs") or [],
-                    images=img_map.get(r["id"], []),
+                    specs=parsed_specs,
+                    images=img_map.get(pid_str, img_map.get(r["id"], [])),
                     created_at=r.get("created_at"),
                 )
             )
@@ -438,6 +449,16 @@ class SellerService:
         )
         images = [img[0] for img in img_res]
 
+        raw_specs = row.get("specs")
+        parsed_specs = []
+        if isinstance(raw_specs, list):
+            parsed_specs = raw_specs
+        elif isinstance(raw_specs, str):
+            try:
+                parsed_specs = json.loads(raw_specs)
+            except Exception:
+                parsed_specs = []
+
         return {
             "id": str(row["id"]),
             "name": row["name"],
@@ -456,7 +477,7 @@ class SellerService:
             "description": row.get("description"),
             "warranty_info": row.get("warranty_info"),
             "return_policy": row.get("return_policy"),
-            "specs": row.get("specs") or [],
+            "specs": parsed_specs,
             "images": images,
         }
 
@@ -850,8 +871,18 @@ class SellerService:
             updates.append("return_policy = :return_policy")
             params["return_policy"] = data.return_policy
         if data.specs is not None:
-            updates.append("specs = :specs::jsonb")
-            params["specs"] = json.dumps(data.specs)
+            cleaned_specs = []
+            for s in data.specs:
+                if isinstance(s, dict):
+                    k = str(s.get("name") or s.get("key") or "").strip()
+                    v = str(s.get("value") or s.get("val") or "").strip()
+                else:
+                    k = str(getattr(s, "name", "")).strip()
+                    v = str(getattr(s, "value", "")).strip()
+                if k and v:
+                    cleaned_specs.append({"name": k, "value": v})
+            updates.append("specs = CAST(:specs AS json)")
+            params["specs"] = json.dumps(cleaned_specs)
 
         if updates:
             sql = f"UPDATE products SET {', '.join(updates)}, updated_at = NOW() WHERE id = :pid"
