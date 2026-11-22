@@ -16,11 +16,14 @@ class SellerResponse(BaseModel):
     id: str
     name: str
     business_name: str
+    contact_person: Optional[str] = None
     email: str
     phone: Optional[str] = None
     city: Optional[str] = None
+    state: Optional[str] = None
     pincode: Optional[str] = None
     address: Optional[str] = None
+    address_line2: Optional[str] = None
     gstin: Optional[str] = None
     status: str
     rating: float
@@ -38,10 +41,27 @@ class SellerCreateAdmin(BaseModel):
     address: Optional[str] = None
     gstin: Optional[str] = None
     commission_rate: Optional[float] = 0.0
+    password: Optional[str] = None
+    must_change_password: Optional[bool] = True
+
+
+class SellerAdminUpdate(BaseModel):
+    name: Optional[str] = None
+    business_name: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    pincode: Optional[str] = None
+    address: Optional[str] = None
+    address_line2: Optional[str] = None
+    gstin: Optional[str] = None
+    commission_rate: Optional[float] = None
+    status: Optional[str] = None
 
 
 class SellerStatusUpdate(BaseModel):
-    status: str  # ACTIVE or SUSPENDED
+    status: str  # ACTIVE, SUSPENDED, or ARCHIVED
 
 
 class SellerProductItem(BaseModel):

@@ -44,7 +44,7 @@ class AIGateway:
             "Given product inputs, generate clean, production-ready product details formatted for storefront display.\n\n"
             "Return ONLY a valid JSON object with the following exact keys:\n"
             "{\n"
-            '  "title": "Clean, standardized title in Title Case: [Brand] [Model/Name] ([Key Specs/Color/Capacity]) [Product Type]",\n'
+            '  "title": "Clean, standardized title in Title Case: [Brand] [Model/Name] ([Key Specs/Color/Capacity]). IMPORTANT: NEVER append redundant product category names or generic product words at the end (e.g. NEVER add \'Smartphone\', \'Mobile Phone\', \'Phone\', \'Laptop\', \'Item\'). Example: \'Apple iPhone 17 Pro (Titanium, 256 GB)\' - NEVER \'Apple iPhone 17 Pro Smartphone\'",\n'
             '  "description_html": "Rich, professional e-commerce HTML with <h2>Overview</h2><p>...</p><h3>Key Features</h3><ul><li><strong>Feature:</strong> Details</li>...</ul><h3>In The Box</h3><ul><li>...</li></ul> (DO NOT use markdown asterisks or backticks; use clean HTML tags only)",\n'
             '  "specs": [\n'
             '    {"name": "Color", "value": "Midnight Black"},\n'
@@ -311,6 +311,11 @@ class AIGateway:
     @classmethod
     def _normalize_product_result(cls, data: Dict[str, Any], orig_name: str, brand: str) -> Dict[str, Any]:
         title = data.get("title") or orig_name
+
+        # Strip redundant trailing product category words like "Smartphone", "Phone", "Mobile Phone"
+        import re
+        title = re.sub(r"(?i)\s+(?:Smartphone|Mobile Phone|Cell Phone)\b", "", title).strip()
+
         desc_html = data.get("description_html") or data.get("description") or ""
 
         # Remove markdown asterisks if any remain

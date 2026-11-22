@@ -15,6 +15,7 @@ from modules.sellers.schemas import (
     CategorySuggestion,
     DuplicateCandidateItem,
     DuplicateMergeRequest,
+    SellerAdminUpdate,
     SellerAttachOffer,
     SellerCreateAdmin,
     SellerOrderItem,
@@ -243,10 +244,8 @@ async def mark_item_packed(
 
 @router.get("/api/v1/seller/categories")
 async def get_seller_categories(service: SellerService = Depends(_get_service)):
-    # Return all approved categories in tree structure
-    from modules.storefront.catalog import CatalogService
-    cat_service = CatalogService(service.session)
-    return await cat_service.categories()
+    # Return all approved categories in hierarchical tree structure
+    return await service.get_categories_tree()
 
 
 @router.post("/api/v1/seller/categories/suggest")
@@ -270,6 +269,23 @@ async def admin_list_sellers(service: SellerService = Depends(_get_service)):
 @router.post("/api/v1/admin/sellers", status_code=status.HTTP_201_CREATED)
 async def admin_create_seller(data: SellerCreateAdmin, service: SellerService = Depends(_get_service)):
     return await service.create_seller_by_admin(data)
+
+
+@router.put("/api/v1/admin/sellers/{seller_id}")
+async def admin_update_seller(
+    seller_id: str,
+    data: SellerAdminUpdate,
+    service: SellerService = Depends(_get_service),
+):
+    return await service.admin_update_seller(seller_id, data)
+
+
+@router.delete("/api/v1/admin/sellers/{seller_id}")
+async def admin_delete_seller(
+    seller_id: str,
+    service: SellerService = Depends(_get_service),
+):
+    return await service.admin_delete_seller(seller_id)
 
 
 @router.put("/api/v1/admin/sellers/{seller_id}/status")

@@ -167,9 +167,17 @@ export default function SellerDashboardPage() {
             <Star className="w-4 h-4 fill-amber-400 text-amber-500" />
           </div>
           <p className="mt-2 text-2xl font-bold tracking-tight text-neutral-900">
-            4.9 / 5.0
+            {(() => {
+              const s = authStorage.getSeller() as any;
+              return (s?.rating && s?.rating_count > 0) ? `${Number(s.rating).toFixed(1)} / 5.0` : "New Seller";
+            })()}
           </p>
-          <p className="mt-0.5 text-xs text-emerald-600 font-medium">Standard Compliance Passed</p>
+          <p className="mt-0.5 text-xs text-neutral-500 font-medium">
+            {(() => {
+              const s = authStorage.getSeller() as any;
+              return (s?.rating && s?.rating_count > 0) ? `${s.rating_count} verified buyer ratings` : "No buyer ratings yet";
+            })()}
+          </p>
         </div>
       </div>
 

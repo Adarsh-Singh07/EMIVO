@@ -62,6 +62,23 @@ function toTitleCase(str: string): string {
     .join(" ");
 }
 
+function estimateTransitDays(pin?: string | null): number {
+  if (!pin) return 3;
+  const cleanPin = pin.trim().replace(/\D/g, "");
+  if (cleanPin.length < 2) return 3;
+  const prefix2 = cleanPin.slice(0, 2);
+  // Major Metros (Delhi 11, Mumbai 40, Pune 41, Bengaluru 56, Chennai 60, Kolkata 70, Hyderabad 50, Ahmedabad 38)
+  if (["11", "40", "41", "56", "60", "70", "50", "38"].includes(prefix2)) {
+    return 2;
+  }
+  // Remote/Hill/Northeast (J&K 18, 19, NE 79, Andaman 74)
+  if (["18", "19", "79", "74"].includes(prefix2)) {
+    return 5;
+  }
+  // Regional Standard
+  return 3;
+}
+
 export default function AddProductPage() {
   const router = useRouter();
 
@@ -85,6 +102,11 @@ export default function AddProductPage() {
   const [offerDeliveryDays, setOfferDeliveryDays] = useState("3");
   const [offerSku, setOfferSku] = useState("");
   const [submittingOffer, setSubmittingOffer] = useState(false);
+
+  // Warehouse Details & Auto-Estimated Transit Days
+  const [warehousePincode, setWarehousePincode] = useState<string>("");
+  const [warehouseCity, setWarehouseCity] = useState<string>("");
+  const [estimatedTransitDays, setEstimatedTransitDays] = useState<number>(3);
 
   // ---------------------------------------------------------------------------
   // MODE 2: Create New Master Product
@@ -126,6 +148,26 @@ export default function AddProductPage() {
   const [suggesting, setSuggesting] = useState(false);
 
   const [submittingProduct, setSubmittingProduct] = useState(false);
+
+  // Load seller profile & warehouse pincode for auto-estimating transit days
+  useEffect(() => {
+    async function fetchSellerProfile() {
+      try {
+        const profile = await apiClient.get<any>("/seller/me");
+        if (profile) {
+          const pin = profile.pincode || "";
+          setWarehousePincode(pin);
+          setWarehouseCity(profile.city || "");
+          const est = estimateTransitDays(pin);
+          setEstimatedTransitDays(est);
+          setOfferDeliveryDays(est.toString());
+        }
+      } catch {
+        // Fallback default
+      }
+    }
+    fetchSellerProfile();
+  }, []);
 
   // Load category tree
   useEffect(() => {
@@ -181,6 +223,7 @@ export default function AddProductPage() {
     setOfferMrp(item.mrp ? (item.mrp / 100).toString() : (item.lowest_offer_price / 100).toString());
     setOfferStock("10");
     setOfferSku("");
+    setOfferDeliveryDays(estimatedTransitDays.toString());
   };
 
   // Submit Offer on Existing Product
@@ -645,17 +688,27 @@ export default function AddProductPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-neutral-700">Transit Days</label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-neutral-700">Transit Days</label>
+                    {warehousePincode && (
+                      <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded font-medium border border-amber-200">
+                        WH {warehousePincode}
+                      </span>
+                    )}
+                  </div>
                   <select
                     value={offerDeliveryDays}
                     onChange={(e) => setOfferDeliveryDays(e.target.value)}
                     className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3 py-2 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                   >
-                    <option value="2">2 Days (Express)</option>
-                    <option value="3">3 Days (Standard)</option>
-                    <option value="5">5 Days</option>
-                    <option value="7">7 Days</option>
+                    <option value="2">2 Days (Express Metro)</option>
+                    <option value="3">3 Days (Standard Regional)</option>
+                    <option value="5">5 Days (National / Extended)</option>
+                    <option value="7">7 Days (Heavy / Bulk)</option>
                   </select>
+                  <p className="mt-1 text-[11px] text-neutral-400">
+                    Auto-selected {estimatedTransitDays} Days from registered warehouse {warehousePincode ? `(${warehousePincode})` : ""}.
+                  </p>
                 </div>
               </div>
 
@@ -745,7 +798,7 @@ export default function AddProductPage() {
                   className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm font-semibold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                 />
                 <p className="mt-1 text-[11px] text-neutral-400">
-                  Standard convention: [Brand] + [Model] + ([Key Specs/Color]) + [Type].
+                  Standard convention: [Brand] + [Model] + ([Key Specs/Color/Capacity]).
                 </p>
               </div>
             </div>

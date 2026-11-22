@@ -28,8 +28,8 @@ class Seller(Base, TimestampMixin):
     gstin: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     commission_rate: Mapped[float] = mapped_column(Numeric(5, 2), default=0.0, nullable=False)
     status: Mapped[str] = mapped_column(String(50), default="ACTIVE", nullable=False)  # ACTIVE, SUSPENDED, PENDING
-    rating: Mapped[float] = mapped_column(Numeric(3, 2), default=4.90, nullable=False)
-    rating_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    rating: Mapped[float] = mapped_column(Numeric(3, 2), default=0.00, nullable=False)
+    rating_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
 
 class CatalogDuplicateCandidate(Base, TimestampMixin):

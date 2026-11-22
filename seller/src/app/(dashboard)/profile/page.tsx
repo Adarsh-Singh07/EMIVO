@@ -182,7 +182,9 @@ export default function SellerProfilePage() {
             </span>
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
               <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-              {Number(profile.rating || 4.9).toFixed(1)} / 5.0 Rating
+              {profile.rating > 0 && (profile.rating_count || 0) > 0
+                ? `${Number(profile.rating).toFixed(1)} / 5.0 Rating`
+                : "New Seller"}
             </span>
           </div>
         </div>

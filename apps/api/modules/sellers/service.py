@@ -20,6 +20,7 @@ from modules.sellers.schemas import (
     CategoryApprovalItem,
     CategorySuggestion,
     DuplicateCandidateItem,
+    SellerAdminUpdate,
     SellerAttachOffer,
     SellerCreateAdmin,
     SellerOrderItem,
@@ -28,6 +29,7 @@ from modules.sellers.schemas import (
     SellerProductUpdate,
     SellerProfileUpdate,
     SellerResponse,
+    SellerStatusUpdate,
 )
 
 
@@ -504,13 +506,21 @@ class SellerService:
         price_paise = data.price * 100 if data.price < 500000 else data.price
         mrp_paise = (data.mrp * 100) if (data.mrp and data.mrp < 500000) else (data.mrp or price_paise)
 
+        # Get seller's current real rating & count
+        s_row = (await self.session.execute(
+            text("SELECT coalesce(rating, 0.00), coalesce(rating_count, 0) FROM sellers WHERE id = :sid"),
+            {"sid": seller_id},
+        )).fetchone()
+        cur_rating = float(s_row[0]) if s_row else 0.0
+        cur_count = int(s_row[1]) if s_row else 0
+
         lid = str(uuid.uuid4())
         await self.session.execute(text("""
             INSERT INTO seller_listings (
                 id, product_id, seller_id, sku, price, mrp, stock, is_active,
                 condition, estimated_delivery_days, rating, rating_count
             )
-            VALUES (:id, :pid, :sid, :sku, :price, :mrp, :stock, TRUE, :cond, :days, 4.90, 1)
+            VALUES (:id, :pid, :sid, :sku, :price, :mrp, :stock, TRUE, :cond, :days, :rating, :rcount)
             ON CONFLICT (seller_id, product_id) DO UPDATE SET
                 price = EXCLUDED.price,
                 mrp = EXCLUDED.mrp,
@@ -529,6 +539,8 @@ class SellerService:
             "stock": data.stock,
             "cond": data.condition or "NEW",
             "days": data.estimated_delivery_days or 3,
+            "rating": cur_rating,
+            "rcount": cur_count,
         })
         await self.session.commit()
         return {"status": "success", "message": f"Added offer for '{prod[1]}' to your inventory!"}
@@ -586,12 +598,19 @@ class SellerService:
         self.session.add(inv)
 
         # Seller listing
+        s_row = (await self.session.execute(
+            text("SELECT coalesce(rating, 0.00), coalesce(rating_count, 0) FROM sellers WHERE id = :sid"),
+            {"sid": seller_id},
+        )).fetchone()
+        cur_rating = float(s_row[0]) if s_row else 0.0
+        cur_count = int(s_row[1]) if s_row else 0
+
         await self.session.execute(text("""
             INSERT INTO seller_listings (
                 id, product_id, seller_id, sku, price, mrp, stock, is_active, 
                 estimated_delivery_days, rating, rating_count
             )
-            VALUES (:id, :pid, :sid, :sku, :price, :mrp, :stock, TRUE, 3, 4.90, 1)
+            VALUES (:id, :pid, :sid, :sku, :price, :mrp, :stock, TRUE, 3, :rating, :rcount)
             ON CONFLICT (seller_id, product_id) DO UPDATE SET
                 price = EXCLUDED.price,
                 stock = EXCLUDED.stock;
@@ -603,6 +622,8 @@ class SellerService:
             "price": price_paise,
             "mrp": mrp_paise,
             "stock": data.stock,
+            "rating": cur_rating,
+            "rcount": cur_count,
         })
 
         # Media
@@ -813,8 +834,44 @@ class SellerService:
         return {"status": "PACKED", "item_id": item_id, "order_id": str(row[1])}
 
     # -------------------------------------------------------------------------
-    # Category Suggestion & Admin Approval Workflow
+    # Category Hierarchy & Suggestions Workflow
     # -------------------------------------------------------------------------
+
+    async def get_categories_tree(self) -> List[Dict[str, Any]]:
+        """Return all approved categories structured as a parent-child tree."""
+        query = text("""
+            SELECT c.id, c.name, c.slug, c.parent_id, c.image_url, c.icon,
+                   (SELECT count(*) FROM products p WHERE p.category_id = c.id AND p.status = 'ACTIVE') AS product_count
+            FROM categories c
+            WHERE (c.status = 'APPROVED' OR c.status IS NULL)
+              AND (c.is_active = TRUE OR c.is_active IS NULL)
+            ORDER BY c.position ASC, c.name ASC;
+        """)
+        res = await self.session.execute(query)
+        rows = res.mappings().all()
+
+        nodes: Dict[str, Dict[str, Any]] = {}
+        for r in rows:
+            cid = str(r["id"])
+            nodes[cid] = {
+                "id": cid,
+                "name": r["name"],
+                "slug": r["slug"],
+                "parent_id": str(r["parent_id"]) if r["parent_id"] else None,
+                "image_url": r.get("image_url"),
+                "icon": r.get("icon"),
+                "product_count": r.get("product_count", 0),
+                "children": [],
+            }
+
+        roots: List[Dict[str, Any]] = []
+        for node in nodes.values():
+            pid = node["parent_id"]
+            if pid and pid in nodes:
+                nodes[pid]["children"].append(node)
+            else:
+                roots.append(node)
+        return roots
 
     async def suggest_category(self, seller_id: str, data: CategorySuggestion) -> Dict[str, Any]:
         import uuid
@@ -928,7 +985,8 @@ class SellerService:
     async def list_sellers_for_admin(self) -> List[Dict[str, Any]]:
         query = text("""
             SELECT 
-                s.id, s.name, s.business_name, s.email, s.phone, s.city, s.pincode,
+                s.id, s.name, s.business_name, s.contact_person, s.email, s.phone,
+                s.city, s.state, s.pincode, s.address, s.address_line2, s.gstin,
                 s.status, s.rating, s.rating_count, s.commission_rate, s.created_at,
                 count(DISTINCT p.id) as product_count,
                 count(DISTINCT oi.id) as order_item_count
@@ -945,16 +1003,21 @@ class SellerService:
                 "id": str(r["id"]),
                 "name": r["name"],
                 "business_name": r["business_name"],
+                "contact_person": r.get("contact_person") or r["name"],
                 "email": r["email"],
                 "phone": r.get("phone"),
                 "city": r.get("city"),
+                "state": r.get("state"),
                 "pincode": r.get("pincode"),
+                "address": r.get("address"),
+                "address_line2": r.get("address_line2"),
+                "gstin": r.get("gstin"),
                 "status": r["status"],
-                "rating": float(r["rating"]),
-                "rating_count": int(r["rating_count"]),
-                "commission_rate": float(r["commission_rate"]),
-                "product_count": int(r["product_count"]),
-                "order_item_count": int(r["order_item_count"]),
+                "rating": float(r["rating"] or 0.0),
+                "rating_count": int(r["rating_count"] or 0),
+                "commission_rate": float(r["commission_rate"] or 0.0),
+                "product_count": int(r["product_count"] or 0),
+                "order_item_count": int(r["order_item_count"] or 0),
                 "created_at": r.get("created_at"),
             }
             for r in rows
@@ -971,12 +1034,21 @@ class SellerService:
         if existing:
             raise DomainException("A seller with this email already exists", code="EMAIL_TAKEN", status_code=409)
 
+        # Generate or use custom password
+        raw_password = (data.password or "").strip()
+        if not raw_password:
+            raw_password = f"Elektrix@{secrets.token_hex(4).upper()}"
+
+        hashed_pwd = argon2.hash(raw_password)
+
         sid = str(uuid.uuid4())
         seller = Seller(
             id=sid,
             name=data.name.strip(),
             business_name=data.business_name.strip(),
+            contact_person=data.name.strip(),
             email=norm_email,
+            password_hash=hashed_pwd,
             phone=data.phone,
             city=data.city,
             pincode=data.pincode,
@@ -984,10 +1056,35 @@ class SellerService:
             gstin=data.gstin,
             commission_rate=data.commission_rate or 0.0,
             status="ACTIVE",
-            rating=4.90,
-            rating_count=1,
+            rating=0.00,
+            rating_count=0,
         )
         self.session.add(seller)
+
+        # Ensure user account exists in users table with hashed_password
+        user_row = (await self.session.execute(
+            text("SELECT id FROM users WHERE lower(email) = :e"),
+            {"e": norm_email},
+        )).fetchone()
+
+        uid = str(user_row[0]) if user_row else str(uuid.uuid4())
+        if not user_row:
+            await self.session.execute(text("""
+                INSERT INTO users (id, email, phone, password_hash, first_name, last_name, is_active, role)
+                VALUES (:uid, :email, :phone, :pwd, :fn, :ln, TRUE, 'SELLER')
+                ON CONFLICT (id) DO NOTHING;
+            """), {
+                "uid": uid,
+                "email": norm_email,
+                "phone": data.phone,
+                "pwd": hashed_pwd,
+                "fn": data.name.strip() or data.business_name.strip(),
+                "ln": "Seller",
+            })
+        else:
+            await self.session.execute(text("""
+                UPDATE users SET password_hash = :pwd WHERE id = :uid
+            """), {"pwd": hashed_pwd, "uid": uid})
 
         # Also add to businesses
         slug = _slugify(data.business_name) + f"-{sid[:4]}"
@@ -1001,8 +1098,33 @@ class SellerService:
             "slug": slug,
             "email": norm_email,
             "phone": data.phone,
-            "settings": json.dumps({"city": data.city or ""}),
+            "settings": json.dumps({"city": data.city or "", "must_change_password": bool(data.must_change_password)}),
         })
+
+        # Map business_member
+        await self.session.execute(text("""
+            INSERT INTO business_members (business_id, user_id, role)
+            VALUES (:bid, :uid, 'owner')
+            ON CONFLICT (business_id, user_id) DO NOTHING;
+        """), {"bid": sid, "uid": uid})
+
+        # Queue welcome email to outbox
+        from core.models import OutboxEvent
+        self.session.add(
+            OutboxEvent(
+                tenant_id=None,
+                type="seller.welcome",
+                payload={
+                    "seller_id": sid,
+                    "email": norm_email,
+                    "business_name": seller.business_name,
+                    "contact_person": seller.name,
+                    "temporary_password": raw_password,
+                    "must_change_password": bool(data.must_change_password),
+                    "login_url": "https://sell.elektrix.in/login",
+                },
+            )
+        )
 
         await self.session.commit()
         return {
@@ -1010,7 +1132,10 @@ class SellerService:
             "business_name": seller.business_name,
             "email": seller.email,
             "status": seller.status,
-            "message": "Seller profile provisioned successfully. Seller can now sign in using Email OTP.",
+            "generated_password": raw_password,
+            "must_change_password": bool(data.must_change_password),
+            "login_url": "https://sell.elektrix.in/login",
+            "message": "Seller profile provisioned successfully. Seller can now sign in using password or Email OTP.",
         }
 
     async def update_seller_status(self, seller_id: str, status: str) -> Dict[str, Any]:
@@ -1019,15 +1144,130 @@ class SellerService:
         if not seller:
             raise DomainException("Seller not found", code="NOT_FOUND", status_code=404)
 
-        seller.status = status.upper()
-        # Also sync business active status
-        is_active = seller.status == "ACTIVE"
+        new_status = status.upper()
+        if new_status not in ("ACTIVE", "SUSPENDED", "ARCHIVED"):
+            raise DomainException(f"Invalid status: {status}. Must be ACTIVE, SUSPENDED, or ARCHIVED.", code="BAD_REQUEST", status_code=400)
+
+        seller.status = new_status
+        is_active = (new_status == "ACTIVE")
         await self.session.execute(
             text("UPDATE businesses SET is_active = :act WHERE id = :sid"),
             {"act": is_active, "sid": seller_id},
         )
+        if new_status in ("SUSPENDED", "ARCHIVED"):
+            await self.session.execute(
+                text("UPDATE seller_listings SET is_active = FALSE WHERE seller_id = :sid"),
+                {"sid": seller_id},
+            )
         await self.session.commit()
         return {"id": seller_id, "status": seller.status}
+
+    async def admin_update_seller(self, seller_id: str, data: SellerAdminUpdate) -> Dict[str, Any]:
+        stmt = select(Seller).where(Seller.id == seller_id)
+        seller = (await self.session.execute(stmt)).scalar_one_or_none()
+        if not seller:
+            raise DomainException("Seller not found", code="NOT_FOUND", status_code=404)
+
+        if data.name is not None:
+            seller.name = data.name.strip()
+        if data.contact_person is not None:
+            seller.contact_person = data.contact_person.strip()
+        elif data.name is not None:
+            seller.contact_person = data.name.strip()
+        if data.business_name is not None:
+            seller.business_name = data.business_name.strip()
+        if data.phone is not None:
+            seller.phone = data.phone.strip() or None
+        if data.city is not None:
+            seller.city = data.city.strip() or None
+        if data.state is not None:
+            seller.state = data.state.strip() or None
+        if data.pincode is not None:
+            seller.pincode = data.pincode.strip() or None
+        if data.address is not None:
+            seller.address = data.address.strip() or None
+        if data.address_line2 is not None:
+            seller.address_line2 = data.address_line2.strip() or None
+        if data.gstin is not None:
+            seller.gstin = data.gstin.strip() or None
+        if data.commission_rate is not None:
+            seller.commission_rate = data.commission_rate
+        if data.status is not None:
+            new_st = data.status.upper()
+            if new_st in ("ACTIVE", "SUSPENDED", "ARCHIVED"):
+                seller.status = new_st
+
+        await self.session.execute(text("""
+            UPDATE businesses 
+            SET name = coalesce(:name, name),
+                contact_phone = coalesce(:phone, contact_phone),
+                is_active = :act
+            WHERE id = :sid
+        """), {
+            "name": seller.business_name,
+            "phone": seller.phone,
+            "act": seller.status == "ACTIVE",
+            "sid": seller_id,
+        })
+
+        await self.session.commit()
+        return {
+            "id": seller_id,
+            "name": seller.name,
+            "business_name": seller.business_name,
+            "contact_person": seller.contact_person,
+            "phone": seller.phone,
+            "city": seller.city,
+            "state": seller.state,
+            "pincode": seller.pincode,
+            "address": seller.address,
+            "address_line2": seller.address_line2,
+            "gstin": seller.gstin,
+            "commission_rate": float(seller.commission_rate),
+            "status": seller.status,
+            "rating": float(seller.rating),
+            "rating_count": seller.rating_count,
+        }
+
+    async def admin_delete_seller(self, seller_id: str) -> Dict[str, Any]:
+        stmt = select(Seller).where(Seller.id == seller_id)
+        seller = (await self.session.execute(stmt)).scalar_one_or_none()
+        if not seller:
+            raise DomainException("Seller not found", code="NOT_FOUND", status_code=404)
+
+        if seller.email == "admin@elektrix.in" or "Apana" in seller.business_name:
+            raise DomainException("Cannot delete primary store owner (Apana Enterprises)", code="FORBIDDEN", status_code=403)
+
+        # 1. Zero out inventory & archive products of this seller
+        await self.session.execute(text("""
+            UPDATE inventory 
+            SET on_hand = 0, reserved = 0 
+            WHERE product_id IN (SELECT id FROM products WHERE seller_id = :sid)
+        """), {"sid": seller_id})
+        await self.session.execute(text("""
+            UPDATE products 
+            SET status = 'ARCHIVED', seller_id = NULL 
+            WHERE seller_id = :sid
+        """), {"sid": seller_id})
+
+        # 2. Delete seller listings
+        await self.session.execute(text("DELETE FROM seller_listings WHERE seller_id = :sid"), {"sid": seller_id})
+
+        # 3. Delete business members
+        await self.session.execute(text("DELETE FROM business_members WHERE business_id = :sid"), {"sid": seller_id})
+
+        # 4. Delete seller record
+        await self.session.execute(text("DELETE FROM sellers WHERE id = :sid"), {"sid": seller_id})
+
+        # 5. Delete business record
+        await self.session.execute(text("DELETE FROM businesses WHERE id = :sid"), {"sid": seller_id})
+
+        await self.session.commit()
+        return {
+            "id": seller_id,
+            "deleted": True,
+            "message": f"Seller '{seller.business_name}' permanently deleted. Catalog products remain with stocks cleared to 0."
+        }
 
     # -------------------------------------------------------------------------
     # Catalog Deduplication & Admin Governance (12:00 AM Cron & Review)

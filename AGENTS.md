@@ -74,6 +74,11 @@ Unless explicitly instructed:
 ? No simulated authentication
 Everything should use the actual infrastructure that has already been provisioned.
 
+### Test Data Isolation Policy
+* **NEVER** write test users, fake sellers, or test orders into the production `public` schema.
+* For automated tests, always use a dedicated test schema (e.g. `test_schema`), rollback database transactions upon test completion, or use ephemeral staging sessions.
+* Keep the production database clean of test users, fake orders, and dummy accounts at all times.
+
 ### Definition of "Complete"
 A module is **NOT** complete because:
 * TypeScript passes

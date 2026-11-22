@@ -28,6 +28,7 @@ interface SellerInfo {
   city?: string;
   status: string;
   rating: number;
+  rating_count?: number;
 }
 
 const NAV_ITEMS = [
@@ -128,13 +129,17 @@ export default function SellerDashboardLayout({
                 Verified
               </span>
             </div>
-            {seller.rating && (
-              <div className="mt-2 flex items-center gap-1.5 text-[11px] text-neutral-600 font-medium">
-                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
-                <span>{Number(seller.rating).toFixed(1)} rating</span>
-                {seller.city && <span className="text-neutral-400">&bull; {seller.city}</span>}
-              </div>
-            )}
+            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-neutral-600 font-medium">
+              {seller.rating > 0 && (seller.rating_count ?? 0) > 0 ? (
+                <>
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+                  <span>{Number(seller.rating).toFixed(1)} rating</span>
+                </>
+              ) : (
+                <span className="text-neutral-500 font-normal">New Seller</span>
+              )}
+              {seller.city && <span className="text-neutral-400">&bull; {seller.city}</span>}
+            </div>
           </div>
         )}
 
