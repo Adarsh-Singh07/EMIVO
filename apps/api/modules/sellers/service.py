@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 from passlib.hash import argon2
 from jose import jwt
 from sqlalchemy import func, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.ai_gateway import AIGateway
@@ -508,8 +509,31 @@ class SellerService:
         if not prod:
             raise DomainException("Product not found in catalog", code="NOT_FOUND", status_code=404)
 
-        price_paise = data.price * 100 if data.price < 500000 else data.price
-        mrp_paise = (data.mrp * 100) if (data.mrp and data.mrp < 500000) else (data.mrp or price_paise)
+        if data.price <= 0:
+            raise DomainException("Selling price must be greater than 0", code="INVALID_PRICE", status_code=400)
+        if data.mrp is not None and data.mrp < data.price:
+            raise DomainException("List Price / MRP cannot be lower than Selling Price", code="INVALID_MRP", status_code=400)
+        if data.stock < 0:
+            raise DomainException("Stock units cannot be negative", code="INVALID_STOCK", status_code=400)
+
+        price_paise = int(round(data.price * 100)) if data.price < 500000 else int(round(data.price))
+        mrp_paise = (int(round(data.mrp * 100)) if (data.mrp and data.mrp < 500000) else (int(round(data.mrp)) if data.mrp else price_paise))
+
+        # Ensure seller exists in businesses table (foreign key constraint)
+        biz_exists = (await self.session.execute(
+            text("SELECT id FROM businesses WHERE id = :sid"),
+            {"sid": seller_id}
+        )).scalar()
+        if not biz_exists:
+            s_name = (await self.session.execute(
+                text("SELECT coalesce(business_name, name, 'Seller') FROM sellers WHERE id = :sid"),
+                {"sid": seller_id}
+            )).scalar() or "Seller"
+            await self.session.execute(text("""
+                INSERT INTO businesses (id, name, slug)
+                VALUES (:sid, :name, :slug)
+                ON CONFLICT (id) DO NOTHING;
+            """), {"sid": seller_id, "name": s_name, "slug": _slugify(s_name) + f"-{seller_id[:6]}"})
 
         # Get seller's current real rating & count
         s_row = (await self.session.execute(
@@ -520,132 +544,236 @@ class SellerService:
         cur_count = int(s_row[1]) if s_row else 0
 
         lid = str(uuid.uuid4())
-        await self.session.execute(text("""
-            INSERT INTO seller_listings (
-                id, product_id, seller_id, sku, price, mrp, stock, is_active,
-                condition, estimated_delivery_days, rating, rating_count
-            )
-            VALUES (:id, :pid, :sid, :sku, :price, :mrp, :stock, TRUE, :cond, :days, :rating, :rcount)
-            ON CONFLICT (seller_id, product_id) DO UPDATE SET
-                price = EXCLUDED.price,
-                mrp = EXCLUDED.mrp,
-                stock = EXCLUDED.stock,
-                condition = EXCLUDED.condition,
-                estimated_delivery_days = EXCLUDED.estimated_delivery_days,
-                is_active = TRUE,
-                updated_at = NOW();
-        """), {
-            "id": lid,
-            "pid": data.product_id,
-            "sid": seller_id,
-            "sku": data.sku or f"SKU-{data.product_id[:8].upper()}",
-            "price": price_paise,
-            "mrp": mrp_paise,
-            "stock": data.stock,
-            "cond": data.condition or "NEW",
-            "days": data.estimated_delivery_days or 3,
-            "rating": cur_rating,
-            "rcount": cur_count,
-        })
-        await self.session.commit()
-        return {"status": "success", "message": f"Added offer for '{prod[1]}' to your inventory!"}
+        try:
+            await self.session.execute(text("""
+                INSERT INTO seller_listings (
+                    id, product_id, seller_id, sku, price, mrp, stock, is_active,
+                    condition, estimated_delivery_days, rating, rating_count
+                )
+                VALUES (:id, :pid, :sid, :sku, :price, :mrp, :stock, TRUE, :cond, :days, :rating, :rcount)
+                ON CONFLICT (seller_id, product_id) DO UPDATE SET
+                    price = EXCLUDED.price,
+                    mrp = EXCLUDED.mrp,
+                    stock = EXCLUDED.stock,
+                    condition = EXCLUDED.condition,
+                    estimated_delivery_days = EXCLUDED.estimated_delivery_days,
+                    is_active = TRUE,
+                    updated_at = NOW();
+            """), {
+                "id": lid,
+                "pid": data.product_id,
+                "sid": seller_id,
+                "sku": data.sku or f"SKU-{data.product_id[:8].upper()}",
+                "price": price_paise,
+                "mrp": mrp_paise,
+                "stock": data.stock,
+                "cond": data.condition or "NEW",
+                "days": data.estimated_delivery_days or 3,
+                "rating": cur_rating,
+                "rcount": cur_count,
+            })
+            await self.session.commit()
+            return {"status": "success", "message": f"Added offer for '{prod[1]}' to your inventory!"}
+        except IntegrityError as ie:
+            await self.session.rollback()
+            err_str = str(ie.orig or ie)
+            logger.error("Database integrity error in attach_seller_offer: %s", err_str)
+            raise DomainException("Database error attaching offer: " + err_str, code="INTEGRITY_ERROR", status_code=400)
+        except Exception as ex:
+            await self.session.rollback()
+            logger.exception("Unexpected error in attach_seller_offer: %s", ex)
+            raise DomainException(f"Failed to attach offer: {str(ex)}", code="ATTACH_OFFER_FAILED", status_code=400)
 
     async def create_seller_product(self, seller_id: str, data: SellerProductCreate) -> Dict[str, Any]:
         import uuid
         from modules.products.models import Product, ProductMedia
         from modules.inventory.models import Inventory
 
+        # Validation: Product title
+        prod_title = data.name.strip() if data.name else ""
+        if len(prod_title) < 2:
+            raise DomainException("Product title must be at least 2 characters long", code="INVALID_TITLE", status_code=400)
+
+        # Validation: Price and MRP
+        if data.price <= 0:
+            raise DomainException("Selling price must be greater than 0", code="INVALID_PRICE", status_code=400)
+        if data.mrp is not None and data.mrp < data.price:
+            raise DomainException("List Price / MRP cannot be lower than Selling Price", code="INVALID_MRP", status_code=400)
+        if data.stock < 0:
+            raise DomainException("Stock units cannot be negative", code="INVALID_STOCK", status_code=400)
+
+        price_paise = int(round(data.price * 100)) if data.price < 500000 else int(round(data.price))
+        mrp_paise = int(round(data.mrp * 100)) if (data.mrp and data.mrp < 500000) else (int(round(data.mrp)) if data.mrp else price_paise)
+
         # Ensure business_id is set (use Apana Enterprises business or store business id)
         store_bid = (await self.session.execute(text("SELECT id FROM businesses WHERE name = 'ELEKTRIX' LIMIT 1"))).scalar() or seller_id
 
-        pid = str(uuid.uuid4())
-        slug = _slugify(data.name) + f"-{pid[:6]}"
-        price_paise = data.price * 100 if data.price < 500000 else data.price
-        mrp_paise = (data.mrp * 100) if (data.mrp and data.mrp < 500000) else (data.mrp or price_paise)
+        # Category sanitization & validation
+        clean_category_id = data.category_id.strip() if (data.category_id and data.category_id.strip()) else None
+        if clean_category_id:
+            cat_exists = (await self.session.execute(
+                text("SELECT id FROM categories WHERE id = :cid"),
+                {"cid": clean_category_id}
+            )).scalar()
+            if not cat_exists:
+                raise DomainException(
+                    f"Selected category does not exist in catalog. Please choose a valid category or suggest a new one.",
+                    code="INVALID_CATEGORY",
+                    status_code=400,
+                )
 
-        # Auto-create brand if brand is provided and not existing in brands
+        # Brand handling: case-insensitive check and conflict-safe insertion
+        brand_name = "ELEKTRIX"
         if data.brand and data.brand.strip():
             b_name = data.brand.strip()
-            b_slug = _slugify(b_name)
+            existing_brand = (await self.session.execute(
+                text("SELECT name FROM brands WHERE business_id = :bid AND LOWER(name) = LOWER(:name) LIMIT 1"),
+                {"bid": store_bid, "name": b_name}
+            )).scalar()
+            if existing_brand:
+                brand_name = existing_brand
+            else:
+                brand_name = b_name
+                b_slug = _slugify(b_name)
+                await self.session.execute(text("""
+                    INSERT INTO brands (id, business_id, name, slug)
+                    VALUES (:id, :bid, :name, :slug)
+                    ON CONFLICT (business_id, name) DO NOTHING;
+                """), {"id": str(uuid.uuid4()), "bid": store_bid, "name": brand_name, "slug": b_slug})
+
+        # Ensure seller exists in businesses table (required by seller_listings foreign key)
+        biz_exists = (await self.session.execute(
+            text("SELECT id FROM businesses WHERE id = :sid"),
+            {"sid": seller_id}
+        )).scalar()
+        if not biz_exists:
+            s_name = (await self.session.execute(
+                text("SELECT coalesce(business_name, name, 'Seller') FROM sellers WHERE id = :sid"),
+                {"sid": seller_id}
+            )).scalar() or "Seller"
             await self.session.execute(text("""
-                INSERT INTO brands (id, business_id, name, slug)
-                VALUES (:id, :bid, :name, :slug)
+                INSERT INTO businesses (id, name, slug)
+                VALUES (:sid, :name, :slug)
                 ON CONFLICT (id) DO NOTHING;
-            """), {"id": str(uuid.uuid4()), "bid": store_bid, "name": b_name, "slug": b_slug})
+            """), {"sid": seller_id, "name": s_name, "slug": _slugify(s_name) + f"-{seller_id[:6]}"})
 
-        product = Product(
-            id=pid,
-            business_id=store_bid,
-            seller_id=seller_id,
-            name=data.name.strip(),
-            slug=slug,
-            brand=data.brand.strip() if data.brand else "ELEKTRIX",
-            category_id=data.category_id,
-            price=price_paise,
-            mrp=mrp_paise,
-            sku=data.sku or f"SKU-{pid[:8].upper()}",
-            description=data.description,
-            warranty_info=data.warranty_info,
-            return_policy=data.return_policy,
-            specs=data.specs or [],
-            status="ACTIVE",
-        )
-        self.session.add(product)
+        pid = str(uuid.uuid4())
+        slug = _slugify(prod_title) + f"-{pid[:6]}"
+        prod_sku = data.sku.strip() if (data.sku and data.sku.strip()) else f"SKU-{pid[:8].upper()}"
 
-        # Inventory
-        inv = Inventory(
-            id=str(uuid.uuid4()),
-            product_id=pid,
-            business_id=store_bid,
-            on_hand=data.stock,
-            reserved=0,
-        )
-        self.session.add(inv)
-
-        # Seller listing
-        s_row = (await self.session.execute(
-            text("SELECT coalesce(rating, 0.00), coalesce(rating_count, 0) FROM sellers WHERE id = :sid"),
-            {"sid": seller_id},
+        # Check duplicate SKU within the store
+        existing_sku = (await self.session.execute(
+            text("SELECT id, name FROM products WHERE business_id = :bid AND sku = :sku LIMIT 1"),
+            {"bid": store_bid, "sku": prod_sku}
         )).fetchone()
-        cur_rating = float(s_row[0]) if s_row else 0.0
-        cur_count = int(s_row[1]) if s_row else 0
-
-        await self.session.execute(text("""
-            INSERT INTO seller_listings (
-                id, product_id, seller_id, sku, price, mrp, stock, is_active, 
-                estimated_delivery_days, rating, rating_count
+        if existing_sku:
+            raise DomainException(
+                f"SKU '{prod_sku}' is already assigned to '{existing_sku[1]}'. Please enter a unique SKU code.",
+                code="DUPLICATE_SKU",
+                status_code=400,
             )
-            VALUES (:id, :pid, :sid, :sku, :price, :mrp, :stock, TRUE, 3, :rating, :rcount)
-            ON CONFLICT (seller_id, product_id) DO UPDATE SET
-                price = EXCLUDED.price,
-                stock = EXCLUDED.stock;
-        """), {
-            "id": str(uuid.uuid4()),
-            "pid": pid,
-            "sid": seller_id,
-            "sku": data.sku or f"SKU-{pid[:8].upper()}",
-            "price": price_paise,
-            "mrp": mrp_paise,
-            "stock": data.stock,
-            "rating": cur_rating,
-            "rcount": cur_count,
-        })
 
-        # Media
-        if data.images:
-            for idx, img_url in enumerate(data.images):
-                if img_url and img_url.strip():
-                    self.session.add(
-                        ProductMedia(
-                            id=str(uuid.uuid4()),
-                            product_id=pid,
-                            media_url=img_url.strip(),
-                            position=idx,
+        try:
+            product = Product(
+                id=pid,
+                business_id=store_bid,
+                seller_id=seller_id,
+                name=prod_title,
+                slug=slug,
+                brand=brand_name,
+                category_id=clean_category_id,
+                price=price_paise,
+                mrp=mrp_paise,
+                sku=prod_sku,
+                description=data.description.strip() if data.description else None,
+                warranty_info=data.warranty_info.strip() if data.warranty_info else None,
+                return_policy=data.return_policy.strip() if data.return_policy else None,
+                specs=data.specs or [],
+                status="ACTIVE",
+            )
+            self.session.add(product)
+
+            # Inventory
+            inv = Inventory(
+                id=str(uuid.uuid4()),
+                product_id=pid,
+                business_id=store_bid,
+                on_hand=data.stock,
+                reserved=0,
+            )
+            self.session.add(inv)
+
+            # Seller listing
+            s_row = (await self.session.execute(
+                text("SELECT coalesce(rating, 0.00), coalesce(rating_count, 0) FROM sellers WHERE id = :sid"),
+                {"sid": seller_id},
+            )).fetchone()
+            cur_rating = float(s_row[0]) if s_row else 0.0
+            cur_count = int(s_row[1]) if s_row else 0
+
+            await self.session.execute(text("""
+                INSERT INTO seller_listings (
+                    id, product_id, seller_id, sku, price, mrp, stock, is_active, 
+                    condition, estimated_delivery_days, rating, rating_count
+                )
+                VALUES (:id, :pid, :sid, :sku, :price, :mrp, :stock, TRUE, 'NEW', 3, :rating, :rcount)
+                ON CONFLICT (seller_id, product_id) DO UPDATE SET
+                    price = EXCLUDED.price,
+                    mrp = EXCLUDED.mrp,
+                    stock = EXCLUDED.stock,
+                    condition = 'NEW',
+                    is_active = TRUE,
+                    updated_at = NOW();
+            """), {
+                "id": str(uuid.uuid4()),
+                "pid": pid,
+                "sid": seller_id,
+                "sku": prod_sku,
+                "price": price_paise,
+                "mrp": mrp_paise,
+                "stock": data.stock,
+                "rating": cur_rating,
+                "rcount": cur_count,
+            })
+
+            # Media
+            if data.images:
+                for idx, img_url in enumerate(data.images):
+                    if img_url and img_url.strip():
+                        self.session.add(
+                            ProductMedia(
+                                id=str(uuid.uuid4()),
+                                product_id=pid,
+                                media_url=img_url.strip(),
+                                position=idx,
+                            )
                         )
-                    )
 
-        await self.session.commit()
-        return {"id": pid, "name": data.name, "slug": slug, "status": "created"}
+            await self.session.commit()
+            return {"id": pid, "name": prod_title, "slug": slug, "status": "created"}
+
+        except IntegrityError as ie:
+            await self.session.rollback()
+            err_str = str(ie.orig or ie)
+            logger.error("Database integrity error creating product: %s", err_str)
+            if "uq_brands_business_name" in err_str:
+                raise DomainException("A brand with this name already exists in your catalog.", code="DUPLICATE_BRAND", status_code=400)
+            elif "fk_products_category_id" in err_str:
+                raise DomainException("The selected category is invalid or no longer exists. Please choose a valid category.", code="INVALID_CATEGORY", status_code=400)
+            elif "uq_seller_product" in err_str:
+                raise DomainException("You already have an active listing for this product in your inventory.", code="DUPLICATE_LISTING", status_code=400)
+            elif "products_sku" in err_str or ("unique constraint" in err_str.lower() and "sku" in err_str.lower()):
+                raise DomainException(f"SKU '{prod_sku}' is already in use. Please enter a different SKU.", code="DUPLICATE_SKU", status_code=400)
+            else:
+                msg = err_str.split("DETAIL:")[-1].strip() if "DETAIL:" in err_str else err_str
+                raise DomainException(f"Database constraint violation: {msg}", code="INTEGRITY_ERROR", status_code=400)
+        except DomainException:
+            await self.session.rollback()
+            raise
+        except Exception as ex:
+            await self.session.rollback()
+            logger.exception("Unexpected error creating seller product: %s", ex)
+            raise DomainException(f"Failed to create product: {str(ex)}", code="PRODUCT_CREATION_FAILED", status_code=400)
 
     async def update_seller_product(self, seller_id: str, product_id: str, data: SellerProductUpdate) -> Dict[str, Any]:
         import uuid
@@ -663,11 +791,11 @@ class SellerService:
         params: Dict[str, Any] = {"pid": product_id, "sid": seller_id}
 
         if data.price is not None:
-            p_paise = data.price * 100 if data.price < 500000 else data.price
+            p_paise = int(round(data.price * 100)) if data.price < 500000 else int(round(data.price))
             updates.append("price = :price")
             params["price"] = p_paise
         if data.mrp is not None:
-            m_paise = data.mrp * 100 if data.mrp < 500000 else data.mrp
+            m_paise = int(round(data.mrp * 100)) if data.mrp < 500000 else int(round(data.mrp))
             updates.append("mrp = :mrp")
             params["mrp"] = m_paise
         if data.status is not None:

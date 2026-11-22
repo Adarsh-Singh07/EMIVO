@@ -90,8 +90,8 @@ class SellerProductCreate(BaseModel):
     name: str
     brand: Optional[str] = None
     category_id: Optional[str] = None
-    price: int  # rupees input in frontend, converted to paise
-    mrp: Optional[int] = None
+    price: float  # rupees input in frontend, converted to paise
+    mrp: Optional[float] = None
     stock: int = 10
     sku: Optional[str] = None
     description: Optional[str] = None
@@ -102,8 +102,8 @@ class SellerProductCreate(BaseModel):
 
 
 class SellerProductUpdate(BaseModel):
-    price: Optional[int] = None
-    mrp: Optional[int] = None
+    price: Optional[float] = None
+    mrp: Optional[float] = None
     stock: Optional[int] = None
     status: Optional[str] = None
     name: Optional[str] = None
@@ -141,8 +141,8 @@ class SellerPasswordChange(BaseModel):
 
 class SellerAttachOffer(BaseModel):
     product_id: str
-    price: int  # rupees
-    mrp: Optional[int] = None  # rupees
+    price: float  # rupees
+    mrp: Optional[float] = None  # rupees
     stock: int = 10
     sku: Optional[str] = None
     condition: Optional[str] = "NEW"

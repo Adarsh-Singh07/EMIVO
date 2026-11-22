@@ -149,6 +149,30 @@ export default function AddProductPage() {
 
   const [submittingProduct, setSubmittingProduct] = useState(false);
 
+  // Offer Attachment Error State
+  const [offerError, setOfferError] = useState<string | null>(null);
+
+  // Real-time Form Errors & Server Feedback
+  const [submitError, setSubmitError] = useState<{
+    message: string;
+    code?: string;
+    recommendation?: string;
+  } | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const clearFieldError = (field: string) => {
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+    if (submitError) {
+      setSubmitError(null);
+    }
+  };
+
   // Load seller profile & warehouse pincode for auto-estimating transit days
   useEffect(() => {
     async function fetchSellerProfile() {
@@ -229,20 +253,24 @@ export default function AddProductPage() {
     setOfferStock("10");
     setOfferSku("");
     setOfferDeliveryDays(estimatedTransitDays.toString());
+    setOfferError(null);
   };
 
   // Submit Offer on Existing Product
   const handleSubmitOffer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCatalogProduct) return;
+    setOfferError(null);
 
     const pNum = Number(offerPrice);
     if (!offerPrice || isNaN(pNum) || pNum <= 0) {
+      setOfferError("Please enter a valid selling price greater than ₹0.");
       toast.error("Please enter a valid selling price");
       return;
     }
     const sNum = Number(offerStock);
     if (isNaN(sNum) || sNum < 0) {
+      setOfferError("Stock units cannot be negative.");
       toast.error("Stock units cannot be negative");
       return;
     }
@@ -261,8 +289,9 @@ export default function AddProductPage() {
 
       toast.success(`Your offer for "${selectedCatalogProduct.name}" has been listed!`);
       router.push("/products");
-    } catch (err) {
-      const msg = err instanceof ApiError ? err.message : "Failed to attach seller offer";
+    } catch (err: any) {
+      const msg = err instanceof ApiError ? err.message : (err?.message || "Failed to attach seller offer");
+      setOfferError(msg);
       toast.error(msg);
     } finally {
       setSubmittingOffer(false);
@@ -382,21 +411,51 @@ export default function AddProductPage() {
   // Submit Brand New Product Listing
   const handleCreateNewProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
+    const errors: Record<string, string> = {};
 
-    if (!name.trim()) {
-      toast.error("Product title is required");
-      return;
+    const cleanTitle = name.trim();
+    if (!cleanTitle) {
+      errors.name = "Product title is required.";
+    } else if (cleanTitle.length < 2) {
+      errors.name = "Product title must be at least 2 characters.";
+    }
+
+    if (!brand.trim()) {
+      errors.brand = "Brand name is required.";
     }
 
     const priceNum = Number(price);
     if (!price || isNaN(priceNum) || priceNum <= 0) {
-      toast.error("Please enter a valid selling price");
-      return;
+      errors.price = "Enter a valid selling price greater than ₹0.";
+    }
+
+    const mrpNum = mrp ? Number(mrp) : undefined;
+    if (mrpNum !== undefined) {
+      if (isNaN(mrpNum) || mrpNum <= 0) {
+        errors.mrp = "Enter a valid MRP greater than ₹0.";
+      } else if (priceNum && mrpNum < priceNum) {
+        errors.mrp = "List Price / MRP cannot be lower than Selling Price.";
+      }
     }
 
     const stockNum = Number(stock);
-    if (isNaN(stockNum) || stockNum < 0) {
-      toast.error("Stock units cannot be negative");
+    if (stock === "" || isNaN(stockNum) || stockNum < 0) {
+      errors.stock = "Stock units cannot be negative.";
+    }
+
+    if (!selectedMainCatId) {
+      errors.category = "Please select a main category from the catalog.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setSubmitError({
+        message: "Please correct the highlighted errors before submitting.",
+        recommendation: "Review the required fields highlighted in red below.",
+      });
+      toast.error("Please fill in all required fields properly");
+      window.scrollTo({ top: 350, behavior: "smooth" });
       return;
     }
 
@@ -410,7 +469,7 @@ export default function AddProductPage() {
         brand: brand.trim() || undefined,
         sku: sku.trim() || undefined,
         price: priceNum,
-        mrp: mrp ? Number(mrp) : undefined,
+        mrp: mrpNum,
         stock: stockNum,
         category_id: finalCategoryId,
         description: description.trim() || undefined,
@@ -422,9 +481,45 @@ export default function AddProductPage() {
 
       toast.success("Product created and published to your inventory!");
       router.push("/products");
-    } catch (err) {
-      const msg = err instanceof ApiError ? err.message : "Failed to create product";
+    } catch (err: any) {
+      const msg = err instanceof ApiError ? err.message : (err?.message || "Failed to create product");
+      const code = err instanceof ApiError ? err.code : undefined;
+
+      let rec = "Please review your input values and try again.";
+      const newFieldErrors: Record<string, string> = {};
+
+      if (code === "DUPLICATE_SKU" || msg.toLowerCase().includes("sku")) {
+        newFieldErrors.sku = msg;
+        rec = "Change the SKU code to something unique, or leave it blank to auto-generate.";
+      } else if (code === "INVALID_CATEGORY" || msg.toLowerCase().includes("category")) {
+        newFieldErrors.category = msg;
+        rec = "Select a valid category from the dropdown or suggest a new category.";
+      } else if (code === "INVALID_PRICE" || msg.toLowerCase().includes("price")) {
+        newFieldErrors.price = msg;
+        rec = "Provide a valid selling price greater than 0.";
+      } else if (code === "INVALID_MRP" || msg.toLowerCase().includes("mrp")) {
+        newFieldErrors.mrp = msg;
+        rec = "Ensure MRP is higher than or equal to your Selling Price.";
+      } else if (code === "INVALID_STOCK" || msg.toLowerCase().includes("stock")) {
+        newFieldErrors.stock = msg;
+        rec = "Stock quantity cannot be negative.";
+      } else if (code === "INVALID_TITLE" || msg.toLowerCase().includes("title")) {
+        newFieldErrors.name = msg;
+        rec = "Provide a descriptive product title.";
+      } else if (code === "DUPLICATE_BRAND") {
+        newFieldErrors.brand = msg;
+        rec = "A brand with this name already exists in your store catalog.";
+      }
+
+      setFieldErrors(newFieldErrors);
+      setSubmitError({
+        message: msg,
+        code: code,
+        recommendation: rec,
+      });
+
       toast.error(msg);
+      window.scrollTo({ top: 350, behavior: "smooth" });
     } finally {
       setSubmittingProduct(false);
     }
@@ -719,6 +814,13 @@ export default function AddProductPage() {
                 />
               </div>
 
+              {offerError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                  <span>{offerError}</span>
+                </div>
+              )}
+
               <div className="pt-2 flex items-center justify-end gap-3">
                 <button
                   type="button"
@@ -745,6 +847,40 @@ export default function AddProductPage() {
       {/* --------------------------------------------------------------------- */}
       {mode === "CREATE_NEW" && (
         <form onSubmit={handleCreateNewProduct} className="space-y-6">
+          {/* Top Real-time Error Alert Banner */}
+          {submitError && (
+            <div className="rounded-2xl border border-red-200 bg-red-50/90 p-5 shadow-sm transition-all animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-start gap-3.5">
+                <div className="p-2 bg-red-100 rounded-xl text-red-600 flex-shrink-0">
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-red-900 tracking-wide uppercase">
+                      {submitError.code ? `Publishing Error (${submitError.code})` : "Unable to Publish Product"}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setSubmitError(null)}
+                      className="text-red-500 hover:text-red-800 text-xs font-semibold px-2 py-0.5 rounded hover:bg-red-100 transition-colors"
+                    >
+                      Dismiss ✕
+                    </button>
+                  </div>
+                  <p className="text-sm font-semibold text-red-900">
+                    {submitError.message}
+                  </p>
+                  {submitError.recommendation && (
+                    <div className="text-xs text-red-800 bg-red-100/80 rounded-xl px-3 py-2 border border-red-200/60 mt-2 flex items-start gap-1.5">
+                      <span className="font-bold flex-shrink-0">How to Fix:</span>
+                      <span>{submitError.recommendation}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Card 1: Core Details & AI Autofill */}
           <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
@@ -774,10 +910,22 @@ export default function AddProductPage() {
                   type="text"
                   required
                   value={brand}
-                  onChange={(e) => setBrand(e.target.value)}
+                  onChange={(e) => {
+                    setBrand(e.target.value);
+                    clearFieldError("brand");
+                  }}
                   placeholder="e.g. Apple, Sony, boAt"
-                  className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none focus:ring-2 ${
+                    fieldErrors.brand
+                      ? "border-red-500 ring-2 ring-red-200 bg-red-50/20"
+                      : "border-neutral-200 focus:ring-neutral-900"
+                  }`}
                 />
+                {fieldErrors.brand && (
+                  <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> {fieldErrors.brand}
+                  </p>
+                )}
               </div>
 
               <div className="sm:col-span-2">
@@ -788,14 +936,27 @@ export default function AddProductPage() {
                   type="text"
                   required
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    clearFieldError("name");
+                  }}
                   onBlur={() => setName(toTitleCase(name))}
                   placeholder="e.g. Sony WH-1000XM5 Wireless Headphones (Midnight Black)"
-                  className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm font-semibold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm font-semibold text-neutral-900 focus:outline-none focus:ring-2 ${
+                    fieldErrors.name
+                      ? "border-red-500 ring-2 ring-red-200 bg-red-50/20"
+                      : "border-neutral-200 focus:ring-neutral-900"
+                  }`}
                 />
-                <p className="mt-1 text-[11px] text-neutral-400">
-                  Standard convention: [Brand] + [Model] + ([Key Specs/Color/Capacity]).
-                </p>
+                {fieldErrors.name ? (
+                  <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> {fieldErrors.name}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-[11px] text-neutral-400">
+                    Standard convention: [Brand] + [Model] + ([Key Specs/Color/Capacity]).
+                  </p>
+                )}
               </div>
             </div>
 
@@ -823,8 +984,13 @@ export default function AddProductPage() {
                   onChange={(e) => {
                     setSelectedMainCatId(e.target.value);
                     setSelectedSubCatId("");
+                    clearFieldError("category");
                   }}
-                  className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-xs text-neutral-900 focus:outline-none focus:ring-2 ${
+                    fieldErrors.category
+                      ? "border-red-500 ring-2 ring-red-200 bg-red-50/20"
+                      : "border-neutral-200 focus:ring-neutral-900"
+                  }`}
                 >
                   <option value="">-- Choose Category --</option>
                   {categories.map((c) => (
@@ -833,6 +999,11 @@ export default function AddProductPage() {
                     </option>
                   ))}
                 </select>
+                {fieldErrors.category && (
+                  <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> {fieldErrors.category}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -891,11 +1062,24 @@ export default function AddProductPage() {
                   type="number"
                   required
                   min="1"
+                  step="any"
                   value={price}
-                  onChange={(e) => setPrice(e.target.value)}
+                  onChange={(e) => {
+                    setPrice(e.target.value);
+                    clearFieldError("price");
+                  }}
                   placeholder="999"
-                  className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm font-bold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm font-bold text-neutral-900 focus:outline-none focus:ring-2 ${
+                    fieldErrors.price
+                      ? "border-red-500 ring-2 ring-red-200 bg-red-50/20"
+                      : "border-neutral-200 focus:ring-neutral-900"
+                  }`}
                 />
+                {fieldErrors.price && (
+                  <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> {fieldErrors.price}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -903,11 +1087,24 @@ export default function AddProductPage() {
                 <input
                   type="number"
                   min="1"
+                  step="any"
                   value={mrp}
-                  onChange={(e) => setMrp(e.target.value)}
+                  onChange={(e) => {
+                    setMrp(e.target.value);
+                    clearFieldError("mrp");
+                  }}
                   placeholder="1499"
-                  className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none focus:ring-2 ${
+                    fieldErrors.mrp
+                      ? "border-red-500 ring-2 ring-red-200 bg-red-50/20"
+                      : "border-neutral-200 focus:ring-neutral-900"
+                  }`}
                 />
+                {fieldErrors.mrp && (
+                  <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> {fieldErrors.mrp}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -919,10 +1116,22 @@ export default function AddProductPage() {
                   required
                   min="0"
                   value={stock}
-                  onChange={(e) => setStock(e.target.value)}
+                  onChange={(e) => {
+                    setStock(e.target.value);
+                    clearFieldError("stock");
+                  }}
                   placeholder="25"
-                  className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm font-bold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm font-bold text-neutral-900 focus:outline-none focus:ring-2 ${
+                    fieldErrors.stock
+                      ? "border-red-500 ring-2 ring-red-200 bg-red-50/20"
+                      : "border-neutral-200 focus:ring-neutral-900"
+                  }`}
                 />
+                {fieldErrors.stock && (
+                  <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> {fieldErrors.stock}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -930,10 +1139,22 @@ export default function AddProductPage() {
                 <input
                   type="text"
                   value={sku}
-                  onChange={(e) => setSku(e.target.value)}
+                  onChange={(e) => {
+                    setSku(e.target.value);
+                    clearFieldError("sku");
+                  }}
                   placeholder="e.g. SONY-XM5-BLK"
-                  className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none focus:ring-2 ${
+                    fieldErrors.sku
+                      ? "border-red-500 ring-2 ring-red-200 bg-red-50/20"
+                      : "border-neutral-200 focus:ring-neutral-900"
+                  }`}
                 />
+                {fieldErrors.sku && (
+                  <p className="mt-1 text-xs text-red-600 font-medium flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> {fieldErrors.sku}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -1097,6 +1318,23 @@ export default function AddProductPage() {
             </div>
           </div>
 
+          {/* Bottom Error Banner before actions */}
+          {submitError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-center justify-between gap-3 text-xs text-red-800 font-medium">
+              <div className="flex items-center gap-2.5">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                <span>{submitError.message}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSubmitError(null)}
+                className="text-red-500 hover:text-red-800 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           {/* Form Actions */}
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-neutral-200">
             <button
@@ -1109,8 +1347,11 @@ export default function AddProductPage() {
             <button
               type="submit"
               disabled={submittingProduct}
-              className="px-6 py-2.5 rounded-xl bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50 shadow-sm"
+              className="px-6 py-2.5 rounded-xl bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-50 shadow-sm flex items-center gap-2"
             >
+              {submittingProduct && (
+                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              )}
               {submittingProduct ? "Publishing Listing..." : "Create & Publish Product"}
             </button>
           </div>
