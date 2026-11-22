@@ -19,6 +19,7 @@ from core.config import settings
 from core.database import async_session_maker
 from core.exceptions import DomainException
 from core.redis import redis_manager
+from core.store import get_store_business_id
 from modules.sellers.models import Seller, CatalogDuplicateCandidate
 
 logger = logging.getLogger(__name__)
@@ -519,21 +520,26 @@ class SellerService:
         price_paise = int(round(data.price * 100)) if data.price < 500000 else int(round(data.price))
         mrp_paise = (int(round(data.mrp * 100)) if (data.mrp and data.mrp < 500000) else (int(round(data.mrp)) if data.mrp else price_paise))
 
+        store_bid = await get_store_business_id(self.session)
+        await self.session.execute(text("SELECT set_config('app.business_id', :bid, true)"), {"bid": str(store_bid)})
+
         # Ensure seller exists in businesses table (foreign key constraint)
-        biz_exists = (await self.session.execute(
-            text("SELECT id FROM businesses WHERE id = :sid"),
-            {"sid": seller_id}
-        )).scalar()
-        if not biz_exists:
-            s_name = (await self.session.execute(
-                text("SELECT coalesce(business_name, name, 'Seller') FROM sellers WHERE id = :sid"),
+        async with async_session_maker() as root_session:
+            biz_exists = (await root_session.execute(
+                text("SELECT id FROM businesses WHERE id = :sid"),
                 {"sid": seller_id}
-            )).scalar() or "Seller"
-            await self.session.execute(text("""
-                INSERT INTO businesses (id, name, slug)
-                VALUES (:sid, :name, :slug)
-                ON CONFLICT (id) DO NOTHING;
-            """), {"sid": seller_id, "name": s_name, "slug": _slugify(s_name) + f"-{seller_id[:6]}"})
+            )).scalar()
+            if not biz_exists:
+                s_name = (await root_session.execute(
+                    text("SELECT coalesce(business_name, name, 'Seller') FROM sellers WHERE id = :sid"),
+                    {"sid": seller_id}
+                )).scalar() or "Seller"
+                await root_session.execute(text("""
+                    INSERT INTO businesses (id, name, slug, is_active, is_seller)
+                    VALUES (:sid, :name, :slug, TRUE, TRUE)
+                    ON CONFLICT (id) DO NOTHING;
+                """), {"sid": seller_id, "name": s_name, "slug": _slugify(s_name) + f"-{seller_id[:6]}"})
+                await root_session.commit()
 
         # Get seller's current real rating & count
         s_row = (await self.session.execute(
@@ -586,7 +592,7 @@ class SellerService:
 
     async def create_seller_product(self, seller_id: str, data: SellerProductCreate) -> Dict[str, Any]:
         import uuid
-        from modules.products.models import Product, ProductMedia
+        from modules.products.models import Product, ProductMedia, ProductStatus
         from modules.inventory.models import Inventory
 
         # Validation: Product title
@@ -606,7 +612,10 @@ class SellerService:
         mrp_paise = int(round(data.mrp * 100)) if (data.mrp and data.mrp < 500000) else (int(round(data.mrp)) if data.mrp else price_paise)
 
         # Ensure business_id is set (use Apana Enterprises business or store business id)
-        store_bid = (await self.session.execute(text("SELECT id FROM businesses WHERE name = 'ELEKTRIX' LIMIT 1"))).scalar() or seller_id
+        store_bid = await get_store_business_id(self.session)
+
+        # Set PostgreSQL RLS context variable so brand, product, and inventory queries pass RLS
+        await self.session.execute(text("SELECT set_config('app.business_id', :bid, true)"), {"bid": str(store_bid)})
 
         # Category sanitization & validation
         clean_category_id = data.category_id.strip() if (data.category_id and data.category_id.strip()) else None
@@ -642,20 +651,22 @@ class SellerService:
                 """), {"id": str(uuid.uuid4()), "bid": store_bid, "name": brand_name, "slug": b_slug})
 
         # Ensure seller exists in businesses table (required by seller_listings foreign key)
-        biz_exists = (await self.session.execute(
-            text("SELECT id FROM businesses WHERE id = :sid"),
-            {"sid": seller_id}
-        )).scalar()
-        if not biz_exists:
-            s_name = (await self.session.execute(
-                text("SELECT coalesce(business_name, name, 'Seller') FROM sellers WHERE id = :sid"),
+        async with async_session_maker() as root_session:
+            biz_exists = (await root_session.execute(
+                text("SELECT id FROM businesses WHERE id = :sid"),
                 {"sid": seller_id}
-            )).scalar() or "Seller"
-            await self.session.execute(text("""
-                INSERT INTO businesses (id, name, slug)
-                VALUES (:sid, :name, :slug)
-                ON CONFLICT (id) DO NOTHING;
-            """), {"sid": seller_id, "name": s_name, "slug": _slugify(s_name) + f"-{seller_id[:6]}"})
+            )).scalar()
+            if not biz_exists:
+                s_name = (await root_session.execute(
+                    text("SELECT coalesce(business_name, name, 'Seller') FROM sellers WHERE id = :sid"),
+                    {"sid": seller_id}
+                )).scalar() or "Seller"
+                await root_session.execute(text("""
+                    INSERT INTO businesses (id, name, slug, is_active, is_seller)
+                    VALUES (:sid, :name, :slug, TRUE, TRUE)
+                    ON CONFLICT (id) DO NOTHING;
+                """), {"sid": seller_id, "name": s_name, "slug": _slugify(s_name) + f"-{seller_id[:6]}"})
+                await root_session.commit()
 
         pid = str(uuid.uuid4())
         slug = _slugify(prod_title) + f"-{pid[:6]}"
@@ -673,6 +684,19 @@ class SellerService:
                 status_code=400,
             )
 
+        # Clean specs safely
+        cleaned_specs = []
+        if data.specs:
+            for s in data.specs:
+                if isinstance(s, dict):
+                    k = str(s.get("name") or s.get("key") or "").strip()
+                    v = str(s.get("value") or s.get("val") or "").strip()
+                else:
+                    k = str(getattr(s, "name", "")).strip()
+                    v = str(getattr(s, "value", "")).strip()
+                if k and v:
+                    cleaned_specs.append({"name": k, "value": v})
+
         try:
             product = Product(
                 id=pid,
@@ -688,8 +712,8 @@ class SellerService:
                 description=data.description.strip() if data.description else None,
                 warranty_info=data.warranty_info.strip() if data.warranty_info else None,
                 return_policy=data.return_policy.strip() if data.return_policy else None,
-                specs=data.specs or [],
-                status="ACTIVE",
+                specs=cleaned_specs,
+                status=ProductStatus.ACTIVE,
             )
             self.session.add(product)
 
@@ -702,6 +726,9 @@ class SellerService:
                 reserved=0,
             )
             self.session.add(inv)
+
+            # Flush pending ORM objects (Product, Inventory) so foreign keys in raw SQL pass
+            await self.session.flush()
 
             # Seller listing
             s_row = (await self.session.execute(
@@ -778,6 +805,9 @@ class SellerService:
     async def update_seller_product(self, seller_id: str, product_id: str, data: SellerProductUpdate) -> Dict[str, Any]:
         import uuid
         from modules.products.models import ProductMedia
+
+        store_bid = await get_store_business_id(self.session)
+        await self.session.execute(text("SELECT set_config('app.business_id', :bid, true)"), {"bid": str(store_bid)})
 
         # Verify ownership or permission
         row = (await self.session.execute(
@@ -865,6 +895,9 @@ class SellerService:
         return {"status": "updated", "product_id": product_id}
 
     async def delete_seller_product(self, seller_id: str, product_id: str) -> None:
+        store_bid = await get_store_business_id(self.session)
+        await self.session.execute(text("SELECT set_config('app.business_id', :bid, true)"), {"bid": str(store_bid)})
+
         row = (await self.session.execute(
             text("SELECT id FROM products WHERE id = :pid AND seller_id = :sid"),
             {"pid": product_id, "sid": seller_id},
@@ -1029,7 +1062,7 @@ class SellerService:
             }
 
         cid = str(uuid.uuid4())
-        store_bid = (await self.session.execute(text("SELECT id FROM businesses WHERE name = 'ELEKTRIX' LIMIT 1"))).scalar() or seller_id
+        store_bid = await get_store_business_id(self.session)
 
         # Master Seller (Apana Enterprises) bypasses approval workflow
         is_master = False

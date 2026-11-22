@@ -21,6 +21,7 @@ class Product(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     business_id = Column(String, ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False)
+    seller_id = Column(String(36), ForeignKey("sellers.id", ondelete="SET NULL"), nullable=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(String, nullable=True)
     price = Column(Integer, nullable=False)  # Integer minor units (paise) — everyday selling price

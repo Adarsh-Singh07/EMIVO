@@ -216,9 +216,9 @@ export default function AddProductPage() {
 
   // Compute subcategories for selected main category
   const availableSubcategories = useMemo(() => {
-    if (!selectedMainCatId) return [];
-    const mainCat = categories.find((c) => c.id === selectedMainCatId);
-    return mainCat?.children || [];
+    if (!selectedMainCatId || !Array.isArray(categories)) return [];
+    const mainCat = categories.find((c) => c && c.id === selectedMainCatId);
+    return Array.isArray(mainCat?.children) ? mainCat.children : [];
   }, [categories, selectedMainCatId]);
 
   // Search existing catalog
@@ -333,19 +333,36 @@ export default function AddProductPage() {
         let cleanTitle = res.title.replace(/\s+(Smartphone|Smart Phone|Mobile Phone|Mobile|Cell Phone|Phone|Device|Item|Product)\b/gi, "").trim();
         cleanTitle = cleanTitle.replace(/\s*,\s*(Smartphone|Smart Phone|Mobile Phone|Phone)\s*\)/gi, ")");
         setName(toTitleCase(cleanTitle));
+        clearFieldError("name");
       }
-      if (res.suggested_sku && !sku) {
+
+      // Always auto-write SKU from AI response, or generate a clean standardized SKU
+      if (res.suggested_sku) {
         setSku(res.suggested_sku);
-      } else if (!sku) {
+        clearFieldError("sku");
+      } else {
         const b = (brand || "ELK").replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 3) || "ELK";
         const t = (res.title || name).replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 8) || "ITEM";
-        setSku(`${b}-${t}`);
+        const rand = Math.floor(100 + Math.random() * 900);
+        setSku(`${b}-${t}-${rand}`);
+        clearFieldError("sku");
       }
+
       if (res.description_html) setDescription(res.description_html);
       if (res.warranty_info) setWarrantyInfo(res.warranty_info);
       if (res.return_policy) setReturnPolicy(res.return_policy);
-      if (res.specs && Array.isArray(res.specs) && res.specs.length > 0) {
-        setSpecs(res.specs);
+
+      if (res.specs && Array.isArray(res.specs)) {
+        const cleanSpecs = res.specs
+          .filter(Boolean)
+          .map((s: any) => ({
+            name: String(s?.name || s?.key || s?.attribute || "").trim(),
+            value: String(s?.value || s?.val || "").trim(),
+          }))
+          .filter((s) => s.name && s.value);
+        if (cleanSpecs.length > 0) {
+          setSpecs(cleanSpecs);
+        }
       }
 
       toast.success("AI generated title, rich HTML description, SKU & specifications!");
@@ -472,7 +489,9 @@ export default function AddProductPage() {
     }
 
     const finalCategoryId = selectedSubCatId || selectedMainCatId || null;
-    const filteredSpecs = specs.filter((s) => s.name.trim() && s.value.trim());
+    const filteredSpecs = (specs || [])
+      .filter((s) => s && (s.name || "").trim() && (s.value || "").trim())
+      .map((s) => ({ name: s.name.trim(), value: s.value.trim() }));
     const effectiveSku =
       sku.trim() ||
       `${(brand || "ELK").replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 3)}-${name.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 8)}`;
@@ -503,27 +522,31 @@ export default function AddProductPage() {
       let rec = "Please review your input values and try again.";
       const newFieldErrors: Record<string, string> = {};
 
-      if (code === "DUPLICATE_SKU" || msg.toLowerCase().includes("sku")) {
+      const lower = msg.toLowerCase();
+      if (code === "DUPLICATE_SKU" || lower.includes("sku")) {
         newFieldErrors.sku = msg;
-        rec = "Change the SKU code to something unique, or leave it blank to auto-generate.";
-      } else if (code === "INVALID_CATEGORY" || msg.toLowerCase().includes("category")) {
+        rec = "Change the SKU code to something unique, or click '✨ Auto-Generate' to assign a fresh one.";
+      } else if (code === "INVALID_CATEGORY" || lower.includes("category")) {
         newFieldErrors.category = msg;
-        rec = "Select a valid category from the dropdown or suggest a new category.";
-      } else if (code === "INVALID_PRICE" || msg.toLowerCase().includes("price")) {
+        rec = "Select a valid category from the catalog dropdown or click '+ Suggest New' to submit one.";
+      } else if (code === "INVALID_PRICE" || lower.includes("price")) {
         newFieldErrors.price = msg;
-        rec = "Provide a valid selling price greater than 0.";
-      } else if (code === "INVALID_MRP" || msg.toLowerCase().includes("mrp")) {
+        rec = "Provide a valid selling price in Rupees greater than 0.";
+      } else if (code === "INVALID_MRP" || lower.includes("mrp") || lower.includes("list price")) {
         newFieldErrors.mrp = msg;
-        rec = "Ensure MRP is higher than or equal to your Selling Price.";
-      } else if (code === "INVALID_STOCK" || msg.toLowerCase().includes("stock")) {
+        rec = "Ensure List Price / MRP is higher than or equal to your Selling Price.";
+      } else if (code === "INVALID_STOCK" || lower.includes("stock")) {
         newFieldErrors.stock = msg;
         rec = "Stock quantity cannot be negative.";
-      } else if (code === "INVALID_TITLE" || msg.toLowerCase().includes("title")) {
+      } else if (code === "INVALID_TITLE" || lower.includes("title")) {
         newFieldErrors.name = msg;
-        rec = "Provide a descriptive product title.";
+        rec = "Provide a descriptive product title in proper Title Case (at least 2 characters).";
       } else if (code === "DUPLICATE_BRAND") {
         newFieldErrors.brand = msg;
         rec = "A brand with this name already exists in your store catalog.";
+      } else if (lower.includes("brand")) {
+        newFieldErrors.brand = msg;
+        rec = "Please provide a valid brand name.";
       }
 
       setFieldErrors(newFieldErrors);
