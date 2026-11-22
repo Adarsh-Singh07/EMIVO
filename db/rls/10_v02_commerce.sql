@@ -50,10 +50,10 @@ ALTER TABLE addresses FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS addresses_owner ON addresses;
 CREATE POLICY addresses_owner ON addresses
     FOR ALL
-    USING (user_id = NULLIF(current_setting('app.user_id', true), ''))
-    WITH CHECK (user_id = NULLIF(current_setting('app.user_id', true), ''));
+    USING (user_id = NULLIF(current_setting('app.user_id', true), '') OR elektrix_is_staff())
+    WITH CHECK (user_id = NULLIF(current_setting('app.user_id', true), '') OR elektrix_is_staff());
 
--- Staff never needs customer addresses directly (orders carry snapshots).
+-- Staff can view customer addresses for administrative support and order resolution.
 
 -- ---------------------------------------------------------------------------
 -- wishlist_items — strictly owner-scoped

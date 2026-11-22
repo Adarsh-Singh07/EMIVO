@@ -16,18 +16,18 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    statements = [
-        "DROP POLICY IF EXISTS addresses_owner ON addresses",
-        """CREATE POLICY addresses_owner ON addresses
-        FOR ALL
-        USING (user_id = NULLIF(current_setting('app.user_id', true), '') OR elektrix_is_staff())
-        WITH CHECK (user_id = NULLIF(current_setting('app.user_id', true), '') OR elektrix_is_staff())""",
-    ]
-    for stmt in statements:
-        try:
-            op.execute(stmt)
-        except Exception:
-            pass
+    op.execute("""
+    DO $$
+    BEGIN
+        IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'elektrix_is_staff') THEN
+            DROP POLICY IF EXISTS addresses_owner ON addresses;
+            CREATE POLICY addresses_owner ON addresses
+            FOR ALL
+            USING (user_id = NULLIF(current_setting('app.user_id', true), '') OR elektrix_is_staff())
+            WITH CHECK (user_id = NULLIF(current_setting('app.user_id', true), '') OR elektrix_is_staff());
+        END IF;
+    END $$;
+    """)
 
 
 def downgrade() -> None:

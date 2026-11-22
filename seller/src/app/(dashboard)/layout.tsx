@@ -17,7 +17,7 @@ import {
   Store,
   ShieldCheck
 } from "lucide-react";
-import { authStorage } from "@/lib/api-client";
+import { authStorage, apiClient } from "@/lib/api-client";
 import { BrandLogo } from "@/components/branding/BrandLogo";
 
 interface SellerInfo {
@@ -63,6 +63,17 @@ export default function SellerDashboardLayout({
       setSeller(info as SellerInfo);
     }
     setLoading(false);
+
+    // Fetch fresh profile from API to ensure live ratings, status & verification
+    apiClient
+      .get<SellerInfo>("/seller/me")
+      .then((fresh: SellerInfo) => {
+        if (fresh) {
+          setSeller(fresh);
+          authStorage.setSeller(fresh as unknown as Record<string, unknown>);
+        }
+      })
+      .catch(() => {});
   }, [router]);
 
   const handleLogout = () => {

@@ -278,9 +278,9 @@ export default function CustomerDetailPage() {
       <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
         <div className="flex items-center gap-2 border-b border-neutral-100 px-5 py-4">
           <Package className="h-4 w-4 text-amber-500" />
-          <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-500">Orders ({overview.orders.length})</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-500">Orders ({(overview.orders || []).length})</h2>
         </div>
-        {overview.orders.length === 0 ? (
+        {(overview.orders || []).length === 0 ? (
           <p className="px-5 py-6 text-sm text-neutral-400">No orders yet.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -295,7 +295,7 @@ export default function CustomerDetailPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
-                {overview.orders.map((o) => (
+                {(overview.orders || []).map((o) => (
                   <tr key={o.id} className="hover:bg-neutral-50/60">
                     <td className="px-5 py-3 font-mono text-xs font-semibold text-neutral-900">{o.order_number}</td>
                     <td className="px-5 py-3"><StatusChip value={o.status} /></td>
@@ -314,9 +314,9 @@ export default function CustomerDetailPage() {
       <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
         <div className="flex items-center gap-2 border-b border-neutral-100 px-5 py-4">
           <CreditCard className="h-4 w-4 text-amber-500" />
-          <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-500">Payments ({overview.payments.length})</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-500">Payments ({(overview.payments || []).length})</h2>
         </div>
-        {overview.payments.length === 0 ? (
+        {(overview.payments || []).length === 0 ? (
           <p className="px-5 py-6 text-sm text-neutral-400">No payment records.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -331,7 +331,7 @@ export default function CustomerDetailPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
-                {overview.payments.map((p) => (
+                {(overview.payments || []).map((p) => (
                   <tr key={p.id} className="hover:bg-neutral-50/60">
                     <td className="px-5 py-3 font-mono text-xs text-neutral-900">{p.order_number || p.id.slice(0, 8)}</td>
                     <td className="px-5 py-3"><StatusChip value={p.status} /></td>

@@ -275,6 +275,10 @@ export default function AddProductPage() {
       return;
     }
 
+    const effectiveOfferSku =
+      offerSku.trim() ||
+      `${(selectedCatalogProduct.brand || "ELK").replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 3)}-${selectedCatalogProduct.name.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 8)}`;
+
     setSubmittingOffer(true);
     try {
       await apiClient.post("/seller/catalog/attach-offer", {
@@ -282,7 +286,7 @@ export default function AddProductPage() {
         price: pNum,
         mrp: offerMrp ? Number(offerMrp) : undefined,
         stock: sNum,
-        sku: offerSku.trim() || undefined,
+        sku: effectiveOfferSku,
         condition: offerCondition,
         estimated_delivery_days: Number(offerDeliveryDays) || 3,
       });
@@ -318,6 +322,7 @@ export default function AddProductPage() {
         return_policy: string;
         suggested_category?: string;
         suggested_subcategory?: string;
+        suggested_sku?: string;
       }>("/seller/catalog/ai-generate", {
         name: name.trim(),
         brand: brand.trim() || undefined,
@@ -329,6 +334,13 @@ export default function AddProductPage() {
         cleanTitle = cleanTitle.replace(/\s*,\s*(Smartphone|Smart Phone|Mobile Phone|Phone)\s*\)/gi, ")");
         setName(toTitleCase(cleanTitle));
       }
+      if (res.suggested_sku && !sku) {
+        setSku(res.suggested_sku);
+      } else if (!sku) {
+        const b = (brand || "ELK").replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 3) || "ELK";
+        const t = (res.title || name).replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 8) || "ITEM";
+        setSku(`${b}-${t}`);
+      }
       if (res.description_html) setDescription(res.description_html);
       if (res.warranty_info) setWarrantyInfo(res.warranty_info);
       if (res.return_policy) setReturnPolicy(res.return_policy);
@@ -336,7 +348,7 @@ export default function AddProductPage() {
         setSpecs(res.specs);
       }
 
-      toast.success("AI generated title, rich HTML description, specs & warranty!");
+      toast.success("AI generated title, rich HTML description, SKU & specifications!");
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "AI generation failed";
       toast.error(msg);
@@ -461,13 +473,16 @@ export default function AddProductPage() {
 
     const finalCategoryId = selectedSubCatId || selectedMainCatId || null;
     const filteredSpecs = specs.filter((s) => s.name.trim() && s.value.trim());
+    const effectiveSku =
+      sku.trim() ||
+      `${(brand || "ELK").replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 3)}-${name.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 8)}`;
 
     setSubmittingProduct(true);
     try {
       await apiClient.post("/seller/products", {
         name: toTitleCase(name),
         brand: brand.trim() || undefined,
-        sku: sku.trim() || undefined,
+        sku: effectiveSku,
         price: priceNum,
         mrp: mrpNum,
         stock: stockNum,
@@ -625,14 +640,14 @@ export default function AddProductPage() {
           </div>
 
           {/* Results Grid */}
-          {catalogResults.length > 0 && (
+          {(catalogResults || []).length > 0 && (
             <div className="space-y-3">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                Matching Catalog Items ({catalogResults.length})
+                Matching Catalog Items ({(catalogResults || []).length})
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {catalogResults.map((item) => (
+                {(catalogResults || []).map((item) => (
                   <div
                     key={item.id}
                     className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm hover:border-neutral-300 transition-all flex flex-col justify-between"
@@ -914,6 +929,14 @@ export default function AddProductPage() {
                     setBrand(e.target.value);
                     clearFieldError("brand");
                   }}
+                  onBlur={() => {
+                    const cleanBrand = brand.trim();
+                    if (cleanBrand && name.trim() && !sku.trim()) {
+                      const b = cleanBrand.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 3) || "ELK";
+                      const t = name.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 8) || "ITEM";
+                      setSku(`${b}-${t}`);
+                    }
+                  }}
                   placeholder="e.g. Apple, Sony, boAt"
                   className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none focus:ring-2 ${
                     fieldErrors.brand
@@ -940,7 +963,17 @@ export default function AddProductPage() {
                     setName(e.target.value);
                     clearFieldError("name");
                   }}
-                  onBlur={() => setName(toTitleCase(name))}
+                  onBlur={() => {
+                    let clean = toTitleCase(name.trim());
+                    clean = clean.replace(/\s+(Smartphone|Smart Phone|Mobile Phone|Mobile|Cell Phone|Phone|Device|Item|Product)\b/gi, "").trim();
+                    clean = clean.replace(/\s*,\s*(Smartphone|Smart Phone|Mobile Phone|Phone)\s*\)/gi, ")");
+                    setName(clean);
+                    if (clean && !sku.trim()) {
+                      const b = (brand || "ELK").replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 3) || "ELK";
+                      const t = clean.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 8) || "ITEM";
+                      setSku(`${b}-${t}`);
+                    }
+                  }}
                   placeholder="e.g. Sony WH-1000XM5 Wireless Headphones (Midnight Black)"
                   className={`mt-1.5 w-full rounded-xl border px-3.5 py-2.5 text-sm font-semibold text-neutral-900 focus:outline-none focus:ring-2 ${
                     fieldErrors.name
@@ -1027,17 +1060,17 @@ export default function AddProductPage() {
                 <select
                   value={selectedSubCatId}
                   onChange={(e) => setSelectedSubCatId(e.target.value)}
-                  disabled={!selectedMainCatId || availableSubcategories.length === 0}
+                  disabled={!selectedMainCatId || (availableSubcategories || []).length === 0}
                   className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 disabled:bg-neutral-50 disabled:text-neutral-400"
                 >
                   <option value="">
                     {selectedMainCatId
-                      ? availableSubcategories.length > 0
+                      ? (availableSubcategories || []).length > 0
                         ? "-- Choose Subcategory --"
                         : "-- No subcategories available --"
                       : "-- First select Main Category --"}
                   </option>
-                  {availableSubcategories.map((sub) => (
+                  {(availableSubcategories || []).map((sub) => (
                     <option key={sub.id} value={sub.id}>
                       {sub.name}
                     </option>
@@ -1135,7 +1168,23 @@ export default function AddProductPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-neutral-700">SKU Code</label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-neutral-700">SKU Code</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const b = (brand || "ELK").replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 3) || "ELK";
+                      const t = (name || "ITEM").replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 8) || "ITEM";
+                      const rand = Math.floor(100 + Math.random() * 900);
+                      setSku(`${b}-${t}-${rand}`);
+                      clearFieldError("sku");
+                      toast.success("SKU code generated!");
+                    }}
+                    className="text-[11px] text-amber-600 hover:text-amber-700 font-semibold"
+                  >
+                    ✨ Auto-Generate
+                  </button>
+                </div>
                 <input
                   type="text"
                   value={sku}
@@ -1188,9 +1237,9 @@ export default function AddProductPage() {
               </button>
             </div>
 
-            {images.length > 0 ? (
+            {(images || []).length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                {images.map((imgUrl, idx) => (
+                {(images || []).map((imgUrl, idx) => (
                   <div
                     key={idx}
                     className="relative group rounded-xl border border-neutral-200 bg-neutral-50 p-2 overflow-hidden flex flex-col items-center"
@@ -1304,7 +1353,7 @@ export default function AddProductPage() {
                     placeholder="Value (e.g. Midnight Black)"
                     className="flex-1 rounded-xl border border-neutral-200 px-3 py-1.5 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                   />
-                  {specs.length > 1 && (
+                  {(specs || []).length > 1 && (
                     <button
                       type="button"
                       onClick={() => handleRemoveSpec(idx)}

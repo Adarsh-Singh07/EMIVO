@@ -54,7 +54,8 @@ class AIGateway:
             '  "warranty_info": "1 Year Manufacturer Domestic Brand Warranty",\n'
             '  "return_policy": "7 Days Replacement Only for Technical Defects",\n'
             '  "suggested_category": "Main Category Name",\n'
-            '  "suggested_subcategory": "Subcategory Name"\n'
+            '  "suggested_subcategory": "Subcategory Name",\n'
+            '  "suggested_sku": "Concise, uppercase merchant SKU, e.g. APL-IP17P-256 (3-character brand code, model, spec)"\n'
             "}"
         )
 
@@ -122,6 +123,9 @@ class AIGateway:
         # -----------------------------------------------------------------
         logger.warning("All AI providers unreachable; returning rule-based defaults for '%s'", name)
         clean_title = f"{brand_clean} {name}".strip() if brand_clean and not name.lower().startswith(brand_clean.lower()) else name.strip()
+        import re
+        b_prefix = re.sub(r"[^A-Z0-9]", "", (brand_clean or "ELK").upper())[:3] or "ELK"
+        m_code = re.sub(r"[^A-Z0-9]", "", clean_title.upper())[:8] or "ITEM"
         return {
             "title": clean_title,
             "description_html": (
@@ -131,12 +135,12 @@ class AIGateway:
             "specs": [
                 {"name": "Brand", "value": brand_clean or "Generic"},
                 {"name": "Model", "value": name.strip()},
-                {"name": "Condition", "value": "Brand New / Sealed"},
             ],
             "warranty_info": "1 Year Manufacturer Domestic Warranty",
             "return_policy": "7 Days Replacement Only",
             "suggested_category": category_name or "General",
             "suggested_subcategory": "General Merchandise",
+            "suggested_sku": f"{b_prefix}-{m_code}",
         }
 
     @classmethod
@@ -330,6 +334,14 @@ class AIGateway:
                 if isinstance(s, dict) and "name" in s and "value" in s:
                     specs.append({"name": str(s["name"]).strip(), "value": str(s["value"]).strip()})
 
+        # Compute standardized suggested SKU
+        suggested_sku = (data.get("suggested_sku") or "").strip().upper()
+        if not suggested_sku:
+            import re
+            b_prefix = re.sub(r"[^A-Z0-9]", "", (brand or "ELK").upper())[:3] or "ELK"
+            m_code = re.sub(r"[^A-Z0-9]", "", (title or orig_name).upper())[:8] or "ITEM"
+            suggested_sku = f"{b_prefix}-{m_code}"
+
         return {
             "title": title.strip(),
             "description_html": desc_html,
@@ -338,6 +350,7 @@ class AIGateway:
             "return_policy": data.get("return_policy") or "7 Days Replacement Only",
             "suggested_category": data.get("suggested_category"),
             "suggested_subcategory": data.get("suggested_subcategory"),
+            "suggested_sku": suggested_sku,
         }
 
     @classmethod

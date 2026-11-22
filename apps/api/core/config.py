@@ -27,12 +27,28 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list[str]:
         import json
         v = self.cors_origins.strip()
+        origins: list[str] = []
         if v.startswith("["):
             try:
-                return json.loads(v)
+                origins = json.loads(v)
             except Exception:
                 pass
-        return [i.strip() for i in v.split(",") if i.strip()]
+        else:
+            origins = [i.strip() for i in v.split(",") if i.strip()]
+
+        default_allowed = [
+            "https://elektrix.in",
+            "https://www.elektrix.in",
+            "https://admin.elektrix.in",
+            "https://sell.elektrix.in",
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "http://localhost:3002",
+        ]
+        for o in default_allowed:
+            if o not in origins:
+                origins.append(o)
+        return origins
 
 
 
