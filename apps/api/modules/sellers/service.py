@@ -844,7 +844,6 @@ class SellerService:
                    (SELECT count(*) FROM products p WHERE p.category_id = c.id AND p.status = 'ACTIVE') AS product_count
             FROM categories c
             WHERE (c.status = 'APPROVED' OR c.status IS NULL)
-              AND (c.is_active = TRUE OR c.is_active IS NULL)
             ORDER BY c.position ASC, c.name ASC;
         """)
         res = await self.session.execute(query)
