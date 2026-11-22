@@ -312,9 +312,10 @@ class AIGateway:
     def _normalize_product_result(cls, data: Dict[str, Any], orig_name: str, brand: str) -> Dict[str, Any]:
         title = data.get("title") or orig_name
 
-        # Strip redundant trailing product category words like "Smartphone", "Phone", "Mobile Phone"
+        # Strip redundant trailing product category words like "Smartphone", "Phone", "Mobile Phone", etc.
         import re
-        title = re.sub(r"(?i)\s+(?:Smartphone|Mobile Phone|Cell Phone)\b", "", title).strip()
+        title = re.sub(r"(?i)\s+(?:Smartphone|Smart Phone|Mobile Phone|Cell Phone|Phone|Device|Item|Product)\b", "", title).strip()
+        title = re.sub(r"(?i)\s*,\s*(?:Smartphone|Smart Phone|Mobile Phone|Phone)\s*\)", ")", title).strip()
 
         desc_html = data.get("description_html") or data.get("description") or ""
 

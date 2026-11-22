@@ -265,6 +265,8 @@ class AdminService:
         if not profile:
             raise DomainException("User not found", code="NOT_FOUND", status_code=404)
 
+        target_uid = str(profile["id"])
+
         orders = (await self.session.execute(text("""
             SELECT o.id, o.order_number, o.status::text AS status, o.total, o.created_at,
                    (SELECT count(*) FROM order_items oi WHERE oi.order_id = o.id)::int AS items
@@ -272,7 +274,7 @@ class AdminService:
             WHERE o.user_id = :u
             ORDER BY o.created_at DESC
             LIMIT 100
-        """), {"u": user_id})).mappings().all()
+        """), {"u": target_uid})).mappings().all()
 
         payments = (await self.session.execute(text("""
             SELECT p.id, p.order_id, o.order_number, p.status::text AS status,
@@ -282,25 +284,51 @@ class AdminService:
             WHERE p.user_id = :u
             ORDER BY p.created_at DESC
             LIMIT 100
-        """), {"u": user_id})).mappings().all()
+        """), {"u": target_uid})).mappings().all()
 
         addresses = (await self.session.execute(text("""
             SELECT id, COALESCE(label, 'Address') AS label, full_name, phone,
                    line1, line2, city, state, pincode, is_default
             FROM addresses WHERE user_id = :u
             ORDER BY is_default DESC, created_at DESC
-        """), {"u": user_id})).mappings().all()
+        """), {"u": target_uid})).mappings().all()
 
         addrs_list = [dict(a) for a in addresses]
-        if not addrs_list:
-            order_addrs = (await self.session.execute(text("""
-                SELECT DISTINCT o.shipping_address
-                FROM orders o
-                WHERE o.user_id = :u AND o.shipping_address IS NOT NULL
-                LIMIT 5
-            """), {"u": user_id})).scalars().all()
-            for idx, sa in enumerate(order_addrs or []):
-                if isinstance(sa, dict) and sa.get("line1"):
+        seen_pins = {f"{a.get('line1', '')}_{a.get('pincode', '')}" for a in addrs_list}
+
+        # Check profile json addresses if present
+        raw_u_addrs = profile.get("addresses") or []
+        if isinstance(raw_u_addrs, list):
+            for idx, a in enumerate(raw_u_addrs):
+                if isinstance(a, dict) and a.get("line1"):
+                    key = f"{a.get('line1')}_{a.get('pincode')}"
+                    if key not in seen_pins:
+                        seen_pins.add(key)
+                        addrs_list.append({
+                            "id": f"u-addr-{idx}",
+                            "label": a.get("label") or "Saved Address",
+                            "full_name": a.get("full_name") or f"{profile.get('first_name', '')} {profile.get('last_name', '')}".strip() or "Customer",
+                            "phone": a.get("phone") or profile.get("phone", ""),
+                            "line1": a.get("line1", ""),
+                            "line2": a.get("line2"),
+                            "city": a.get("city", ""),
+                            "state": a.get("state", ""),
+                            "pincode": a.get("pincode", ""),
+                            "is_default": idx == 0 and len(addrs_list) == 0,
+                        })
+
+        # Also fallback to order shipping addresses if needed
+        order_addrs = (await self.session.execute(text("""
+            SELECT DISTINCT o.shipping_address
+            FROM orders o
+            WHERE o.user_id = :u AND o.shipping_address IS NOT NULL
+            LIMIT 5
+        """), {"u": target_uid})).scalars().all()
+        for idx, sa in enumerate(order_addrs or []):
+            if isinstance(sa, dict) and sa.get("line1"):
+                key = f"{sa.get('line1')}_{sa.get('pincode')}"
+                if key not in seen_pins:
+                    seen_pins.add(key)
                     addrs_list.append({
                         "id": f"order-addr-{idx}",
                         "label": sa.get("label") or "Order Delivery Address",
@@ -311,7 +339,7 @@ class AdminService:
                         "city": sa.get("city") or "",
                         "state": sa.get("state") or "",
                         "pincode": sa.get("pincode") or "",
-                        "is_default": idx == 0,
+                        "is_default": len(addrs_list) == 0,
                     })
 
         return {

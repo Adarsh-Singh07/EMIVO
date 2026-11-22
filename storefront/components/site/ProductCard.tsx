@@ -152,11 +152,11 @@ export default function ProductCard({ product }: { product: Product }) {
           <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500 pt-0.5 truncate">
             {product.brand}
           </p>
-          {typeof product.rating === "number" && (
+          {typeof product.rating === "number" && product.rating > 0 && (product.reviews ?? 0) > 0 && (
             <span className="inline-flex items-center gap-0.5 rounded bg-green-50 px-1 py-0.5 text-[10px] font-semibold text-green-600 shrink-0">
               <Star className="w-2.5 h-2.5 fill-green-600 text-green-600" />
-              {product.rating}
-              {!!product.reviews && <span className="text-green-500">({product.reviews})</span>}
+              {product.rating.toFixed(1)}
+              <span className="text-green-500">({product.reviews})</span>
             </span>
           )}
         </div>

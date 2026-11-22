@@ -174,7 +174,12 @@ export default function AddProductPage() {
     async function fetchCategories() {
       try {
         setLoadingCats(true);
-        const data = await apiClient.get<CategoryNode[]>("/seller/categories");
+        let data: CategoryNode[] = [];
+        try {
+          data = await apiClient.get<CategoryNode[]>("/seller/categories");
+        } catch {
+          data = await apiClient.get<CategoryNode[]>("/categories");
+        }
         setCategories(Array.isArray(data) ? data : []);
       } catch (err) {
         toast.error("Failed to load category list");
@@ -291,7 +296,8 @@ export default function AddProductPage() {
       });
 
       if (res.title) {
-        const cleanTitle = res.title.replace(/\s+(Smartphone|Mobile Phone|Phone|Device|Item|Product)$/i, "").trim();
+        let cleanTitle = res.title.replace(/\s+(Smartphone|Smart Phone|Mobile Phone|Mobile|Cell Phone|Phone|Device|Item|Product)\b/gi, "").trim();
+        cleanTitle = cleanTitle.replace(/\s*,\s*(Smartphone|Smart Phone|Mobile Phone|Phone)\s*\)/gi, ")");
         setName(toTitleCase(cleanTitle));
       }
       if (res.description_html) setDescription(res.description_html);

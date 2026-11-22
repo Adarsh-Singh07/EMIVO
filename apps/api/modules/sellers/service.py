@@ -1131,6 +1131,32 @@ class SellerService:
         )
 
         await self.session.commit()
+
+        # Send welcome email with credentials directly
+        try:
+            from modules.notifications.providers import get_notification_provider
+            notifier = get_notification_provider()
+            subject = f"Welcome to ELEKTRIX Seller Central — {seller.business_name}"
+            body_html = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #111;">
+              <h2 style="color: #ea580c;">Welcome to ELEKTRIX Seller Central</h2>
+              <p>Hello <strong>{seller.name}</strong>,</p>
+              <p>Your marketplace merchant account for <strong>{seller.business_name}</strong> has been provisioned by the ELEKTRIX Platform Administration.</p>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <p style="margin: 0 0 8px;"><strong>Login Portal:</strong> <a href="https://sell.elektrix.in/login">https://sell.elektrix.in/login</a></p>
+                <p style="margin: 0 0 8px;"><strong>Registered Email:</strong> {norm_email}</p>
+                <p style="margin: 0 0 8px;"><strong>Temporary Password:</strong> <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">{raw_password}</code></p>
+                {"<p style='color: #c2410c; margin: 8px 0 0; font-size: 13px;'>* Please change your password upon your first login for account security.</p>" if data.must_change_password else ""}
+              </div>
+              <p>If you have any questions or need fulfillment assistance, reply to this email or contact <a href="mailto:support@elektrix.in">support@elektrix.in</a>.</p>
+              <p style="color: #64748b; font-size: 12px; margin-top: 24px;">ELEKTRIX India &bull; Marketplace Operations</p>
+            </div>
+            """
+            await notifier.send_email(to=norm_email, subject=subject, body=body_html, html=True)
+            logger.info("Welcome email sent to seller %s (%s)", seller.business_name, norm_email)
+        except Exception as mail_err:
+            logger.warning("Could not dispatch welcome email immediately to seller %s: %s", norm_email, mail_err)
+
         return {
             "id": sid,
             "business_name": seller.business_name,
@@ -1160,7 +1186,7 @@ class SellerService:
         )
         if new_status in ("SUSPENDED", "ARCHIVED"):
             await self.session.execute(
-                text("UPDATE seller_listings SET is_active = FALSE WHERE seller_id = :sid"),
+                text("UPDATE seller_listings SET is_active = FALSE, stock = 0 WHERE seller_id = :sid"),
                 {"sid": seller_id},
             )
         await self.session.commit()
@@ -1242,7 +1268,7 @@ class SellerService:
         if seller.email == "admin@elektrix.in" or "Apana" in seller.business_name:
             raise DomainException("Cannot delete primary store owner (Apana Enterprises)", code="FORBIDDEN", status_code=403)
 
-        # 1. Zero out inventory & archive products of this seller
+        # 1. Zero out inventory & unlink products of this seller so they remain in catalog
         await self.session.execute(text("""
             UPDATE inventory 
             SET on_hand = 0, reserved = 0 
@@ -1250,8 +1276,13 @@ class SellerService:
         """), {"sid": seller_id})
         await self.session.execute(text("""
             UPDATE products 
-            SET status = 'ARCHIVED', seller_id = NULL 
+            SET seller_id = NULL 
             WHERE seller_id = :sid
+        """), {"sid": seller_id})
+        await self.session.execute(text("""
+            UPDATE categories 
+            SET requested_by_seller_id = NULL 
+            WHERE requested_by_seller_id = :sid
         """), {"sid": seller_id})
 
         # 2. Delete seller listings
@@ -1420,7 +1451,7 @@ class SellerService:
             ai_calls = 0
             for i in range(len(prods)):
                 for j in range(i + 1, len(prods)):
-                    if ai_calls >= 8:
+                    if ai_calls >= 3:
                         break
 
                     p1 = prods[i]
@@ -1448,7 +1479,7 @@ class SellerService:
 
                         if overlap >= 0.60 or (same_brand and overlap >= 0.50):
                             ai_calls += 1
-                            # Invoke AI Gateway to analyze with 8s timeout
+                            # Invoke AI Gateway to analyze with 4s timeout
                             try:
                                 eval_res = await asyncio.wait_for(
                                     AIGateway.detect_duplicate_pair(
@@ -1469,7 +1500,7 @@ class SellerService:
                                             "order_count": p2.get("order_count") or 0,
                                         },
                                     ),
-                                    timeout=8.0,
+                                    timeout=4.0,
                                 )
                             except Exception as ai_timeout_or_err:
                                 logger.warning("AI deduplication call timed out or failed: %s, using heuristic", ai_timeout_or_err)

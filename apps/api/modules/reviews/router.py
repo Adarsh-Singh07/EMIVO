@@ -33,7 +33,7 @@ async def _has_purchased(session: AsyncSession, user_id: str, product_id: str) -
             SELECT 1 FROM order_items oi
             JOIN orders o ON o.id = oi.order_id
             WHERE o.user_id = :uid AND oi.product_id = :pid
-              AND o.status NOT IN ('CANCELLED', 'PAYMENT_FAILED')
+              AND o.status = 'DELIVERED'
             LIMIT 1
         """),
         {"uid": user_id, "pid": product_id},
@@ -120,7 +120,7 @@ async def upsert_review(
     verified = await _has_purchased(session, current_user.id, product_id)
     if not verified:
         raise DomainException(
-            "Only verified buyers who ordered this product can submit a rating or review.",
+            "Only verified buyers who have received delivery of this product can submit a rating or review.",
             code="VERIFIED_PURCHASE_REQUIRED",
             status_code=403,
         )
