@@ -8,28 +8,24 @@ import { getRememberedPincode, rememberPincode } from "@/lib/pincode-memory";
 
 const PINCODE_RE = /^\d{6}$/;
 
-export default function PincodeChecker() {
+interface PincodeCheckerProps {
+  originPincode?: string;
+  sellerName?: string;
+}
+
+export default function PincodeChecker({ originPincode, sellerName }: PincodeCheckerProps = {}) {
   const [pincode, setPincode] = useState("");
   const [loading, setLoading] = useState(false);
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<ShippingEstimate | null>(null);
 
-  // Restore saved pincode from local storage on mount
-  useEffect(() => {
-    const saved = getRememberedPincode();
-    if (saved && PINCODE_RE.test(saved)) {
-      setPincode(saved);
-      checkPincodeValue(saved);
-    }
-  }, []);
-
   const checkPincodeValue = async (pin: string) => {
     setError("");
     setLoading(true);
     setResult(null);
     try {
-      const data = await storeApi.getShippingEstimate(pin);
+      const data = await storeApi.getShippingEstimate(pin, originPincode);
       setResult(data);
       if (data.serviceable) {
         rememberPincode(pin);
@@ -43,6 +39,22 @@ export default function PincodeChecker() {
       setLoading(false);
     }
   };
+
+  // Restore saved pincode from local storage on mount
+  useEffect(() => {
+    const saved = getRememberedPincode();
+    if (saved && PINCODE_RE.test(saved)) {
+      setPincode(saved);
+      checkPincodeValue(saved);
+    }
+  }, []);
+
+  // Re-check when seller origin pincode changes
+  useEffect(() => {
+    if (pincode && PINCODE_RE.test(pincode)) {
+      checkPincodeValue(pincode);
+    }
+  }, [originPincode]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,6 +207,9 @@ export default function PincodeChecker() {
                       <span className="font-bold text-neutral-950 underline decoration-emerald-500 decoration-2">
                         {result.formatted_delivery_date}
                       </span>
+                      {sellerName && (
+                        <span className="text-neutral-500 font-normal"> · Ships from {sellerName}</span>
+                      )}
                     </p>
                   )}
                 </div>

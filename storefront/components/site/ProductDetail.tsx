@@ -345,8 +345,8 @@ export default function ProductDetail({
           </p>
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mt-2 break-words">{product.name}</h1>
 
-          {/* Live rating summary (hidden when no reviews exist — no fake stars) */}
-          {typeof product.rating === "number" && !!product.reviews && product.reviews > 0 && (
+          {/* Live rating summary (honest — only shown when verified reviews exist; otherwise "Be the first to try") */}
+          {typeof product.rating === "number" && product.rating > 0 && !!product.reviews && product.reviews > 0 ? (
             <button
               type="button"
               onClick={() => document.getElementById("reviews")?.scrollIntoView({ behavior: "smooth", block: "start" })}
@@ -370,6 +370,13 @@ export default function ProductDetail({
                 {product.reviews} review{product.reviews === 1 ? "" : "s"}
               </span>
             </button>
+          ) : (
+            <div className="mt-3 inline-flex items-center gap-2 text-xs text-neutral-500">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-700 font-medium">
+                <Star className="w-3.5 h-3.5 text-neutral-400" />
+                Be the first to try
+              </span>
+            </div>
           )}
 
           <div className="flex flex-wrap items-end gap-x-3 gap-y-1 mt-5">
@@ -432,10 +439,17 @@ export default function ProductDetail({
                   title="Click to view seller details"
                 >
                   <span>{selectedSeller ? selectedSeller.seller_name : (product.sellerName || "Apana Enterprises")}</span>
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 font-bold text-xs">
-                    <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
-                    {(selectedSeller ? selectedSeller.rating : (product.sellerRating ?? 4.9)).toFixed(1)}
-                  </span>
+                  {((selectedSeller ? selectedSeller.rating : (product.sellerRating ?? 0)) > 0 &&
+                    (selectedSeller ? selectedSeller.rating_count : 0) > 0) ? (
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 font-bold text-xs">
+                      <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                      {(selectedSeller ? selectedSeller.rating : (product.sellerRating ?? 0)).toFixed(1)}
+                    </span>
+                  ) : (
+                    <span className="px-1.5 py-0.5 rounded-md bg-neutral-100 text-neutral-600 font-medium text-[11px]">
+                      New Seller
+                    </span>
+                  )}
                 </button>
               </div>
 
@@ -448,18 +462,33 @@ export default function ProductDetail({
               </div>
             </div>
 
+            {/* Direct Seller Switcher Dropdown */}
             {product.sellers && product.sellers.length > 1 && (
-              <div className="pt-2 border-t border-neutral-200/70 flex items-center justify-between text-xs">
-                <span className="text-neutral-600">
-                  <span className="font-semibold text-neutral-900">{product.sellers.length} verified sellers</span> available
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setSellersModalOpen(true)}
-                  className="font-semibold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+              <div className="pt-2 border-t border-neutral-200/70 space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-neutral-700">Choose Seller:</span>
+                  <button
+                    type="button"
+                    onClick={() => setSellersModalOpen(true)}
+                    className="font-semibold text-blue-600 hover:text-blue-800 hover:underline text-[11px]"
+                  >
+                    Compare all ({product.sellers.length}) &rarr;
+                  </button>
+                </div>
+                <select
+                  value={selectedSeller?.seller_id || product.sellers[0]?.seller_id}
+                  onChange={(e) => {
+                    const found = product.sellers?.find((s) => s.seller_id === e.target.value);
+                    if (found) setSelectedSeller(found);
+                  }}
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-xs font-semibold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 cursor-pointer shadow-sm"
                 >
-                  Compare all sellers &rarr;
-                </button>
+                  {product.sellers.map((s) => (
+                    <option key={s.seller_id} value={s.seller_id}>
+                      {s.seller_name} · Delivery in {s.estimated_delivery_days} days · {inr(s.price)}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
           </div>
@@ -479,7 +508,10 @@ export default function ProductDetail({
           {/* Available offers under the price (Myntra/AJIO pattern, WS3) */}
           {!selectedVariant && <ProductOffers />}
 
-          <PincodeChecker />
+          <PincodeChecker
+            originPincode={selectedSeller?.pincode || "841508"}
+            sellerName={selectedSeller?.seller_name || product.sellerName || "Apana Enterprises"}
+          />
 
           {/* Variant selector */}
           {hasVariants && (
@@ -807,9 +839,10 @@ export default function ProductDetail({
                   in_stock: true,
                   condition: "NEW",
                   estimated_delivery_days: product.sellerDeliveryDays || 2,
-                  rating: product.sellerRating || 4.9,
-                  rating_count: 50,
-                  city: "Gopalganj"
+                  rating: product.sellerRating || 0,
+                  rating_count: 0,
+                  city: "Gopalganj",
+                  pincode: "841508",
                 } as StoreSellerOffer
               ]).map((s: StoreSellerOffer, idx: number) => {
                 const isSelected = selectedSeller ? s.seller_id === selectedSeller.seller_id : idx === 0;
@@ -828,10 +861,16 @@ export default function ProductDetail({
                           <span className="font-semibold text-base text-neutral-900 truncate">
                             {s.seller_name}
                           </span>
-                          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200/60 text-amber-800 font-bold text-xs">
-                            <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
-                            {s.rating.toFixed(1)}
-                          </span>
+                          {s.rating > 0 && s.rating_count > 0 ? (
+                            <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200/60 text-amber-800 font-bold text-xs">
+                              <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                              {s.rating.toFixed(1)}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600 font-medium text-[10px]">
+                              New Seller
+                            </span>
+                          )}
                           {idx === 0 && (
                             <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-green-100 text-green-800">
                               Lowest Price
@@ -850,7 +889,7 @@ export default function ProductDetail({
                         <div className="mt-2 text-xs text-neutral-500 flex items-center gap-2">
                           <span className="inline-flex items-center gap-1 text-green-700 font-medium">
                             <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-                            {s.condition} Condition • Genuine Warranty
+                            Genuine Brand Warranty
                           </span>
                         </div>
                       </div>

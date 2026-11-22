@@ -177,13 +177,17 @@ async def store_config(session: AsyncSession = Depends(optional_db_context)):
     }
 
 @router.get("/shipping-estimate")
-async def shipping_estimate(pincode: str = Query(..., min_length=6, max_length=6, pattern=r"^\d{6}$"), session=Depends(get_db_session)):
+async def shipping_estimate(
+    pincode: str = Query(..., min_length=6, max_length=6, pattern=r"^\d{6}$"),
+    origin_pincode: Optional[str] = Query(None, min_length=6, max_length=6, pattern=r"^\d{6}$"),
+    session=Depends(get_db_session)
+):
     from modules.storefront.shipping import get_delhivery_estimate
     from modules.orders.service import get_store_settings
     from core.config import settings
     db_cfg = await get_store_settings(session)
     cod_enabled = db_cfg.get("cod_enabled", settings.cod_enabled)
-    return await get_delhivery_estimate(pincode, is_store_cod_enabled=cod_enabled)
+    return await get_delhivery_estimate(pincode, origin_pincode=origin_pincode, is_store_cod_enabled=cod_enabled)
 
 
 @router.get("/reverse-geocode")

@@ -156,12 +156,17 @@ async def _cache_set(key: str, val: dict, ttl: int = 86400) -> None:
         pass
 
 
-async def get_delhivery_estimate(destination_pincode: str, is_store_cod_enabled: bool = True) -> dict:
+async def get_delhivery_estimate(
+    destination_pincode: str,
+    origin_pincode: str | None = None,
+    is_store_cod_enabled: bool = True,
+) -> dict:
     """
-    Computes delivery date, transit days, place name, and serviceability from warehouse 841508.
+    Computes delivery date, transit days, place name, and serviceability from origin warehouse.
     Uses Delhivery API if key configured, enriches with Indian Postal API, and caches in Redis.
     """
-    cache_key = f"pincode_est_v2:{destination_pincode}:{1 if is_store_cod_enabled else 0}"
+    origin_pin = origin_pincode or settings.delhivery_origin_pincode or WAREHOUSE_PINCODE
+    cache_key = f"pincode_est_v3:{origin_pin}:{destination_pincode}:{1 if is_store_cod_enabled else 0}"
     cached = await _cache_get(cache_key)
     if cached:
         # Backend COD truth always wins, even on a cache hit created while
@@ -171,7 +176,6 @@ async def get_delhivery_estimate(destination_pincode: str, is_store_cod_enabled:
         return cached
 
     delhivery_key = settings.delhivery_api_key.get_secret_value()
-    origin_pin = settings.delhivery_origin_pincode or WAREHOUSE_PINCODE
 
     serviceable = True
     cod_available = is_store_cod_enabled
@@ -246,10 +250,22 @@ async def get_delhivery_estimate(destination_pincode: str, is_store_cod_enabled:
         state_code = "MH"
         state_name = state_name or "Maharashtra"
 
-    min_days, max_days = STATE_CODE_ETA.get(state_code, (3, 6))
+    if origin_pin != WAREHOUSE_PINCODE:
+        if origin_pin[:2] == destination_pincode[:2]:
+            min_days, max_days = (1, 2)
+        elif origin_pin[0] == destination_pincode[0]:
+            min_days, max_days = (2, 3)
+        elif state_code in ("AS", "ML", "MZ", "NL", "TR", "AR", "MN", "SK", "JK"):
+            min_days, max_days = (5, 7)
+        else:
+            min_days, max_days = (3, 5)
+    else:
+        min_days, max_days = STATE_CODE_ETA.get(state_code, (3, 6))
+
     formatted_date, date_range, delivery_date_iso = _format_delivery_dates(min_days, max_days)
 
     place_name = f"{city}, {state_name}" if (city and state_name) else (city or state_name or f"PIN {destination_pincode}")
+    warehouse_loc = WAREHOUSE_LOCATION if origin_pin == WAREHOUSE_PINCODE else f"Seller Warehouse (PIN {origin_pin})"
 
     result = {
         "serviceable": serviceable,
@@ -268,7 +284,7 @@ async def get_delhivery_estimate(destination_pincode: str, is_store_cod_enabled:
         "cod_available": cod_available,
         "prepaid_available": prepaid_available,
         "origin_pincode": origin_pin,
-        "warehouse_location": WAREHOUSE_LOCATION,
+        "warehouse_location": warehouse_loc,
         "message": f"Delivering to {place_name} — Delivery by {formatted_date}" if serviceable else f"Pincode {destination_pincode} is currently not serviceable"
     }
 

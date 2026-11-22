@@ -1,7 +1,10 @@
+import asyncio
 import hashlib
 import json
+import logging
 import re
 import secrets
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
@@ -16,6 +19,8 @@ from core.database import async_session_maker
 from core.exceptions import DomainException
 from core.redis import redis_manager
 from modules.sellers.models import Seller, CatalogDuplicateCandidate
+
+logger = logging.getLogger(__name__)
 from modules.sellers.schemas import (
     CategoryApprovalItem,
     CategorySuggestion,

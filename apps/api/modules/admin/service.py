@@ -291,11 +291,34 @@ class AdminService:
             ORDER BY is_default DESC, created_at DESC
         """), {"u": user_id})).mappings().all()
 
+        addrs_list = [dict(a) for a in addresses]
+        if not addrs_list:
+            order_addrs = (await self.session.execute(text("""
+                SELECT DISTINCT o.shipping_address
+                FROM orders o
+                WHERE o.user_id = :u AND o.shipping_address IS NOT NULL
+                LIMIT 5
+            """), {"u": user_id})).scalars().all()
+            for idx, sa in enumerate(order_addrs or []):
+                if isinstance(sa, dict) and sa.get("line1"):
+                    addrs_list.append({
+                        "id": f"order-addr-{idx}",
+                        "label": sa.get("label") or "Order Delivery Address",
+                        "full_name": sa.get("full_name") or sa.get("name") or profile.get("first_name", "Customer"),
+                        "phone": sa.get("phone") or profile.get("phone", ""),
+                        "line1": sa.get("line1") or "",
+                        "line2": sa.get("line2"),
+                        "city": sa.get("city") or "",
+                        "state": sa.get("state") or "",
+                        "pincode": sa.get("pincode") or "",
+                        "is_default": idx == 0,
+                    })
+
         return {
             "profile": dict(profile),
             "orders": [dict(o) for o in orders],
             "payments": [dict(x) for x in payments],
-            "addresses": [dict(a) for a in addresses],
+            "addresses": addrs_list,
         }
 
     async def list_users(self, q: Optional[str], page: int, page_size: int):

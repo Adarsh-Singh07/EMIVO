@@ -140,6 +140,7 @@ class CatalogService:
                     sl.id, sl.product_id, sl.seller_id,
                     coalesce(s.business_name, b.name, 'Apana Enterprises') as seller_name,
                     coalesce(s.city, b.settings->>'city', 'Gopalganj') as city,
+                    coalesce(s.pincode, b.settings->>'pincode', '841508') as pincode,
                     sl.price, sl.mrp, sl.stock, sl.is_active, sl.condition,
                     sl.estimated_delivery_days, sl.rating, sl.rating_count
                 FROM seller_listings sl
@@ -166,9 +167,10 @@ class CatalogService:
                 in_stock=int(r["stock"]) > 0,
                 condition=str(r.get("condition") or "NEW"),
                 estimated_delivery_days=int(r.get("estimated_delivery_days") or 3),
-                rating=float(r.get("rating") or 4.8),
+                rating=float(r.get("rating") or 0.0),
                 rating_count=int(r.get("rating_count") or 0),
                 city=r.get("city"),
+                pincode=str(r.get("pincode") or "841508"),
             )
             out.setdefault(str(r["product_id"]), []).append(offer)
         return out

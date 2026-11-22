@@ -350,13 +350,13 @@ export default function CustomerDetailPage() {
       <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
         <div className="flex items-center gap-2 border-b border-neutral-100 px-5 py-4">
           <MapPinned className="h-4 w-4 text-amber-500" />
-          <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-500">Saved Addresses ({overview.addresses.length})</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-500">Saved Addresses ({(overview.addresses || []).length})</h2>
         </div>
-        {overview.addresses.length === 0 ? (
+        {(overview.addresses || []).length === 0 ? (
           <p className="px-5 py-6 text-sm text-neutral-400">No saved addresses.</p>
         ) : (
           <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2">
-            {overview.addresses.map((a) => (
+            {(overview.addresses || []).map((a) => (
               <div key={a.id} className="rounded-xl border border-neutral-200 p-4 text-sm">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-neutral-900">{a.label}</span>

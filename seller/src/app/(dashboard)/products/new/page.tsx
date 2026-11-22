@@ -290,7 +290,10 @@ export default function AddProductPage() {
         existing_desc: description.trim() || undefined,
       });
 
-      if (res.title) setName(toTitleCase(res.title));
+      if (res.title) {
+        const cleanTitle = res.title.replace(/\s+(Smartphone|Mobile Phone|Phone|Device|Item|Product)$/i, "").trim();
+        setName(toTitleCase(cleanTitle));
+      }
       if (res.description_html) setDescription(res.description_html);
       if (res.warranty_info) setWarrantyInfo(res.warranty_info);
       if (res.return_policy) setReturnPolicy(res.return_policy);
@@ -659,10 +662,10 @@ export default function AddProductPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-neutral-700">
-                    Stock <span className="text-red-500">*</span>
+                    Stock Units <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -672,19 +675,6 @@ export default function AddProductPage() {
                     onChange={(e) => setOfferStock(e.target.value)}
                     className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2 text-sm font-semibold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-neutral-700">Condition</label>
-                  <select
-                    value={offerCondition}
-                    onChange={(e) => setOfferCondition(e.target.value)}
-                    className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3 py-2 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                  >
-                    <option value="NEW">Brand New</option>
-                    <option value="REFURBISHED">Refurbished</option>
-                    <option value="OPEN_BOX">Open Box</option>
-                  </select>
                 </div>
 
                 <div>

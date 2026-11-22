@@ -77,9 +77,10 @@ export default function DuplicateMergesPage() {
         "/admin/catalog/duplicates/trigger-scan",
         {}
       );
+      const detected = res?.new_duplicates_detected ?? 0;
       toast.success(
-        res.new_duplicates_detected > 0
-          ? `Scan complete: Found ${res.new_duplicates_detected} new duplicate candidate(s)!`
+        detected > 0
+          ? `Scan complete: Found ${detected} new duplicate candidate(s)!`
           : "Scan complete: No new duplicate products found."
       );
       loadCandidates();

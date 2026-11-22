@@ -323,7 +323,7 @@ class AdminTools:
                 "email": r["email"],
                 "city": r["city"] or "—",
                 "status": r["status"],
-                "rating": float(r["rating"] or 4.9),
+                "rating": float(r["rating"] or 0.0),
                 "rating_count": r["rating_count"] or 0,
                 "products_listed": r["product_count"],
                 "is_master_seller": r["email"] == "admin@elektrix.in" or "Apana" in (r["business_name"] or ""),

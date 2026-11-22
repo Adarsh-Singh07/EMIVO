@@ -534,7 +534,7 @@ export function mapStoreProduct(p: StoreProduct): Product {
     sellerId: p.seller_id,
     sellerName: p.seller_name || "Apana Enterprises",
     sellerListingId: p.seller_listing_id,
-    sellerRating: p.seller_rating ?? 4.9,
+    sellerRating: p.seller_rating ?? 0,
     sellerDeliveryDays: p.seller_delivery_days ?? 2,
     sellers: p.sellers || [],
   };

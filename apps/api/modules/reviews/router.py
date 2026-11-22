@@ -118,6 +118,12 @@ async def upsert_review(
         raise DomainException("Product not found", code="NOT_FOUND", status_code=404)
 
     verified = await _has_purchased(session, current_user.id, product_id)
+    if not verified:
+        raise DomainException(
+            "Only verified buyers who ordered this product can submit a rating or review.",
+            code="VERIFIED_PURCHASE_REQUIRED",
+            status_code=403,
+        )
 
     res = await session.execute(
         text("SELECT id FROM product_reviews WHERE user_id = :uid AND product_id = :pid"),

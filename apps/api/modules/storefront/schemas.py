@@ -34,9 +34,10 @@ class StoreSellerOffer(BaseModel):
     in_stock: bool = True
     condition: str = "NEW"
     estimated_delivery_days: int = 3
-    rating: float = 4.8
+    rating: float = 0.0
     rating_count: int = 0
     city: Optional[str] = None
+    pincode: Optional[str] = "841508"
 
 
 class StoreVariant(BaseModel):

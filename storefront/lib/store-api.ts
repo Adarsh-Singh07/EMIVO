@@ -49,6 +49,7 @@ export interface StoreSellerOffer {
   rating: number;
   rating_count: number;
   city?: string;
+  pincode?: string;
 }
 
 export interface StoreProduct {
@@ -704,8 +705,9 @@ export const storeApi = {
 
 
 
-  getShippingEstimate(pincode: string): Promise<ShippingEstimate> {
-    return fetchApi<ShippingEstimate>(`/store/shipping-estimate?pincode=${encodeURIComponent(pincode)}`);
+  getShippingEstimate(pincode: string, originPincode?: string): Promise<ShippingEstimate> {
+    const originParam = originPincode ? `&origin_pincode=${encodeURIComponent(originPincode)}` : "";
+    return fetchApi<ShippingEstimate>(`/store/shipping-estimate?pincode=${encodeURIComponent(pincode)}${originParam}`);
   },
 
   reverseGeocode(lat: number, lon: number): Promise<ReverseGeocodeResult> {
