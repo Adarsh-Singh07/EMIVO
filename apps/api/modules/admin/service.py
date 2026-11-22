@@ -319,10 +319,11 @@ class AdminService:
 
         # Also fallback to order shipping addresses if needed
         order_addrs = (await self.session.execute(text("""
-            SELECT DISTINCT o.shipping_address
+            SELECT o.shipping_address
             FROM orders o
             WHERE o.user_id = :u AND o.shipping_address IS NOT NULL
-            LIMIT 5
+            ORDER BY o.created_at DESC
+            LIMIT 10
         """), {"u": target_uid})).scalars().all()
         for idx, sa in enumerate(order_addrs or []):
             if isinstance(sa, dict) and sa.get("line1"):
