@@ -222,13 +222,12 @@ class SellerService:
         if seller.status == "SUSPENDED":
             raise DomainException("Seller account is suspended. Please contact admin.", code="SUSPENDED", status_code=403)
 
-        # 3. Check if user is also platform_admin
+        # 3. Check if user is also platform_admin / owner in business_members
         u_roles_row = (await self.session.execute(
             text("""
-                SELECT array_agg(r.name) 
-                FROM user_roles ur
-                JOIN roles r ON r.id = ur.role_id
-                JOIN users u ON u.id = ur.user_id
+                SELECT array_agg(bm.role::text) 
+                FROM business_members bm
+                JOIN users u ON u.id = bm.user_id
                 WHERE lower(u.email) = :email
             """),
             {"email": norm_email},

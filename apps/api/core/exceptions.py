@@ -29,6 +29,7 @@ def _get_cors_headers(request: Request) -> dict[str, str]:
     if origin and (
         origin in settings.cors_origins_list
         or origin.endswith(".elektrix.in")
+        or origin.endswith(".vercel.app")
         or origin.startswith("http://localhost")
         or origin.startswith("http://127.0.0.1")
     ):
