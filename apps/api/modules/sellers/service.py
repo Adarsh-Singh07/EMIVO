@@ -1142,92 +1142,99 @@ class SellerService:
         with Gemini/100MillionSeek AI, and saves to catalog_duplicate_candidates."""
         import uuid
 
-        query = text("""
-            SELECT 
-                p.id, p.name, p.brand, p.category_id, p.price, p.created_at,
-                c.name as category_name,
-                count(oi.id) as order_count
-            FROM products p
-            LEFT JOIN categories c ON c.id = p.category_id
-            LEFT JOIN order_items oi ON oi.product_id = p.id
-            WHERE p.status = 'ACTIVE'
-            GROUP BY p.id, p.name, p.brand, p.category_id, p.price, p.created_at, c.name
-            ORDER BY p.created_at DESC
-            LIMIT 100;
-        """)
-        res = await self.session.execute(query)
-        prods = [dict(r) for r in res.mappings().all()]
-
         candidates_found = 0
+        try:
+            query = text("""
+                SELECT 
+                    p.id, p.name, p.brand, p.category_id, p.price, p.created_at,
+                    c.name as category_name,
+                    count(oi.id) as order_count
+                FROM products p
+                LEFT JOIN categories c ON c.id = p.category_id
+                LEFT JOIN order_items oi ON oi.product_id = p.id
+                WHERE p.status = 'ACTIVE'
+                GROUP BY p.id, p.name, p.brand, p.category_id, p.price, p.created_at, c.name
+                ORDER BY p.created_at DESC
+                LIMIT 100;
+            """)
+            res = await self.session.execute(query)
+            prods = [dict(r) for r in res.mappings().all()]
 
-        # Pairwise comparison
-        for i in range(len(prods)):
-            for j in range(i + 1, len(prods)):
-                p1 = prods[i]
-                p2 = prods[j]
+            # Pairwise comparison
+            for i in range(len(prods)):
+                for j in range(i + 1, len(prods)):
+                    p1 = prods[i]
+                    p2 = prods[j]
 
-                # Check if pair is already in candidates table
-                exists = (await self.session.execute(
-                    text("""
-                        SELECT id FROM catalog_duplicate_candidates
-                        WHERE (product_a_id = :p1 AND product_b_id = :p2)
-                           OR (product_a_id = :p2 AND product_b_id = :p1)
-                    """),
-                    {"p1": str(p1["id"]), "p2": str(p2["id"])},
-                )).fetchone()
-                if exists:
-                    continue
+                    try:
+                        # Check if pair is already in candidates table
+                        exists = (await self.session.execute(
+                            text("""
+                                SELECT id FROM catalog_duplicate_candidates
+                                WHERE (product_a_id = :p1 AND product_b_id = :p2)
+                                   OR (product_a_id = :p2 AND product_b_id = :p1)
+                            """),
+                            {"p1": str(p1["id"]), "p2": str(p2["id"])},
+                        )).fetchone()
+                        if exists:
+                            continue
 
-                # Heuristic filter: token overlap or brand match
-                name1_words = set(re.findall(r"\w+", p1["name"].lower()))
-                name2_words = set(re.findall(r"\w+", p2["name"].lower()))
-                overlap = len(name1_words & name2_words) / max(len(name1_words | name2_words), 1)
+                        # Heuristic filter: token overlap or brand match
+                        name1_words = set(re.findall(r"\w+", p1["name"].lower()))
+                        name2_words = set(re.findall(r"\w+", p2["name"].lower()))
+                        overlap = len(name1_words & name2_words) / max(len(name1_words | name2_words), 1)
 
-                same_brand = bool(p1.get("brand") and p2.get("brand") and p1["brand"].lower() == p2["brand"].lower())
+                        same_brand = bool(p1.get("brand") and p2.get("brand") and p1["brand"].lower() == p2["brand"].lower())
 
-                if overlap >= 0.40 or (same_brand and overlap >= 0.25):
-                    # Invoke AI Gateway to analyze
-                    eval_res = await AIGateway.detect_duplicate_pair(
-                        {
-                            "id": str(p1["id"]),
-                            "name": p1["name"],
-                            "brand": p1.get("brand"),
-                            "category_name": p1.get("category_name"),
-                            "price_rupees": p1["price"] // 100 if p1["price"] > 10000 else p1["price"],
-                            "order_count": p1.get("order_count") or 0,
-                        },
-                        {
-                            "id": str(p2["id"]),
-                            "name": p2["name"],
-                            "brand": p2.get("brand"),
-                            "category_name": p2.get("category_name"),
-                            "price_rupees": p2["price"] // 100 if p2["price"] > 10000 else p2["price"],
-                            "order_count": p2.get("order_count") or 0,
-                        },
-                    )
-
-                    if eval_res.get("is_duplicate") and eval_res.get("confidence_score", 0) >= 70:
-                        cid = str(uuid.uuid4())
-                        await self.session.execute(text("""
-                            INSERT INTO catalog_duplicate_candidates (
-                                id, product_a_id, product_b_id, suggested_master_id,
-                                similarity_score, confidence_score, ai_reason, suggested_clean_title,
-                                status, detected_at
+                        if overlap >= 0.40 or (same_brand and overlap >= 0.25):
+                            # Invoke AI Gateway to analyze
+                            eval_res = await AIGateway.detect_duplicate_pair(
+                                {
+                                    "id": str(p1["id"]),
+                                    "name": p1["name"],
+                                    "brand": p1.get("brand"),
+                                    "category_name": p1.get("category_name"),
+                                    "price_rupees": p1["price"] // 100 if p1["price"] > 10000 else p1["price"],
+                                    "order_count": p1.get("order_count") or 0,
+                                },
+                                {
+                                    "id": str(p2["id"]),
+                                    "name": p2["name"],
+                                    "brand": p2.get("brand"),
+                                    "category_name": p2.get("category_name"),
+                                    "price_rupees": p2["price"] // 100 if p2["price"] > 10000 else p2["price"],
+                                    "order_count": p2.get("order_count") or 0,
+                                },
                             )
-                            VALUES (
-                                :id, :pa, :pb, :master, :sim, :conf, :reason, :title, 'PENDING_REVIEW', NOW()
-                            );
-                        """), {
-                            "id": cid,
-                            "pa": str(p1["id"]),
-                            "pb": str(p2["id"]),
-                            "master": eval_res.get("suggested_master_id"),
-                            "sim": int(overlap * 100),
-                            "conf": eval_res.get("confidence_score", 85),
-                            "reason": eval_res.get("reason"),
-                            "title": eval_res.get("suggested_clean_title"),
-                        })
-                        candidates_found += 1
 
-        await self.session.commit()
+                            if eval_res.get("is_duplicate") and eval_res.get("confidence_score", 0) >= 70:
+                                cid = str(uuid.uuid4())
+                                await self.session.execute(text("""
+                                    INSERT INTO catalog_duplicate_candidates (
+                                        id, product_a_id, product_b_id, suggested_master_id,
+                                        similarity_score, confidence_score, ai_reason, suggested_clean_title,
+                                        status, detected_at
+                                    )
+                                    VALUES (
+                                        :id, :pa, :pb, :master, :sim, :conf, :reason, :title, 'PENDING_REVIEW', NOW()
+                                    );
+                                """), {
+                                    "id": cid,
+                                    "pa": str(p1["id"]),
+                                    "pb": str(p2["id"]),
+                                    "master": eval_res.get("suggested_master_id"),
+                                    "sim": int(overlap * 100),
+                                    "conf": eval_res.get("confidence_score", 85),
+                                    "reason": eval_res.get("reason"),
+                                    "title": eval_res.get("suggested_clean_title"),
+                                })
+                                candidates_found += 1
+                    except Exception as pair_err:
+                        logger.warning("Error evaluating duplicate pair (%s, %s): %s", p1.get("id"), p2.get("id"), pair_err)
+
+            await self.session.commit()
+        except Exception as scan_err:
+            logger.exception("AI catalog deduplication scan failed: %s", scan_err)
+            await self.session.rollback()
+
         return {"status": "success", "new_duplicates_detected": candidates_found}
