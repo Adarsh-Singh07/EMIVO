@@ -414,7 +414,7 @@ export default function SellerLoginPage() {
                   onClick={() => setShowRegisterModal(false)}
                   className="mt-3 px-5 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg text-xs font-semibold"
                 >
-                  Close &amp; Back to Login
+                  Close & Back to Login
                 </button>
               </div>
             ) : (
@@ -562,7 +562,6 @@ export default function SellerLoginPage() {
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }

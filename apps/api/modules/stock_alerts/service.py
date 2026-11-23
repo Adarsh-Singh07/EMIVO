@@ -7,7 +7,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.exceptions import DomainException
-from modules.outbox.models import OutboxEvent
+from core.models import OutboxEvent
 from modules.stock_alerts.models import StockAlert
 from modules.stock_alerts.schemas import StockAlertResponse
 
