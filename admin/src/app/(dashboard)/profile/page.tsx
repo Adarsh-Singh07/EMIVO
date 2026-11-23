@@ -257,20 +257,36 @@ function TeamManagement() {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {admins.map(a => (
-                <tr key={a.id}>
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-neutral-900">{a.first_name} {a.last_name}</div>
-                    <div className="text-xs text-neutral-500">{a.email}</div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-1">{a.roles.map((r: string) => <RoleBadge key={r} role={r} />)}</div>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button onClick={() => handleRevoke(a.id)} className="text-red-500 text-xs font-semibold hover:underline">Revoke</button>
-                  </td>
-                </tr>
-              ))}
+              {admins.map(a => {
+                const isMaster = a.email?.toLowerCase() === "adarsh2001gop@gmail.com" || a.roles?.includes("owner");
+                return (
+                  <tr key={a.id}>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="font-medium text-neutral-900">{a.first_name} {a.last_name}</div>
+                        {isMaster && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
+                            Master Admin
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-neutral-500">{a.email}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1">{a.roles.map((r: string) => <RoleBadge key={r} role={r} />)}</div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {isMaster ? (
+                        <span className="text-xs font-semibold text-neutral-400 bg-neutral-100 px-2 py-1 rounded" title="Master Administrator access is protected and cannot be revoked">
+                          Protected
+                        </span>
+                      ) : (
+                        <button onClick={() => handleRevoke(a.id)} className="text-red-500 text-xs font-semibold hover:underline">Revoke</button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

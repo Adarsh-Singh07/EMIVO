@@ -223,6 +223,41 @@ function OrderTrackingContent() {
             </div>
           )}
 
+          {/* Delivered Tax Invoice Download Banner */}
+          {order.status.toUpperCase() === "DELIVERED" && (
+            <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-800 grid place-items-center text-lg font-bold shrink-0">
+                  📄
+                </div>
+                <div>
+                  <h4 className="font-bold text-neutral-900 text-sm sm:text-base">Order Delivered Successfully</h4>
+                  <p className="text-xs text-neutral-600">Your official GST Tax Invoice is available for download.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <a
+                  href={`https://api.elektrix.in/api/v1/orders/${order.id}/invoice`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="h-10 px-5 inline-flex items-center gap-2 rounded-full bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
+                >
+                  Download Tax Invoice
+                </a>
+                {order.manual_invoice_url && (
+                  <a
+                    href={order.manual_invoice_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="h-10 px-4 inline-flex items-center gap-2 rounded-full border border-neutral-300 bg-white text-neutral-700 text-xs font-semibold hover:bg-neutral-50 transition-colors"
+                  >
+                    View Store Bill
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Tracking link — courier AWB only, never the order id */}
           {(trackingNumber || order.tracking_url) && (
             <div className="rounded-2xl bg-neutral-50 border border-neutral-100 p-5 space-y-4">

@@ -1,6 +1,7 @@
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, Query, status
+from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.dependencies import (
@@ -10,6 +11,7 @@ from core.dependencies import (
     require_staff,
     set_db_context,
 )
+from core.exceptions import DomainException
 from modules.orders.models import OrderStatus
 from modules.orders.schemas import (
     CheckoutRequest,
@@ -18,6 +20,8 @@ from modules.orders.schemas import (
     OrderStatusUpdate, OrderNotesUpdate,
     PaginatedOrdersResponseV2,
     ShipDelhiveryRequest,
+    VerifyDeliveryOtpRequest,
+    OrderFulfillUpdate,
 )
 from modules.orders.service import OrderService
 from modules.users.models import User
@@ -153,6 +157,57 @@ async def update_order_notes(
 ) -> Any:
     """Update internal notes/complaints for an order (staff only)."""
     return await service.update_order_notes(order_id, payload.notes)
+
+
+@router.post("/{order_id}/verify-delivery-otp", response_model=OrderResponseV2)
+async def verify_delivery_otp(
+    order_id: str,
+    payload: VerifyDeliveryOtpRequest,
+    service: OrderService = Depends(get_order_service),
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    """Verify delivery OTP provided by customer at store pickup or doorstep handover."""
+    order = await service.verify_delivery_otp(order_id, payload.otp)
+    return OrderResponseV2.model_validate(order)
+
+
+@router.post("/{order_id}/fulfillment", response_model=OrderResponseV2)
+async def update_fulfillment_details(
+    order_id: str,
+    payload: OrderFulfillUpdate,
+    service: OrderService = Depends(get_order_service),
+    current_user: User = Depends(require_staff),
+) -> Any:
+    """Update order fulfillment details (serials, store pickup, manual invoice)."""
+    order = await service.update_fulfillment_details(order_id, payload)
+    return OrderResponseV2.model_validate(order)
+
+
+@router.get("/{order_id}/invoice", response_class=HTMLResponse)
+async def get_order_invoice_html(
+    order_id: str,
+    service: OrderService = Depends(get_order_service),
+    current_user: Optional[User] = Depends(get_optional_user),
+) -> Any:
+    """Download/view official Tax Invoice HTML (print-ready) for delivered orders."""
+    is_staff = _is_staff(current_user) if current_user else False
+    html = await service.get_order_invoice_html(order_id, current_user, is_staff)
+    return HTMLResponse(content=html)
+
+
+@router.get("/{order_id}/invoice/data", response_model=dict)
+async def get_order_invoice_data(
+    order_id: str,
+    service: OrderService = Depends(get_order_service),
+    current_user: Optional[User] = Depends(get_optional_user),
+) -> Any:
+    """Get structured tax invoice data for frontend display."""
+    is_staff = _is_staff(current_user) if current_user else False
+    order = await service.get_order(order_id)
+    if not is_staff and current_user and str(order.user_id) != str(current_user.id):
+        raise DomainException("Access denied", code="FORBIDDEN", status_code=403)
+    from modules.orders.invoice import build_tax_invoice_data
+    return build_tax_invoice_data(order)
 
 
 @router.post("/{order_id}/cancel", response_model=OrderResponseV2)

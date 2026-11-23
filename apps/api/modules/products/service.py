@@ -178,7 +178,7 @@ class ProductService:
         await self.session.commit()
         return await self.repository.get_by_id(product.id)
 
-    async def delete_product(self, product_id: str) -> None:
+    async def delete_product(self, product_id: str) -> dict:
         from sqlalchemy import select, func
         from modules.orders.models import OrderItem
         
@@ -186,15 +186,55 @@ class ProductService:
         
         stmt = select(func.count(OrderItem.id)).where(OrderItem.product_id == product.id)
         res = await self.session.execute(stmt)
-        order_count = res.scalar()
+        order_count = res.scalar() or 0
         
         if order_count == 0:
+            await self.session.execute(
+                text("DELETE FROM seller_listings WHERE product_id = :pid"),
+                {"pid": product.id}
+            )
             await self.session.delete(product)
+            await self.session.commit()
+            return {"action": "deleted", "message": "Product permanently deleted"}
         else:
             product.status = ProductStatus.ARCHIVED
             await self.repository.update(product)
-            
+            await self.session.execute(
+                text("UPDATE seller_listings SET is_active = FALSE WHERE product_id = :pid"),
+                {"pid": product.id}
+            )
+            await self.session.commit()
+            return {
+                "action": "archived",
+                "message": "Product has past orders; safely archived to preserve customer order history"
+            }
+
+    async def archive_product(self, product_id: str) -> dict:
+        product = await self.get_product(product_id)
+        product.status = ProductStatus.ARCHIVED
+        await self.repository.update(product)
+        await self.session.execute(
+            text("UPDATE seller_listings SET is_active = FALSE WHERE product_id = :pid"),
+            {"pid": product.id}
+        )
         await self.session.commit()
+        return {"action": "archived", "status": "ARCHIVED", "message": "Product archived from storefront"}
+
+    async def toggle_hide_product(self, product_id: str) -> dict:
+        product = await self.get_product(product_id)
+        if product.status == ProductStatus.ACTIVE:
+            product.status = ProductStatus.DRAFT
+            hidden = True
+        else:
+            product.status = ProductStatus.ACTIVE
+            hidden = False
+        await self.repository.update(product)
+        await self.session.commit()
+        return {
+            "action": "hidden" if hidden else "visible",
+            "status": product.status.value,
+            "message": "Product hidden from storefront" if hidden else "Product visible on storefront"
+        }
 
     async def add_variant(self, product_id: str, data: ProductVariantCreate) -> ProductVariant:
         product = await self.get_product(product_id)

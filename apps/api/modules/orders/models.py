@@ -60,6 +60,11 @@ class Order(Base, TimestampMixin, SoftDeleteMixin, TenantMixin):
     delivery_otp: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     is_open_box: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     delivery_verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Invoicing & Store Direct Handover Fulfillment
+    invoice_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
+    invoice_generated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    manual_invoice_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    fulfillment_type: Mapped[str] = mapped_column(String(30), nullable=False, default="STANDARD", server_default="STANDARD")
     # Payment-retry window bookkeeping: when the reservation for a failed
     # online payment was returned to the general pool (30 min after the
     # failure). NULL while stock is still held for this order.
@@ -134,6 +139,8 @@ class OrderItem(Base, TimestampMixin):
 
     product_name: Mapped[str] = mapped_column(String(255), nullable=False)
     variant_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    serial_numbers: Mapped[Optional[List[str]]] = mapped_column(JSON, default=list, nullable=True)
+    hsn_code: Mapped[Optional[str]] = mapped_column(String(20), default="8517", nullable=True)
 
     order: Mapped["Order"] = relationship("Order", back_populates="items")
 

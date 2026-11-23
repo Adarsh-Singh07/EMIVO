@@ -360,6 +360,7 @@ class SellerService:
             SELECT 
                 p.id, p.name, p.slug, p.sku, p.brand, p.price, p.mrp, p.sale_price,
                 coalesce(sl.stock, i.on_hand, 0) as stock,
+                coalesce(sl.is_active, TRUE) as is_active,
                 p.status, p.category_id, p.description, p.warranty_info, p.return_policy, p.specs,
                 c.name as category_name,
                 pcat.name as parent_category_name,
@@ -369,7 +370,7 @@ class SellerService:
             LEFT JOIN inventory i ON i.product_id = p.id
             LEFT JOIN categories c ON c.id = p.category_id
             LEFT JOIN categories pcat ON pcat.id = c.parent_id
-            WHERE (p.seller_id = :sid OR sl.seller_id = :sid) AND p.status != 'ARCHIVED'
+            WHERE (p.seller_id = :sid OR sl.seller_id = :sid)
             ORDER BY p.created_at DESC;
         """)
         res = await self.session.execute(query, {"sid": seller_id})
@@ -927,27 +928,135 @@ class SellerService:
         await self.session.commit()
         return {"status": "updated", "product_id": product_id}
 
-    async def delete_seller_product(self, seller_id: str, product_id: str) -> None:
+    async def delete_seller_product(self, seller_id: str, product_id: str) -> Dict[str, Any]:
         store_bid = await get_store_business_id(self.session)
         await self.session.execute(text("SELECT set_config('app.business_id', :bid, true)"), {"bid": str(store_bid)})
 
-        row = (await self.session.execute(
-            text("SELECT id FROM products WHERE id = :pid AND seller_id = :sid"),
-            {"pid": product_id, "sid": seller_id},
+        # Check if seller has listing or is product creator
+        listing = (await self.session.execute(
+            text("SELECT id FROM seller_listings WHERE product_id = :pid AND seller_id = :sid"),
+            {"pid": product_id, "sid": seller_id}
         )).fetchone()
-        if not row:
+
+        prod = (await self.session.execute(
+            text("SELECT id, seller_id FROM products WHERE id = :pid"),
+            {"pid": product_id}
+        )).fetchone()
+
+        if not listing and not (prod and str(prod.seller_id) == str(seller_id)):
             raise DomainException("Product not found or access denied", code="NOT_FOUND", status_code=404)
 
-        # Soft archive to preserve order history
+        # Check if this seller has order history for this product
+        order_count = (await self.session.execute(
+            text("SELECT count(*) FROM order_items WHERE product_id = :pid AND (seller_id = :sid OR :sid IS NULL)"),
+            {"pid": product_id, "sid": seller_id}
+        )).scalar() or 0
+
+        if order_count > 0:
+            # Has order history -> archive safely (hide from marketplace, keep order records)
+            await self.session.execute(
+                text("UPDATE seller_listings SET is_active = FALSE WHERE product_id = :pid AND seller_id = :sid"),
+                {"pid": product_id, "sid": seller_id}
+            )
+            if prod and str(prod.seller_id) == str(seller_id):
+                other_listings = (await self.session.execute(
+                    text("SELECT count(*) FROM seller_listings WHERE product_id = :pid AND seller_id != :sid"),
+                    {"pid": product_id, "sid": seller_id}
+                )).scalar() or 0
+                if other_listings == 0:
+                    await self.session.execute(
+                        text("UPDATE products SET status = 'ARCHIVED', updated_at = NOW() WHERE id = :pid"),
+                        {"pid": product_id}
+                    )
+            await self.session.commit()
+            return {
+                "action": "archived",
+                "message": "Product has existing order history; safely archived to preserve customer records."
+            }
+        else:
+            # No orders -> delete seller listing
+            await self.session.execute(
+                text("DELETE FROM seller_listings WHERE product_id = :pid AND seller_id = :sid"),
+                {"pid": product_id, "sid": seller_id}
+            )
+            # If seller was sole creator and no other sellers list it:
+            if prod and str(prod.seller_id) == str(seller_id):
+                other_listings = (await self.session.execute(
+                    text("SELECT count(*) FROM seller_listings WHERE product_id = :pid"),
+                    {"pid": product_id}
+                )).scalar() or 0
+                if other_listings == 0:
+                    await self.session.execute(
+                        text("DELETE FROM inventory WHERE product_id = :pid"),
+                        {"pid": product_id}
+                    )
+                    await self.session.execute(
+                        text("DELETE FROM product_media WHERE product_id = :pid"),
+                        {"pid": product_id}
+                    )
+                    await self.session.execute(
+                        text("DELETE FROM product_variants WHERE product_id = :pid"),
+                        {"pid": product_id}
+                    )
+                    await self.session.execute(
+                        text("DELETE FROM products WHERE id = :pid"),
+                        {"pid": product_id}
+                    )
+            await self.session.commit()
+            return {
+                "action": "deleted",
+                "message": "Product deleted successfully from your inventory."
+            }
+
+    async def toggle_hide_seller_product(self, seller_id: str, product_id: str) -> Dict[str, Any]:
+        store_bid = await get_store_business_id(self.session)
+        await self.session.execute(text("SELECT set_config('app.business_id', :bid, true)"), {"bid": str(store_bid)})
+
+        listing = (await self.session.execute(
+            text("SELECT id, is_active FROM seller_listings WHERE product_id = :pid AND seller_id = :sid"),
+            {"pid": product_id, "sid": seller_id}
+        )).fetchone()
+
+        if not listing:
+            prod = (await self.session.execute(
+                text("SELECT id, price, mrp FROM products WHERE id = :pid AND seller_id = :sid"),
+                {"pid": product_id, "sid": seller_id}
+            )).fetchone()
+            if not prod:
+                raise DomainException("Product not found or access denied", code="NOT_FOUND", status_code=404)
+            lid = str(uuid.uuid4())
+            await self.session.execute(
+                text("""
+                    INSERT INTO seller_listings (id, seller_id, product_id, price, mrp, stock, is_active)
+                    VALUES (:lid, :sid, :pid, :price, :mrp, 10, FALSE)
+                """),
+                {"lid": lid, "sid": seller_id, "pid": product_id, "price": prod.price, "mrp": prod.mrp}
+            )
+            await self.session.commit()
+            return {"action": "hidden", "is_active": False, "message": "Product hidden from storefront"}
+
+        new_status = not bool(listing.is_active)
         await self.session.execute(
-            text("UPDATE products SET status = 'ARCHIVED', updated_at = NOW() WHERE id = :pid AND seller_id = :sid"),
-            {"pid": product_id, "sid": seller_id},
-        )
-        await self.session.execute(
-            text("UPDATE seller_listings SET is_active = FALSE WHERE product_id = :pid AND seller_id = :sid"),
-            {"pid": product_id, "sid": seller_id},
+            text("UPDATE seller_listings SET is_active = :act, updated_at = NOW() WHERE id = :lid"),
+            {"act": new_status, "lid": listing.id}
         )
         await self.session.commit()
+        return {
+            "action": "visible" if new_status else "hidden",
+            "is_active": new_status,
+            "message": "Product is now visible on storefront" if new_status else "Product hidden from storefront"
+        }
+
+    async def archive_seller_product(self, seller_id: str, product_id: str) -> Dict[str, Any]:
+        store_bid = await get_store_business_id(self.session)
+        await self.session.execute(text("SELECT set_config('app.business_id', :bid, true)"), {"bid": str(store_bid)})
+
+        await self.session.execute(
+            text("UPDATE seller_listings SET is_active = FALSE WHERE product_id = :pid AND seller_id = :sid"),
+            {"pid": product_id, "sid": seller_id}
+        )
+        await self.session.commit()
+        return {"action": "archived", "is_active": False, "message": "Product archived from your inventory"}
 
     # -------------------------------------------------------------------------
     # Seller Orders & "Mark as Packed"
@@ -967,6 +1076,11 @@ class SellerService:
                 oi.total,
                 coalesce(oi.seller_name, s.business_name, 'Apana Enterprises') as seller_name,
                 o.status as order_status,
+                o.fulfillment_type,
+                o.delivery_otp,
+                o.invoice_number,
+                o.manual_invoice_url,
+                oi.serial_numbers,
                 o.shipping_address->>'city' as customer_city,
                 o.shipping_address->>'pincode' as customer_pincode,
                 o.created_at
@@ -984,7 +1098,14 @@ class SellerService:
         for r in rows:
             # Map order fulfillment status
             status = str(r["order_status"]).upper()
-            fulfillment = "PACKED" if status in ("PACKED", "SHIPPED", "DELIVERED") else "PENDING"
+            if status in ("DELIVERED", "COMPLETED"):
+                fulfillment = "DELIVERED"
+            elif status == "OUT_FOR_DELIVERY":
+                fulfillment = "OUT_FOR_DELIVERY"
+            elif status in ("PACKED", "SHIPPED"):
+                fulfillment = "PACKED"
+            else:
+                fulfillment = "PENDING"
 
             items.append(
                 SellerOrderItem(
@@ -998,6 +1119,12 @@ class SellerService:
                     unit_price=int(r["unit_price"]),
                     total=int(r["total"]),
                     fulfillment_status=fulfillment,
+                    order_status=status,
+                    fulfillment_type=r.get("fulfillment_type"),
+                    delivery_otp=r.get("delivery_otp"),
+                    invoice_number=r.get("invoice_number"),
+                    manual_invoice_url=r.get("manual_invoice_url"),
+                    serial_numbers=r.get("serial_numbers"),
                     customer_city=r.get("customer_city"),
                     customer_pincode=r.get("customer_pincode"),
                     created_at=r.get("created_at"),
@@ -1031,6 +1158,97 @@ class SellerService:
         )
         await self.session.commit()
         return {"status": "PACKED", "item_id": item_id, "order_id": str(row[1])}
+
+    async def direct_delivery_order(self, seller_id: str, order_id: str) -> Dict[str, Any]:
+        """Transition order to OUT_FOR_DELIVERY for direct counter pickup / seller delivery handover."""
+        row = (await self.session.execute(
+            text("""
+                SELECT oi.id, o.id, o.status
+                FROM order_items oi
+                JOIN orders o ON o.id = oi.order_id
+                JOIN products p ON p.id = oi.product_id
+                WHERE o.id = :oid AND (p.seller_id = :sid OR oi.seller_id = :sid)
+            """),
+            {"oid": order_id, "sid": seller_id},
+        )).fetchone()
+        if not row:
+            raise DomainException("Order not found for this seller", code="NOT_FOUND", status_code=404)
+
+        from modules.orders.service import OrderService
+        from modules.orders.schemas import OrderStatusUpdate, OrderStatus
+        order_svc = OrderService(self.session)
+        updated = await order_svc.transition(
+            order_id,
+            OrderStatus.OUT_FOR_DELIVERY,
+            OrderStatusUpdate(
+                status=OrderStatus.OUT_FOR_DELIVERY,
+                reason="Walk-in Store Pickup / Direct Seller Delivery Handover",
+            ),
+        )
+        await self.session.execute(
+            text("UPDATE orders SET fulfillment_type = 'STORE_PICKUP' WHERE id = :oid"),
+            {"oid": order_id},
+        )
+        await self.session.commit()
+        return {
+            "status": "OUT_FOR_DELIVERY",
+            "order_id": order_id,
+            "delivery_otp": getattr(updated, "delivery_otp", None),
+        }
+
+    async def verify_seller_delivery_otp(self, seller_id: str, order_id: str, otp: str) -> Dict[str, Any]:
+        """Verify delivery OTP submitted by seller for customer counter handover."""
+        row = (await self.session.execute(
+            text("""
+                SELECT oi.id, o.id
+                FROM order_items oi
+                JOIN orders o ON o.id = oi.order_id
+                JOIN products p ON p.id = oi.product_id
+                WHERE o.id = :oid AND (p.seller_id = :sid OR oi.seller_id = :sid)
+            """),
+            {"oid": order_id, "sid": seller_id},
+        )).fetchone()
+        if not row:
+            raise DomainException("Order not found for this seller", code="NOT_FOUND", status_code=404)
+
+        from modules.orders.service import OrderService
+        order_svc = OrderService(self.session)
+        delivered_order = await order_svc.verify_delivery_otp(order_id, otp)
+        return {
+            "status": "DELIVERED",
+            "order_id": order_id,
+            "invoice_number": getattr(delivered_order, "invoice_number", None),
+        }
+
+    async def update_seller_fulfillment(
+        self,
+        seller_id: str,
+        order_id: str,
+        manual_invoice_url: Optional[str] = None,
+        item_serials: Optional[Dict[str, List[str]]] = None,
+    ) -> Dict[str, Any]:
+        """Save product serials/IMEIs and manual store receipt."""
+        row = (await self.session.execute(
+            text("""
+                SELECT oi.id, o.id
+                FROM order_items oi
+                JOIN orders o ON o.id = oi.order_id
+                JOIN products p ON p.id = oi.product_id
+                WHERE o.id = :oid AND (p.seller_id = :sid OR oi.seller_id = :sid)
+            """),
+            {"oid": order_id, "sid": seller_id},
+        )).fetchone()
+        if not row:
+            raise DomainException("Order not found for this seller", code="NOT_FOUND", status_code=404)
+
+        from modules.orders.service import OrderService
+        order_svc = OrderService(self.session)
+        updated = await order_svc.update_fulfillment_details(order_id, manual_invoice_url, item_serials)
+        return {
+            "status": "OK",
+            "order_id": order_id,
+            "manual_invoice_url": getattr(updated, "manual_invoice_url", None),
+        }
 
     # -------------------------------------------------------------------------
     # Category Hierarchy & Suggestions Workflow

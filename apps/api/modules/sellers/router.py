@@ -8,6 +8,7 @@ from core.ai_gateway import AIGateway
 from core.config import settings
 from core.database import get_db_session
 from core.exceptions import DomainException
+from modules.orders.schemas import VerifyDeliveryOtpRequest
 from modules.sellers.models import Seller
 from modules.sellers.schemas import (
     AIGenerateRequest,
@@ -20,6 +21,7 @@ from modules.sellers.schemas import (
     SellerApprovalRequest,
     SellerAttachOffer,
     SellerCreateAdmin,
+    SellerFulfillmentUpdate,
     SellerOrderItem,
     SellerOtpRequest,
     SellerOtpVerify,
@@ -174,13 +176,34 @@ async def update_seller_product(
     return await service.update_seller_product(seller.id, product_id, data)
 
 
-@router.delete("/api/v1/seller/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/api/v1/seller/products/{product_id}")
 async def delete_seller_product(
     product_id: str,
     seller: Seller = Depends(get_current_seller),
     service: SellerService = Depends(_get_service),
 ):
-    await service.delete_seller_product(seller.id, product_id)
+    """Safely delete product from seller inventory, or archive if past orders exist."""
+    return await service.delete_seller_product(seller.id, product_id)
+
+
+@router.post("/api/v1/seller/products/{product_id}/toggle-visibility")
+async def toggle_seller_product_visibility(
+    product_id: str,
+    seller: Seller = Depends(get_current_seller),
+    service: SellerService = Depends(_get_service),
+):
+    """Toggle visibility of seller listing on storefront."""
+    return await service.toggle_hide_seller_product(seller.id, product_id)
+
+
+@router.post("/api/v1/seller/products/{product_id}/archive")
+async def archive_seller_product(
+    product_id: str,
+    seller: Seller = Depends(get_current_seller),
+    service: SellerService = Depends(_get_service),
+):
+    """Archive product listing from seller inventory."""
+    return await service.archive_seller_product(seller.id, product_id)
 
 
 # -----------------------------------------------------------------------------
@@ -238,6 +261,40 @@ async def mark_item_packed(
     service: SellerService = Depends(_get_service),
 ):
     return await service.mark_order_item_packed(seller.id, order_id, item_id)
+
+
+@router.post("/api/v1/seller/orders/{order_id}/direct-delivery")
+async def seller_direct_delivery(
+    order_id: str,
+    seller: Seller = Depends(get_current_seller),
+    service: SellerService = Depends(_get_service),
+):
+    return await service.direct_delivery_order(seller.id, order_id)
+
+
+@router.post("/api/v1/seller/orders/{order_id}/verify-delivery-otp")
+async def seller_verify_delivery_otp(
+    order_id: str,
+    body: VerifyDeliveryOtpRequest,
+    seller: Seller = Depends(get_current_seller),
+    service: SellerService = Depends(_get_service),
+):
+    return await service.verify_seller_delivery_otp(seller.id, order_id, body.otp)
+
+
+@router.post("/api/v1/seller/orders/{order_id}/fulfillment")
+async def seller_update_fulfillment(
+    order_id: str,
+    body: SellerFulfillmentUpdate,
+    seller: Seller = Depends(get_current_seller),
+    service: SellerService = Depends(_get_service),
+):
+    return await service.update_seller_fulfillment(
+        seller.id,
+        order_id,
+        manual_invoice_url=body.manual_invoice_url,
+        item_serials=body.item_serials,
+    )
 
 
 # -----------------------------------------------------------------------------

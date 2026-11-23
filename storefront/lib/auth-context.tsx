@@ -109,19 +109,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }>("/auth/login", { email, password }, true);
     setTokens(data.access_token, data.refresh_token);
 
-    // The login response carries the user — sign-in completes in ONE
-    // network round-trip. The guest-cart merge is best-effort and runs in
-    // the background; it must not delay the user entering the app.
-    if (data.user) setUser(data.user);
-    else setUser(await apiClient.get<User>("/users/me"));
-    (async () => {
+    // Await guest-cart merge before setting user so CartProvider loads the merged cart
+    const sessionId = getCartSessionId();
+    if (sessionId) {
       try {
-        const sessionId = getCartSessionId();
-        if (sessionId) await storeApi.mergeCart(sessionId);
+        await storeApi.mergeCart(sessionId);
       } catch {
         /* best-effort */
       }
-    })();
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("elektrix:cart-merged"));
+    }
+
+    if (data.user) setUser(data.user);
+    else setUser(await apiClient.get<User>("/users/me"));
   }, []);
 
   const register = useCallback(
@@ -147,12 +149,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Best-effort guest-cart merge (same as login).
-      try {
-        const sessionId = getCartSessionId();
-        if (sessionId) await storeApi.mergeCart(sessionId);
-      } catch {
-        /* best-effort */
+      // Await guest-cart merge before setting user so CartProvider loads the merged cart
+      const sessionId = getCartSessionId();
+      if (sessionId) {
+        try {
+          await storeApi.mergeCart(sessionId);
+        } catch {
+          /* best-effort */
+        }
+      }
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("elektrix:cart-merged"));
       }
 
       try {
@@ -208,16 +215,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       setTokens(data.access_token, data.refresh_token);
 
-      if (data.user) setUser(data.user);
-      else setUser(await apiClient.get<User>("/users/me"));
-      (async () => {
+      // Await guest-cart merge before setting user so CartProvider loads the merged cart
+      const sessionId = getCartSessionId();
+      if (sessionId) {
         try {
-          const sessionId = getCartSessionId();
-          if (sessionId) await storeApi.mergeCart(sessionId);
+          await storeApi.mergeCart(sessionId);
         } catch {
           /* best-effort */
         }
-      })();
+      }
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("elektrix:cart-merged"));
+      }
+
+      if (data.user) setUser(data.user);
+      else setUser(await apiClient.get<User>("/users/me"));
     },
     []
   );

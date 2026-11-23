@@ -191,12 +191,27 @@ class AdminService:
         anonymized and sign-in is impossible. Order history remains intact
         for the business record, as required.
         """
+        if str(user_id).lower() == "adarsh2001gop@gmail.com":
+            raise DomainException(
+                "Master Administrator account cannot be deleted",
+                code="FORBIDDEN",
+                status_code=403,
+            )
+
         row = (await self.session.execute(
-            text("SELECT email, first_name, last_name, phone FROM users WHERE id = :u"),
+            text("SELECT id, email, first_name, last_name, phone FROM users WHERE id = :u OR email = :u"),
             {"u": user_id},
         )).mappings().first()
         if not row:
             raise DomainException("User not found", code="NOT_FOUND", status_code=404)
+
+        user_email = (row.get("email") or "").lower()
+        if user_email == "adarsh2001gop@gmail.com":
+            raise DomainException(
+                "Master Administrator account cannot be deleted",
+                code="FORBIDDEN",
+                status_code=403,
+            )
 
         bid = await get_store_business_id(self.session)
         role = (await self.session.execute(text(
@@ -464,15 +479,25 @@ class AdminService:
         await self.session.commit()
 
     async def revoke_admin(self, user_id: str) -> None:
+        if str(user_id).lower() == "adarsh2001gop@gmail.com":
+            raise DomainException(
+                "Master Administrator access cannot be revoked", code="FORBIDDEN", status_code=403
+            )
+        user_row = (await self.session.execute(text("SELECT email FROM users WHERE id = :uid OR email = :uid"), {"uid": user_id})).fetchone()
+        email = (user_row[0] or "").lower() if user_row else ""
+        if email == "adarsh2001gop@gmail.com":
+            raise DomainException(
+                "Master Administrator access cannot be revoked", code="FORBIDDEN", status_code=403
+            )
         bid = await get_store_business_id(self.session)
         # Guard: never allow revoking the last owner or an owner record
         # outright — ownership transfers must be deliberate.
         role = (await self.session.execute(text("""
             SELECT role FROM business_members WHERE business_id = :bid AND user_id = :uid LIMIT 1
         """), {"bid": bid, "uid": user_id})).scalar()
-        if role == "owner":
+        if role in ("owner", "platform_admin"):
             raise DomainException(
-                "Owners cannot be revoked via this endpoint", code="FORBIDDEN", status_code=403
+                "Owners and platform admins cannot be revoked via this endpoint", code="FORBIDDEN", status_code=403
             )
         await self.session.execute(text("""
             DELETE FROM business_members WHERE business_id = :bid AND user_id = :uid

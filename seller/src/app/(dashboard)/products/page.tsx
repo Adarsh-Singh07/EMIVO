@@ -13,7 +13,10 @@ import {
   Check, 
   X,
   ExternalLink,
-  Layers
+  Layers,
+  Eye,
+  EyeOff,
+  Archive
 } from "lucide-react";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { formatINR, paiseToRupees } from "@/lib/money";
@@ -30,6 +33,7 @@ interface SellerProduct {
   sale_price?: number;
   stock: number;
   status: string;
+  is_active?: boolean;
   category_id?: string;
   category_name?: string;
   parent_category_name?: string;
@@ -121,13 +125,48 @@ export default function SellerProductsPage() {
     }
   };
 
+  const handleToggleHide = async (id: string, currentActive: boolean) => {
+    try {
+      const res = await apiClient.post<{ action: string; is_active: boolean; message: string }>(
+        `/seller/products/${id}/toggle-visibility`,
+        {}
+      );
+      setProducts((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, is_active: res.is_active } : p))
+      );
+      toast.success(res.message);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to toggle visibility");
+    }
+  };
+
+  const handleArchive = async (id: string, name: string) => {
+    if (!confirm(`Archive '${name}'? It will be safely hidden from storefront while preserving previous order records.`)) return;
+    try {
+      const res = await apiClient.post<{ message: string }>(`/seller/products/${id}/archive`, {});
+      setProducts((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, is_active: false, status: "ARCHIVED" } : p))
+      );
+      toast.success(res.message);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to archive product");
+    }
+  };
+
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to remove '${name}' from your active inventory?`)) return;
+    if (!confirm(`Are you sure you want to delete '${name}'? If past orders exist, it will be safely archived instead.`)) return;
 
     try {
-      await apiClient.delete(`/seller/products/${id}`);
-      setProducts((prev) => prev.filter((p) => p.id !== id));
-      toast.success("Product removed from inventory");
+      const res = await apiClient.delete<{ action: string; message: string }>(`/seller/products/${id}`);
+      if (res?.action === "archived") {
+        setProducts((prev) =>
+          prev.map((p) => (p.id === id ? { ...p, is_active: false, status: "ARCHIVED" } : p))
+        );
+        toast.info(res.message);
+      } else {
+        setProducts((prev) => prev.filter((p) => p.id !== id));
+        toast.success(res?.message || "Product deleted from inventory");
+      }
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Failed to delete product";
       toast.error(msg);
@@ -311,9 +350,19 @@ export default function SellerProductsPage() {
                       </td>
 
                       <td className="px-5 py-3.5">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-neutral-100 text-neutral-700 border border-neutral-200">
-                          {product.status}
-                        </span>
+                        {product.status === "ARCHIVED" ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-neutral-100 text-neutral-600 border border-neutral-300">
+                            Archived
+                          </span>
+                        ) : product.is_active === false || product.status === "DRAFT" ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
+                            Hidden
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            Live on Store
+                          </span>
+                        )}
                       </td>
 
                       <td className="px-5 py-3.5 text-right">
@@ -340,12 +389,33 @@ export default function SellerProductsPage() {
                           ) : (
                             <>
                               <button
+                                onClick={() => handleToggleHide(product.id, product.is_active !== false)}
+                                className={`p-1.5 rounded-lg transition-colors ${
+                                  product.is_active === false
+                                    ? "text-amber-600 bg-amber-50 hover:bg-amber-100"
+                                    : "text-neutral-400 hover:text-neutral-800 hover:bg-neutral-100"
+                                }`}
+                                title={product.is_active === false ? "Show in Storefront (Currently Hidden)" : "Hide from Storefront"}
+                              >
+                                {product.is_active === false ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                              </button>
+
+                              <button
+                                onClick={() => handleArchive(product.id, product.name)}
+                                className="p-1.5 rounded-lg text-neutral-400 hover:text-amber-700 hover:bg-amber-50 transition-colors"
+                                title="Archive product (preserves order history)"
+                              >
+                                <Archive className="w-4 h-4" />
+                              </button>
+
+                              <button
                                 onClick={() => router.push(`/products/${product.id}`)}
                                 className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100 transition-colors"
                                 title="Edit Full Details (Images, Specs, Warranty)"
                               >
                                 <Edit3 className="w-4 h-4" />
                               </button>
+
                               <a
                                 href={`https://elektrix.in/product/${product.id}`}
                                 target="_blank"
@@ -355,10 +425,11 @@ export default function SellerProductsPage() {
                               >
                                 <ExternalLink className="w-4 h-4" />
                               </a>
+
                               <button
                                 onClick={() => handleDelete(product.id, product.name)}
                                 className="p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                                title="Remove product"
+                                title="Delete product (safe order check)"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>

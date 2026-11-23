@@ -126,6 +126,11 @@ class CartService:
             )
 
         cart = None
+        if user_id and session_id:
+            guest_cart = await self.repository.get_by_session(session_id)
+            if guest_cart and guest_cart.items and str(guest_cart.user_id or "") != str(user_id):
+                return await self.merge_guest_cart(user_id=user_id, session_id=session_id)
+
         if user_id:
             cart = await self.repository.get_by_user(user_id)
 

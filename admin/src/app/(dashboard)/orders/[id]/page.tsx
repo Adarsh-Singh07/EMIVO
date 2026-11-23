@@ -17,6 +17,11 @@ import {
   Loader2,
   MapPin,
   Store,
+  FileText,
+  Barcode,
+  KeyRound,
+  ShieldCheck,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiClient, ApiError } from "@/lib/api-client";
@@ -34,6 +39,8 @@ interface OrderItem {
   quantity: number;
   unit_price: number;
   subtotal: number;
+  serial_numbers?: string[] | null;
+  hsn_code?: string | null;
 }
 
 interface OrderNote {
@@ -73,6 +80,12 @@ interface Order {
   tracking_url: string | null;
   shipped_at: string | null;
   delivered_at: string | null;
+  delivery_otp?: string | null;
+  delivery_verified_at?: string | null;
+  invoice_number?: string | null;
+  invoice_generated_at?: string | null;
+  manual_invoice_url?: string | null;
+  fulfillment_type?: string | null;
   notes: string | null;
   shipping_address: ShippingAddress | null;
   items: OrderItem[];
@@ -92,29 +105,48 @@ interface Payment {
   updated_at: string;
 }
 
-/** Backend state machine: PENDING→CONFIRMED→PROCESSING→SHIPPED→DELIVERED; CANCELLED; DELIVERED→REFUNDED. */
-const NEXT_ACTIONS: Record<string, Array<{ label: string; target: string; style: "primary" | "danger" | "neutral" | "brand"; tracking?: boolean; reason?: boolean; delhivery?: boolean }>> = {
+interface OrderAction {
+  label: string;
+  target: string;
+  style: "primary" | "danger" | "neutral" | "brand";
+  tracking?: boolean;
+  reason?: boolean;
+  delhivery?: boolean;
+  otp?: boolean;
+}
+
+/** Backend state machine: PENDING→CONFIRMED→PROCESSING→PACKED→SHIPPED/OUT_FOR_DELIVERY→DELIVERED */
+const NEXT_ACTIONS: Record<string, Array<OrderAction>> = {
   PENDING: [
-    { label: "Confirm", target: "CONFIRMED", style: "primary" },
+    { label: "Confirm Order", target: "CONFIRMED", style: "primary" },
     { label: "Cancel", target: "CANCELLED", style: "danger", reason: true },
   ],
   CONFIRMED: [
     { label: "Ship via Delhivery", target: "SHIPPED", style: "brand", delhivery: true },
-    { label: "Start Processing", target: "PROCESSING", style: "primary" },
+    { label: "Ship via Other Courier", target: "SHIPPED", style: "neutral", tracking: true },
+    { label: "Store Pickup / Direct Delivery", target: "OUT_FOR_DELIVERY", style: "primary" },
+    { label: "Start Processing", target: "PROCESSING", style: "neutral" },
     { label: "Cancel", target: "CANCELLED", style: "danger", reason: true },
   ],
   PROCESSING: [
     { label: "Ship via Delhivery", target: "SHIPPED", style: "brand", delhivery: true },
-    { label: "Mark Shipped (Manual)", target: "SHIPPED", style: "neutral", tracking: true },
+    { label: "Ship via Other Courier", target: "SHIPPED", style: "neutral", tracking: true },
+    { label: "Store Pickup / Direct Delivery", target: "OUT_FOR_DELIVERY", style: "primary" },
     { label: "Cancel", target: "CANCELLED", style: "danger", reason: true },
   ],
   PACKED: [
     { label: "Ship via Delhivery", target: "SHIPPED", style: "brand", delhivery: true },
-    { label: "Mark Shipped (Manual)", target: "SHIPPED", style: "neutral", tracking: true },
+    { label: "Ship via Other Courier", target: "SHIPPED", style: "neutral", tracking: true },
+    { label: "Store Pickup / Direct Delivery", target: "OUT_FOR_DELIVERY", style: "primary" },
     { label: "Cancel", target: "CANCELLED", style: "danger", reason: true },
   ],
   SHIPPED: [
-    { label: "Mark Delivered", target: "DELIVERED", style: "primary" },
+    { label: "Mark Out For Delivery", target: "OUT_FOR_DELIVERY", style: "primary" },
+    { label: "Mark Delivered", target: "DELIVERED", style: "neutral" },
+    { label: "Cancel", target: "CANCELLED", style: "danger", reason: true },
+  ],
+  OUT_FOR_DELIVERY: [
+    { label: "Verify Delivery OTP & Deliver", target: "DELIVERED", style: "primary", otp: true },
     { label: "Cancel", target: "CANCELLED", style: "danger", reason: true },
   ],
   DELIVERED: [],
@@ -161,6 +193,17 @@ export default function OrderDetailPage() {
   const [refundAmount, setRefundAmount] = useState(""); // rupees, empty = full
   const [refundReason, setRefundReason] = useState("");
 
+  // Delivery OTP Verification modal
+  const [otpOpen, setOtpOpen] = useState(false);
+  const [deliveryOtpInput, setDeliveryOtpInput] = useState("");
+  const [otpVerifying, setOtpVerifying] = useState(false);
+
+  // IMEI / Serials & Manual Invoice modal
+  const [fulfillmentOpen, setFulfillmentOpen] = useState(false);
+  const [itemSerials, setItemSerials] = useState<Record<string, string>>({});
+  const [manualInvoiceUrl, setManualInvoiceUrl] = useState("");
+  const [fulfillmentSaving, setFulfillmentSaving] = useState(false);
+
   const load = useCallback(async () => {
     if (!id) return;
     try {
@@ -206,6 +249,52 @@ export default function OrderDetailPage() {
       toast.error(err instanceof ApiError ? err.message : "Failed to add note");
     } finally {
       setNoteSaving(false);
+    }
+  };
+
+  const verifyDeliveryOtp = async () => {
+    if (!deliveryOtpInput.trim()) {
+      toast.error("Please enter the 6-digit customer OTP");
+      return;
+    }
+    setOtpVerifying(true);
+    try {
+      const updated = await apiClient.post<Order>(`/orders/${id}/verify-delivery-otp`, {
+        otp: deliveryOtpInput.trim(),
+      });
+      setOrder(updated);
+      toast.success("Delivery verified! Tax Invoice generated successfully.");
+      setOtpOpen(false);
+      setDeliveryOtpInput("");
+      load();
+    } catch (err: any) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to verify OTP");
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
+
+  const saveFulfillmentDetails = async () => {
+    setFulfillmentSaving(true);
+    try {
+      const serialsPayload: Record<string, string[]> = {};
+      for (const [itemId, textVal] of Object.entries(itemSerials)) {
+        if (textVal && textVal.trim()) {
+          serialsPayload[itemId] = textVal.split(",").map((s) => s.trim()).filter(Boolean);
+        }
+      }
+      const updated = await apiClient.post<Order>(`/orders/${id}/fulfillment`, {
+        manual_invoice_url: manualInvoiceUrl.trim() || null,
+        item_serials: Object.keys(serialsPayload).length > 0 ? serialsPayload : null,
+      });
+      setOrder(updated);
+      toast.success("Product serials and invoice details saved!");
+      setFulfillmentOpen(false);
+      load();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to save details");
+    } finally {
+      setFulfillmentSaving(false);
     }
   };
 
@@ -526,7 +615,7 @@ export default function OrderDetailPage() {
             <div className="flex flex-col gap-2">
               {actions.map((action) => (
                 <button
-                  key={action.target}
+                  key={action.label}
                   onClick={() => {
                     if (action.delhivery) {
                       setDelhiveryOpen(true);
@@ -534,6 +623,9 @@ export default function OrderDetailPage() {
                       setTrackingNumber("");
                       setTrackingUrl("");
                       setShipOpen(true);
+                    } else if (action.otp) {
+                      setDeliveryOtpInput("");
+                      setOtpOpen(true);
                     } else if (action.reason) {
                       setCancelReason("");
                       setCancelOpen(true);
@@ -552,10 +644,62 @@ export default function OrderDetailPage() {
                         : "border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
                   }`}
                 >
-                  {action.delhivery ? <Truck className="h-4 w-4" /> : action.style === "danger" ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                  {action.delhivery ? <Truck className="h-4 w-4" /> : action.otp ? <KeyRound className="h-4 w-4" /> : action.style === "danger" ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                   {action.label}
                 </button>
               ))}
+
+              {order.status === "DELIVERED" && (
+                <a
+                  href={`https://api.elektrix.in/api/v1/orders/${order.id}/invoice`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-amber-500/20 hover:bg-amber-600 transition-all text-center"
+                >
+                  <FileText className="h-4 w-4" /> Download Official Tax Invoice
+                </a>
+              )}
+
+              {order.manual_invoice_url && (
+                <a
+                  href={order.manual_invoice_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 transition-all text-center"
+                >
+                  <ExternalLink className="h-4 w-4" /> View Store Receipt / Bill
+                </a>
+              )}
+
+              <button
+                onClick={() => {
+                  const initial: Record<string, string> = {};
+                  for (const item of order.items) {
+                    initial[item.id] = (item.serial_numbers || []).join(", ");
+                  }
+                  setItemSerials(initial);
+                  setManualInvoiceUrl(order.manual_invoice_url || "");
+                  setFulfillmentOpen(true);
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-all"
+              >
+                <Barcode className="h-3.5 w-3.5" /> Product Serials / IMEI & Bill
+              </button>
+
+              {order.delivery_otp && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs mt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-amber-900">Customer Delivery OTP:</span>
+                    <span className="font-mono text-base font-extrabold text-amber-700 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
+                      {order.delivery_otp}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-amber-700/90 mt-1">
+                    Sent to customer via WhatsApp/SMS. Verify this OTP to complete delivery.
+                  </p>
+                </div>
+              )}
+
               {actions.length === 0 && (
                 <p className="rounded-xl border border-dashed border-neutral-200 p-3 text-center text-xs text-neutral-400">
                   {order.status === "REFUNDED" || order.status === "CANCELLED" ? "This order is in a terminal state." : "No further actions."}
@@ -939,6 +1083,126 @@ export default function OrderDetailPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Delivery OTP Verification modal */}
+      <Modal
+        open={otpOpen}
+        onClose={() => setOtpOpen(false)}
+        title="Verify Customer Delivery OTP"
+        footer={
+          <>
+            <button
+              onClick={() => setOtpOpen(false)}
+              className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={verifyDeliveryOtp}
+              disabled={otpVerifying || !deliveryOtpInput.trim()}
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {otpVerifying ? "Verifying..." : "Verify & Complete Delivery"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-neutral-600">
+            Ask the customer for the 6-digit delivery OTP sent to their mobile number/WhatsApp, or check customer order details.
+          </p>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-neutral-600">
+              6-Digit Customer Delivery OTP
+            </label>
+            <input
+              type="text"
+              maxLength={6}
+              value={deliveryOtpInput}
+              onChange={(e) => setDeliveryOtpInput(e.target.value.replace(/\D/g, ""))}
+              placeholder="e.g. 481920"
+              className="h-12 w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 text-center font-mono text-2xl font-bold tracking-widest text-neutral-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              autoFocus
+            />
+          </div>
+          {order?.delivery_otp && (
+            <div className="rounded-xl bg-amber-50 border border-amber-200/60 p-3 text-xs text-amber-800 flex items-center justify-between">
+              <span>Customer OTP on file (for counter pickup):</span>
+              <span className="font-mono font-bold text-sm bg-white px-2 py-0.5 rounded border border-amber-300">
+                {order.delivery_otp}
+              </span>
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* Product Serials / IMEI & Manual Invoice modal */}
+      <Modal
+        open={fulfillmentOpen}
+        onClose={() => setFulfillmentOpen(false)}
+        title="Product Serials / IMEI & Store Invoice"
+        footer={
+          <>
+            <button
+              onClick={() => setFulfillmentOpen(false)}
+              className="rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={saveFulfillmentDetails}
+              disabled={fulfillmentSaving}
+              className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-500 px-4 py-2 text-sm font-semibold text-neutral-950 transition-colors hover:bg-amber-400 disabled:opacity-50"
+            >
+              {fulfillmentSaving ? "Saving..." : "Save Details"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+          <p className="text-sm text-neutral-600">
+            Add serial numbers / IMEIs for warranty and customer invoice display. You can also attach an image or PDF URL of a physical counter bill.
+          </p>
+
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-500">Order Items</h3>
+            {order?.items?.map((item) => (
+              <div key={item.id} className="rounded-xl border border-neutral-200 p-3 bg-neutral-50/50">
+                <div className="flex items-center justify-between text-xs font-semibold text-neutral-900 mb-1.5">
+                  <span className="truncate pr-2 font-medium">{item.product_name}</span>
+                  <span className="text-neutral-500 text-[11px]">Qty: {item.quantity}</span>
+                </div>
+                <label className="block text-[11px] font-medium text-neutral-500 mb-1">
+                  Serial / IMEI Numbers (comma separated for multiple)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 864523051234567, 864523051234568"
+                  value={itemSerials[item.id] !== undefined ? itemSerials[item.id] : (item.serial_numbers?.join(", ") || "")}
+                  onChange={(e) => setItemSerials({ ...itemSerials, [item.id]: e.target.value })}
+                  className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-xs font-mono text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="pt-2 border-t border-neutral-100">
+            <label className="mb-1 block text-xs font-semibold text-neutral-700">
+              Manual Counter Bill / Invoice URL (Optional)
+            </label>
+            <input
+              type="url"
+              placeholder="https://... (Cloudflare R2, image, or PDF URL)"
+              value={manualInvoiceUrl}
+              onChange={(e) => setManualInvoiceUrl(e.target.value)}
+              className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+            <p className="mt-1 text-[11px] text-neutral-400">
+              If uploaded, customers can also view this manual store invoice alongside the digital tax invoice.
+            </p>
+          </div>
+        </div>
       </Modal>
     </div>
   );

@@ -7,6 +7,7 @@ Environment (set by scripts/run_backend_tests.sh):
 """
 import os
 import sys
+from typing import Optional
 import uuid
 
 import httpx
@@ -22,6 +23,7 @@ from main import app as fastapi_app  # noqa: E402
 # gate off; test_email_verification.py opts back in per-test.
 from core.config import settings as _settings  # noqa: E402
 _settings.email_verification_required = False
+_settings.env_name = "test"
 
 RUN_ID = uuid.uuid4().hex[:8]
 BASE = "http://testserver"
@@ -39,13 +41,19 @@ def _run(n: int = 0) -> str:
     return f"{RUN_ID}{n}"
 
 
-async def register_and_login(client: httpx.AsyncClient, n: int = 0, password: str = "Passw0rd!123"):
+async def register_and_login(
+    client: httpx.AsyncClient,
+    n: int = 0,
+    password: str = "Passw0rd!123",
+    phone: Optional[str] = None,
+):
     email = f"buyer{_run(n)}@example.com"
+    if phone is None:
+        phone = f"9{str(abs(n))[-9:].zfill(9)}"
     r = await client.post("/api/v1/auth/register", json={
         "email": email, "password": password,
         "first_name": "Test", "last_name": f"Buyer{n}",
-        # Unique 10-digit mobile per test identity (9 + 9 digits from n)
-        "phone": f"9{str(abs(n))[-9:].zfill(9)}",
+        "phone": phone,
     })
     assert r.status_code == 201, r.text
     r = await client.post("/api/v1/auth/login", json={"email": email, "password": password})
@@ -53,7 +61,7 @@ async def register_and_login(client: httpx.AsyncClient, n: int = 0, password: st
     tokens = r.json()
     return {
         "email": email,
-        "phone": f"9{str(abs(n))[-9:].zfill(9)}",
+        "phone": phone,
         "password": password,
         "access_token": tokens["access_token"],
         "refresh_token": tokens["refresh_token"],

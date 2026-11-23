@@ -207,7 +207,11 @@ export default function UsersPage() {
                       </td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center justify-end gap-1.5">
-                          {user.roles?.some((r) => r !== "customer") ? (
+                          {user.email?.toLowerCase() === "adarsh2001gop@gmail.com" ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
+                              Master Admin
+                            </span>
+                          ) : user.roles?.some((r) => r !== "customer") ? (
                             <span className="text-[11px] text-neutral-400">staff</span>
                           ) : user.suspended ? (
                             <button

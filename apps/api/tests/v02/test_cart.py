@@ -134,3 +134,27 @@ async def test_cart_merge_rejects_unowned_cart(client):
     # The attacker does hold both values here (they created the cart), so the
     # merge itself succeeds — ownership for guests IS possession of the pair.
     assert r.status_code == 200
+
+
+async def test_cart_auto_merges_on_get_with_user_and_session(client):
+    session = f"guest-{uuid.uuid4().hex}"
+    guest_headers = {"X-Cart-Session": session}
+    cart = (await client.get("/api/v1/carts", headers=guest_headers)).json()
+
+    products = await get_store_products(client, in_stock=True)
+    pid = products["items"][0]["id"]
+    await client.post(
+        f"/api/v1/carts/{cart['id']}/items",
+        headers=guest_headers,
+        json={"product_id": pid, "quantity": 1},
+    )
+
+    user = await register_and_login(client, 888005)
+    merged_headers = {**user["headers"], "X-Cart-Session": session}
+
+    # Fetching carts as logged-in user with guest session automatically merges
+    r = await client.get("/api/v1/carts", headers=merged_headers)
+    assert r.status_code == 200
+    data = r.json()
+    assert any(i["product_id"] == pid for i in data["items"])
+    assert data["user_id"] is not None
