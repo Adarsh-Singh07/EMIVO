@@ -34,9 +34,9 @@ VALID_TRANSITIONS = {
     OrderStatus.PENDING: {OrderStatus.CONFIRMED, OrderStatus.CANCELLED, OrderStatus.PAYMENT_FAILED},
     OrderStatus.PAYMENT_PENDING: {OrderStatus.CONFIRMED, OrderStatus.CANCELLED, OrderStatus.PAYMENT_FAILED},
     OrderStatus.PAYMENT_FAILED: {OrderStatus.CANCELLED},
-    OrderStatus.CONFIRMED: {OrderStatus.PROCESSING, OrderStatus.PACKED, OrderStatus.SHIPPED, OrderStatus.CANCELLED},
-    OrderStatus.PROCESSING: {OrderStatus.PACKED, OrderStatus.SHIPPED, OrderStatus.CANCELLED},
-    OrderStatus.PACKED: {OrderStatus.SHIPPED, OrderStatus.CANCELLED},
+    OrderStatus.CONFIRMED: {OrderStatus.PROCESSING, OrderStatus.PACKED, OrderStatus.SHIPPED, OrderStatus.OUT_FOR_DELIVERY, OrderStatus.CANCELLED},
+    OrderStatus.PROCESSING: {OrderStatus.PACKED, OrderStatus.SHIPPED, OrderStatus.OUT_FOR_DELIVERY, OrderStatus.CANCELLED},
+    OrderStatus.PACKED: {OrderStatus.SHIPPED, OrderStatus.OUT_FOR_DELIVERY, OrderStatus.CANCELLED},
     OrderStatus.SHIPPED: {OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DELIVERED, OrderStatus.CANCELLED},
     OrderStatus.OUT_FOR_DELIVERY: {OrderStatus.DELIVERED, OrderStatus.CANCELLED},
     OrderStatus.DELIVERED: {OrderStatus.REFUNDED},
@@ -656,6 +656,10 @@ class OrderService:
             event_type = "order.out_for_delivery"
         elif target_status == OrderStatus.DELIVERED:
             order.delivered_at = order.delivered_at or datetime.now(timezone.utc)
+            if not getattr(order, "invoice_number", None):
+                from modules.orders.invoice import generate_invoice_number
+                order.invoice_number = generate_invoice_number(order.order_number or str(order.id)[:8])
+                order.invoice_generated_at = datetime.now(timezone.utc)
             # COD orders commit stock on delivery
             if order.payment_method == "COD" and not order.stock_committed:
                 await self.inventory.commit_for_order(order)
@@ -877,3 +881,79 @@ class OrderService:
             logging.getLogger(__name__).warning("Failed to send shipment notification for order %s: %s", order.id, ex)
 
         return updated_order
+
+    async def verify_delivery_otp(self, order_id: str, otp: str) -> Order:
+        """Verify 6-digit customer OTP during physical walk-in store pickup or doorstep handover."""
+        order = await self.get_order(order_id)
+        if order.status == OrderStatus.DELIVERED:
+            return order
+
+        clean_otp = str(otp).strip()
+        expected_otp = (getattr(order, "delivery_otp", None) or "").strip()
+
+        if not expected_otp or clean_otp != expected_otp:
+            raise DomainException(
+                "Invalid delivery OTP. Please verify the 6-digit code with the customer.",
+                code="INVALID_OTP",
+                status_code=400,
+            )
+
+        order.delivery_verified_at = datetime.now(timezone.utc)
+        status_update = OrderStatusUpdate(
+            status=OrderStatus.DELIVERED,
+            reason="Verified via Customer Delivery OTP (Store Handover / Open-Box Delivery)"
+        )
+        return await self.update_order_status(order_id, status_update)
+
+    async def update_fulfillment_details(self, order_id: str, data: Any) -> Order:
+        """Add manual invoice URL, IMEI/serial numbers, or custom fulfillment type."""
+        order = await self.get_order(order_id)
+        if getattr(data, "fulfillment_type", None):
+            order.fulfillment_type = data.fulfillment_type
+        if getattr(data, "tracking_number", None):
+            order.tracking_number = data.tracking_number
+        if getattr(data, "tracking_url", None):
+            order.tracking_url = data.tracking_url
+        if getattr(data, "manual_invoice_url", None):
+            order.manual_invoice_url = data.manual_invoice_url
+
+        item_serials = getattr(data, "item_serials", None)
+        if item_serials and isinstance(item_serials, dict):
+            for item in order.items:
+                if str(item.id) in item_serials:
+                    item.serial_numbers = item_serials[str(item.id)]
+
+        await self.repository.update(order)
+        await self.session.commit()
+        return await self.get_order(order_id)
+
+    async def get_order_invoice_html(self, order_id: str, user: Optional[Any] = None, is_staff: bool = False) -> str:
+        """Render downloadable/printable Tax Invoice HTML for delivered orders."""
+        order = await self.get_order(order_id)
+        if not is_staff and user and str(order.user_id) != str(user.id):
+            raise DomainException("Access denied", code="FORBIDDEN", status_code=403)
+        if not is_staff and order.status != OrderStatus.DELIVERED:
+            raise DomainException("Invoice is available once the order is delivered", code="ORDER_NOT_DELIVERED", status_code=400)
+
+        # Get seller details if available
+        seller_dict = None
+        if order.items and getattr(order.items[0], "seller_id", None):
+            from modules.sellers.models import Seller
+            seller_row = (await self.session.execute(
+                select(Seller).where(Seller.id == order.items[0].seller_id)
+            )).scalar_one_or_none()
+            if seller_row:
+                seller_dict = {
+                    "business_name": seller_row.business_name,
+                    "address": seller_row.pickup_address,
+                    "city": seller_row.city,
+                    "state": seller_row.state,
+                    "pincode": seller_row.pincode,
+                    "gstin": seller_row.gstin,
+                    "email": seller_row.email,
+                    "phone": seller_row.phone,
+                }
+
+        from modules.orders.invoice import build_tax_invoice_data, render_invoice_html
+        invoice_data = build_tax_invoice_data(order, seller_dict)
+        return render_invoice_html(invoice_data)

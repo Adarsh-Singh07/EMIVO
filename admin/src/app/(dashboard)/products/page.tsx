@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { Package, Search, RefreshCw, AlertCircle, Star, Archive, Store, ExternalLink } from "lucide-react";
+import { Package, Search, RefreshCw, AlertCircle, Star, Archive, Store, ExternalLink, Eye, EyeOff, Trash2 } from "lucide-react";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { formatINR } from "@/lib/money";
 import { ProductStatusBadge, StockBadge } from "@/components/admin/status-badges";
@@ -130,6 +130,61 @@ export default function ProductsPage() {
     }
   };
 
+  const toggleVisibility = async (id: string) => {
+    setBusyId(id);
+    try {
+      const res = await apiClient.post<{ action: string; status: "ACTIVE" | "ARCHIVED" | "DRAFT"; message: string }>(
+        `/products/${id}/toggle-visibility`,
+        {}
+      );
+      setProducts((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, status: res.status } : p))
+      );
+      toast.success(res.message);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to toggle visibility");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const archiveProduct = async (id: string, name: string) => {
+    if (!confirm(`Archive '${name}'? It will be hidden from storefront catalog while preserving past order records.`)) return;
+    setBusyId(id);
+    try {
+      const res = await apiClient.post<{ message: string }>(`/products/${id}/archive`, {});
+      setProducts((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, status: "ARCHIVED" } : p))
+      );
+      toast.success(res.message);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to archive product");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const deleteProduct = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete '${name}'? If customers have ordered this product in the past, it will be safely archived instead.`)) return;
+    setBusyId(id);
+    try {
+      const res = await apiClient.delete<{ action: string; message: string }>(`/products/${id}`);
+      if (res?.action === "archived") {
+        setProducts((prev) =>
+          prev.map((p) => (p.id === id ? { ...p, status: "ARCHIVED" } : p))
+        );
+        toast.info(res.message);
+      } else {
+        setProducts((prev) => prev.filter((p) => p.id !== id));
+        toast.success(res?.message || "Product permanently deleted");
+      }
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Failed to delete product");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const thumbFor = (p: Product): string | null => {
     const media = [...(p.media || [])].sort((a, b) => (a.position || 0) - (b.position || 0));
     return media[0]?.media_url || null;
@@ -216,24 +271,48 @@ export default function ProductsPage() {
                 <td className="px-5 py-3.5 text-right">
                   <div className="flex items-center justify-end gap-1">
                     {!archived && (
-                      <button
-                        onClick={() =>
-                          patchProduct(
-                            product.id,
-                            { featured: !product.featured },
-                            product.featured ? "Removed from featured" : "Marked as featured"
-                          )
-                        }
-                        disabled={busyId === product.id}
-                        className={`rounded-lg p-1.5 transition-colors disabled:opacity-40 ${
-                          product.featured
-                            ? "text-amber-400 hover:bg-amber-50"
-                            : "text-neutral-300 hover:bg-neutral-100 hover:text-amber-400"
-                        }`}
-                        title={product.featured ? "Unfeature" : "Feature"}
-                      >
-                        <Star className={`h-4 w-4 ${product.featured ? "fill-amber-400" : ""}`} />
-                      </button>
+                      <>
+                        <button
+                          onClick={() => toggleVisibility(product.id)}
+                          disabled={busyId === product.id}
+                          className={`rounded-lg p-1.5 transition-colors disabled:opacity-40 ${
+                            product.status === "DRAFT"
+                              ? "text-amber-600 bg-amber-50 hover:bg-amber-100"
+                              : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+                          }`}
+                          title={product.status === "DRAFT" ? "Make Visible in Storefront" : "Hide from Storefront"}
+                        >
+                          {product.status === "DRAFT" ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                        </button>
+
+                        <button
+                          onClick={() => archiveProduct(product.id, product.name)}
+                          disabled={busyId === product.id}
+                          className="rounded-lg p-1.5 text-neutral-400 hover:bg-amber-50 hover:text-amber-700 transition-colors disabled:opacity-40"
+                          title="Archive product (preserves customer order history)"
+                        >
+                          <Archive className="h-4 w-4" />
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            patchProduct(
+                              product.id,
+                              { featured: !product.featured },
+                              product.featured ? "Removed from featured" : "Marked as featured"
+                            )
+                          }
+                          disabled={busyId === product.id}
+                          className={`rounded-lg p-1.5 transition-colors disabled:opacity-40 ${
+                            product.featured
+                              ? "text-amber-400 hover:bg-amber-50"
+                              : "text-neutral-300 hover:bg-neutral-100 hover:text-amber-400"
+                          }`}
+                          title={product.featured ? "Unfeature" : "Feature"}
+                        >
+                          <Star className={`h-4 w-4 ${product.featured ? "fill-amber-400" : ""}`} />
+                        </button>
+                      </>
                     )}
                     <a
                       href={`https://elektrix.in/product/${product.id}`}
@@ -244,6 +323,14 @@ export default function ProductsPage() {
                     >
                       <ExternalLink className="h-4 w-4" />
                     </a>
+                    <button
+                      onClick={() => deleteProduct(product.id, product.name)}
+                      disabled={busyId === product.id}
+                      className="rounded-lg p-1.5 text-neutral-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40"
+                      title="Delete Product (Safe Order Check)"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 </td>
               </tr>

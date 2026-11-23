@@ -162,14 +162,34 @@ async def update_product(
     return await service.update_product(product_id, payload)
 
 
-@router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{product_id}", response_model=dict)
 async def delete_product(
     product_id: str,
     service: ProductService = Depends(get_product_service),
     current_user: User = Depends(require_roles(STAFF))
-) -> None:
-    """Archive (soft-delete) a product."""
-    await service.delete_product(product_id)
+) -> Any:
+    """Safe delete: permanently deletes if no order history, or archives to preserve customer records."""
+    return await service.delete_product(product_id)
+
+
+@router.post("/{product_id}/archive", response_model=dict)
+async def archive_product(
+    product_id: str,
+    service: ProductService = Depends(get_product_service),
+    current_user: User = Depends(require_roles(STAFF))
+) -> Any:
+    """Explicitly archive a product from the storefront catalog."""
+    return await service.archive_product(product_id)
+
+
+@router.post("/{product_id}/toggle-visibility", response_model=dict)
+async def toggle_product_visibility(
+    product_id: str,
+    service: ProductService = Depends(get_product_service),
+    current_user: User = Depends(require_roles(STAFF))
+) -> Any:
+    """Toggle product visibility (ACTIVE <-> DRAFT/hidden)."""
+    return await service.toggle_hide_product(product_id)
 
 
 @router.post("/{product_id}/variants", response_model=ProductVariantResponse, status_code=status.HTTP_201_CREATED)

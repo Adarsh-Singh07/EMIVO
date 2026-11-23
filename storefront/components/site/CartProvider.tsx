@@ -150,6 +150,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
     reload();
   }, [authLoading, user, reload]);
 
+  // Listen for guest-cart merge events from auth flows
+  useEffect(() => {
+    const handleCartMerged = () => {
+      reload();
+    };
+    window.addEventListener("elektrix:cart-merged", handleCartMerged);
+    return () => {
+      window.removeEventListener("elektrix:cart-merged", handleCartMerged);
+    };
+  }, [reload]);
+
   // Hydrate the display-metadata cache after mount.
   useEffect(() => {
     setMeta(readMeta());

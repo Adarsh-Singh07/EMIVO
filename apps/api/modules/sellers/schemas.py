@@ -94,6 +94,7 @@ class SellerProductItem(BaseModel):
     sale_price: Optional[int] = None
     stock: int
     status: str
+    is_active: bool = True
     category_id: Optional[str] = None
     category_name: Optional[str] = None
     parent_category_name: Optional[str] = None
@@ -213,10 +214,21 @@ class SellerOrderItem(BaseModel):
     quantity: int
     unit_price: int
     total: int
-    fulfillment_status: str  # PENDING, PACKED, SHIPPED, DELIVERED
+    fulfillment_status: str  # PENDING, PACKED, OUT_FOR_DELIVERY, SHIPPED, DELIVERED
+    order_status: Optional[str] = None
+    fulfillment_type: Optional[str] = None
+    delivery_otp: Optional[str] = None
+    invoice_number: Optional[str] = None
+    manual_invoice_url: Optional[str] = None
+    serial_numbers: Optional[List[str]] = None
     customer_city: Optional[str] = None
     customer_pincode: Optional[str] = None
     created_at: Optional[datetime] = None
+
+
+class SellerFulfillmentUpdate(BaseModel):
+    manual_invoice_url: Optional[str] = None
+    item_serials: Optional[Dict[str, List[str]]] = None
 
 
 class CategorySuggestion(BaseModel):

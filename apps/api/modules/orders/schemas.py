@@ -44,6 +44,8 @@ class OrderItemResponse(BaseModel):
     total: int
     product_name: str
     variant_name: Optional[str] = None
+    serial_numbers: Optional[List[str]] = None
+    hsn_code: Optional[str] = "8517"
     created_at: datetime
 
     class Config:
@@ -152,6 +154,23 @@ class OrderResponseV2(OrderResponse):
     # Primary seller details
     seller_name: Optional[str] = None
     seller_id: Optional[str] = None
+    # Tax Invoicing & Fulfillment
+    invoice_number: Optional[str] = None
+    invoice_generated_at: Optional[datetime] = None
+    manual_invoice_url: Optional[str] = None
+    fulfillment_type: Optional[str] = "STANDARD"
+
+
+class VerifyDeliveryOtpRequest(BaseModel):
+    otp: str = Field(..., min_length=4, max_length=10)
+
+
+class OrderFulfillUpdate(BaseModel):
+    fulfillment_type: str = "STORE_PICKUP"  # STORE_PICKUP | MANUAL_COURIER
+    tracking_number: Optional[str] = None
+    tracking_url: Optional[str] = None
+    manual_invoice_url: Optional[str] = None
+    item_serials: Optional[Dict[str, List[str]]] = None  # item_id -> ["IMEI1", "IMEI2"]
 
 
 class PickupLocationInput(BaseModel):

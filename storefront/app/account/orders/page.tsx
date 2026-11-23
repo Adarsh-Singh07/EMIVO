@@ -25,6 +25,7 @@ import {
   Tag,
   LifeBuoy,
   Search,
+  FileText,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { storeApi, type OrderV2 } from "@/lib/store-api";
@@ -581,10 +582,80 @@ function OrderDetail({
             }}
           />
         )}
+
+        {/* Open-Box / Store Pickup Delivery OTP Banner */}
+        {order.status?.toUpperCase() === "OUT_FOR_DELIVERY" && (
+          <div className="rounded-2xl bg-amber-50 border-2 border-amber-300 p-4 sm:p-5 space-y-2.5 my-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-900 grid place-items-center text-lg font-bold shrink-0">
+                  📦
+                </div>
+                <div>
+                  <h4 className="font-bold text-neutral-900 text-sm">Delivery Verification OTP</h4>
+                  <p className="text-xs text-neutral-600">Inspect device before sharing OTP with delivery executive or store counter.</p>
+                </div>
+              </div>
+              {order.delivery_otp && (
+                <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-amber-300 shadow-inner shrink-0 self-start sm:self-auto">
+                  <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">OTP:</span>
+                  <span className="font-mono text-xl font-bold tracking-widest text-amber-950">{order.delivery_otp}</span>
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-amber-900/90 bg-amber-100/70 p-2.5 rounded-xl border border-amber-200 leading-relaxed">
+              ⚠️ <strong>Strict Policy:</strong> Please ensure the package is opened and the device is physically checked in front of the delivery executive or store representative before sharing your OTP.
+            </p>
+          </div>
+        )}
+
+        {/* Delivered Tax Invoice Card */}
+        {order.status?.toUpperCase() === "DELIVERED" && (
+          <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 sm:p-5 my-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-emerald-900 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Order Delivered Successfully
+              </p>
+              <p className="text-xs text-emerald-700/80 mt-0.5">
+                {order.invoice_number ? `Invoice #${order.invoice_number} · ` : ""}Your official GST tax invoice is available for download.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <a
+                href={`https://api.elektrix.in/api/v1/orders/${order.id}/invoice`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
+              >
+                <FileText className="w-3.5 h-3.5" /> Download Tax Invoice
+              </a>
+              {order.manual_invoice_url && (
+                <a
+                  href={order.manual_invoice_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-neutral-300 bg-white text-neutral-700 text-xs font-semibold hover:bg-neutral-50 transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> Store Bill
+                </a>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Actions */}
       <div className="flex flex-wrap gap-3">
+        {order.status?.toUpperCase() === "DELIVERED" && (
+          <a
+            href={`https://api.elektrix.in/api/v1/orders/${order.id}/invoice`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
+          >
+            <FileText className="w-4 h-4" /> Download Tax Invoice
+          </a>
+        )}
         {canCancel && (
           <button
             onClick={() => setShowCancelModal(true)}

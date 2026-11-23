@@ -266,6 +266,8 @@ export interface OrderItemV2 {
   quantity: number;
   unit_price: number; // paise
   subtotal: number; // paise
+  serial_numbers?: string[] | null;
+  hsn_code?: string | null;
 }
 
 export interface OrderV2 {
@@ -278,6 +280,7 @@ export interface OrderV2 {
     | "CONFIRMED"
     | "PROCESSING"
     | "SHIPPED"
+    | "OUT_FOR_DELIVERY"
     | "DELIVERED"
     | "CANCELLED"
     | "REFUNDED"
@@ -298,6 +301,10 @@ export interface OrderV2 {
   tracking_number?: string | null;
   tracking_url?: string | null;
   delivery_otp?: string | null;
+  invoice_number?: string | null;
+  invoice_generated_at?: string | null;
+  manual_invoice_url?: string | null;
+  fulfillment_type?: string | null;
   is_open_box?: boolean;
   shipped_at?: string | null;
   delivered_at?: string | null;
