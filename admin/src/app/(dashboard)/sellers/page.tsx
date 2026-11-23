@@ -38,7 +38,7 @@ interface SellerItem {
   address?: string | null;
   address_line2?: string | null;
   gstin?: string | null;
-  status: "ACTIVE" | "SUSPENDED" | "ARCHIVED" | "PENDING";
+  status: "ACTIVE" | "SUSPENDED" | "ARCHIVED" | "PENDING" | "PENDING_APPROVAL";
   rating: number;
   rating_count: number;
   commission_rate: number;

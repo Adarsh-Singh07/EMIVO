@@ -406,6 +406,26 @@ export interface StoreConfig {
   announcement?: string;
 }
 
+export interface SellerApplicationInput {
+  name: string;
+  business_name: string;
+  email: string;
+  phone: string;
+  city: string;
+  state?: string;
+  pincode: string;
+  address?: string;
+  gstin?: string;
+  category?: string;
+  comments?: string;
+}
+
+export interface SellerApplicationResult {
+  id: string;
+  status: string;
+  message: string;
+}
+
 /* ------------------------------------------------------------------ */
 /* Cart session (guest carts)                                          */
 /* ------------------------------------------------------------------ */
@@ -815,26 +835,6 @@ export const storeApi = {
       body: JSON.stringify({ email }),
     });
   },
-
-export interface SellerApplicationInput {
-  name: string;
-  business_name: string;
-  email: string;
-  phone: string;
-  city: string;
-  state?: string;
-  pincode: string;
-  address?: string;
-  gstin?: string;
-  category?: string;
-  comments?: string;
-}
-
-export interface SellerApplicationResult {
-  id: string;
-  status: string;
-  message: string;
-}
 
   /* ----- Seller Application (public) ----- */
 
