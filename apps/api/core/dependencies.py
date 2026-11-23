@@ -71,6 +71,44 @@ async def require_staff(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
+async def require_staff_or_seller(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Authorize either staff (User with staff role) or verified seller."""
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret.get_secret_value(),
+            algorithms=[settings.jwt_algorithm],
+        )
+    except JWTError:
+        raise DomainException("Invalid authentication credentials", code="UNAUTHORIZED", status_code=401)
+
+    roles = payload.get("roles", []) or []
+    sub = payload.get("sub")
+
+    # 1. Staff check
+    if any(r in STAFF_ROLES for r in roles):
+        user_res = await session.execute(select(User).where(User.id == sub))
+        user = user_res.scalar_one_or_none()
+        if user and user.is_active:
+            user._token_payload = payload
+            return {"role": "staff", "user": user}
+
+    # 2. Seller check
+    if "seller" in roles or payload.get("seller_id"):
+        from modules.sellers.models import Seller
+        seller_id = payload.get("seller_id") or sub
+        seller_res = await session.execute(select(Seller).where(Seller.id == seller_id))
+        seller = seller_res.scalar_one_or_none()
+        if seller:
+            return {"role": "seller", "seller": seller}
+
+    raise DomainException("Staff or seller access required", code="FORBIDDEN", status_code=403)
+
+
 async def set_db_context(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db_session)

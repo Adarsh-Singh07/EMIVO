@@ -140,6 +140,7 @@ class OrderItem(Base, TimestampMixin):
     product_name: Mapped[str] = mapped_column(String(255), nullable=False)
     variant_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     serial_numbers: Mapped[Optional[List[str]]] = mapped_column(JSON, default=list, nullable=True)
+    imei_numbers: Mapped[Optional[List[str]]] = mapped_column(JSON, default=list, nullable=True)
     hsn_code: Mapped[Optional[str]] = mapped_column(String(20), default="8517", nullable=True)
 
     order: Mapped["Order"] = relationship("Order", back_populates="items")

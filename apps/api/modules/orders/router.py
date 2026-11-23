@@ -2,13 +2,18 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import HTMLResponse
+from fastapi.security import HTTPAuthorizationCredentials
+from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.config import settings
 from core.dependencies import (
     STAFF_ROLES,
     get_current_user,
     get_optional_user,
+    optional_db_context,
     require_staff,
+    security_optional,
     set_db_context,
 )
 from core.exceptions import DomainException
@@ -33,12 +38,14 @@ router = APIRouter(
 
 
 async def get_order_service(
-    session: AsyncSession = Depends(set_db_context)
+    session: AsyncSession = Depends(optional_db_context)
 ) -> OrderService:
     return OrderService(session)
 
 
-def _is_staff(user: User) -> bool:
+def _is_staff(user: Optional[User]) -> bool:
+    if not user or not hasattr(user, "_token_payload"):
+        return False
     roles = user._token_payload.get("roles", []) or []
     return any(r in STAFF_ROLES for r in roles)
 
@@ -88,13 +95,17 @@ async def list_orders(
 ) -> Any:
     """List orders. Customers see only their own orders; staff see all."""
     user_id_filter = None if _is_staff(current_user) else str(current_user.id)
-    return await service.list_orders(
+    orders = await service.list_orders(
         status=order_status,
         customer_id=None,
         user_id=user_id_filter,
         page=page,
         page_size=page_size,
     )
+    if _is_staff(current_user):
+        for o in orders.items:
+            o.delivery_otp = None
+    return orders
 
 
 @router.get("/track/{order_number}", response_model=OrderResponseV2)
@@ -106,7 +117,10 @@ async def track_order_by_number(
     """Order tracking by human order number (guest tracking or account owner)."""
     is_staff = _is_staff(current_user) if current_user else False
     order = await service.get_order_by_number(order_number, current_user, is_staff)
-    return OrderResponseV2.model_validate(order)
+    data = OrderResponseV2.model_validate(order)
+    if is_staff:
+        data.delivery_otp = None
+    return data
 
 
 @router.get("/{order_id}/tracking")
@@ -127,7 +141,12 @@ async def get_order(
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """Retrieve a single order by ID. Customers can only view their own."""
-    return await service.get_order_for_user(order_id, current_user, _is_staff(current_user))
+    is_staff = _is_staff(current_user)
+    order = await service.get_order_for_user(order_id, current_user, is_staff)
+    data = OrderResponseV2.model_validate(order)
+    if is_staff:
+        data.delivery_otp = None  # Never reveal delivery OTP to staff or admin
+    return data
 
 
 @router.patch(
@@ -142,7 +161,10 @@ async def update_order_status(
 ) -> Any:
     """Update order status with state transition validation, inventory
     side effects and customer notifications (staff only)."""
-    return await service.update_order_status(order_id, payload)
+    order = await service.update_order_status(order_id, payload)
+    data = OrderResponseV2.model_validate(order)
+    data.delivery_otp = None
+    return data
 
 
 @router.patch(
@@ -168,7 +190,9 @@ async def verify_delivery_otp(
 ) -> Any:
     """Verify delivery OTP provided by customer at store pickup or doorstep handover."""
     order = await service.verify_delivery_otp(order_id, payload.otp)
-    return OrderResponseV2.model_validate(order)
+    data = OrderResponseV2.model_validate(order)
+    data.delivery_otp = None
+    return data
 
 
 @router.post("/{order_id}/fulfillment", response_model=OrderResponseV2)
@@ -179,32 +203,87 @@ async def update_fulfillment_details(
     current_user: User = Depends(require_staff),
 ) -> Any:
     """Update order fulfillment details (serials, store pickup, manual invoice)."""
-    order = await service.update_fulfillment_details(order_id, payload)
-    return OrderResponseV2.model_validate(order)
+    order = await service.update_fulfillment_details(
+        order_id=order_id,
+        data=payload,
+        manual_invoice_url=payload.manual_invoice_url,
+        item_serials=payload.item_serials,
+        item_imeis=payload.item_imeis,
+    )
+    data = OrderResponseV2.model_validate(order)
+    data.delivery_otp = None
+    return data
 
 
 @router.get("/{order_id}/invoice", response_class=HTMLResponse)
 async def get_order_invoice_html(
     order_id: str,
+    token: Optional[str] = Query(None),
     service: OrderService = Depends(get_order_service),
-    current_user: Optional[User] = Depends(get_optional_user),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
 ) -> Any:
     """Download/view official Tax Invoice HTML (print-ready) for delivered orders."""
-    is_staff = _is_staff(current_user) if current_user else False
-    html = await service.get_order_invoice_html(order_id, current_user, is_staff)
+    raw_token = token or (credentials.credentials if credentials else None)
+    is_staff = False
+    seller_id = None
+    token_user_id = None
+
+    if raw_token:
+        try:
+            payload = jwt.decode(
+                raw_token,
+                settings.jwt_secret.get_secret_value(),
+                algorithms=[settings.jwt_algorithm],
+            )
+            roles = payload.get("roles", []) or []
+            if any(r in STAFF_ROLES for r in roles):
+                is_staff = True
+            if "seller" in roles or payload.get("seller_id"):
+                seller_id = payload.get("seller_id") or payload.get("sub")
+            token_user_id = payload.get("sub")
+        except Exception:
+            pass
+
+    html = await service.get_order_invoice_html(
+        order_id=order_id,
+        user_id=token_user_id,
+        is_staff=is_staff,
+        seller_id=seller_id,
+    )
     return HTMLResponse(content=html)
 
 
 @router.get("/{order_id}/invoice/data", response_model=dict)
 async def get_order_invoice_data(
     order_id: str,
+    token: Optional[str] = Query(None),
     service: OrderService = Depends(get_order_service),
-    current_user: Optional[User] = Depends(get_optional_user),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
 ) -> Any:
     """Get structured tax invoice data for frontend display."""
-    is_staff = _is_staff(current_user) if current_user else False
+    raw_token = token or (credentials.credentials if credentials else None)
+    is_staff = False
+    seller_id = None
+    token_user_id = None
+
+    if raw_token:
+        try:
+            payload = jwt.decode(
+                raw_token,
+                settings.jwt_secret.get_secret_value(),
+                algorithms=[settings.jwt_algorithm],
+            )
+            roles = payload.get("roles", []) or []
+            if any(r in STAFF_ROLES for r in roles):
+                is_staff = True
+            if "seller" in roles or payload.get("seller_id"):
+                seller_id = payload.get("seller_id") or payload.get("sub")
+            token_user_id = payload.get("sub")
+        except Exception:
+            pass
+
     order = await service.get_order(order_id)
-    if not is_staff and current_user and str(order.user_id) != str(current_user.id):
+    if not is_staff and not seller_id and token_user_id and str(order.user_id) != str(token_user_id):
         raise DomainException("Access denied", code="FORBIDDEN", status_code=403)
     from modules.orders.invoice import build_tax_invoice_data
     return build_tax_invoice_data(order)

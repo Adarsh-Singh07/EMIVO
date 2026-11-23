@@ -22,9 +22,11 @@ import {
   KeyRound,
   ShieldCheck,
   ExternalLink,
+  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiClient, ApiError } from "@/lib/api-client";
+import { uploadMediaFile } from "@/lib/media";
 import { formatINR } from "@/lib/money";
 import { OrderStatusBadge, PaymentMethodBadge, PaymentStatusBadge } from "@/components/admin/status-badges";
 import { Modal } from "@/components/admin/Modal";
@@ -40,6 +42,7 @@ interface OrderItem {
   unit_price: number;
   subtotal: number;
   serial_numbers?: string[] | null;
+  imei_numbers?: string[] | null;
   hsn_code?: string | null;
 }
 
@@ -201,8 +204,10 @@ export default function OrderDetailPage() {
   // IMEI / Serials & Manual Invoice modal
   const [fulfillmentOpen, setFulfillmentOpen] = useState(false);
   const [itemSerials, setItemSerials] = useState<Record<string, string>>({});
+  const [itemImeis, setItemImeis] = useState<Record<string, string>>({});
   const [manualInvoiceUrl, setManualInvoiceUrl] = useState("");
   const [fulfillmentSaving, setFulfillmentSaving] = useState(false);
+  const [uploadingBill, setUploadingBill] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -274,6 +279,14 @@ export default function OrderDetailPage() {
     }
   };
 
+  const handleDownloadInvoice = () => {
+    if (!order?.id) return;
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    const base = process.env.NEXT_PUBLIC_API_URL || "https://api.elektrix.in/api/v1";
+    const url = `${base}/orders/${order.id}/invoice${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+    window.open(url, "_blank");
+  };
+
   const saveFulfillmentDetails = async () => {
     setFulfillmentSaving(true);
     try {
@@ -283,12 +296,19 @@ export default function OrderDetailPage() {
           serialsPayload[itemId] = textVal.split(",").map((s) => s.trim()).filter(Boolean);
         }
       }
+      const imeisPayload: Record<string, string[]> = {};
+      for (const [itemId, textVal] of Object.entries(itemImeis)) {
+        if (textVal && textVal.trim()) {
+          imeisPayload[itemId] = textVal.split(",").map((s) => s.trim()).filter(Boolean);
+        }
+      }
       const updated = await apiClient.post<Order>(`/orders/${id}/fulfillment`, {
         manual_invoice_url: manualInvoiceUrl.trim() || null,
         item_serials: Object.keys(serialsPayload).length > 0 ? serialsPayload : null,
+        item_imeis: Object.keys(imeisPayload).length > 0 ? imeisPayload : null,
       });
       setOrder(updated);
-      toast.success("Product serials and invoice details saved!");
+      toast.success("Product serials, IMEIs, and invoice details saved!");
       setFulfillmentOpen(false);
       load();
     } catch (err) {
@@ -650,14 +670,13 @@ export default function OrderDetailPage() {
               ))}
 
               {order.status === "DELIVERED" && (
-                <a
-                  href={`https://api.elektrix.in/api/v1/orders/${order.id}/invoice`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-amber-500/20 hover:bg-amber-600 transition-all text-center"
+                <button
+                  type="button"
+                  onClick={handleDownloadInvoice}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-amber-500/20 hover:bg-amber-600 transition-all text-center cursor-pointer"
                 >
                   <FileText className="h-4 w-4" /> Download Official Tax Invoice
-                </a>
+                </button>
               )}
 
               {order.manual_invoice_url && (
@@ -672,33 +691,23 @@ export default function OrderDetailPage() {
               )}
 
               <button
+                type="button"
                 onClick={() => {
-                  const initial: Record<string, string> = {};
+                  const initialSerials: Record<string, string> = {};
+                  const initialImeis: Record<string, string> = {};
                   for (const item of order.items) {
-                    initial[item.id] = (item.serial_numbers || []).join(", ");
+                    initialSerials[item.id] = (item.serial_numbers || []).join(", ");
+                    initialImeis[item.id] = (item.imei_numbers || []).join(", ");
                   }
-                  setItemSerials(initial);
+                  setItemSerials(initialSerials);
+                  setItemImeis(initialImeis);
                   setManualInvoiceUrl(order.manual_invoice_url || "");
                   setFulfillmentOpen(true);
                 }}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-all"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-all cursor-pointer"
               >
                 <Barcode className="h-3.5 w-3.5" /> Product Serials / IMEI & Bill
               </button>
-
-              {order.delivery_otp && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs mt-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-amber-900">Customer Delivery OTP:</span>
-                    <span className="font-mono text-base font-extrabold text-amber-700 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
-                      {order.delivery_otp}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-amber-700/90 mt-1">
-                    Sent to customer via WhatsApp/SMS. Verify this OTP to complete delivery.
-                  </p>
-                </div>
-              )}
 
               {actions.length === 0 && (
                 <p className="rounded-xl border border-dashed border-neutral-200 p-3 text-center text-xs text-neutral-400">
@@ -1110,7 +1119,7 @@ export default function OrderDetailPage() {
       >
         <div className="space-y-4">
           <p className="text-sm text-neutral-600">
-            Ask the customer for the 6-digit delivery OTP sent to their mobile number/WhatsApp, or check customer order details.
+            Ask the customer for the 6-digit delivery OTP sent to their mobile number/WhatsApp upon delivery.
           </p>
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-neutral-600">
@@ -1121,19 +1130,14 @@ export default function OrderDetailPage() {
               maxLength={6}
               value={deliveryOtpInput}
               onChange={(e) => setDeliveryOtpInput(e.target.value.replace(/\D/g, ""))}
-              placeholder="e.g. 481920"
+              placeholder="Enter 6-digit OTP from customer"
               className="h-12 w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 text-center font-mono text-2xl font-bold tracking-widest text-neutral-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
               autoFocus
             />
           </div>
-          {order?.delivery_otp && (
-            <div className="rounded-xl bg-amber-50 border border-amber-200/60 p-3 text-xs text-amber-800 flex items-center justify-between">
-              <span>Customer OTP on file (for counter pickup):</span>
-              <span className="font-mono font-bold text-sm bg-white px-2 py-0.5 rounded border border-amber-300">
-                {order.delivery_otp}
-              </span>
-            </div>
-          )}
+          <p className="text-[11px] text-neutral-500 italic">
+            Customer must provide this OTP at physical handover/open-box inspection. The delivery cannot be completed without customer verification.
+          </p>
         </div>
       </Modal>
 
@@ -1152,7 +1156,7 @@ export default function OrderDetailPage() {
             </button>
             <button
               onClick={saveFulfillmentDetails}
-              disabled={fulfillmentSaving}
+              disabled={fulfillmentSaving || uploadingBill}
               className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-500 px-4 py-2 text-sm font-semibold text-neutral-950 transition-colors hover:bg-amber-400 disabled:opacity-50"
             >
               {fulfillmentSaving ? "Saving..." : "Save Details"}
@@ -1162,45 +1166,118 @@ export default function OrderDetailPage() {
       >
         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
           <p className="text-sm text-neutral-600">
-            Add serial numbers / IMEIs for warranty and customer invoice display. You can also attach an image or PDF URL of a physical counter bill.
+            Add serial numbers and IMEIs in separate fields below. Both are optional. If skipped, the invoice will be generated without them. You can also upload a manual store invoice/bill to Cloudflare R2.
           </p>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-500">Order Items</h3>
             {order?.items?.map((item) => (
-              <div key={item.id} className="rounded-xl border border-neutral-200 p-3 bg-neutral-50/50">
-                <div className="flex items-center justify-between text-xs font-semibold text-neutral-900 mb-1.5">
+              <div key={item.id} className="rounded-xl border border-neutral-200 p-3 bg-neutral-50/50 space-y-2">
+                <div className="flex items-center justify-between text-xs font-semibold text-neutral-900 mb-1">
                   <span className="truncate pr-2 font-medium">{item.product_name}</span>
                   <span className="text-neutral-500 text-[11px]">Qty: {item.quantity}</span>
                 </div>
-                <label className="block text-[11px] font-medium text-neutral-500 mb-1">
-                  Serial / IMEI Numbers (comma separated for multiple)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 864523051234567, 864523051234568"
-                  value={itemSerials[item.id] !== undefined ? itemSerials[item.id] : (item.serial_numbers?.join(", ") || "")}
-                  onChange={(e) => setItemSerials({ ...itemSerials, [item.id]: e.target.value })}
-                  className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-xs font-mono text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
+                
+                {/* Serial Number Box */}
+                <div>
+                  <label className="block text-[11px] font-medium text-neutral-600 mb-0.5">
+                    Serial Number(s) <span className="text-neutral-400 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. SN123456789, SN987654321"
+                    value={itemSerials[item.id] !== undefined ? itemSerials[item.id] : (item.serial_numbers?.join(", ") || "")}
+                    onChange={(e) => setItemSerials({ ...itemSerials, [item.id]: e.target.value })}
+                    className="h-8 w-full rounded-lg border border-neutral-200 bg-white px-2.5 text-xs font-mono text-neutral-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  />
+                </div>
+
+                {/* IMEI Number Box */}
+                <div>
+                  <label className="block text-[11px] font-medium text-neutral-600 mb-0.5">
+                    IMEI Number(s) <span className="text-neutral-400 font-normal">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 864523051234567, 864523051234568"
+                    value={itemImeis[item.id] !== undefined ? itemImeis[item.id] : (item.imei_numbers?.join(", ") || "")}
+                    onChange={(e) => setItemImeis({ ...itemImeis, [item.id]: e.target.value })}
+                    className="h-8 w-full rounded-lg border border-neutral-200 bg-white px-2.5 text-xs font-mono text-neutral-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  />
+                </div>
               </div>
             ))}
           </div>
 
-          <div className="pt-2 border-t border-neutral-100">
-            <label className="mb-1 block text-xs font-semibold text-neutral-700">
-              Manual Counter Bill / Invoice URL (Optional)
+          <div className="pt-3 border-t border-neutral-200 space-y-2">
+            <label className="block text-xs font-semibold text-neutral-800">
+              Manual Counter Bill / Store Invoice (Optional)
             </label>
-            <input
-              type="url"
-              placeholder="https://... (Cloudflare R2, image, or PDF URL)"
-              value={manualInvoiceUrl}
-              onChange={(e) => setManualInvoiceUrl(e.target.value)}
-              className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            />
-            <p className="mt-1 text-[11px] text-neutral-400">
-              If uploaded, customers can also view this manual store invoice alongside the digital tax invoice.
+            <p className="text-[11px] text-neutral-500">
+              Upload a physical counter bill (PDF or image) to Cloudflare R2.
             </p>
+
+            {manualInvoiceUrl ? (
+              <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/70 p-3">
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <FileText className="h-4 w-4 text-emerald-700 shrink-0" />
+                  <a
+                    href={manualInvoiceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="truncate text-xs font-semibold text-emerald-800 underline hover:text-emerald-900"
+                  >
+                    View Uploaded Store Invoice
+                  </a>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setManualInvoiceUrl("")}
+                  className="text-xs font-semibold text-red-600 hover:text-red-700 ml-2"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <div>
+                <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-neutral-300 bg-white px-4 py-3 text-xs font-semibold text-neutral-700 hover:border-amber-400 hover:bg-amber-50/30 transition-all w-full">
+                  <Upload className="h-4 w-4 text-amber-600" />
+                  {uploadingBill ? "Uploading to Cloudflare R2..." : "Click to Upload Bill / Invoice (PDF, PNG, JPG)"}
+                  <input
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg,.webp"
+                    disabled={uploadingBill}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setUploadingBill(true);
+                      try {
+                        const url = await uploadMediaFile(file);
+                        setManualInvoiceUrl(url);
+                        toast.success("Invoice uploaded to Cloudflare R2!");
+                      } catch (err: any) {
+                        toast.error(err instanceof Error ? err.message : "Failed to upload file");
+                      } finally {
+                        setUploadingBill(false);
+                        e.target.value = "";
+                      }
+                    }}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            )}
+
+            <details className="text-[11px] text-neutral-500 pt-1">
+              <summary className="cursor-pointer hover:text-neutral-700">Or enter manual URL directly</summary>
+              <input
+                type="url"
+                placeholder="https://... (Cloudflare R2 or public URL)"
+                value={manualInvoiceUrl}
+                onChange={(e) => setManualInvoiceUrl(e.target.value)}
+                className="mt-1 h-8 w-full rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              />
+            </details>
           </div>
         </div>
       </Modal>

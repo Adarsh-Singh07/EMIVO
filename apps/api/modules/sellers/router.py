@@ -294,7 +294,21 @@ async def seller_update_fulfillment(
         order_id,
         manual_invoice_url=body.manual_invoice_url,
         item_serials=body.item_serials,
+        item_imeis=body.item_imeis,
     )
+
+
+@router.get("/api/v1/seller/orders/{order_id}/invoice", response_class=HTMLResponse)
+async def get_seller_order_invoice(
+    order_id: str,
+    seller: Seller = Depends(get_current_seller),
+    service: SellerService = Depends(_get_service),
+):
+    """Download/view tax invoice for seller's order."""
+    from modules.orders.service import OrderService
+    order_svc = OrderService(service.session)
+    html = await order_svc.get_order_invoice_html(order_id, seller_id=seller.id, is_staff=True)
+    return HTMLResponse(content=html)
 
 
 # -----------------------------------------------------------------------------

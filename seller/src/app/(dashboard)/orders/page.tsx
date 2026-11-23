@@ -16,8 +16,10 @@ import {
   Barcode,
   ExternalLink,
   Store,
+  Upload,
 } from "lucide-react";
-import { apiClient, ApiError } from "@/lib/api-client";
+import { apiClient, ApiError, authStorage } from "@/lib/api-client";
+import { uploadMediaFile } from "@/lib/media";
 import { formatINR } from "@/lib/money";
 import { toast } from "sonner";
 import { Modal } from "@/components/Modal";
@@ -35,10 +37,10 @@ interface SellerOrderItem {
   fulfillment_status: "PENDING" | "PACKED" | "OUT_FOR_DELIVERY" | "DELIVERED";
   order_status?: string;
   fulfillment_type?: string;
-  delivery_otp?: string;
   invoice_number?: string;
   manual_invoice_url?: string;
   serial_numbers?: string[];
+  imei_numbers?: string[];
   customer_city?: string;
   customer_pincode?: string;
   created_at?: string;
@@ -62,8 +64,17 @@ export default function SellerOrdersPage() {
   // Serials / IMEI & Store Bill modal state
   const [activeFulfillmentItem, setActiveFulfillmentItem] = useState<SellerOrderItem | null>(null);
   const [serialsInput, setSerialsInput] = useState("");
+  const [imeisInput, setImeisInput] = useState("");
   const [manualInvoiceUrl, setManualInvoiceUrl] = useState("");
   const [fulfillmentSubmitting, setFulfillmentSubmitting] = useState(false);
+  const [uploadingBill, setUploadingBill] = useState(false);
+
+  const handleDownloadInvoice = (orderId: string) => {
+    const token = authStorage.getToken() || "";
+    const base = process.env.NEXT_PUBLIC_API_URL || "https://api.elektrix.in/api/v1";
+    const url = `${base}/orders/${orderId}/invoice${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+    window.open(url, "_blank");
+  };
 
   const loadOrders = useCallback(async () => {
     try {
@@ -160,11 +171,13 @@ export default function SellerOrdersPage() {
     setFulfillmentSubmitting(true);
     try {
       const serialList = serialsInput.split(",").map((s) => s.trim()).filter(Boolean);
+      const imeiList = imeisInput.split(",").map((s) => s.trim()).filter(Boolean);
       await apiClient.post(`/seller/orders/${activeFulfillmentItem.order_id}/fulfillment`, {
         manual_invoice_url: manualInvoiceUrl.trim() || null,
         item_serials: serialList.length > 0 ? { [activeFulfillmentItem.item_id]: serialList } : null,
+        item_imeis: imeiList.length > 0 ? { [activeFulfillmentItem.item_id]: imeiList } : null,
       });
-      toast.success("Product serials / IMEI and store bill saved!");
+      toast.success("Product serials, IMEIs, and store bill saved!");
       setActiveFulfillmentItem(null);
       loadOrders();
     } catch (err) {
@@ -314,13 +327,6 @@ export default function SellerOrdersPage() {
                               })
                             : "Recent"}
                         </span>
-                        {item.delivery_otp && (
-                          <div className="mt-1">
-                            <span className="inline-flex items-center gap-1 font-mono text-[10px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded border border-amber-300">
-                              OTP: {item.delivery_otp}
-                            </span>
-                          </div>
-                        )}
                       </td>
 
                       <td className="px-5 py-3.5">
@@ -333,6 +339,11 @@ export default function SellerOrdersPage() {
                         {item.serial_numbers && item.serial_numbers.length > 0 && (
                           <span className="text-[10px] font-mono text-neutral-500 block truncate max-w-[200px]" title={item.serial_numbers.join(", ")}>
                             SN: {item.serial_numbers.join(", ")}
+                          </span>
+                        )}
+                        {item.imei_numbers && item.imei_numbers.length > 0 && (
+                          <span className="text-[10px] font-mono text-neutral-500 block truncate max-w-[200px]" title={item.imei_numbers.join(", ")}>
+                            IMEI: {item.imei_numbers.join(", ")}
                           </span>
                         )}
                       </td>
@@ -391,6 +402,7 @@ export default function SellerOrdersPage() {
                             onClick={() => {
                               setActiveFulfillmentItem(item);
                               setSerialsInput((item.serial_numbers || []).join(", "));
+                              setImeisInput((item.imei_numbers || []).join(", "));
                               setManualInvoiceUrl(item.manual_invoice_url || "");
                             }}
                             title="Add Serial Numbers / IMEI & Store Bill"
@@ -428,7 +440,7 @@ export default function SellerOrdersPage() {
                             <button
                               onClick={() => {
                                 setActiveOtpOrder(item);
-                                setOtpInput(item.delivery_otp || "");
+                                setOtpInput("");
                               }}
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700 shadow-sm transition-colors"
                             >
@@ -439,15 +451,14 @@ export default function SellerOrdersPage() {
 
                           {/* Delivered tax invoice download */}
                           {isDelivered && (
-                            <a
-                              href={`https://api.elektrix.in/api/v1/orders/${item.order_id}/invoice`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500 text-xs font-semibold text-neutral-950 hover:bg-amber-400 shadow-sm transition-colors"
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadInvoice(item.order_id)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500 text-xs font-semibold text-neutral-950 hover:bg-amber-400 shadow-sm transition-colors cursor-pointer"
                             >
                               <FileText className="w-3 h-3" />
                               Invoice
-                            </a>
+                            </button>
                           )}
 
                           {item.manual_invoice_url && (
@@ -508,19 +519,14 @@ export default function SellerOrdersPage() {
               maxLength={6}
               value={otpInput}
               onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ""))}
-              placeholder="e.g. 481920"
+              placeholder="Enter 6-digit OTP from customer"
               className="h-12 w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 text-center font-mono text-2xl font-bold tracking-widest text-neutral-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
               autoFocus
             />
           </div>
-          {activeOtpOrder?.delivery_otp && (
-            <div className="rounded-xl bg-amber-50 border border-amber-200/60 p-3 text-xs text-amber-800 flex items-center justify-between">
-              <span>Customer OTP on record:</span>
-              <span className="font-mono font-bold text-sm bg-white px-2 py-0.5 rounded border border-amber-300">
-                {activeOtpOrder.delivery_otp}
-              </span>
-            </div>
-          )}
+          <p className="text-[11px] text-neutral-500 italic">
+            Customer must disclose this verification code at delivery handover. Handover cannot be completed without customer verification.
+          </p>
         </div>
       </Modal>
 
@@ -539,7 +545,7 @@ export default function SellerOrdersPage() {
             </button>
             <button
               onClick={handleSaveFulfillment}
-              disabled={fulfillmentSubmitting}
+              disabled={fulfillmentSubmitting || uploadingBill}
               className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-500 px-4 py-2 text-sm font-semibold text-neutral-950 transition-colors hover:bg-amber-400 disabled:opacity-50"
             >
               {fulfillmentSubmitting ? "Saving..." : "Save Details"}
@@ -547,38 +553,108 @@ export default function SellerOrdersPage() {
           </>
         }
       >
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
           <p className="text-sm text-neutral-600">
-            Record unit serials or IMEIs for warranty and customer invoice display. You can also attach an image or PDF URL of your counter bill.
+            Record unit serials and IMEIs in separate fields below. Both are optional. If skipped, the invoice will be generated without them. You can also upload your manual store receipt/bill to Cloudflare R2.
           </p>
 
-          <div>
-            <label className="block text-xs font-semibold text-neutral-700 mb-1">
-              Serial Numbers / IMEIs (comma separated)
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. 864523051234567, 864523051234568"
-              value={serialsInput}
-              onChange={(e) => setSerialsInput(e.target.value)}
-              className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-xs font-mono text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            />
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                Serial Number(s) <span className="text-neutral-400 font-normal">(Optional)</span>
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. SN123456789, SN987654321"
+                value={serialsInput}
+                onChange={(e) => setSerialsInput(e.target.value)}
+                className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-xs font-mono text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-neutral-700 mb-1">
+                IMEI Number(s) <span className="text-neutral-400 font-normal">(Optional)</span>
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. 864523051234567, 864523051234568"
+                value={imeisInput}
+                onChange={(e) => setImeisInput(e.target.value)}
+                className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-xs font-mono text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-neutral-700 mb-1">
-              Physical Store Receipt / Manual Invoice URL (Optional)
+          <div className="pt-3 border-t border-neutral-200 space-y-2">
+            <label className="block text-xs font-semibold text-neutral-800">
+              Physical Store Receipt / Manual Invoice (Optional)
             </label>
-            <input
-              type="url"
-              placeholder="https://... (image or PDF receipt link)"
-              value={manualInvoiceUrl}
-              onChange={(e) => setManualInvoiceUrl(e.target.value)}
-              className="h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            />
-            <p className="mt-1 text-[11px] text-neutral-400">
-              Customers can view this alongside their official Elektrix Tax Invoice after delivery.
+            <p className="text-[11px] text-neutral-500">
+              Upload your counter bill (PDF, PNG, JPG) directly to Cloudflare R2.
             </p>
+
+            {manualInvoiceUrl ? (
+              <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/70 p-3">
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <FileText className="h-4 w-4 text-emerald-700 shrink-0" />
+                  <a
+                    href={manualInvoiceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="truncate text-xs font-semibold text-emerald-800 underline hover:text-emerald-900"
+                  >
+                    View Uploaded Store Bill
+                  </a>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setManualInvoiceUrl("")}
+                  className="text-xs font-semibold text-red-600 hover:text-red-700 ml-2"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <div>
+                <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-neutral-300 bg-white px-4 py-3 text-xs font-semibold text-neutral-700 hover:border-amber-400 hover:bg-amber-50/30 transition-all w-full">
+                  <Upload className="h-4 w-4 text-amber-600" />
+                  {uploadingBill ? "Uploading to Cloudflare R2..." : "Click to Upload Bill / Invoice (PDF, PNG, JPG)"}
+                  <input
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg,.webp"
+                    disabled={uploadingBill}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setUploadingBill(true);
+                      try {
+                        const url = await uploadMediaFile(file);
+                        setManualInvoiceUrl(url);
+                        toast.success("Bill uploaded to Cloudflare R2!");
+                      } catch (err: any) {
+                        toast.error(err instanceof Error ? err.message : "Failed to upload file");
+                      } finally {
+                        setUploadingBill(false);
+                        e.target.value = "";
+                      }
+                    }}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            )}
+
+            <details className="text-[11px] text-neutral-500 pt-1">
+              <summary className="cursor-pointer hover:text-neutral-700">Or enter manual URL directly</summary>
+              <input
+                type="url"
+                placeholder="https://... (Cloudflare R2 or image link)"
+                value={manualInvoiceUrl}
+                onChange={(e) => setManualInvoiceUrl(e.target.value)}
+                className="mt-1 h-8 w-full rounded-lg border border-neutral-200 bg-white px-2.5 text-xs text-neutral-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              />
+            </details>
           </div>
         </div>
       </Modal>

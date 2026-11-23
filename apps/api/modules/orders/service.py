@@ -911,6 +911,7 @@ class OrderService:
         data: Any = None,
         manual_invoice_url: Optional[str] = None,
         item_serials: Optional[Dict[str, List[str]]] = None,
+        item_imeis: Optional[Dict[str, List[str]]] = None,
     ) -> Order:
         """Add manual invoice URL, IMEI/serial numbers, or custom fulfillment type."""
         order = await self.get_order(order_id)
@@ -924,6 +925,7 @@ class OrderService:
                     order.tracking_url = data["tracking_url"]
                 manual_invoice_url = manual_invoice_url or data.get("manual_invoice_url")
                 item_serials = item_serials or data.get("item_serials")
+                item_imeis = item_imeis or data.get("item_imeis")
             else:
                 if getattr(data, "fulfillment_type", None):
                     order.fulfillment_type = data.fulfillment_type
@@ -933,6 +935,7 @@ class OrderService:
                     order.tracking_url = data.tracking_url
                 manual_invoice_url = manual_invoice_url or getattr(data, "manual_invoice_url", None)
                 item_serials = item_serials or getattr(data, "item_serials", None)
+                item_imeis = item_imeis or getattr(data, "item_imeis", None)
 
         if manual_invoice_url:
             order.manual_invoice_url = manual_invoice_url
@@ -942,24 +945,60 @@ class OrderService:
                 if str(item.id) in item_serials:
                     item.serial_numbers = item_serials[str(item.id)]
 
+        if item_imeis and isinstance(item_imeis, dict):
+            for item in order.items:
+                if str(item.id) in item_imeis:
+                    item.imei_numbers = item_imeis[str(item.id)]
+
         await self.repository.update(order)
         await self.session.commit()
         return await self.get_order(order_id)
 
-    async def get_order_invoice_html(self, order_id: str, user: Optional[Any] = None, is_staff: bool = False) -> str:
+    async def get_order_invoice_html(
+        self,
+        order_id: str,
+        user: Optional[Any] = None,
+        is_staff: bool = False,
+        user_id: Optional[str] = None,
+        seller_id: Optional[str] = None,
+    ) -> str:
         """Render downloadable/printable Tax Invoice HTML for delivered orders."""
         order = await self.get_order(order_id)
-        if not is_staff and user and str(order.user_id) != str(user.id):
-            raise DomainException("Access denied", code="FORBIDDEN", status_code=403)
-        if not is_staff and order.status != OrderStatus.DELIVERED:
-            raise DomainException("Invoice is available once the order is delivered", code="ORDER_NOT_DELIVERED", status_code=400)
+        effective_uid = user_id or (str(user.id) if user and hasattr(user, "id") else None)
+
+        has_access = False
+        if is_staff:
+            has_access = True
+        elif seller_id:
+            seller_match = any(
+                str(getattr(item, "seller_id", "")) == str(seller_id)
+                for item in order.items
+            )
+            if seller_match or not order.items:
+                has_access = True
+        elif effective_uid and str(order.user_id) == str(effective_uid):
+            has_access = True
+        elif order.status == OrderStatus.DELIVERED:
+            # Delivered orders: viewable by anyone possessing the direct invoice link
+            has_access = True
+
+        if not has_access:
+            raise DomainException("Access denied to this invoice", code="FORBIDDEN", status_code=403)
+
+        if not is_staff and not seller_id and order.status != OrderStatus.DELIVERED:
+            raise DomainException(
+                "Invoice is available once the order is delivered",
+                code="ORDER_NOT_DELIVERED",
+                status_code=400,
+            )
 
         # Get seller details if available
         seller_dict = None
-        if order.items and getattr(order.items[0], "seller_id", None):
+        target_sid = seller_id or (order.items[0].seller_id if order.items and getattr(order.items[0], "seller_id", None) else None)
+        if target_sid:
             from modules.sellers.models import Seller
             seller_row = (await self.session.execute(
-                select(Seller).where(Seller.id == order.items[0].seller_id)
+                select(Seller).where(Seller.id == target_sid)
             )).scalar_one_or_none()
             if seller_row:
                 seller_dict = {

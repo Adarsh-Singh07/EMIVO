@@ -1077,10 +1077,10 @@ class SellerService:
                 coalesce(oi.seller_name, s.business_name, 'Apana Enterprises') as seller_name,
                 o.status as order_status,
                 o.fulfillment_type,
-                o.delivery_otp,
                 o.invoice_number,
                 o.manual_invoice_url,
                 oi.serial_numbers,
+                oi.imei_numbers,
                 o.shipping_address->>'city' as customer_city,
                 o.shipping_address->>'pincode' as customer_pincode,
                 o.created_at
@@ -1121,10 +1121,10 @@ class SellerService:
                     fulfillment_status=fulfillment,
                     order_status=status,
                     fulfillment_type=r.get("fulfillment_type"),
-                    delivery_otp=r.get("delivery_otp"),
                     invoice_number=r.get("invoice_number"),
                     manual_invoice_url=r.get("manual_invoice_url"),
                     serial_numbers=r.get("serial_numbers"),
+                    imei_numbers=r.get("imei_numbers"),
                     customer_city=r.get("customer_city"),
                     customer_pincode=r.get("customer_pincode"),
                     created_at=r.get("created_at"),
@@ -1193,7 +1193,7 @@ class SellerService:
         return {
             "status": "OUT_FOR_DELIVERY",
             "order_id": order_id,
-            "delivery_otp": getattr(updated, "delivery_otp", None),
+            "message": "Order is out for delivery. Customer has been sent their delivery verification OTP.",
         }
 
     async def verify_seller_delivery_otp(self, seller_id: str, order_id: str, otp: str) -> Dict[str, Any]:
@@ -1226,6 +1226,7 @@ class SellerService:
         order_id: str,
         manual_invoice_url: Optional[str] = None,
         item_serials: Optional[Dict[str, List[str]]] = None,
+        item_imeis: Optional[Dict[str, List[str]]] = None,
     ) -> Dict[str, Any]:
         """Save product serials/IMEIs and manual store receipt."""
         row = (await self.session.execute(
@@ -1243,7 +1244,12 @@ class SellerService:
 
         from modules.orders.service import OrderService
         order_svc = OrderService(self.session)
-        updated = await order_svc.update_fulfillment_details(order_id, manual_invoice_url, item_serials)
+        updated = await order_svc.update_fulfillment_details(
+            order_id=order_id,
+            manual_invoice_url=manual_invoice_url,
+            item_serials=item_serials,
+            item_imeis=item_imeis,
+        )
         return {
             "status": "OK",
             "order_id": order_id,

@@ -266,6 +266,13 @@ function OrderDetail({
   const st = statusStyle(order.status);
   const canCancel = CAN_CANCEL.has(order.status?.toUpperCase());
 
+  const handleDownloadInvoice = () => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") || localStorage.getItem("access_token") : null;
+    const base = process.env.NEXT_PUBLIC_API_URL || "https://api.elektrix.in/api/v1";
+    const url = `${base}/orders/${order.id}/invoice${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+    window.open(url, "_blank");
+  };
+
   // Product cards: fetch each ordered product's live listing for its image
   // and slug so buyers can tap through to the product page.
   const [productMeta, setProductMeta] = useState<Record<string, { img?: string; slug?: string }>>({});
@@ -621,14 +628,13 @@ function OrderDetail({
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <a
-                href={`https://api.elektrix.in/api/v1/orders/${order.id}/invoice`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
+              <button
+                type="button"
+                onClick={handleDownloadInvoice}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors shadow-sm cursor-pointer"
               >
                 <FileText className="w-3.5 h-3.5" /> Download Tax Invoice
-              </a>
+              </button>
               {order.manual_invoice_url && (
                 <a
                   href={order.manual_invoice_url}
@@ -647,14 +653,13 @@ function OrderDetail({
       {/* Actions */}
       <div className="flex flex-wrap gap-3">
         {order.status?.toUpperCase() === "DELIVERED" && (
-          <a
-            href={`https://api.elektrix.in/api/v1/orders/${order.id}/invoice`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
+          <button
+            type="button"
+            onClick={handleDownloadInvoice}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors shadow-sm cursor-pointer"
           >
             <FileText className="w-4 h-4" /> Download Tax Invoice
-          </a>
+          </button>
         )}
         {canCancel && (
           <button

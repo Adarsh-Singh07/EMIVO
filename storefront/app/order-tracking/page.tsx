@@ -66,6 +66,13 @@ function OrderTrackingContent() {
     }
   }, []);
 
+  const handleDownloadInvoice = (orderId: string) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") || localStorage.getItem("access_token") : null;
+    const base = process.env.NEXT_PUBLIC_API_URL || "https://api.elektrix.in/api/v1";
+    const url = `${base}/orders/${orderId}/invoice${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+    window.open(url, "_blank");
+  };
+
   useEffect(() => {
     if (urlOrderNumber) {
       setOrderNumberInput(urlOrderNumber);
@@ -236,14 +243,13 @@ function OrderTrackingContent() {
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <a
-                  href={`https://api.elektrix.in/api/v1/orders/${order.id}/invoice`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="h-10 px-5 inline-flex items-center gap-2 rounded-full bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
+                <button
+                  type="button"
+                  onClick={() => handleDownloadInvoice(order.id)}
+                  className="h-10 px-5 inline-flex items-center gap-2 rounded-full bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-colors shadow-sm cursor-pointer"
                 >
                   Download Tax Invoice
-                </a>
+                </button>
                 {order.manual_invoice_url && (
                   <a
                     href={order.manual_invoice_url}
