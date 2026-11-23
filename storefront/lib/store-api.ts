@@ -261,6 +261,8 @@ export interface OrderItemV2 {
   product_name: string;
   variant_id?: string | null;
   variant_name?: string | null;
+  seller_id?: string | null;
+  seller_name?: string | null;
   quantity: number;
   unit_price: number; // paise
   subtotal: number; // paise
@@ -269,6 +271,8 @@ export interface OrderItemV2 {
 export interface OrderV2 {
   id: string;
   order_number?: string;
+  seller_id?: string | null;
+  seller_name?: string | null;
   status:
     | "PENDING"
     | "CONFIRMED"
@@ -809,6 +813,35 @@ export const storeApi = {
     return fetchApi<{ subscribed: boolean; message: string }>("/newsletter/subscribe", {
       method: "POST",
       body: JSON.stringify({ email }),
+    });
+  },
+
+export interface SellerApplicationInput {
+  name: string;
+  business_name: string;
+  email: string;
+  phone: string;
+  city: string;
+  state?: string;
+  pincode: string;
+  address?: string;
+  gstin?: string;
+  category?: string;
+  comments?: string;
+}
+
+export interface SellerApplicationResult {
+  id: string;
+  status: string;
+  message: string;
+}
+
+  /* ----- Seller Application (public) ----- */
+
+  applySeller(data: SellerApplicationInput): Promise<SellerApplicationResult> {
+    return fetchApi<SellerApplicationResult>("/sellers/apply", {
+      method: "POST",
+      body: JSON.stringify(data),
     });
   },
 

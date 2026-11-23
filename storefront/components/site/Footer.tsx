@@ -104,34 +104,61 @@ export default function Footer() {
         </div>
 
         <div>
-          <h4 className="text-white font-semibold mb-4">Company & Legal</h4>
+          <h4 className="text-white font-semibold mb-4">Partner With Us</h4>
+          <ul className="space-y-2.5 text-sm">
+            <li>
+              <Link
+                href="/sell"
+                className="text-orange-400 hover:text-orange-300 font-semibold flex items-center gap-1.5 transition-colors"
+              >
+                <span>Sell on ELEKTRIX</span>
+                <span className="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                  Grow
+                </span>
+              </Link>
+            </li>
+            <li>
+              <a
+                href="https://sell.elektrix.in"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-white transition-colors"
+              >
+                Seller Portal Login
+              </a>
+            </li>
+            <li>
+              <Link href="/about" className="hover:text-white transition-colors">About Us</Link>
+            </li>
+            <li>
+              <Link href="/contact" className="hover:text-white transition-colors">Contact</Link>
+            </li>
+            <li>
+              <Link href="/support" className="hover:text-white transition-colors">Help &amp; Support</Link>
+            </li>
+            <li>
+              <Link href="/faq" className="hover:text-white transition-colors">FAQ</Link>
+            </li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 className="text-white font-semibold mb-4">Policies &amp; Legal</h4>
           <ul className="space-y-2 text-sm">
             <li>
-              <Link href="/about">About Us</Link>
+              <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
             </li>
             <li>
-              <Link href="/contact">Contact</Link>
+              <Link href="/terms" className="hover:text-white transition-colors">Terms &amp; Conditions</Link>
             </li>
             <li>
-              <Link href="/support">Help &amp; Support</Link>
+              <Link href="/refund" className="hover:text-white transition-colors">Return Policy</Link>
             </li>
             <li>
-              <Link href="/faq">FAQ</Link>
+              <Link href="/shipping" className="hover:text-white transition-colors">Shipping Policy</Link>
             </li>
             <li>
-              <Link href="/privacy">Privacy Policy</Link>
-            </li>
-            <li>
-              <Link href="/terms">Terms & Conditions</Link>
-            </li>
-            <li>
-              <Link href="/refund">Return Policy</Link>
-            </li>
-            <li>
-              <Link href="/shipping">Shipping Policy</Link>
-            </li>
-            <li>
-              <Link href="/cookie">Cookie Policy</Link>
+              <Link href="/cookie" className="hover:text-white transition-colors">Cookie Policy</Link>
             </li>
           </ul>
         </div>

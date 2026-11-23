@@ -49,6 +49,14 @@ def upgrade() -> None:
     CREATE INDEX IF NOT EXISTS ix_orders_delivery_otp 
     ON orders(delivery_otp) 
     WHERE delivery_otp IS NOT NULL;
+
+    ALTER TABLE order_items 
+    ADD COLUMN IF NOT EXISTS seller_id VARCHAR(36) REFERENCES sellers(id) ON DELETE SET NULL,
+    ADD COLUMN IF NOT EXISTS seller_name VARCHAR(255);
+
+    CREATE INDEX IF NOT EXISTS ix_order_items_seller_id 
+    ON order_items(seller_id) 
+    WHERE seller_id IS NOT NULL;
     """)
 
     # 3. Grant table permissions to emivo_app role
@@ -69,4 +77,7 @@ def downgrade() -> None:
     DROP COLUMN IF EXISTS delivery_otp,
     DROP COLUMN IF EXISTS is_open_box,
     DROP COLUMN IF EXISTS delivery_verified_at;
+    ALTER TABLE order_items
+    DROP COLUMN IF EXISTS seller_id,
+    DROP COLUMN IF EXISTS seller_name;
     """)

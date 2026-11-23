@@ -431,7 +431,13 @@ function OrderDetail({
                   {item.variant_name && (
                     <p className="text-xs text-neutral-500 mt-0.5">{item.variant_name}</p>
                   )}
-                  <p className="text-xs text-neutral-500 mt-1">Qty: {item.quantity}</p>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500 mt-1">
+                    <span>Qty: {item.quantity}</span>
+                    <span>•</span>
+                    <span>
+                      Sold by: <strong className="text-orange-600 font-semibold font-sans">{(item as any).seller_name || (order as any).seller_name || "Apana Enterprises"}</strong>
+                    </span>
+                  </div>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="font-semibold text-sm">

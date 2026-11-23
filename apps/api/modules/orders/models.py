@@ -87,6 +87,22 @@ class Order(Base, TimestampMixin, SoftDeleteMixin, TenantMixin):
         lazy="selectin"
     )
 
+    @property
+    def seller_name(self) -> Optional[str]:
+        if self.items:
+            for item in self.items:
+                if item.seller_name:
+                    return item.seller_name
+        return "Apana Enterprises"
+
+    @property
+    def seller_id(self) -> Optional[str]:
+        if self.items:
+            for item in self.items:
+                if item.seller_id:
+                    return item.seller_id
+        return None
+
 
 class OrderItem(Base, TimestampMixin):
     __tablename__ = "order_items"
@@ -103,6 +119,10 @@ class OrderItem(Base, TimestampMixin):
     variant_id: Mapped[Optional[str]] = mapped_column(
         String(36), ForeignKey("product_variants.id"), nullable=True
     )
+    seller_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("sellers.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    seller_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
 

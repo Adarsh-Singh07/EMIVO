@@ -235,6 +235,20 @@ class OrderService:
                 )
             products_by_id[product_id] = product
 
+        # Resolve seller names for products
+        seller_ids = [str(p.seller_id) for p in products_by_id.values() if getattr(p, "seller_id", None)]
+        seller_name_map: Dict[str, str] = {}
+        if seller_ids:
+            s_rows = (await self.session.execute(
+                text("SELECT id, business_name FROM sellers WHERE id = ANY(:sids)"),
+                {"sids": seller_ids},
+            )).fetchall()
+            for sid, bname in s_rows:
+                if bname:
+                    seller_name_map[str(sid)] = bname
+
+        for product_id, variant_id, quantity in line_items:
+            product = products_by_id[product_id]
             unit_price = effective_price(product)
             variant_name = None
             if variant_id:
@@ -247,12 +261,16 @@ class OrderService:
                 unit_price = variant.price
                 variant_name = variant.name
 
-            
+            s_id = str(product.seller_id) if getattr(product, "seller_id", None) else None
+            s_name = seller_name_map.get(s_id, "Apana Enterprises") if s_id else "Apana Enterprises"
+
             line_subtotal = unit_price * quantity
             subtotal += line_subtotal
             order_items.append(OrderItem(
                 product_id=product.id,
                 variant_id=variant_id,
+                seller_id=s_id,
+                seller_name=s_name,
                 quantity=quantity,
                 unit_price=unit_price,
                 subtotal=line_subtotal,
@@ -457,9 +475,21 @@ class OrderService:
             subtotal = unit_price * item_req.quantity
             total_amount += subtotal
 
+            s_id = str(product.seller_id) if getattr(product, "seller_id", None) else None
+            s_name = "Apana Enterprises"
+            if s_id:
+                s_row = (await self.session.execute(
+                    text("SELECT business_name FROM sellers WHERE id = :sid"),
+                    {"sid": s_id},
+                )).fetchone()
+                if s_row and s_row[0]:
+                    s_name = s_row[0]
+
             order_item = OrderItem(
                 product_id=product.id,
                 variant_id=item_req.variant_id,
+                seller_id=s_id,
+                seller_name=s_name,
                 quantity=item_req.quantity,
                 unit_price=unit_price,
                 subtotal=subtotal,

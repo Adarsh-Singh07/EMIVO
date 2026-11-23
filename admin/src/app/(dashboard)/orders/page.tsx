@@ -10,17 +10,19 @@ import { Pagination } from "@/components/admin/Pagination";
 
 const PAGE_SIZE = 15;
 
-const STATUS_TABS = ["ALL", "PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"] as const;
+const STATUS_TABS = ["ALL", "PENDING", "CONFIRMED", "PROCESSING", "PACKED", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"] as const;
 
 interface OrderRow {
   id: string;
   order_number: string | null;
+  seller_name?: string | null;
+  seller_id?: string | null;
   status: string;
   total: number;
   payment_method: string | null;
   payment_status: string | null;
   created_at: string;
-  items?: Array<{ product_name: string; quantity: number }>;
+  items?: Array<{ product_name: string; quantity: number; seller_name?: string }>;
   shipping_address?: Record<string, unknown> | null;
 }
 
@@ -156,6 +158,7 @@ export default function OrdersPage() {
               <thead className="bg-neutral-50/60 border-b border-neutral-200 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
                 <tr>
                   <th className="px-5 py-3.5">Order</th>
+                  <th className="px-5 py-3.5">Seller</th>
                   <th className="px-5 py-3.5">Customer</th>
                   <th className="px-5 py-3.5">Status</th>
                   <th className="px-5 py-3.5">Payment</th>
@@ -170,6 +173,11 @@ export default function OrdersPage() {
                       <Link href={`/orders/${order.id}`} className="font-semibold text-neutral-900 hover:text-amber-600">
                         {order.order_number || order.id.slice(0, 8)}
                       </Link>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/50">
+                        {order.seller_name || (order.items && order.items[0]?.seller_name) || "Apana Enterprises"}
+                      </span>
                     </td>
                     <td className="px-5 py-3.5 text-neutral-600">{customerName(order)}</td>
                     <td className="px-5 py-3.5">

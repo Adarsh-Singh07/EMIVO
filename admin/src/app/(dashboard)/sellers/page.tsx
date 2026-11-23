@@ -58,6 +58,7 @@ interface NewSellerCredentials {
 
 export default function AdminSellersPage() {
   const [sellers, setSellers] = useState<SellerItem[]>([]);
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "PENDING" | "SUSPENDED">("ALL");
   const [loading, setLoading] = useState(true);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -69,6 +70,36 @@ export default function AdminSellersPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Approve Pending Seller
+  const handleApproveSeller = async (seller: SellerItem) => {
+    setBusyId(seller.id);
+    try {
+      const res = await apiClient.post<any>(`/admin/sellers/${seller.id}/approve`, {
+        commission_rate: Number(seller.commission_rate) || 0,
+      });
+
+      toast.success(res.message || `Seller ${seller.business_name} approved!`);
+      if (res.generated_password) {
+        setCreatedCredentials({
+          business_name: res.business_name || seller.business_name,
+          contact_person: seller.contact_person || seller.name,
+          email: res.email || seller.email,
+          password: res.generated_password,
+          login_url: res.login_url || "https://sell.elektrix.in/login",
+          must_change_password: true,
+        });
+      }
+      loadSellers();
+      if (selectedSeller && selectedSeller.id === seller.id) {
+        setSelectedSeller((prev) => (prev ? { ...prev, status: "ACTIVE" } : null));
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to approve seller");
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   // New Seller Form State
   const [businessName, setBusinessName] = useState("");
@@ -87,6 +118,14 @@ export default function AdminSellersPage() {
   // Post-Creation Credentials Modal
   const [createdCredentials, setCreatedCredentials] = useState<NewSellerCredentials | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
+
+  const filteredSellers = sellers.filter((s) => {
+    if (statusFilter === "ALL") return true;
+    if (statusFilter === "PENDING") return s.status === "PENDING" || s.status === "PENDING_APPROVAL";
+    if (statusFilter === "ACTIVE") return s.status === "ACTIVE";
+    if (statusFilter === "SUSPENDED") return s.status === "SUSPENDED" || s.status === "ARCHIVED";
+    return true;
+  });
 
   const loadSellers = async () => {
     try {
@@ -293,22 +332,69 @@ export default function AdminSellersPage() {
         </div>
       </div>
 
+      {/* Status Filter Tabs */}
+      <div className="flex flex-wrap items-center gap-2">
+        {(["ALL", "ACTIVE", "PENDING", "SUSPENDED"] as const).map((tab) => {
+          const count = sellers.filter((s) => {
+            if (tab === "ALL") return true;
+            if (tab === "PENDING") return s.status === "PENDING" || s.status === "PENDING_APPROVAL";
+            if (tab === "ACTIVE") return s.status === "ACTIVE";
+            if (tab === "SUSPENDED") return s.status === "SUSPENDED" || s.status === "ARCHIVED";
+            return true;
+          }).length;
+          return (
+            <button
+              key={tab}
+              onClick={() => setStatusFilter(tab)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 ${
+                statusFilter === tab
+                  ? "bg-neutral-900 text-white shadow-sm"
+                  : "bg-white text-neutral-600 border border-neutral-200 hover:bg-neutral-50"
+              }`}
+            >
+              <span>
+                {tab === "ALL"
+                  ? "All Sellers"
+                  : tab === "PENDING"
+                  ? "Pending Approval"
+                  : tab === "ACTIVE"
+                  ? "Active"
+                  : "Suspended"}
+              </span>
+              <span
+                className={`text-[11px] px-2 py-0.5 rounded-full font-mono ${
+                  statusFilter === tab
+                    ? "bg-neutral-800 text-neutral-300"
+                    : tab === "PENDING" && count > 0
+                    ? "bg-orange-100 text-orange-700 font-bold"
+                    : "bg-neutral-100 text-neutral-500"
+                }`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Sellers Grid */}
       {loading ? (
         <div className="flex items-center justify-center p-12 bg-white rounded-2xl border border-neutral-200">
           <RefreshCw className="w-6 h-6 animate-spin text-neutral-400" />
         </div>
-      ) : sellers.length === 0 ? (
+      ) : filteredSellers.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-16 bg-white rounded-2xl border border-neutral-200 text-center">
           <Store className="w-12 h-12 text-neutral-400 mb-3" />
-          <h3 className="text-lg font-bold text-neutral-900">No Sellers Found</h3>
+          <h3 className="text-lg font-bold text-neutral-900">No Sellers in this Category</h3>
           <p className="text-sm text-neutral-500 max-w-sm mt-1">
-            Create your first marketplace seller account to begin onboarding vendors.
+            {statusFilter === "PENDING"
+              ? "There are currently no new seller registration applications awaiting review."
+              : "No seller profiles match the current filter selection."}
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {sellers.map((seller) => {
+          {filteredSellers.map((seller) => {
             const isApna = seller.business_name === "Apana Enterprises";
             const contactPerson = seller.contact_person || seller.name;
             const hasReviews = (seller.rating_count || 0) > 0 && seller.rating > 0;
@@ -341,12 +427,14 @@ export default function AdminSellersPage() {
                       className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full shrink-0 ${
                         seller.status === "ACTIVE"
                           ? "bg-green-100 text-green-800"
+                          : seller.status === "PENDING" || seller.status === "PENDING_APPROVAL"
+                          ? "bg-orange-100 text-orange-800 border border-orange-300 font-extrabold animate-pulse"
                           : seller.status === "ARCHIVED"
                           ? "bg-amber-100 text-amber-800"
                           : "bg-red-100 text-red-800"
                       }`}
                     >
-                      {seller.status}
+                      {seller.status === "PENDING_APPROVAL" ? "PENDING REVIEW" : seller.status}
                     </span>
                   </div>
 
@@ -412,7 +500,16 @@ export default function AdminSellersPage() {
 
                   {!isApna && (
                     <div className="flex items-center gap-2">
-                      {seller.status === "ACTIVE" ? (
+                      {seller.status === "PENDING" || seller.status === "PENDING_APPROVAL" ? (
+                        <button
+                          onClick={() => handleApproveSeller(seller)}
+                          disabled={busyId === seller.id}
+                          className="px-3 py-1 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold flex items-center gap-1 shadow-sm transition-all"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          {busyId === seller.id ? "Approving..." : "Approve Seller"}
+                        </button>
+                      ) : seller.status === "ACTIVE" ? (
                         <button
                           onClick={() => handleUpdateStatus(seller.id, "ARCHIVED")}
                           disabled={busyId === seller.id}
@@ -626,7 +723,18 @@ export default function AdminSellersPage() {
                 <div className="pt-4 border-t border-neutral-100 flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-neutral-500 font-medium">Lifecycle Status:</span>
-                    {selectedSeller.status !== "ACTIVE" && (
+                    {(selectedSeller.status === "PENDING" || selectedSeller.status === "PENDING_APPROVAL") && (
+                      <button
+                        type="button"
+                        onClick={() => handleApproveSeller(selectedSeller)}
+                        disabled={busyId === selectedSeller.id}
+                        className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-orange-600 hover:bg-orange-500 text-white shadow-sm flex items-center gap-1.5"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        {busyId === selectedSeller.id ? "Approving..." : "Approve & Send Welcome Email"}
+                      </button>
+                    )}
+                    {selectedSeller.status !== "ACTIVE" && selectedSeller.status !== "PENDING" && selectedSeller.status !== "PENDING_APPROVAL" && (
                       <button
                         type="button"
                         onClick={() => handleUpdateStatus(selectedSeller.id, "ACTIVE")}

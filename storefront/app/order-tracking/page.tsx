@@ -332,14 +332,22 @@ function OrderTrackingContent() {
           </div>
 
           <div className="border-t border-neutral-100 pt-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">Items</p>
-            <div className="space-y-1.5 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">Items &amp; Seller</p>
+            <div className="space-y-3 text-sm">
               {order.items.map((item, i) => (
-                <div key={`${item.product_id}-${i}`} className="flex justify-between gap-4">
-                  <span className="text-neutral-600">
-                    {item.product_name} × {item.quantity}
-                  </span>
-                  <span className="font-medium">{inr(item.subtotal)}</span>
+                <div key={`${item.product_id}-${i}`} className="flex justify-between items-start gap-4 pb-2 border-b border-neutral-100 last:border-0 last:pb-0">
+                  <div>
+                    <span className="text-neutral-800 font-medium block">
+                      {item.product_name} × {item.quantity}
+                    </span>
+                    <span className="text-xs text-neutral-500 flex items-center gap-1 mt-0.5">
+                      <span>Sold by:</span>
+                      <span className="text-orange-600 font-semibold">
+                        {item.seller_name || order.seller_name || "Apana Enterprises"}
+                      </span>
+                    </span>
+                  </div>
+                  <span className="font-semibold text-neutral-900">{inr(item.subtotal)}</span>
                 </div>
               ))}
             </div>
