@@ -4,7 +4,7 @@ from typing import Any, Dict
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.database import get_db_session
+from core.database import async_session_maker
 from modules.whatsapp.service import WhatsAppService
 
 logger = logging.getLogger(__name__)
@@ -15,6 +15,8 @@ router = APIRouter(prefix="/api/v1/webhooks/whatsapp", tags=["WhatsApp Webhook"]
 async def _async_process_whatsapp(payload: Dict[str, Any]) -> None:
     """Background processor for inbound WhatsApp message to avoid HTTP timeout."""
     try:
+        logger.info("Inbound WhatsApp raw payload: %s", payload)
+
         # Extract sender phone
         sender = (
             payload.get("customerNumber")
@@ -40,11 +42,22 @@ async def _async_process_whatsapp(payload: Dict[str, Any]) -> None:
             btn = payload.get("button")
             message_text = btn.get("text") or btn.get("payload") or ""
 
+        # Meta Cloud API fallback schema
+        if (not sender or not message_text) and payload.get("entry"):
+            try:
+                msg_obj = payload["entry"][0]["changes"][0]["value"]["messages"][0]
+                if not sender:
+                    sender = msg_obj.get("from", "")
+                if not message_text and msg_obj.get("type") == "text":
+                    message_text = msg_obj.get("text", {}).get("body", "")
+            except (KeyError, IndexError, TypeError):
+                pass
+
         if not sender or not message_text:
             logger.info("WhatsApp webhook received non-text/empty event: %s", payload)
             return
 
-        async with get_db_session() as session:
+        async with async_session_maker() as session:
             svc = WhatsAppService(session)
             await svc.handle_inbound_message(sender_raw=str(sender), message_text=str(message_text))
     except Exception as exc:
