@@ -45,7 +45,7 @@ async def test_reverse_geocode_location():
 async def test_chatbot_guest_comparison():
     """Verify guest user asking for a comparison gets a useful answer with
     store links (the offline fallback must not invent products)."""
-    reply, ticket, cancel = await ask_gemini(
+    reply, ticket, cancel, *_ = await ask_gemini(
         session=None,
         user_id=None,
         user_name="Visitor",
@@ -59,7 +59,7 @@ async def test_chatbot_guest_comparison():
 @pytest.mark.asyncio
 async def test_chatbot_guest_order_privacy_gate():
     """Verify guest user is blocked from viewing order details without login/OTP."""
-    reply, ticket, cancel = await ask_gemini(
+    reply, ticket, cancel, *_ = await ask_gemini(
         session=None,
         user_id=None,
         user_name="Visitor",
@@ -73,7 +73,7 @@ async def test_chatbot_guest_order_privacy_gate():
 @pytest.mark.asyncio
 async def test_chatbot_guest_complaint():
     """Verify guest user can initiate an issue/complaint."""
-    reply, ticket, cancel = await ask_gemini(
+    reply, ticket, cancel, *_ = await ask_gemini(
         session=None,
         user_id=None,
         user_name="Visitor",
