@@ -21,6 +21,8 @@ import {
   Loader2,
   Star,
   Store,
+  Bell,
+  CheckCircle2,
 } from "lucide-react";
 import type { StoreSellerOffer } from "@/lib/products";
 import PincodeChecker from "./PincodeChecker";
@@ -37,6 +39,7 @@ import { toast } from "sonner";
 import { inr } from "@/lib/format";
 import { track, itemParams } from "@/lib/analytics";
 import { type Product } from "@/lib/products";
+import { storeApi } from "@/lib/store-api";
 
 const TABS = [
   { id: "description", label: "Description" },
@@ -206,6 +209,37 @@ export default function ProductDetail({
 
   const wished = wishlist.has(product.id);
   const comparing = compareIds.includes(product.id);
+
+  // Back-in-stock alert (WhatsApp Notify Me)
+  const [notifyPhone, setNotifyPhone] = useState(user?.phone?.replace(/\D/g, "").slice(-10) || "");
+  const [notifyLoading, setNotifyLoading] = useState(false);
+  const [notifySuccess, setNotifySuccess] = useState(false);
+
+  useEffect(() => {
+    if (user?.phone && !notifyPhone) {
+      setNotifyPhone(user.phone.replace(/\D/g, "").slice(-10));
+    }
+  }, [user, notifyPhone]);
+
+  const handleNotifyMe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = notifyPhone.replace(/\D/g, "").slice(-10);
+    if (!clean || clean.length < 10) {
+      toast.error("Please enter a valid 10-digit mobile number");
+      return;
+    }
+    setNotifyLoading(true);
+    try {
+      await storeApi.subscribeStockAlert(product.id, clean, user?.email);
+      setNotifySuccess(true);
+      toast.success("Subscribed! We'll message you on WhatsApp as soon as it's restocked.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to set up stock alert";
+      toast.error(msg);
+    } finally {
+      setNotifyLoading(false);
+    }
+  };
 
   const addToCart = async () => {
     if (outOfStock) return;
@@ -582,35 +616,83 @@ export default function ProductDetail({
             {outOfStock && <span className="text-sm font-medium text-red-600">Out of stock</span>}
           </div>
 
-          {/* CTAs — compact side-by-side row on every viewport (owner pref:
-              horizontal + smaller, never stacked). flex-1 is width-only here
-              (row direction), so the fixed height applies cleanly. */}
-          <div className="flex flex-row gap-2 sm:gap-4 mt-6">
-            {orderedOrderId ? (
-              <Link
-                href={`/order-tracking?order=${orderedOrderId}`}
-                className="min-w-0 flex-1 h-12 sm:h-14 inline-flex items-center justify-center gap-2 bg-neutral-950 text-white rounded-xl sm:rounded-2xl text-sm sm:text-base font-semibold hover:bg-neutral-800 transition-colors shadow-sm"
+          {/* CTAs or Notify Me When Out of Stock */}
+          {outOfStock ? (
+            <div className="mt-6 p-4 rounded-2xl bg-amber-50/80 border border-amber-200 shadow-sm">
+              <div className="flex items-center gap-2 mb-1.5">
+                <Bell className="w-5 h-5 text-amber-600 shrink-0" />
+                <span className="font-semibold text-neutral-900 text-sm sm:text-base">Out of Stock — Get Notified on WhatsApp</span>
+              </div>
+              <p className="text-xs sm:text-sm text-neutral-600 mb-3">
+                Be the first to know when this item is restocked at our central warehouse.
+              </p>
+              {notifySuccess ? (
+                <div className="flex items-center gap-2 text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-sm font-medium">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                  You're on the list! We'll alert you on WhatsApp the moment it's back.
+                </div>
+              ) : (
+                <form onSubmit={handleNotifyMe} className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 text-sm font-semibold">+91</span>
+                    <input
+                      type="tel"
+                      value={notifyPhone}
+                      onChange={(e) => setNotifyPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      placeholder="10-digit mobile number"
+                      className="w-full pl-12 pr-3 py-2.5 bg-white border border-neutral-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={notifyLoading || notifyPhone.length < 10}
+                    className="h-10 px-5 bg-neutral-950 text-white rounded-xl text-sm font-semibold hover:bg-neutral-800 disabled:opacity-50 transition-all active:scale-95 inline-flex items-center justify-center gap-2 shadow-sm"
+                  >
+                    {notifyLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+                    Notify Me
+                  </button>
+                </form>
+              )}
+              <div className="mt-3 pt-2.5 border-t border-amber-200/60 flex items-center justify-between text-xs text-neutral-600">
+                <span>Or subscribe directly via chat:</span>
+                <a
+                  href={`https://wa.me/918092024066?text=${encodeURIComponent(`Hi ELEKTRIX, please notify me when ${product.name} is back in stock!`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1 underline"
+                >
+                  WhatsApp Direct &rarr;
+                </a>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-row gap-2 sm:gap-4 mt-6">
+              {orderedOrderId ? (
+                <Link
+                  href={`/order-tracking?order=${orderedOrderId}`}
+                  className="min-w-0 flex-1 h-12 sm:h-14 inline-flex items-center justify-center gap-2 bg-neutral-950 text-white rounded-xl sm:rounded-2xl text-sm sm:text-base font-semibold hover:bg-neutral-800 transition-colors shadow-sm"
+                >
+                  <Truck className="w-4 h-4 sm:w-5 sm:h-5" /> Track Your Order
+                </Link>
+              ) : null}
+              <button
+                onClick={addToCart}
+                disabled={adding}
+                className="min-w-0 flex-1 h-12 sm:h-14 inline-flex items-center justify-center gap-2 bg-neutral-950 text-white rounded-xl sm:rounded-2xl text-sm sm:text-base font-semibold hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all active:scale-[0.98]"
               >
-                <Truck className="w-4 h-4 sm:w-5 sm:h-5" /> Track Your Order
-              </Link>
-            ) : null}
-            <button
-              onClick={addToCart}
-              disabled={outOfStock || adding}
-              className="min-w-0 flex-1 h-12 sm:h-14 inline-flex items-center justify-center gap-2 bg-neutral-950 text-white rounded-xl sm:rounded-2xl text-sm sm:text-base font-semibold hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all active:scale-[0.98]"
-            >
-              {adding ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />}
-              Add to Cart
-            </button>
-            <button
-              onClick={buyNow}
-              disabled={outOfStock || buying}
-              className="min-w-0 flex-1 h-12 sm:h-14 inline-flex items-center justify-center gap-2 bg-amber-400 text-amber-950 rounded-xl sm:rounded-2xl text-sm sm:text-base font-bold hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all active:scale-[0.98]"
-            >
-              {buying ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Zap className="w-4 h-4 sm:w-5 sm:h-5" />}
-              Buy Now
-            </button>
-          </div>
+                {adding ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />}
+                Add to Cart
+              </button>
+              <button
+                onClick={buyNow}
+                disabled={buying}
+                className="min-w-0 flex-1 h-12 sm:h-14 inline-flex items-center justify-center gap-2 bg-amber-400 text-amber-950 rounded-xl sm:rounded-2xl text-sm sm:text-base font-bold hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all active:scale-[0.98]"
+              >
+                {buying ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Zap className="w-4 h-4 sm:w-5 sm:h-5" />}
+                Buy Now
+              </button>
+            </div>
+          )}
 
           <div className="flex gap-2 mt-4 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-2 ">
             <button

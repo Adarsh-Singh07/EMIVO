@@ -35,17 +35,19 @@ type Msg = {
 };
 
 const GUEST_SUGGESTIONS = [
-  { label: "📱 Best deals on Mobiles", prompt: "What mobile phones do you have and what are the current offers?" },
+  { label: "📦 Open-Box Delivery & OTP", prompt: "How does Open-Box delivery and OTP verification work?" },
+  { label: "🔔 Back-in-Stock Alert", prompt: "Notify me when an item is back in stock" },
   { label: "🚚 Shipping & Delivery", prompt: "Where do you ship from and what is the delivery timeline?" },
   { label: "🎟️ Active Offers", prompt: "What discount offers or coupons are currently available?" },
-  { label: "📝 File a Complaint", prompt: "I want to file a complaint / support request" },
+  { label: "📝 File a Complaint / Return", prompt: "I received a damaged or wrong product, how can I get a replacement?" },
 ];
 
 const USER_SUGGESTIONS = [
-  { label: "📦 Track My Order", prompt: "What is the status of my latest order?" },
-  { label: "🎧 Recommend Audio", prompt: "Which headphones or earbuds would you recommend from your catalog?" },
+  { label: "📦 Track My Order & OTP", prompt: "What is the status of my latest order and my delivery OTP?" },
+  { label: "🔔 Back-in-Stock Alert", prompt: "Notify me when an item is back in stock" },
+  { label: "📦 Open-Box Delivery Policy", prompt: "What is the Open-Box delivery inspection policy?" },
   { label: "🎟️ Active Offers", prompt: "What discount offers can I use today?" },
-  { label: "📝 Raise Support Ticket", prompt: "I need help with an order issue" },
+  { label: "📝 Replacement / Ticket", prompt: "I need help with a damaged or wrong item replacement" },
 ];
 
 export default function SupportChatWidget() {

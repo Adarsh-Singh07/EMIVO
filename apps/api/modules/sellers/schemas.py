@@ -45,6 +45,25 @@ class SellerCreateAdmin(BaseModel):
     must_change_password: Optional[bool] = True
 
 
+class SellerApplicationCreate(BaseModel):
+    name: str  # Contact Person
+    business_name: str  # Business / Firm Name
+    email: EmailStr
+    phone: str
+    city: str
+    state: Optional[str] = None
+    pincode: str
+    address: Optional[str] = None
+    gstin: Optional[str] = None
+    category: Optional[str] = None
+    comments: Optional[str] = None
+
+
+class SellerApprovalRequest(BaseModel):
+    commission_rate: Optional[float] = 0.0
+    custom_password: Optional[str] = None
+
+
 class SellerAdminUpdate(BaseModel):
     name: Optional[str] = None
     business_name: Optional[str] = None

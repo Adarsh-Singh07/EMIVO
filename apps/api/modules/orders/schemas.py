@@ -35,6 +35,8 @@ class OrderItemResponse(BaseModel):
     id: str
     product_id: str
     variant_id: Optional[str] = None
+    seller_id: Optional[str] = None
+    seller_name: Optional[str] = None
     quantity: int
     unit_price: int
     subtotal: int
@@ -139,10 +141,17 @@ class OrderResponseV2(OrderResponse):
     delivered_at: Optional[datetime] = None
     payment_status: Optional[str] = None
     carrier_status: Optional[dict] = None
+    # Open-Box Delivery verification OTP & policy fields
+    delivery_otp: Optional[str] = None
+    is_open_box: bool = True
+    delivery_verified_at: Optional[datetime] = None
     # Payment transaction details (populated from payments table join)
     payment_txnid: Optional[str] = None       # EaseBuzz txnid or provider reference
     payment_provider_id: Optional[str] = None  # Provider payment ID (easepayid etc.)
     payment_provider: Optional[str] = None    # Gateway used: "cashfree" | "easebuzz"
+    # Primary seller details
+    seller_name: Optional[str] = None
+    seller_id: Optional[str] = None
 
 
 class PickupLocationInput(BaseModel):

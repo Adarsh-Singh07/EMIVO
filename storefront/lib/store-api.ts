@@ -261,6 +261,8 @@ export interface OrderItemV2 {
   product_name: string;
   variant_id?: string | null;
   variant_name?: string | null;
+  seller_id?: string | null;
+  seller_name?: string | null;
   quantity: number;
   unit_price: number; // paise
   subtotal: number; // paise
@@ -269,6 +271,8 @@ export interface OrderItemV2 {
 export interface OrderV2 {
   id: string;
   order_number?: string;
+  seller_id?: string | null;
+  seller_name?: string | null;
   status:
     | "PENDING"
     | "CONFIRMED"
@@ -293,6 +297,8 @@ export interface OrderV2 {
   coupon_code?: string | null;
   tracking_number?: string | null;
   tracking_url?: string | null;
+  delivery_otp?: string | null;
+  is_open_box?: boolean;
   shipped_at?: string | null;
   delivered_at?: string | null;
   shipping_address?: ShippingAddressInput & { name?: string; street?: string };
@@ -398,6 +404,26 @@ export interface StoreConfig {
     link?: string;
   };
   announcement?: string;
+}
+
+export interface SellerApplicationInput {
+  name: string;
+  business_name: string;
+  email: string;
+  phone: string;
+  city: string;
+  state?: string;
+  pincode: string;
+  address?: string;
+  gstin?: string;
+  category?: string;
+  comments?: string;
+}
+
+export interface SellerApplicationResult {
+  id: string;
+  status: string;
+  message: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -616,6 +642,23 @@ export const storeApi = {
     return fetchApi<void>(`/wishlist/${productId}`, { method: "DELETE" });
   },
 
+  /* ----- Stock Alerts (Notify Me) ----- */
+
+  subscribeStockAlert(
+    productId: string,
+    phone: string,
+    email?: string,
+    channel: string = "whatsapp"
+  ): Promise<{ id: string; product_id: string; phone: string }> {
+    return fetchApi<{ id: string; product_id: string; phone: string }>(
+      `/products/${productId}/notify-me`,
+      {
+        method: "POST",
+        body: JSON.stringify({ phone, email, channel }),
+      }
+    );
+  },
+
   /* ----- Coupons (auth) ----- */
 
   /** Active coupons for display (PDP offers, cart "Available coupons").
@@ -790,6 +833,15 @@ export const storeApi = {
     return fetchApi<{ subscribed: boolean; message: string }>("/newsletter/subscribe", {
       method: "POST",
       body: JSON.stringify({ email }),
+    });
+  },
+
+  /* ----- Seller Application (public) ----- */
+
+  applySeller(data: SellerApplicationInput): Promise<SellerApplicationResult> {
+    return fetchApi<SellerApplicationResult>("/sellers/apply", {
+      method: "POST",
+      body: JSON.stringify(data),
     });
   },
 

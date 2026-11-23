@@ -186,6 +186,17 @@ class InventoryService:
                 note=request.note,
                 actor_id=actor_id,
             )
+
+        # Trigger back-in-stock alerts if item was out-of-stock and is now available
+        avail_before = before[0] - before[1]
+        avail_after = after[0] - after[1]
+        if avail_before <= 0 and avail_after > 0:
+            try:
+                from modules.stock_alerts.service import StockAlertService
+                await StockAlertService(self.session).notify_back_in_stock(product_id)
+            except Exception as alert_err:
+                logger.warning("Failed triggering back-in-stock alerts for %s: %s", product_id, alert_err)
+
         await self.session.commit()
 
         refreshed = await self.repository.get_by_product(product_id)

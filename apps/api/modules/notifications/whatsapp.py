@@ -27,6 +27,8 @@ SUPPORTED_EVENTS = (
     "order.refunded",
     "payment.captured",
     "payment.failed",
+    "product.back_in_stock",
+    "stock_alert.subscribed",
 )
 
 
@@ -99,6 +101,21 @@ def build_template_components(event_type: str, values: Dict[str, Any]) -> Dict[s
         if order_number:
             components["button_1"] = {"subtype": "url", "type": "text", "value": order_number}
 
+    elif event_type == "product.back_in_stock":
+        # {{1}} = Customer Name, {{2}} = Product Name, Button 1 {{1}} = Product Slug
+        prod_name = str(values.get("product_name") or "Your item")
+        slug = str(values.get("slug") or "")
+        components["body_1"] = {"type": "text", "value": customer_name}
+        components["body_2"] = {"type": "text", "value": prod_name}
+        if slug:
+            components["button_1"] = {"subtype": "url", "type": "text", "value": slug}
+
+    elif event_type == "stock_alert.subscribed":
+        # {{1}} = Customer Name, {{2}} = Product Name
+        prod_name = str(values.get("product_name") or "Your item")
+        components["body_1"] = {"type": "text", "value": customer_name}
+        components["body_2"] = {"type": "text", "value": prod_name}
+
     else:
         components["body_1"] = {"type": "text", "value": customer_name}
         components["body_2"] = {"type": "text", "value": order_number}
@@ -109,14 +126,46 @@ def build_template_components(event_type: str, values: Dict[str, Any]) -> Dict[s
 
 
 class Msg91WhatsAppProvider:
-    """MSG91 WhatsApp outbound (template messages only — no free-form text)."""
+    """MSG91 WhatsApp outbound (template messages and 24h session free-form messages)."""
 
     API_URL = "https://control.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/"
+    SESSION_API_URL = "https://control.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/"
 
     def __init__(self, auth_key: str, from_number: str, templates: Dict[str, str]):
         self._auth_key = auth_key
         self._from = from_number
         self._templates = templates  # event_type -> approved template name
+
+    async def send_session_message(self, to_phone: str, text_content: str) -> bool:
+        """Send free-form text message during active 24-hour customer service window."""
+        mobile = to_phone.lstrip("+").strip().replace(" ", "").replace("-", "")
+        if len(mobile) == 10:
+            mobile = f"91{mobile}"
+
+        params = {
+            "integrated_number": self._from,
+            "recipient_number": mobile,
+            "content_type": "text",
+            "text": text_content,
+        }
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(
+                    self.SESSION_API_URL,
+                    params=params,
+                    headers={
+                        "authkey": self._auth_key,
+                        "Content-Type": "application/json",
+                        "accept": "application/json",
+                    },
+                )
+            if resp.status_code >= 400:
+                logger.error("whatsapp session send failed %s: %s", resp.status_code, resp.text[:200])
+                return False
+            return True
+        except httpx.RequestError as exc:
+            logger.error("whatsapp session send error: %s", exc)
+            return False
 
     async def send_template(self, to_phone: str, event_type: str, values: Dict[str, Any]) -> bool:
         template_name = self._templates.get(event_type)
@@ -191,9 +240,13 @@ def get_whatsapp_provider() -> Optional[Msg91WhatsAppProvider]:
 
 
 async def maybe_send_order_whatsapp(session, event_type: str, payload: dict) -> Optional[bool]:
-    """Dispatch hook for order.* and payment.* outbox events. No-op when WhatsApp
-    is off or the user/order has no phone on file. Never raises into the dispatch path."""
-    if not (event_type.startswith("order.") or event_type.startswith("payment.")):
+    """Dispatch hook for order.*, payment.*, and stock alerts outbox events.
+    No-op when WhatsApp is off or the recipient has no phone on file."""
+    if not (
+        event_type.startswith("order.")
+        or event_type.startswith("payment.")
+        or event_type in ("product.back_in_stock", "stock_alert.subscribed")
+    ):
         return None
     provider = get_whatsapp_provider()
     if provider is None:
@@ -207,6 +260,28 @@ async def maybe_send_order_whatsapp(session, event_type: str, payload: dict) -> 
     order_id = payload.get("order_id")
     phone = payload.get("phone")
     customer_name = payload.get("first_name") or payload.get("customer_name")
+
+    # Stock alerts payload handling
+    if event_type in ("product.back_in_stock", "stock_alert.subscribed"):
+        if not customer_name and user_id:
+            res = (await session.execute(
+                text("SELECT first_name FROM users WHERE id = :uid"),
+                {"uid": str(user_id)},
+            )).first()
+            if res:
+                customer_name = res[0]
+        customer_name = customer_name or "Valued Customer"
+        if not phone:
+            return None
+        return await provider.send_template(
+            to_phone=phone,
+            event_type=event_type,
+            values={
+                "customer_name": customer_name,
+                "product_name": payload.get("product_name") or "Your item",
+                "slug": payload.get("slug") or "",
+            },
+        )
 
     # 1. Lookup user phone & name if missing
     if user_id and (not phone or not customer_name):

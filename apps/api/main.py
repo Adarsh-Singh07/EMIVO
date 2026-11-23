@@ -35,6 +35,8 @@ from modules.admin_assistant.router import router as admin_assistant_router
 from modules.sellers.router import router as sellers_router
 from modules.catalogues.router import router as catalogues_router, admin_router as catalogues_admin_router
 from modules.bank_offers.router import router as bank_offers_router, admin_router as bank_offers_admin_router
+from modules.stock_alerts.router import router as stock_alerts_router
+from modules.whatsapp.webhook import router as whatsapp_webhook_router
 from core.redis import lifespan_redis
 from core.exceptions import DomainException, domain_exception_handler, unhandled_exception_handler
 
@@ -287,6 +289,8 @@ app.include_router(admin_marketing_router)
 app.include_router(chatbot_router)
 app.include_router(admin_assistant_router)
 app.include_router(sellers_router)
+app.include_router(stock_alerts_router)
+app.include_router(whatsapp_webhook_router)
 
 if __name__ == "__main__":
     import uvicorn

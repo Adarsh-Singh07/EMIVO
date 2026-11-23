@@ -16,6 +16,7 @@ import {
   Ticket,
   Loader2,
   MapPin,
+  Store,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiClient, ApiError } from "@/lib/api-client";
@@ -28,6 +29,8 @@ interface OrderItem {
   product_id: string;
   product_name: string;
   variant_name: string | null;
+  seller_id?: string | null;
+  seller_name?: string | null;
   quantity: number;
   unit_price: number;
   subtotal: number;
@@ -54,6 +57,8 @@ interface ShippingAddress {
 interface Order {
   id: string;
   order_number: string | null;
+  seller_name?: string | null;
+  seller_id?: string | null;
   status: string;
   subtotal: number;
   tax_total: number;
@@ -99,6 +104,11 @@ const NEXT_ACTIONS: Record<string, Array<{ label: string; target: string; style:
     { label: "Cancel", target: "CANCELLED", style: "danger", reason: true },
   ],
   PROCESSING: [
+    { label: "Ship via Delhivery", target: "SHIPPED", style: "brand", delhivery: true },
+    { label: "Mark Shipped (Manual)", target: "SHIPPED", style: "neutral", tracking: true },
+    { label: "Cancel", target: "CANCELLED", style: "danger", reason: true },
+  ],
+  PACKED: [
     { label: "Ship via Delhivery", target: "SHIPPED", style: "brand", delhivery: true },
     { label: "Mark Shipped (Manual)", target: "SHIPPED", style: "neutral", tracking: true },
     { label: "Cancel", target: "CANCELLED", style: "danger", reason: true },
@@ -389,6 +399,7 @@ export default function OrderDetailPage() {
                 <thead className="bg-neutral-50/60 border-b border-neutral-200 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
                   <tr>
                     <th className="px-5 py-3">Product</th>
+                    <th className="px-5 py-3">Merchant / Seller</th>
                     <th className="px-5 py-3 text-right">Unit Price</th>
                     <th className="px-5 py-3 text-right">Qty</th>
                     <th className="px-5 py-3 text-right">Subtotal</th>
@@ -402,6 +413,12 @@ export default function OrderDetailPage() {
                           {item.product_name}
                         </Link>
                         {item.variant_name && <p className="text-xs text-neutral-400">{item.variant_name}</p>}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/60">
+                          <Store className="w-3 h-3 text-amber-600" />
+                          {item.seller_name || order.seller_name || "Apana Enterprises"}
+                        </span>
                       </td>
                       <td className="px-5 py-3.5 text-right font-mono text-xs text-neutral-600">{formatINR(item.unit_price)}</td>
                       <td className="px-5 py-3.5 text-right font-mono text-neutral-700">{item.quantity}</td>

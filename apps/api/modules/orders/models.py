@@ -56,6 +56,10 @@ class Order(Base, TimestampMixin, SoftDeleteMixin, TenantMixin):
     shipped_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     delivered_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     stock_committed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # Open-Box Delivery (OBD) & Delivery Verification OTP
+    delivery_otp: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    is_open_box: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    delivery_verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     # Payment-retry window bookkeeping: when the reservation for a failed
     # online payment was returned to the general pool (30 min after the
     # failure). NULL while stock is still held for this order.
@@ -83,6 +87,22 @@ class Order(Base, TimestampMixin, SoftDeleteMixin, TenantMixin):
         lazy="selectin"
     )
 
+    @property
+    def seller_name(self) -> Optional[str]:
+        if self.items:
+            for item in self.items:
+                if item.seller_name:
+                    return item.seller_name
+        return "Apana Enterprises"
+
+    @property
+    def seller_id(self) -> Optional[str]:
+        if self.items:
+            for item in self.items:
+                if item.seller_id:
+                    return item.seller_id
+        return None
+
 
 class OrderItem(Base, TimestampMixin):
     __tablename__ = "order_items"
@@ -99,6 +119,10 @@ class OrderItem(Base, TimestampMixin):
     variant_id: Mapped[Optional[str]] = mapped_column(
         String(36), ForeignKey("product_variants.id"), nullable=True
     )
+    seller_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("sellers.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    seller_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
 

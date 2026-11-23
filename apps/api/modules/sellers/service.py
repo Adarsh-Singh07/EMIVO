@@ -28,6 +28,8 @@ from modules.sellers.schemas import (
     CategorySuggestion,
     DuplicateCandidateItem,
     SellerAdminUpdate,
+    SellerApplicationCreate,
+    SellerApprovalRequest,
     SellerAttachOffer,
     SellerCreateAdmin,
     SellerOrderItem,
@@ -1358,6 +1360,264 @@ class SellerService:
             "must_change_password": bool(data.must_change_password),
             "login_url": "https://sell.elektrix.in/login",
             "message": "Seller profile provisioned successfully. Seller can now sign in using password or Email OTP.",
+        }
+
+    async def apply_seller(self, data: SellerApplicationCreate) -> Dict[str, Any]:
+        """Public registration of seller interest from storefront footer or seller portal."""
+        import uuid
+        norm_email = data.email.strip().lower()
+
+        # Check existing seller
+        existing = (await self.session.execute(
+            select(Seller).where(func.lower(Seller.email) == norm_email)
+        )).scalar_one_or_none()
+
+        if existing:
+            if existing.status == "ACTIVE":
+                raise DomainException(
+                    "An active seller account with this email already exists. Please log in at https://sell.elektrix.in/login",
+                    code="SELLER_EXISTS",
+                    status_code=409,
+                )
+            elif existing.status == "PENDING_APPROVAL":
+                return {
+                    "id": str(existing.id),
+                    "status": "PENDING_APPROVAL",
+                    "message": "Your seller registration has already been received and is currently under review by our administration.",
+                }
+
+        sid = str(uuid.uuid4())
+        seller = Seller(
+            id=sid,
+            name=data.name.strip(),
+            business_name=data.business_name.strip(),
+            contact_person=data.name.strip(),
+            email=norm_email,
+            phone=data.phone.strip(),
+            address=data.address.strip() if data.address else None,
+            city=data.city.strip(),
+            state=data.state.strip() if data.state else None,
+            pincode=data.pincode.strip(),
+            gstin=data.gstin.strip().upper() if data.gstin else None,
+            status="PENDING_APPROVAL",
+            commission_rate=0.0,
+            rating=0.0,
+            rating_count=0,
+        )
+        self.session.add(seller)
+
+        # Notify Admin via in-app notification center
+        try:
+            from modules.notifications.models import Notification
+            admin_rows = (await self.session.execute(
+                text("SELECT id FROM users WHERE email = 'admin@elektrix.in' OR role IN ('ADMIN', 'platform_admin', 'STAFF')")
+            )).fetchall()
+            for row in admin_rows:
+                admin_uid = str(row[0])
+                self.session.add(
+                    Notification(
+                        id=str(uuid.uuid4()),
+                        user_id=admin_uid,
+                        type="SELLER_APPLICATION",
+                        title=f"New Seller Application: {data.business_name}",
+                        body=f"{data.name} applied to sell on ELEKTRIX ({data.city}, {data.phone}). Review and approve in Admin Portal.",
+                        link="/sellers",
+                        data={
+                            "seller_id": sid,
+                            "business_name": data.business_name,
+                            "email": norm_email,
+                            "phone": data.phone,
+                            "category": data.category,
+                        },
+                    )
+                )
+        except Exception as notif_err:
+            logger.warning("Could not create in-app admin notification: %s", notif_err)
+
+        # Queue outbox event
+        from core.models import OutboxEvent
+        self.session.add(
+            OutboxEvent(
+                tenant_id=None,
+                type="seller.application_received",
+                payload={
+                    "seller_id": sid,
+                    "email": norm_email,
+                    "business_name": data.business_name,
+                    "name": data.name,
+                    "phone": data.phone,
+                    "city": data.city,
+                    "gstin": data.gstin,
+                    "category": data.category,
+                },
+            )
+        )
+
+        await self.session.commit()
+
+        # Send email alert to Admin
+        try:
+            from modules.notifications.providers import get_notification_provider
+            notifier = get_notification_provider()
+            subject = f"New Seller Registration: {data.business_name} ({data.city})"
+            body_html = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #111;">
+              <h2 style="color: #ea580c;">New Seller Application Received</h2>
+              <p>A new merchant has submitted a registration request on ELEKTRIX:</p>
+              <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Business Name:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">{data.business_name}</td></tr>
+                <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Contact Person:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">{data.name}</td></tr>
+                <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Email:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">{norm_email}</td></tr>
+                <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Phone:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">{data.phone}</td></tr>
+                <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Location:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">{data.city}, {data.state or 'IN'} - {data.pincode}</td></tr>
+                <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>GSTIN:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">{data.gstin or 'Not provided'}</td></tr>
+                <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Category:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">{data.category or 'General'}</td></tr>
+              </table>
+              <p><a href="https://admin.elektrix.in/sellers" style="background: #ea580c; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Review and Approve Seller</a></p>
+            </div>
+            """
+            await notifier.send_email(to="admin@elektrix.in", subject=subject, body=body_html, html=True)
+            logger.info("Admin email sent for seller application %s (%s)", data.business_name, norm_email)
+        except Exception as mail_err:
+            logger.warning("Could not dispatch admin email for seller application: %s", mail_err)
+
+        return {
+            "id": sid,
+            "status": "PENDING_APPROVAL",
+            "message": "Thank you for applying to sell on ELEKTRIX. Our merchant onboarding team will review your details and send your Seller Central login credentials via email once approved.",
+        }
+
+    async def approve_seller(self, seller_id: str, data: Optional[SellerApprovalRequest] = None) -> Dict[str, Any]:
+        """Admin approves a pending seller, creates login credentials, and sends a welcome email."""
+        import uuid
+        stmt = select(Seller).where(Seller.id == seller_id)
+        seller = (await self.session.execute(stmt)).scalar_one_or_none()
+        if not seller:
+            raise DomainException("Seller not found", code="NOT_FOUND", status_code=404)
+
+        raw_password = (data.custom_password if data and data.custom_password else "").strip()
+        if not raw_password:
+            raw_password = f"Elektrix@{secrets.token_hex(4).upper()}"
+
+        hashed_pwd = argon2.hash(raw_password)
+        seller.status = "ACTIVE"
+        seller.password_hash = hashed_pwd
+        if data and data.commission_rate is not None:
+            seller.commission_rate = data.commission_rate
+
+        norm_email = seller.email.strip().lower()
+
+        # Ensure user account exists in users table with role SELLER
+        user_row = (await self.session.execute(
+            text("SELECT id FROM users WHERE lower(email) = :e"),
+            {"e": norm_email},
+        )).fetchone()
+
+        uid = str(user_row[0]) if user_row else str(uuid.uuid4())
+        if not user_row:
+            await self.session.execute(text("""
+                INSERT INTO users (id, email, phone, password_hash, first_name, last_name, is_active, role)
+                VALUES (:uid, :email, :phone, :pwd, :fn, :ln, TRUE, 'SELLER')
+                ON CONFLICT (id) DO NOTHING;
+            """), {
+                "uid": uid,
+                "email": norm_email,
+                "phone": seller.phone,
+                "pwd": hashed_pwd,
+                "fn": seller.name or seller.business_name,
+                "ln": "Seller",
+            })
+        else:
+            await self.session.execute(text("""
+                UPDATE users SET password_hash = :pwd, role = 'SELLER', is_active = TRUE WHERE id = :uid
+            """), {"pwd": hashed_pwd, "uid": uid})
+
+        # Ensure business record exists
+        slug = _slugify(seller.business_name) + f"-{seller.id[:4]}"
+        await self.session.execute(text("""
+            INSERT INTO businesses (id, name, slug, is_active, is_seller, contact_email, contact_phone, settings)
+            VALUES (:id, :name, :slug, TRUE, TRUE, :email, :phone, :settings)
+            ON CONFLICT (id) DO UPDATE SET
+                is_active = TRUE,
+                is_seller = TRUE,
+                contact_email = EXCLUDED.contact_email,
+                contact_phone = EXCLUDED.contact_phone;
+        """), {
+            "id": seller.id,
+            "name": seller.business_name,
+            "slug": slug,
+            "email": norm_email,
+            "phone": seller.phone,
+            "settings": json.dumps({"city": seller.city or "", "must_change_password": True}),
+        })
+
+        # Map business_member
+        await self.session.execute(text("""
+            INSERT INTO business_members (business_id, user_id, role)
+            VALUES (:bid, :uid, 'owner')
+            ON CONFLICT (business_id, user_id) DO NOTHING;
+        """), {"bid": seller.id, "uid": uid})
+
+        # Queue welcome outbox event
+        from core.models import OutboxEvent
+        self.session.add(
+            OutboxEvent(
+                tenant_id=None,
+                type="seller.welcome",
+                payload={
+                    "seller_id": seller.id,
+                    "email": norm_email,
+                    "business_name": seller.business_name,
+                    "contact_person": seller.name,
+                    "temporary_password": raw_password,
+                    "must_change_password": True,
+                    "login_url": "https://sell.elektrix.in/login",
+                },
+            )
+        )
+
+        await self.session.commit()
+
+        # Send welcome email with credentials directly to the seller
+        try:
+            from modules.notifications.providers import get_notification_provider
+            notifier = get_notification_provider()
+            subject = f"Welcome to ELEKTRIX Seller Central — {seller.business_name} Approved!"
+            body_html = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #111;">
+              <h2 style="color: #ea580c;">Welcome to ELEKTRIX Seller Central</h2>
+              <p>Hello <strong>{seller.name}</strong>,</p>
+              <p>Congratulations! Your seller application for <strong>{seller.business_name}</strong> has been <strong>approved</strong> by the ELEKTRIX Administration.</p>
+              <p>You can now log in to the Seller Portal to manage your products, catalog, and fulfill customer orders:</p>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <p style="margin: 0 0 8px;"><strong>Login Portal:</strong> <a href="https://sell.elektrix.in/login">https://sell.elektrix.in/login</a></p>
+                <p style="margin: 0 0 8px;"><strong>Registered Email:</strong> {norm_email}</p>
+                <p style="margin: 0 0 8px;"><strong>Temporary Password:</strong> <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">{raw_password}</code></p>
+                <p style='color: #c2410c; margin: 8px 0 0; font-size: 13px;'>* Please change your password upon your first login for account security.</p>
+              </div>
+              <p><strong>Next Steps:</strong></p>
+              <ol>
+                <li>Log in to <a href="https://sell.elektrix.in/login">https://sell.elektrix.in/login</a></li>
+                <li>Add your products and set prices / inventory.</li>
+                <li>When orders are placed, mark them as <strong>Packed</strong> for courier pickup.</li>
+              </ol>
+              <p>If you have any questions, contact our support team at <a href="mailto:support@elektrix.in">support@elektrix.in</a>.</p>
+              <p style="color: #64748b; font-size: 12px; margin-top: 24px;">ELEKTRIX India &bull; Merchant Marketplace Services</p>
+            </div>
+            """
+            await notifier.send_email(to=norm_email, subject=subject, body=body_html, html=True)
+            logger.info("Approval welcome email dispatched to seller %s (%s)", seller.business_name, norm_email)
+        except Exception as mail_err:
+            logger.warning("Could not dispatch welcome email to seller %s: %s", norm_email, mail_err)
+
+        return {
+            "id": seller.id,
+            "business_name": seller.business_name,
+            "email": seller.email,
+            "status": "ACTIVE",
+            "generated_password": raw_password,
+            "login_url": "https://sell.elektrix.in/login",
+            "message": f"Seller '{seller.business_name}' approved successfully. Welcome email with credentials dispatched to {seller.email}.",
         }
 
     async def update_seller_status(self, seller_id: str, status: str) -> Dict[str, Any]:

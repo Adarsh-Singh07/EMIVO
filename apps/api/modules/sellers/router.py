@@ -16,6 +16,8 @@ from modules.sellers.schemas import (
     DuplicateCandidateItem,
     DuplicateMergeRequest,
     SellerAdminUpdate,
+    SellerApplicationCreate,
+    SellerApprovalRequest,
     SellerAttachOffer,
     SellerCreateAdmin,
     SellerOrderItem,
@@ -258,6 +260,15 @@ async def suggest_category(
 
 
 # -----------------------------------------------------------------------------
+# Public Seller Application
+# -----------------------------------------------------------------------------
+
+@router.post("/api/v1/sellers/apply", status_code=status.HTTP_201_CREATED)
+async def apply_seller(data: SellerApplicationCreate, service: SellerService = Depends(_get_service)):
+    return await service.apply_seller(data)
+
+
+# -----------------------------------------------------------------------------
 # Admin Management: Sellers & Category Approvals
 # -----------------------------------------------------------------------------
 
@@ -269,6 +280,15 @@ async def admin_list_sellers(service: SellerService = Depends(_get_service)):
 @router.post("/api/v1/admin/sellers", status_code=status.HTTP_201_CREATED)
 async def admin_create_seller(data: SellerCreateAdmin, service: SellerService = Depends(_get_service)):
     return await service.create_seller_by_admin(data)
+
+
+@router.post("/api/v1/admin/sellers/{seller_id}/approve")
+async def admin_approve_seller(
+    seller_id: str,
+    data: Optional[SellerApprovalRequest] = None,
+    service: SellerService = Depends(_get_service),
+):
+    return await service.approve_seller(seller_id, data)
 
 
 @router.put("/api/v1/admin/sellers/{seller_id}")
