@@ -1,7 +1,7 @@
 import secrets
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -905,19 +905,38 @@ class OrderService:
         )
         return await self.update_order_status(order_id, status_update)
 
-    async def update_fulfillment_details(self, order_id: str, data: Any) -> Order:
+    async def update_fulfillment_details(
+        self,
+        order_id: str,
+        data: Any = None,
+        manual_invoice_url: Optional[str] = None,
+        item_serials: Optional[Dict[str, List[str]]] = None,
+    ) -> Order:
         """Add manual invoice URL, IMEI/serial numbers, or custom fulfillment type."""
         order = await self.get_order(order_id)
-        if getattr(data, "fulfillment_type", None):
-            order.fulfillment_type = data.fulfillment_type
-        if getattr(data, "tracking_number", None):
-            order.tracking_number = data.tracking_number
-        if getattr(data, "tracking_url", None):
-            order.tracking_url = data.tracking_url
-        if getattr(data, "manual_invoice_url", None):
-            order.manual_invoice_url = data.manual_invoice_url
+        if data is not None:
+            if isinstance(data, dict):
+                if data.get("fulfillment_type"):
+                    order.fulfillment_type = data["fulfillment_type"]
+                if data.get("tracking_number"):
+                    order.tracking_number = data["tracking_number"]
+                if data.get("tracking_url"):
+                    order.tracking_url = data["tracking_url"]
+                manual_invoice_url = manual_invoice_url or data.get("manual_invoice_url")
+                item_serials = item_serials or data.get("item_serials")
+            else:
+                if getattr(data, "fulfillment_type", None):
+                    order.fulfillment_type = data.fulfillment_type
+                if getattr(data, "tracking_number", None):
+                    order.tracking_number = data.tracking_number
+                if getattr(data, "tracking_url", None):
+                    order.tracking_url = data.tracking_url
+                manual_invoice_url = manual_invoice_url or getattr(data, "manual_invoice_url", None)
+                item_serials = item_serials or getattr(data, "item_serials", None)
 
-        item_serials = getattr(data, "item_serials", None)
+        if manual_invoice_url:
+            order.manual_invoice_url = manual_invoice_url
+
         if item_serials and isinstance(item_serials, dict):
             for item in order.items:
                 if str(item.id) in item_serials:
