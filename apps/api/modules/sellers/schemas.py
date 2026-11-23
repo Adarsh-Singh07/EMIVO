@@ -217,10 +217,10 @@ class SellerOrderItem(BaseModel):
     fulfillment_status: str  # PENDING, PACKED, OUT_FOR_DELIVERY, SHIPPED, DELIVERED
     order_status: Optional[str] = None
     fulfillment_type: Optional[str] = None
-    delivery_otp: Optional[str] = None
     invoice_number: Optional[str] = None
     manual_invoice_url: Optional[str] = None
     serial_numbers: Optional[List[str]] = None
+    imei_numbers: Optional[List[str]] = None
     customer_city: Optional[str] = None
     customer_pincode: Optional[str] = None
     created_at: Optional[datetime] = None
@@ -229,6 +229,7 @@ class SellerOrderItem(BaseModel):
 class SellerFulfillmentUpdate(BaseModel):
     manual_invoice_url: Optional[str] = None
     item_serials: Optional[Dict[str, List[str]]] = None
+    item_imeis: Optional[Dict[str, List[str]]] = None
 
 
 class CategorySuggestion(BaseModel):

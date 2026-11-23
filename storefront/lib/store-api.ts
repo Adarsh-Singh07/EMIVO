@@ -267,6 +267,7 @@ export interface OrderItemV2 {
   unit_price: number; // paise
   subtotal: number; // paise
   serial_numbers?: string[] | null;
+  imei_numbers?: string[] | null;
   hsn_code?: string | null;
 }
 

@@ -45,6 +45,7 @@ class OrderItemResponse(BaseModel):
     product_name: str
     variant_name: Optional[str] = None
     serial_numbers: Optional[List[str]] = None
+    imei_numbers: Optional[List[str]] = None
     hsn_code: Optional[str] = "8517"
     created_at: datetime
 
@@ -170,7 +171,8 @@ class OrderFulfillUpdate(BaseModel):
     tracking_number: Optional[str] = None
     tracking_url: Optional[str] = None
     manual_invoice_url: Optional[str] = None
-    item_serials: Optional[Dict[str, List[str]]] = None  # item_id -> ["IMEI1", "IMEI2"]
+    item_serials: Optional[Dict[str, List[str]]] = None  # item_id -> ["SN1", "SN2"]
+    item_imeis: Optional[Dict[str, List[str]]] = None    # item_id -> ["IMEI1", "IMEI2"]
 
 
 class PickupLocationInput(BaseModel):

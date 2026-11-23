@@ -143,13 +143,22 @@ def build_tax_invoice_data(order: Any, seller: Optional[Dict[str, Any]] = None) 
             except Exception:
                 serials = [serials]
 
+        imeis = _val(item, "imei_numbers", []) or []
+        if isinstance(imeis, str):
+            import json
+            try:
+                imeis = json.loads(imeis)
+            except Exception:
+                imeis = [imeis]
+
         items_data.append({
             "sl_no": idx,
             "product_name": _val(item, "product_name", "Product"),
             "variant_name": _val(item, "variant_name"),
             "hsn_code": _val(item, "hsn_code", "8517") or "8517",
             "quantity": qty,
-            "serials": serials,
+            "serials": [s for s in serials if str(s).strip()] if isinstance(serials, list) else [],
+            "imeis": [m for m in imeis if str(m).strip()] if isinstance(imeis, list) else [],
             "unit_price_inr": f"{(u_price / 100):.2f}",
             "taxable_inr": f"{(taxable_paise / 100):.2f}",
             "cgst_rate": "9%" if is_intra_state else "-",
@@ -217,10 +226,17 @@ def render_invoice_html(data: Dict[str, Any]) -> str:
     """Render a clean, pixel-perfect, print-ready Tax Invoice matching Apana & Reliance Retail standards."""
     items_rows = ""
     for item in data["items"]:
+        meta_lines = []
+        if item.get("serials"):
+            serials_list = ", ".join(str(s) for s in item["serials"])
+            meta_lines.append(f"<div>Serial No: <strong>{serials_list}</strong></div>")
+        if item.get("imeis"):
+            imeis_list = ", ".join(str(m) for m in item["imeis"])
+            meta_lines.append(f"<div>IMEI: <strong>{imeis_list}</strong></div>")
+
         serials_html = ""
-        if item["serials"]:
-            serials_list = ", ".join(item["serials"])
-            serials_html = f"<div style='font-size:11px;color:#444;font-family:monospace;margin-top:3px;'>IMEI/Serial: <strong>{serials_list}</strong></div>"
+        if meta_lines:
+            serials_html = f"<div style='font-size:11px;color:#333;font-family:monospace;margin-top:3px;line-height:1.4;'>{''.join(meta_lines)}</div>"
         
         variant_html = f"<span style='color:#666;font-size:12px;'> ({item['variant_name']})</span>" if item["variant_name"] else ""
 

@@ -112,6 +112,8 @@ export const apiClient = {
   get: <T>(path: string, options?: RequestInit) => request<T>(path, { ...options, method: 'GET' }),
   post: <T>(path: string, data?: unknown, options?: RequestInit) =>
     request<T>(path, { ...options, method: 'POST', body: data ? JSON.stringify(data) : undefined }),
+  postForm: <T>(path: string, form: FormData, options?: RequestInit) =>
+    request<T>(path, { ...options, method: 'POST', body: form }),
   put: <T>(path: string, data?: unknown, options?: RequestInit) =>
     request<T>(path, { ...options, method: 'PUT', body: data ? JSON.stringify(data) : undefined }),
   patch: <T>(path: string, data?: unknown, options?: RequestInit) =>

@@ -86,10 +86,55 @@ def test_generate_tax_invoice_html():
     assert "Apana Enterprises" in html
     assert "10COMPG4070G1ZB" in html
     assert "Vivo Y29 5G" in html
+    assert "Serial No:" in html
     assert "864523051234567" in html
     assert "AE/26-27/0042" in html
     assert "CGST" in html
     assert "SGST" in html
+
+
+def test_serial_and_imei_separate_rendering():
+    base_order = {
+        "id": "ord-test",
+        "order_number": "ELX-001",
+        "created_at": datetime.now(timezone.utc),
+        "status": "DELIVERED",
+        "total": 100000,
+        "subtotal": 100000,
+        "tax_total": 0,
+        "shipping_total": 0,
+        "discount_total": 0,
+        "items": [
+            {
+                "product_name": "Phone A",
+                "serial_numbers": ["SN111"],
+                "imei_numbers": ["IMEI222"],
+                "quantity": 1,
+                "unit_price": 50000,
+                "subtotal": 50000,
+            },
+            {
+                "product_name": "Phone B",
+                "serial_numbers": [],
+                "imei_numbers": ["IMEI333"],
+                "quantity": 1,
+                "unit_price": 50000,
+                "subtotal": 50000,
+            },
+        ],
+    }
+    data = build_tax_invoice_data(base_order)
+    html = render_invoice_html(data)
+    assert "Serial No: <strong>SN111</strong>" in html
+    assert "IMEI: <strong>IMEI222</strong>" in html
+    assert "IMEI: <strong>IMEI333</strong>" in html
+
+
+def test_media_upload_allowed_extensions_includes_pdf():
+    from modules.media.router import ALLOWED_EXTENSIONS, ALLOWED_CONTENT_TYPES
+    assert ".pdf" in ALLOWED_EXTENSIONS
+    assert ".pdf" in ALLOWED_CONTENT_TYPES
+    assert "application/pdf" in ALLOWED_CONTENT_TYPES[".pdf"]
 
 
 @pytest.mark.asyncio

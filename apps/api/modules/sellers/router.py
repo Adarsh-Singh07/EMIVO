@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -294,7 +295,38 @@ async def seller_update_fulfillment(
         order_id,
         manual_invoice_url=body.manual_invoice_url,
         item_serials=body.item_serials,
+        item_imeis=body.item_imeis,
     )
+
+
+@router.get("/api/v1/seller/orders/{order_id}/invoice", response_class=HTMLResponse)
+async def get_seller_order_invoice(
+    order_id: str,
+    token: Optional[str] = Query(None),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    service: SellerService = Depends(_get_service),
+):
+    """Download/view tax invoice for seller's order."""
+    seller_id = None
+    raw_token = token or (credentials.credentials if credentials else None)
+    if raw_token:
+        try:
+            payload = jwt.decode(
+                raw_token,
+                settings.jwt_secret.get_secret_value(),
+                algorithms=[settings.jwt_algorithm],
+            )
+            seller_id = payload.get("seller_id") or payload.get("sub")
+        except Exception:
+            pass
+
+    if not seller_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
+    from modules.orders.service import OrderService
+    order_svc = OrderService(service.session)
+    html = await order_svc.get_order_invoice_html(order_id, seller_id=seller_id, is_staff=True)
+    return HTMLResponse(content=html)
 
 
 # -----------------------------------------------------------------------------

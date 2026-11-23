@@ -6,7 +6,7 @@ import uuid
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from starlette.concurrency import run_in_threadpool
 
-from core.dependencies import require_staff
+from core.dependencies import require_staff, require_staff_or_seller
 from modules.media.dependencies import (
     get_cloudflare_api_token,
     get_default_bucket,
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/api/v1/media", tags=["media"])
 
 # SVG is deliberately excluded: it can carry <script> payloads and is served
 # from the public R2 origin, making it a stored-XSS vector.
-ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".avif", ".gif", ".ico", ".heic", ".heif"}
+ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".avif", ".gif", ".ico", ".heic", ".heif", ".pdf"}
 
 # Server-verified content types per extension — the client-supplied
 # content_type is honoured only when it matches, so text/html can never be
@@ -38,6 +38,7 @@ ALLOWED_CONTENT_TYPES = {
     ".ico": {"image/x-icon", "image/vnd.microsoft.icon", "image/icon"},
     ".heic": {"image/heic", "image/heif"},
     ".heif": {"image/heic", "image/heif"},
+    ".pdf": {"application/pdf"},
 }
 
 
@@ -45,7 +46,7 @@ ALLOWED_CONTENT_TYPES = {
     "/presign",
     response_model=PresignedUploadResponse,
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(require_staff)],
+    dependencies=[Depends(require_staff_or_seller)],
 )
 async def create_presigned_upload(
     req: PresignedUploadRequest,
@@ -95,7 +96,7 @@ MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # matches nginx client_max_body_size 20M
     "/upload",
     response_model=MediaUploadResponse,
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(require_staff)],
+    dependencies=[Depends(require_staff_or_seller)],
 )
 async def upload_media(
     file: UploadFile = File(...),
