@@ -7,6 +7,7 @@ Environment (set by scripts/run_backend_tests.sh):
 """
 import os
 import sys
+from typing import Optional
 import uuid
 
 import httpx
@@ -40,9 +41,15 @@ def _run(n: int = 0) -> str:
     return f"{RUN_ID}{n}"
 
 
-async def register_and_login(client: httpx.AsyncClient, n: int = 0, password: str = "Passw0rd!123"):
+async def register_and_login(
+    client: httpx.AsyncClient,
+    n: int = 0,
+    password: str = "Passw0rd!123",
+    phone: Optional[str] = None,
+):
     email = f"buyer{_run(n)}@example.com"
-    phone = f"9{uuid.uuid4().int % 1000000000:09d}"
+    if phone is None:
+        phone = f"9{str(abs(n))[-9:].zfill(9)}"
     r = await client.post("/api/v1/auth/register", json={
         "email": email, "password": password,
         "first_name": "Test", "last_name": f"Buyer{n}",
