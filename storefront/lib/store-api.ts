@@ -293,6 +293,8 @@ export interface OrderV2 {
   coupon_code?: string | null;
   tracking_number?: string | null;
   tracking_url?: string | null;
+  delivery_otp?: string | null;
+  is_open_box?: boolean;
   shipped_at?: string | null;
   delivered_at?: string | null;
   shipping_address?: ShippingAddressInput & { name?: string; street?: string };
@@ -614,6 +616,23 @@ export const storeApi = {
 
   removeFromWishlist(productId: string): Promise<void> {
     return fetchApi<void>(`/wishlist/${productId}`, { method: "DELETE" });
+  },
+
+  /* ----- Stock Alerts (Notify Me) ----- */
+
+  subscribeStockAlert(
+    productId: string,
+    phone: string,
+    email?: string,
+    channel: string = "whatsapp"
+  ): Promise<{ id: string; product_id: string; phone: string }> {
+    return fetchApi<{ id: string; product_id: string; phone: string }>(
+      `/products/${productId}/notify-me`,
+      {
+        method: "POST",
+        body: JSON.stringify({ phone, email, channel }),
+      }
+    );
   },
 
   /* ----- Coupons (auth) ----- */

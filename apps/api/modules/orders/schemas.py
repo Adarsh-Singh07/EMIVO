@@ -139,6 +139,10 @@ class OrderResponseV2(OrderResponse):
     delivered_at: Optional[datetime] = None
     payment_status: Optional[str] = None
     carrier_status: Optional[dict] = None
+    # Open-Box Delivery verification OTP & policy fields
+    delivery_otp: Optional[str] = None
+    is_open_box: bool = True
+    delivery_verified_at: Optional[datetime] = None
     # Payment transaction details (populated from payments table join)
     payment_txnid: Optional[str] = None       # EaseBuzz txnid or provider reference
     payment_provider_id: Optional[str] = None  # Provider payment ID (easepayid etc.)

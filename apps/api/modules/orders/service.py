@@ -615,6 +615,14 @@ class OrderService:
                 order.tracking_url = status_update.tracking_url
             event_type = "order.shipped"
         elif target_status == OrderStatus.OUT_FOR_DELIVERY:
+            # Generate Open-Box Delivery verification OTP if not already present
+            if not getattr(order, "delivery_otp", None):
+                import secrets
+                order.delivery_otp = f"{secrets.randbelow(900000) + 100000}"
+                meta = dict(order.metadata_info or {})
+                meta["delivery_otp"] = order.delivery_otp
+                meta["is_open_box"] = True
+                order.metadata_info = meta
             event_type = "order.out_for_delivery"
         elif target_status == OrderStatus.DELIVERED:
             order.delivered_at = order.delivered_at or datetime.now(timezone.utc)
@@ -641,6 +649,8 @@ class OrderService:
                     "user_id": str(order.user_id),
                     "tracking_number": order.tracking_number,
                     "tracking_url": order.tracking_url,
+                    "delivery_otp": getattr(order, "delivery_otp", None),
+                    "is_open_box": getattr(order, "is_open_box", True),
                 },
             ))
 

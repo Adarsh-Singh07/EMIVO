@@ -56,6 +56,10 @@ class Order(Base, TimestampMixin, SoftDeleteMixin, TenantMixin):
     shipped_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     delivered_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     stock_committed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # Open-Box Delivery (OBD) & Delivery Verification OTP
+    delivery_otp: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    is_open_box: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    delivery_verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     # Payment-retry window bookkeeping: when the reservation for a failed
     # online payment was returned to the general pool (30 min after the
     # failure). NULL while stock is still held for this order.

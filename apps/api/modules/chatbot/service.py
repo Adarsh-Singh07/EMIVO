@@ -29,16 +29,30 @@ RULES:
    failed payments retry the same way; after the window, reorder.
 5. Shipping: All orders ship from our central warehouse in Vijayipur, Gopalganj, Bihar (PIN: 841508)
    via Delhivery express courier. Typical delivery is 2–5 days depending on location.
-6. PRODUCT SUGGESTIONS: when the customer asks for recommendations, pick from the catalog
+6. OPEN-BOX DELIVERY & VERIFICATION OTP (STRICT POLICY):
+   ELEKTRIX mandates Open-Box Delivery for all shipments to prevent fraud. The customer MUST open and
+   physically inspect the device in the presence of the delivery executive before accepting and before
+   sharing the delivery verification OTP. If an order is OUT_FOR_DELIVERY and has an OTP (in order data below),
+   share the OTP with the customer and remind them to verify the product before giving the OTP to the delivery agent.
+7. RETURNS & REPLACEMENT POLICY:
+   Once accepted after open-box delivery, returns are ONLY accepted if the item was physically damaged
+   or wrong, and reported same-day to support@elektrix.in with photos for an immediate free replacement.
+   Change-of-mind returns are not accepted after acceptance. Internal technical or manufacturing defects
+   are covered by the brand's authorized service center warranty.
+8. BACK-IN-STOCK ALERTS:
+   When the customer asks to be notified when an item is back in stock, confirm that you will alert them
+   on WhatsApp, and on the VERY LAST LINE output:
+   NOTIFY_STOCK: product_id=<product_id> | product_name=<name> | phone=<phone>
+9. PRODUCT SUGGESTIONS: when the customer asks for recommendations, pick from the catalog
    list and ALWAYS give the full link https://elektrix.in/product/<slug> for each.
    COMPARISONS: compare only products present in the catalog list, on price and features.
-7. CANCELLATION: if the customer wants to cancel an order, show the order's details
+10. CANCELLATION: if the customer wants to cancel an order, show the order's details
    (product, amount, order number) and ask them to confirm. ONLY when their latest
    message clearly confirms (yes / confirm / cancel it), output on the LAST line:
    CANCEL_ORDER: <order_number>
-   If they ask to cancel multiple/unclear orders, ask which one. Never emit CANCEL_ORDER
-   without a prior explicit confirmation from the customer.
-8. TICKETS — TWO-STEP ONLY:
+   If they ask to cancel multiple/unclear orders, ask which one. Orders that are OUT_FOR_DELIVERY
+   cannot be cancelled. Never emit CANCEL_ORDER without a prior explicit confirmation from the customer.
+11. TICKETS — TWO-STEP ONLY:
    Step 1: when the customer wants to complain / report an issue / reach a human, do NOT
    raise anything yet. Ask for the missing details (what happened, which order, expected
    outcome) and confirm with a summary: "Shall I raise ticket '<summary>'?" If they already
@@ -67,6 +81,8 @@ STORE & PRODUCT KNOWLEDGE:
 - What we sell: Mobiles, Laptops, Audio (headphones, earbuds, speakers), Home Appliances, and Wearables (smartwatches) from leading brands.
 - Warehouse / Dispatch Origin: Vijayipur, Gopalganj, Bihar (Pincode: 841508).
 - Shipping & Courier: Pan-India express delivery through Delhivery. Typical transit: 1-2 days in Bihar, 2-4 days in UP/WB/Jharkhand, 3-5 days in Delhi/Maharashtra/Gujarat/Rajasthan and most of North/Central/West India, 4-6 days in South India, 5-7 days in the North-East.
+- Open-Box Delivery Policy: ELEKTRIX mandates Open-Box Delivery for all orders. Customers MUST open and inspect the package in the presence of the Delhivery delivery executive before accepting and before sharing the delivery verification OTP.
+- Returns & Replacement: If an item is damaged or wrong, customer must not accept, or report on the same day with photos to support@elektrix.in for an immediate free replacement. After acceptance, change of mind returns are not accepted. Manufacturing defects are covered under manufacturer warranty at authorized brand service centers.
 - Free Delivery: on all orders over ₹999.
 - Returns: 7-day easy returns/replacement on eligible items — details at https://elektrix.in/refund.
 - Warranty: varies by product — always point the customer to the product page for exact warranty terms.
@@ -95,6 +111,12 @@ GUEST COMPLAINTS & ISSUE REGISTRATION:
   Confirm politely that you are logging their complaint, and on the VERY LAST LINE of your response output:
   GUEST_TICKET: name=<name> | email=<email> | phone=<phone> | subject=<summary> | description=<details>
 
+BACK-IN-STOCK ALERTS:
+- If a guest wants an alert when an item is back in stock:
+  Ask for their 10-digit mobile number if not provided.
+  Once product and mobile number are known, confirm politely and on the VERY LAST LINE output:
+  NOTIFY_STOCK: product_id=<product_id> | product_name=<name> | phone=<phone>
+
 CATALOG (for suggestions & comparisons):
 {catalog}
 
@@ -117,14 +139,14 @@ async def get_public_catalog_block(session: Optional[AsyncSession]) -> str:
         bid = await get_store_business_id(session)
         await session.execute(text("SELECT set_config('app.business_id', :bid, true)"), {"bid": str(bid)})
         cat_res = await session.execute(text("""
-            SELECT p.name, p.price, p.slug,
+            SELECT p.id, p.name, p.price, p.slug,
                    COALESCE(left(p.description, 90), '') AS blurb
             FROM products p
             WHERE p.business_id = :bid AND p.status = 'ACTIVE'
             ORDER BY p.created_at DESC LIMIT 20
         """), {"bid": str(bid)})
         cat_lines = [
-            f"- {r['name']} | Rs {r['price'] / 100:.0f} | https://elektrix.in/product/{r['slug']} | {r['blurb'][:70]}"
+            f"- {r['name']} | Rs {r['price'] / 100:.0f} | https://elektrix.in/product/{r['slug']} | ID: {r['id']} | {r['blurb'][:70]}"
             for r in cat_res.mappings()
         ]
         return "\n".join(cat_lines) or DEFAULT_CATALOG_FALLBACK
@@ -142,6 +164,7 @@ async def build_user_context(session: AsyncSession, user_id: str, user_name: str
 
     orders_res = await session.execute(text("""
         SELECT o.order_number, o.status, o.payment_method, o.total, o.created_at,
+               COALESCE(o.delivery_otp, '') AS delivery_otp,
                COALESCE(p.pay_status, '') AS pay_status,
                COALESCE((SELECT string_agg(oi.product_name || ' x' || oi.quantity, ', ')
                          FROM order_items oi WHERE oi.order_id = o.id), 'items n/a') AS items
@@ -155,9 +178,10 @@ async def build_user_context(session: AsyncSession, user_id: str, user_name: str
     """), {"uid": user_id})
     order_lines = []
     for r in orders_res.mappings():
+        otp_part = f" | Open-Box Delivery OTP: {r['delivery_otp']}" if r.get("delivery_otp") and r["status"] == "OUT_FOR_DELIVERY" else ""
         order_lines.append(
             f"- Items: {r['items']} | Rs {r['total'] / 100:.0f} | Order {r['order_number']} "
-            f"| placed {r['created_at']:%d %b %Y, %I:%M %p} | status {r['status']} "
+            f"| placed {r['created_at']:%d %b %Y, %I:%M %p} | status {r['status']}{otp_part} "
             f"| payment: {r['pay_status'] or 'n/a'} ({r['payment_method']})"
         )
     orders_block = "\n".join(order_lines) or "- No orders yet."
@@ -182,8 +206,8 @@ async def ask_gemini(
     user_name: str,
     message: str,
     history: list[dict] | None = None
-) -> tuple[str, Optional[dict], Optional[str]]:
-    """Returns (reply, ticket_action|None, cancel_order_number|None)."""
+) -> tuple[str, Optional[dict], Optional[str], Optional[dict]]:
+    """Returns (reply, ticket_action|None, cancel_order_number|None, notify_stock_action|None)."""
     hist = ""
     for h in (history or [])[-8:]:
         who = "CUSTOMER" if h.get("role") == "user" else "YOU"
@@ -328,4 +352,21 @@ async def ask_gemini(
         cancel_number = c.group(1)
         reply = reply[: c.start()].strip()
 
-    return reply, ticket_action, cancel_number
+    # Check for NOTIFY_STOCK: output
+    notify_action = None
+    notif_m = re.search(r"NOTIFY_STOCK:\s*(.+)", reply, re.IGNORECASE)
+    if notif_m:
+        raw_ns = notif_m.group(1).strip()
+        reply = reply[: notif_m.start()].strip()
+        parts = {}
+        for item in raw_ns.split("|"):
+            if "=" in item:
+                k, v = item.split("=", 1)
+                parts[k.strip().lower()] = v.strip()
+        notify_action = {
+            "product_id": parts.get("product_id", ""),
+            "product_name": parts.get("product_name", ""),
+            "phone": parts.get("phone", ""),
+        }
+
+    return reply, ticket_action, cancel_number, notify_action

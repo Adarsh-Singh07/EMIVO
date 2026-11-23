@@ -69,7 +69,7 @@ async def chat(
     user_id_str = str(user.id) if user else None
 
     try:
-        reply, ticket_action, cancel_number = await ask_gemini(
+        reply, ticket_action, cancel_number, notify_action = await ask_gemini(
             session, user_id_str, name or "there", payload.message, payload.history
         )
     except Exception as exc:
@@ -80,6 +80,24 @@ async def chat(
             code="CHATBOT_UNAVAILABLE",
             status_code=503,
         )
+
+    # Execute stock alert subscription if requested via chat
+    if notify_action and notify_action.get("product_id"):
+        from modules.stock_alerts.service import StockAlertService
+        alert_phone = notify_action.get("phone") or (user.phone if user else "")
+        if alert_phone:
+            try:
+                await StockAlertService(session).subscribe(
+                    product_id=notify_action["product_id"],
+                    phone=alert_phone,
+                    email=user.email if user else None,
+                    user_id=str(user.id) if user else None,
+                )
+                prod_title = notify_action.get("product_name") or "the product"
+                reply += f"\n\n🔔 I've set up your back-in-stock alert for *{prod_title}*! We will message you on WhatsApp as soon as it's restocked."
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning("Chatbot stock alert subscription failed: %s", e)
 
     # Execute order cancellation if confirmed (strictly for authenticated user)
     if cancel_number and user:

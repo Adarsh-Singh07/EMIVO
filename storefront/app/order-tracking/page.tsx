@@ -197,6 +197,32 @@ function OrderTrackingContent() {
             </p>
           ) : null}
 
+          {/* Open-Box Delivery OTP Banner */}
+          {order.status.toUpperCase() === "OUT_FOR_DELIVERY" && (
+            <div className="rounded-2xl bg-amber-50 border-2 border-amber-300 p-5 shadow-sm space-y-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-900 grid place-items-center text-lg font-bold shrink-0">
+                    📦
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-neutral-900 text-sm sm:text-base">Open-Box Delivery Verification</h4>
+                    <p className="text-xs text-neutral-600">Strict Policy: Inspect your product before sharing this OTP.</p>
+                  </div>
+                </div>
+                {order.delivery_otp ? (
+                  <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-amber-300 shadow-inner shrink-0">
+                    <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Delivery OTP:</span>
+                    <span className="font-mono text-xl font-bold tracking-widest text-amber-950">{order.delivery_otp}</span>
+                  </div>
+                ) : null}
+              </div>
+              <p className="text-xs text-amber-900/90 bg-amber-100/70 p-2.5 rounded-xl border border-amber-200 leading-relaxed">
+                ⚠️ <strong>Important:</strong> Please ensure the package is opened and the device is physically checked in front of the delivery executive. Do not share the OTP if the item is physically damaged, wrong, or missing.
+              </p>
+            </div>
+          )}
+
           {/* Tracking link — courier AWB only, never the order id */}
           {(trackingNumber || order.tracking_url) && (
             <div className="rounded-2xl bg-neutral-50 border border-neutral-100 p-5 space-y-4">
