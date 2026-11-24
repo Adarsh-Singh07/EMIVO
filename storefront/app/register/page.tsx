@@ -89,14 +89,24 @@ function RegisterForm() {
   const [otpCode, setOtpCode] = useState("");
   const [otpBusy, setOtpBusy] = useState(false);
   const [otpError, setOtpError] = useState("");
-  const [resending, setResending] = useState(false);
-  const [resent, setResent] = useState(false);
+  const [otpChannel, setOtpChannel] = useState<"whatsapp" | "email">("whatsapp");
+  const [resendingWhatsapp, setResendingWhatsapp] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [usedWidget, setUsedWidget] = useState(false);
   const [verifiedToken, setVerifiedToken] = useState("");
 
   useEffect(() => {
     initMsg91Widget();
   }, []);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   const [form, setForm] = useState({
     first_name: "",
@@ -210,16 +220,29 @@ function RegisterForm() {
     setIsLoading(true);
     try {
       setOtpPhone(digits);
+      setOtpChannel("whatsapp");
       const widgetRes = await sendWidgetOtp(digits);
       if (widgetRes.success) {
         setUsedWidget(true);
         setStep("otp");
+        setResendCooldown(60);
         toast.success(`Verification code sent to ${digits} via WhatsApp.`);
       } else {
-        await requestOtp({ phone: digits });
-        setUsedWidget(false);
-        setStep("otp");
-        toast.success(`Verification code sent to ${digits}.`);
+        // Fallback: request registration code via email
+        try {
+          await storeApi.requestRegistrationEmailOtp(form.email.trim(), form.first_name.trim());
+          setUsedWidget(false);
+          setOtpChannel("email");
+          setStep("otp");
+          setResendCooldown(60);
+          toast.success(`Verification code sent to ${form.email.trim()} via email.`);
+        } catch {
+          await requestOtp({ phone: digits });
+          setUsedWidget(false);
+          setStep("otp");
+          setResendCooldown(60);
+          toast.success(`Verification code sent to ${digits}.`);
+        }
       }
     } catch (err: any) {
       const mapped = explainApiError(err);
@@ -244,17 +267,59 @@ function RegisterForm() {
     setOtpBusy(true);
     try {
       let token = verifiedToken;
-      if (usedWidget) {
-        const verifyRes = await verifyWidgetOtp(code);
-        if (!verifyRes.success) {
-          setOtpError(verifyRes.error || "Incorrect code. Please try again.");
-          return;
+      let verified = false;
+
+      // 1. Verify via email if active channel is email
+      if (otpChannel === "email") {
+        try {
+          const res = await storeApi.verifyRegistrationEmailOtp(form.email.trim(), code);
+          if (res.verified) {
+            token = res.token || "";
+            verified = true;
+          }
+        } catch (e: any) {
+          // If email verification failed, try widget in case user entered WhatsApp code
+          if (usedWidget) {
+            const wRes = await verifyWidgetOtp(code);
+            if (wRes.success) {
+              token = wRes.token || "";
+              verified = true;
+            }
+          }
+          if (!verified) {
+            setOtpError(e?.message || "Incorrect code. Please try again.");
+            return;
+          }
         }
-        token = verifyRes.token || "";
-        setVerifiedToken(token);
       } else {
-        await verifyOtp({ phone: otpPhone }, code);
+        // WhatsApp active channel
+        if (usedWidget) {
+          const verifyRes = await verifyWidgetOtp(code);
+          if (verifyRes.success) {
+            token = verifyRes.token || "";
+            verified = true;
+          }
+        }
+        // If widget failed, check email verification in case user entered email code
+        if (!verified) {
+          try {
+            const eRes = await storeApi.verifyRegistrationEmailOtp(form.email.trim(), code);
+            if (eRes.verified) {
+              token = eRes.token || "";
+              verified = true;
+            }
+          } catch {
+            // keep unverified
+          }
+        }
       }
+
+      if (!verified) {
+        setOtpError("Incorrect code. Please try again.");
+        return;
+      }
+
+      setVerifiedToken(token);
 
       await register({
         email: form.email.trim(),
@@ -275,23 +340,30 @@ function RegisterForm() {
     }
   };
 
-  const handleResendOtp = async () => {
-    setResending(true);
-    setResent(false);
+  const handleResendWhatsapp = async () => {
+    if (resendingWhatsapp || resendCooldown > 0) return;
+    setResendingWhatsapp(true);
     setOtpError("");
     try {
       if (usedWidget) {
         const res = await retryWidgetOtp("12");
         if (res.success) {
-          setResent(true);
-          toast.success("Code resent via WhatsApp.");
+          setOtpChannel("whatsapp");
+          setResendCooldown(60);
+          toast.success("Verification code resent via WhatsApp.");
         } else {
-          setOtpError(res.error || "Failed to resend code.");
+          setOtpError(res.error || "Failed to resend code via WhatsApp.");
         }
       } else {
-        await requestOtp({ phone: otpPhone });
-        setResent(true);
-        toast.success("Code resent.");
+        const res = await sendWidgetOtp(digits);
+        if (res.success) {
+          setUsedWidget(true);
+          setOtpChannel("whatsapp");
+          setResendCooldown(60);
+          toast.success(`Verification code sent to ${digits} via WhatsApp.`);
+        } else {
+          setOtpError(res.error || "Could not resend via WhatsApp right now.");
+        }
       }
     } catch (err: any) {
       setOtpError(
@@ -300,7 +372,27 @@ function RegisterForm() {
           : err?.message || "Could not resend the code right now."
       );
     } finally {
-      setResending(false);
+      setResendingWhatsapp(false);
+    }
+  };
+
+  const handleResendEmail = async () => {
+    if (resendingEmail || resendCooldown > 0) return;
+    setResendingEmail(true);
+    setOtpError("");
+    try {
+      await storeApi.requestRegistrationEmailOtp(form.email.trim(), form.first_name.trim());
+      setOtpChannel("email");
+      setResendCooldown(60);
+      toast.success(`Verification code sent to ${form.email.trim()} via email.`);
+    } catch (err: any) {
+      setOtpError(
+        String(err?.message || "").includes("minute")
+          ? "Please wait a minute before requesting another code."
+          : err?.message || "Could not send code to email right now."
+      );
+    } finally {
+      setResendingEmail(false);
     }
   };
 
@@ -314,7 +406,11 @@ function RegisterForm() {
 
       <div className="rounded-3xl border border-neutral-200 bg-white p-8 shadow-sm">
         <h1 className="text-2xl font-semibold tracking-tight mb-1">
-          {step === "details" ? "Create your account" : "Verify your mobile number"}
+          {step === "details"
+            ? "Create your account"
+            : otpChannel === "email"
+            ? "Verify your email"
+            : "Verify your mobile number"}
         </h1>
         <p className="text-sm text-neutral-500 mb-8">
           {step === "details" ? (
@@ -326,9 +422,13 @@ function RegisterForm() {
             </>
           ) : (
             <>
-              Step 2 of 2 — we just sent a 6-digit code to{" "}
-              <span className="font-medium text-neutral-800">+91 {otpPhone}</span> via WhatsApp. Enter it below to
-              activate your account.
+              Step 2 of 2 — we sent a 6-digit code to{" "}
+              {otpChannel === "email" ? (
+                <span className="font-medium text-neutral-800">{form.email}</span>
+              ) : (
+                <span className="font-medium text-neutral-800">+91 {otpPhone}</span>
+              )}{" "}
+              via {otpChannel === "email" ? "email" : "WhatsApp"}. Enter it below to activate your account.
             </>
           )}
         </p>
@@ -530,10 +630,21 @@ function RegisterForm() {
         {step === "otp" && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
-              <Smartphone className="w-5 h-5 shrink-0" />
+              {otpChannel === "email" ? (
+                <Mail className="w-5 h-5 shrink-0 text-emerald-700" />
+              ) : (
+                <Smartphone className="w-5 h-5 shrink-0 text-emerald-700" />
+              )}
               <span>
-                We sent a 6-digit code to <span className="font-medium">+91 {otpPhone}</span> via WhatsApp.
-                Enter it to activate your account.
+                {otpChannel === "email" ? (
+                  <>
+                    We sent a 6-digit code to <span className="font-medium text-emerald-950">{form.email}</span> via email. Enter it to activate your account.
+                  </>
+                ) : (
+                  <>
+                    We sent a 6-digit code to <span className="font-medium text-emerald-950">+91 {otpPhone}</span> via WhatsApp. Enter it to activate your account.
+                  </>
+                )}
               </span>
             </div>
 
@@ -580,7 +691,60 @@ function RegisterForm() {
               )}
             </button>
 
-            <div className="flex items-center justify-between text-xs">
+            {/* Resend Options */}
+            <div className="rounded-2xl bg-neutral-50 p-4 border border-neutral-200/70 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-neutral-600">
+                  Didn&apos;t receive the code?
+                </span>
+                {resendCooldown > 0 && (
+                  <span className="text-[11px] font-medium text-neutral-400">
+                    Resend in {resendCooldown}s
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleResendWhatsapp}
+                  disabled={resendingWhatsapp || resendCooldown > 0}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-neutral-200 bg-white text-xs font-medium text-neutral-700 hover:text-neutral-950 hover:bg-neutral-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-2xs"
+                >
+                  {resendingWhatsapp ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Resending…
+                    </>
+                  ) : (
+                    <>
+                      <Smartphone className="w-3.5 h-3.5" />
+                      Resend on WhatsApp
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleResendEmail}
+                  disabled={resendingEmail || resendCooldown > 0}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-neutral-200 bg-white text-xs font-medium text-neutral-700 hover:text-neutral-950 hover:bg-neutral-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-2xs"
+                >
+                  {resendingEmail ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Sending to mail…
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-3.5 h-3.5" />
+                      Resend OTP on mail
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-xs pt-1">
               <button
                 type="button"
                 onClick={() => {
@@ -589,26 +753,12 @@ function RegisterForm() {
                 }}
                 className="text-neutral-500 hover:text-neutral-800 underline underline-offset-2"
               >
-                Use a different email
-              </button>
-              <button
-                type="button"
-                onClick={handleResendOtp}
-                disabled={resending || resent}
-                className="text-neutral-700 font-medium hover:text-neutral-950 disabled:opacity-50"
-              >
-                {resending ? (
-                  "Resending…"
-                ) : resent ? (
-                  "Code re-sent"
-                ) : (
-                  "Didn't get it? Resend code"
-                )}
+                Wrong number or email? Edit details
               </button>
             </div>
 
             <p className="text-[11px] text-neutral-400 text-center">
-              Check your spam folder if the code doesn&apos;t arrive. Codes expire in 10 minutes.
+              Check your spam or WhatsApp messages if the code doesn&apos;t arrive. Codes expire in 10 minutes.
             </p>
           </div>
         )}

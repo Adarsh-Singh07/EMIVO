@@ -65,17 +65,28 @@ class ForgotPasswordRequest(BaseModel):
 
 
 class OtpRequestIn(BaseModel):
-    """Request a one-time login code. Provide EXACTLY ONE of email/phone."""
+    """Request a one-time login or registration code."""
     email: EmailStr | None = None
     phone: str | None = Field(
         None, min_length=8, max_length=15, pattern=r"^\+?[0-9\s\-]{8,15}$"
     )
+    purpose: Optional[str] = "login"
+    first_name: Optional[str] = None
 
     @model_validator(mode="after")
-    def exactly_one_identifier(self):
-        if bool(self.email) == bool(self.phone):
-            raise ValueError("Provide exactly one of email or phone")
+    def validate_identifier(self):
+        if self.purpose == "register":
+            if not self.email:
+                raise ValueError("Email is required for registration verification code")
+        else:
+            if bool(self.email) == bool(self.phone):
+                raise ValueError("Provide exactly one of email or phone")
         return self
+
+
+class RegistrationOtpVerifyIn(BaseModel):
+    email: EmailStr
+    code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 
 class OtpVerifyIn(BaseModel):

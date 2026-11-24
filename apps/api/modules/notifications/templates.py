@@ -466,6 +466,29 @@ def otp_login(p: dict, storefront_url: str) -> tuple[str, str]:
     )
 
 
+def otp_register(p: dict, storefront_url: str) -> tuple[str, str]:
+    code = p.get("code", "")
+    first_name = (p.get("first_name") or "").strip()
+    greeting = f"Hi {first_name},<br/><br/>" if first_name else ""
+    body = (
+        f"{greeting}Thank you for signing up with ELEKTRIX. Use this one-time code to verify your email and activate your account:"
+        f"<div style='margin:24px auto 20px;max-width:320px;text-align:center;background:{PAPER};"
+        f"border:1px solid {LINE};border-radius:14px;padding:20px 10px;'>"
+        f"<div style='font-size:34px;letter-spacing:10px;font-weight:700;color:{INK};'>"
+        f"{code}</div>"
+        f"<div style='margin-top:8px;font-size:11px;color:{FAINT};letter-spacing:1px;'>"
+        "EXPIRES IN 10 MINUTES</div></div>"
+        "This code is single-use. "
+        f"<span style='color:{FAINT};'>Never share it with anyone — the ELEKTRIX team "
+        "will never ask for it.</span>"
+    )
+    return "Your ELEKTRIX verification code", _shell(
+        "Verify your email", body,
+        preheader=f"Your ELEKTRIX verification code is {code}. It expires in 10 minutes.",
+        pill=("VERIFICATION", GREEN),
+    )
+
+
 def low_stock_alert(p: dict, storefront_url: str) -> tuple[str, str]:
     """Internal staff digest — delivered to the admin@ alias by the worker."""
     items = p.get("items", [])
@@ -587,6 +610,7 @@ TEMPLATES = {
     "auth.password_reset": password_reset,
     "auth.welcome": welcome,
     "auth.otp_login": otp_login,
+    "auth.otp_register": otp_register,
     "cart.reminder": cart_reminder,
     "inventory.low_stock": low_stock_alert,
     "admin.weekly_digest": weekly_digest,

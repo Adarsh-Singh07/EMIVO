@@ -7,7 +7,7 @@ from core.models import OutboxEvent
 from modules.auth.schemas import (
     TokenResponse, UserCreate, UserLogin, UserResponse, RefreshTokenRequest,
     ForgotPasswordRequest, ResetPasswordRequest, ChangePasswordRequest,
-    OtpRequestIn, OtpVerifyIn, RegisterResponse,
+    OtpRequestIn, OtpVerifyIn, RegisterResponse, RegistrationOtpVerifyIn,
 )
 from modules.auth.service import AuthService
 from modules.users.models import User
@@ -102,12 +102,25 @@ async def otp_request(
     data: OtpRequestIn,
     service: AuthService = Depends(get_auth_service),
 ):
-    """Send a one-time login code to the given email or phone. Always 202 —
+    """Send a one-time login or registration code. Login requests always 202 —
     never reveals whether an account exists. Resend is cooldown-limited.
-    Phone requests fall back to the account's email when SMS is not
-    configured; the response names the channel used."""
-    sent = await service.request_otp(email=data.email, phone=data.phone)
+    Registration requests send an activation OTP to the prospective account email."""
+    sent = await service.request_otp(
+        email=data.email,
+        phone=data.phone,
+        purpose=data.purpose or "login",
+        first_name=data.first_name,
+    )
     return {"status": "sent", **sent}
+
+
+@router.post("/otp/verify-registration")
+async def otp_verify_registration(
+    data: RegistrationOtpVerifyIn,
+    service: AuthService = Depends(get_auth_service),
+):
+    """Verify an email code sent during registration and issue a verification token."""
+    return await service.verify_registration_otp(email=data.email, code=data.code)
 
 
 @router.post("/otp/verify", response_model=TokenResponse)

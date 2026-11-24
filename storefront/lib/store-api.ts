@@ -754,6 +754,22 @@ export const storeApi = {
     }
   },
 
+  /** Request a one-time registration verification code sent to email */
+  requestRegistrationEmailOtp(email: string, firstName?: string): Promise<{ channel: string; status: string }> {
+    return fetchApi("/auth/otp/request", {
+      method: "POST",
+      body: JSON.stringify({ email, purpose: "register", first_name: firstName }),
+    });
+  },
+
+  /** Verify the registration verification code sent to email */
+  verifyRegistrationEmailOtp(email: string, code: string): Promise<{ status: string; verified: boolean; token: string }> {
+    return fetchApi("/auth/otp/verify-registration", {
+      method: "POST",
+      body: JSON.stringify({ email, code }),
+    });
+  },
+
 
 
   getShippingEstimate(pincode: string, originPincode?: string): Promise<ShippingEstimate> {

@@ -94,6 +94,15 @@ class AuthService:
                 code="PHONE_IN_USE", status_code=409,
             )
 
+        email_verified = False
+        if data.access_token:
+            email_n = data.email.strip().lower()
+            ver_key = f"auth:reg_verified:{email_n}"
+            stored_token = await self.redis.get(ver_key)
+            if stored_token and stored_token == data.access_token:
+                email_verified = True
+                await self.redis.delete(ver_key)
+
         user = User(
             email=data.email,
             password_hash=self.get_password_hash(data.password),
@@ -101,7 +110,7 @@ class AuthService:
             last_name=data.last_name,
             phone=phone,
             is_active=True,
-            is_email_verified=False
+            is_email_verified=email_verified
         )
         self.session.add(user)
         await self.session.flush()
@@ -444,12 +453,91 @@ class AuthService:
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
-    async def request_otp(self, email: str | None = None, phone: str | None = None) -> None:
-        """Issue a single-use login code. The endpoint always reports success
-        (202) — this method never reveals whether the account exists.
-        Email codes go out via the outbox (with best-effort immediate
-        delivery); phone codes go through the configured SMS provider."""
+    async def request_otp(
+        self,
+        email: str | None = None,
+        phone: str | None = None,
+        purpose: str = "login",
+        first_name: str | None = None,
+    ) -> dict:
+        """Issue a single-use login or registration code.
+        Login codes always report success (202) for anti-enumeration.
+        Registration codes send an activation OTP to unverified emails."""
         from core.models import OutboxEvent
+
+        if purpose == "register":
+            if not email:
+                raise DomainException(
+                    "Email is required for registration verification",
+                    code="BAD_REQUEST",
+                    status_code=400,
+                )
+            email_n = email.strip().lower()
+            row = (
+                await self.session.execute(
+                    select(User.id).where(func.lower(User.email) == email_n)
+                )
+            ).scalar_one_or_none()
+            if row:
+                raise DomainException(
+                    "An account with this email already exists — try signing in instead.",
+                    code="EMAIL_TAKEN",
+                    status_code=400,
+                )
+
+            ident_hash = self._identifier_hash(f"reg_otp:{email_n}")
+            cooldown_key = f"auth:otp:cd:{ident_hash}"
+            if not await self.redis.set(
+                cooldown_key, "1", nx=True, ex=self.OTP_RESEND_COOLDOWN_SECONDS
+            ):
+                raise DomainException(
+                    "Please wait a minute before requesting another code",
+                    code="RATE_LIMITED",
+                    status_code=429,
+                )
+
+            code = f"{secrets.randbelow(10 ** self.OTP_LENGTH):0{self.OTP_LENGTH}d}"
+            otp_key = f"auth:otp:{ident_hash}"
+            await self.redis.hset(
+                otp_key,
+                mapping={
+                    "c": hashlib.sha256(code.encode()).hexdigest(),
+                    "n": "0",
+                },
+            )
+            await self.redis.expire(otp_key, self.OTP_TTL_SECONDS)
+
+            self.session.add(
+                OutboxEvent(
+                    tenant_id=None,
+                    type="auth.otp_register",
+                    payload={
+                        "email": email_n,
+                        "code": code,
+                        "first_name": first_name or "",
+                    },
+                )
+            )
+            await self.session.commit()
+            from modules.notifications.service import NotificationService
+
+            row_out = await self.session.execute(
+                text(
+                    "SELECT id FROM outbox_events "
+                    "WHERE type = 'auth.otp_register' AND status = 'pending' "
+                    "ORDER BY created_at DESC LIMIT 1"
+                )
+            )
+            event_id = row_out.scalar()
+            if event_id:
+                try:
+                    await NotificationService(self.session).process_outbox_event(
+                        str(event_id)
+                    )
+                except Exception:
+                    await self.session.rollback()
+
+            return {"channel": "email", "status": "sent"}
 
         identifier = (
             (email or "").strip().lower()
@@ -699,3 +787,51 @@ class AuthService:
             await self.session.refresh(user)
 
         return await self._issue_tokens(user)
+
+    async def verify_registration_otp(self, email: str, code: str) -> dict:
+        """Verify an OTP code sent to an email address during registration.
+        Validates single-use code from Redis, tracks attempts, and issues a
+        short-lived registration verification token."""
+        email_n = (email or "").strip().lower()
+        if not email_n or not (code.isdigit() and len(code) == self.OTP_LENGTH):
+            raise DomainException(
+                "Enter a valid 6-digit code", code="BAD_REQUEST", status_code=400
+            )
+
+        ident_hash = self._identifier_hash(f"reg_otp:{email_n}")
+        otp_key = f"auth:otp:{ident_hash}"
+        data = await self.redis.hgetall(otp_key)
+        if not data:
+            raise DomainException(
+                "Code expired or was never requested. Request a new one.",
+                code="UNAUTHORIZED",
+                status_code=401,
+            )
+
+        attempts = int(data.get("n", "0"))
+        if attempts >= self.OTP_MAX_ATTEMPTS:
+            await self.redis.delete(otp_key)
+            raise DomainException(
+                "Too many wrong attempts. Request a new code.",
+                code="UNAUTHORIZED",
+                status_code=401,
+            )
+
+        if not secrets.compare_digest(
+            str(data.get("c", "")), hashlib.sha256(code.encode()).hexdigest()
+        ):
+            await self.redis.hincrby(otp_key, "n", 1)
+            raise DomainException(
+                "Incorrect code. Please try again.",
+                code="UNAUTHORIZED",
+                status_code=401,
+            )
+
+        await self.redis.delete(otp_key)  # single use
+
+        # Generate a temporary verification token (valid for 15 mins) to confirm email verification
+        temp_token = secrets.token_hex(24)
+        ver_key = f"auth:reg_verified:{email_n}"
+        await self.redis.set(ver_key, temp_token, ex=900)
+
+        return {"status": "verified", "verified": True, "token": temp_token}
