@@ -22,6 +22,10 @@ IN_APP: dict[str, tuple[str, str]] = {
     "payment.captured": ("Payment received", "Payment for {order_number} was successful."),
     "payment.failed": ("Payment failed", "Payment for {order_number} failed."),
     "order.shipped": ("Order shipped", "Your order {order_number} has been shipped."),
+    "order.out_for_delivery": (
+        "Out for delivery",
+        "Your order {order_number} arrives today — share the delivery OTP only after open-box inspection.",
+    ),
     "order.delivered": ("Order delivered", "Your order {order_number} was delivered."),
     "order.cancelled": ("Order cancelled", "Your order {order_number} was cancelled."),
     "order.refunded": ("Refund initiated", "Refund for {order_number} is on its way."),

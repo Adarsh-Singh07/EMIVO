@@ -12,6 +12,7 @@ from core.store import get_store_business_id
 from modules.users.models import User, BusinessMember, RoleType
 
 security = HTTPBearer()
+security_optional = HTTPBearer(auto_error=False)
 
 STAFF_ROLES = (RoleType.PLATFORM_ADMIN, RoleType.OWNER, RoleType.STAFF)
 
@@ -160,11 +161,77 @@ async def set_db_context(
     return session
 
 
+async def get_seller_db_context(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
+    session: AsyncSession = Depends(get_db_session),
+) -> AsyncSession:
+    """RLS context for seller-authenticated endpoints.
+
+    Sellers authenticate against the `sellers` table, not `users`, so a seller
+    JWT's `sub` is a seller id and never matches `orders.user_id`. Without an
+    explicit seller context the orders/order_items policies evaluate false and
+    every seller query returns zero rows.
+
+    Sets:
+      - app.seller_id  (claimed seller id; read by the seller RLS policies)
+      - app.business_id (the store tenant, so shared catalog reads still work)
+      - app.role (staff roles are preserved so admin/owner tooling that also
+        reaches seller routes is not downgraded; otherwise 'seller', which keeps
+        elektrix_is_staff() false so the tenant-wide staff branch stays shut)
+
+    The seller id is verified against the sellers table before use so a forged
+    or stale claim cannot widen access.
+    """
+    claimed_sid: Optional[str] = None
+    staff_role: Optional[str] = None
+    if credentials is not None:
+        try:
+            payload = jwt.decode(
+                credentials.credentials,
+                settings.jwt_secret.get_secret_value(),
+                algorithms=[settings.jwt_algorithm],
+            )
+            claimed_sid = payload.get("seller_id") or payload.get("sub")
+            roles = [str(r) for r in (payload.get("roles") or [])]
+            staff_role = next((str(r) for r in STAFF_ROLES if r in roles), None)
+        except JWTError:
+            claimed_sid = None
+            staff_role = None
+
+    seller_id: Optional[str] = None
+    if claimed_sid:
+        exists = (
+            await session.execute(
+                text("SELECT 1 FROM sellers WHERE id = :sid"),
+                {"sid": str(claimed_sid)},
+            )
+        ).first()
+        if exists:
+            seller_id = str(claimed_sid)
+
+    await session.execute(
+        text("SELECT set_config('app.seller_id', :sid, true)"),
+        {"sid": seller_id or ""},
+    )
+    await session.execute(
+        text("SELECT set_config('app.role', :role, true)"),
+        {"role": staff_role or ("seller" if seller_id else "")},
+    )
+    store_id = await get_store_business_id(session)
+    # Only pin the tenant for a verified seller. Non-seller callers (e.g. admin
+    # routes sharing this dependency) keep the legacy empty value so the
+    # "Public read for products" policy still gives them the full catalog.
+    await session.execute(
+        text("SELECT set_config('app.business_id', :bid, true)"),
+        {"bid": str(store_id) if seller_id else ""},
+    )
+
+    return session
+
+
 # ---------------------------------------------------------------------------
 # Optional auth — for public endpoints that work with or without a token
 # ---------------------------------------------------------------------------
-
-security_optional = HTTPBearer(auto_error=False)
 
 async def get_optional_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),

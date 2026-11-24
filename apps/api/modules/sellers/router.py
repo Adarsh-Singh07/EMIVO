@@ -8,7 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.ai_gateway import AIGateway
 from core.config import settings
 from core.database import get_db_session
+from core.dependencies import get_seller_db_context
 from core.exceptions import DomainException
+from modules.audit.dependencies import resolve_actor
+from modules.audit.service import Actor
 from modules.orders.schemas import VerifyDeliveryOtpRequest
 from modules.sellers.models import Seller
 from modules.sellers.schemas import (
@@ -41,7 +44,7 @@ router = APIRouter(tags=["Sellers & Marketplace"])
 security = HTTPBearer(auto_error=False)
 
 
-def _get_service(session: AsyncSession = Depends(get_db_session)) -> SellerService:
+def _get_service(session: AsyncSession = Depends(get_seller_db_context)) -> SellerService:
     return SellerService(session)
 
 
@@ -163,8 +166,9 @@ async def create_seller_product(
     data: SellerProductCreate,
     seller: Seller = Depends(get_current_seller),
     service: SellerService = Depends(_get_service),
+    actor: Actor = Depends(resolve_actor),
 ):
-    return await service.create_seller_product(seller.id, data)
+    return await service.create_seller_product(seller.id, data, actor=actor)
 
 
 @router.put("/api/v1/seller/products/{product_id}")
@@ -173,8 +177,9 @@ async def update_seller_product(
     data: SellerProductUpdate,
     seller: Seller = Depends(get_current_seller),
     service: SellerService = Depends(_get_service),
+    actor: Actor = Depends(resolve_actor),
 ):
-    return await service.update_seller_product(seller.id, product_id, data)
+    return await service.update_seller_product(seller.id, product_id, data, actor=actor)
 
 
 @router.delete("/api/v1/seller/products/{product_id}")
@@ -182,9 +187,10 @@ async def delete_seller_product(
     product_id: str,
     seller: Seller = Depends(get_current_seller),
     service: SellerService = Depends(_get_service),
+    actor: Actor = Depends(resolve_actor),
 ):
     """Safely delete product from seller inventory, or archive if past orders exist."""
-    return await service.delete_seller_product(seller.id, product_id)
+    return await service.delete_seller_product(seller.id, product_id, actor=actor)
 
 
 @router.post("/api/v1/seller/products/{product_id}/toggle-visibility")
@@ -192,9 +198,10 @@ async def toggle_seller_product_visibility(
     product_id: str,
     seller: Seller = Depends(get_current_seller),
     service: SellerService = Depends(_get_service),
+    actor: Actor = Depends(resolve_actor),
 ):
     """Toggle visibility of seller listing on storefront."""
-    return await service.toggle_hide_seller_product(seller.id, product_id)
+    return await service.toggle_hide_seller_product(seller.id, product_id, actor=actor)
 
 
 @router.post("/api/v1/seller/products/{product_id}/archive")
@@ -202,9 +209,10 @@ async def archive_seller_product(
     product_id: str,
     seller: Seller = Depends(get_current_seller),
     service: SellerService = Depends(_get_service),
+    actor: Actor = Depends(resolve_actor),
 ):
     """Archive product listing from seller inventory."""
-    return await service.archive_seller_product(seller.id, product_id)
+    return await service.archive_seller_product(seller.id, product_id, actor=actor)
 
 
 # -----------------------------------------------------------------------------
@@ -225,8 +233,9 @@ async def attach_seller_offer(
     data: SellerAttachOffer,
     seller: Seller = Depends(get_current_seller),
     service: SellerService = Depends(_get_service),
+    actor: Actor = Depends(resolve_actor),
 ):
-    return await service.attach_seller_offer(seller.id, data)
+    return await service.attach_seller_offer(seller.id, data, actor=actor)
 
 
 @router.post("/api/v1/seller/catalog/ai-generate")

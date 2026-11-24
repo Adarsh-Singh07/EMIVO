@@ -323,6 +323,32 @@ def order_shipped(p: dict, storefront_url: str) -> tuple[str, str]:
     )
 
 
+def order_out_for_delivery(p: dict, storefront_url: str) -> tuple[str, str]:
+    otp = str(p.get("delivery_otp") or "").strip()
+    otp_block = ""
+    if otp:
+        otp_block = (
+            f"<div style='margin:18px 0 0;background:{PAPER};border:1px solid {LINE};"
+            f"border-radius:12px;padding:16px 18px;text-align:center;'>"
+            f"<div style='font-size:12px;letter-spacing:1px;color:{MUTED};'>"
+            "OPEN-BOX DELIVERY OTP</div>"
+            f"<div style='font-size:30px;font-weight:700;letter-spacing:6px;color:{INK};"
+            f"margin-top:8px;'>{otp}</div></div>"
+        )
+    body = (
+        f"Order <b style='color:{INK};'>{p.get('order_number','')}</b> is out for delivery today. "
+        "ELEKTRIX ships with mandatory open-box delivery: open and inspect the device in front of "
+        "the delivery executive <b style='color:{INK};'>before</b> sharing the OTP below." + otp_block
+    )
+    return (
+        f"Out for delivery · {p.get('order_number','')}",
+        _shell("Your order arrives today", body, _order_link(storefront_url), "View order",
+               preheader=f"Delivery OTP for {p.get('order_number','')}.",
+               header_meta=f"ORDER {p.get('order_number','')}",
+               pill=("OUT FOR DELIVERY", AMBER)),
+    )
+
+
 def order_delivered(p: dict, storefront_url: str) -> tuple[str, str]:
     body = (
         f"Order <b style='color:{INK};'>{p.get('order_number','')}</b> has been delivered — "
@@ -604,6 +630,7 @@ TEMPLATES = {
     "payment.captured": payment_captured,
     "payment.failed": payment_failed,
     "order.shipped": order_shipped,
+    "order.out_for_delivery": order_out_for_delivery,
     "order.delivered": order_delivered,
     "order.cancelled": order_cancelled,
     "order.refunded": order_refunded,

@@ -134,6 +134,7 @@ class InventoryService:
         request: InventoryAdjustRequest,
         business_id: str,
         actor_id: Optional[str] = None,
+        actor=None,
     ) -> InventoryResponse:
         inv = await self.repository.get_by_product(product_id)
         if inv is None:
@@ -186,6 +187,32 @@ class InventoryService:
                 note=request.note,
                 actor_id=actor_id,
             )
+            # Unified audit trail: the same movement, in the cross-module log.
+            try:
+                from modules.audit.models import ActorType
+                from modules.audit.service import Actor, AuditService
+
+                await AuditService(self.session).record(
+                    actor=actor or Actor(
+                        type=ActorType.STAFF.value, id=actor_id, name="inventory-admin",
+                        business_id=business_id,
+                    ),
+                    action="inventory.adjusted",
+                    entity_type="product",
+                    entity_id=product_id,
+                    before={"on_hand": before[0], "reserved": before[1]},
+                    after={"on_hand": after[0], "reserved": after[1]},
+                    metadata={
+                        "mode": request.mode,
+                        "value": request.value,
+                        "reason": reason.value if hasattr(reason, "value") else str(reason),
+                        "note": request.note,
+                        "delta_on_hand": after[0] - before[0],
+                        "business_id": business_id,
+                    },
+                )
+            except Exception:
+                logger.exception("audit write failed for inventory adjust %s", product_id)
 
         # Trigger back-in-stock alerts if item was out-of-stock and is now available
         avail_before = before[0] - before[1]

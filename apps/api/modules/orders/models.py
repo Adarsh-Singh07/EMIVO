@@ -128,6 +128,12 @@ class OrderItem(Base, TimestampMixin):
         String(36), ForeignKey("sellers.id", ondelete="SET NULL"), nullable=True, index=True
     )
     seller_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    # The seller offer (seller_listings row) this line was fulfilled from.
+    # Nullable: lines created before per-seller offers existed have none.
+    seller_listing_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("seller_listings.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
 
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
 

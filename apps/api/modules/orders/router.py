@@ -17,6 +17,8 @@ from core.dependencies import (
     set_db_context,
 )
 from core.exceptions import DomainException
+from modules.audit.dependencies import resolve_actor
+from modules.audit.service import Actor
 from modules.orders.models import OrderStatus
 from modules.orders.schemas import (
     CheckoutRequest,
@@ -158,10 +160,11 @@ async def update_order_status(
     order_id: str,
     payload: OrderStatusUpdate,
     service: OrderService = Depends(get_order_service),
+    actor: Actor = Depends(resolve_actor),
 ) -> Any:
     """Update order status with state transition validation, inventory
     side effects and customer notifications (staff only)."""
-    order = await service.update_order_status(order_id, payload)
+    order = await service.update_order_status(order_id, payload, actor=actor)
     data = OrderResponseV2.model_validate(order)
     data.delivery_otp = None
     return data
@@ -294,6 +297,7 @@ async def cancel_order_by_user(
     order_id: str,
     service: OrderService = Depends(get_order_service),
     current_user: User = Depends(get_current_user),
+    actor: Actor = Depends(resolve_actor),
 ) -> Any:
     """Customer-initiated order cancellation."""
     from core.exceptions import DomainException
@@ -305,7 +309,7 @@ async def cancel_order_by_user(
         raise DomainException(f"Cannot cancel order in {order.status} state", code="INVALID_TRANSITION", status_code=400)
         
     update_payload = OrderStatusUpdate(status=OrderStatus.CANCELLED)
-    return await service.update_order_status(order_id, update_payload)
+    return await service.update_order_status(order_id, update_payload, actor=actor)
 
 @router.delete(
     "/{order_id}",

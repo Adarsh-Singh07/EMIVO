@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.dependencies import get_db_session, set_db_context, require_roles, optional_db_context, get_optional_user
+from modules.audit.dependencies import resolve_actor
+from modules.audit.service import Actor
 from modules.users.models import User
 from modules.products.schemas import (
     ProductCreate, ProductResponse, ProductUpdate,
@@ -63,9 +65,10 @@ async def generate_ai_details(
 async def create_product(
     payload: ProductCreate,
     service: ProductService = Depends(get_product_service),
-    current_user: User = Depends(require_roles(STAFF))
+    current_user: User = Depends(require_roles(STAFF)),
+    actor: Actor = Depends(resolve_actor),
 ) -> Any:
-    return await service.create_product(payload)
+    return await service.create_product(payload, actor=actor)
 
 
 @router.get("/", response_model=List[ProductResponse])
@@ -157,39 +160,43 @@ async def update_product(
     product_id: str,
     payload: ProductUpdate,
     service: ProductService = Depends(get_product_service),
-    current_user: User = Depends(require_roles(STAFF))
+    current_user: User = Depends(require_roles(STAFF)),
+    actor: Actor = Depends(resolve_actor),
 ) -> Any:
-    return await service.update_product(product_id, payload)
+    return await service.update_product(product_id, payload, actor=actor)
 
 
 @router.delete("/{product_id}", response_model=dict)
 async def delete_product(
     product_id: str,
     service: ProductService = Depends(get_product_service),
-    current_user: User = Depends(require_roles(STAFF))
+    current_user: User = Depends(require_roles(STAFF)),
+    actor: Actor = Depends(resolve_actor),
 ) -> Any:
     """Safe delete: permanently deletes if no order history, or archives to preserve customer records."""
-    return await service.delete_product(product_id)
+    return await service.delete_product(product_id, actor=actor)
 
 
 @router.post("/{product_id}/archive", response_model=dict)
 async def archive_product(
     product_id: str,
     service: ProductService = Depends(get_product_service),
-    current_user: User = Depends(require_roles(STAFF))
+    current_user: User = Depends(require_roles(STAFF)),
+    actor: Actor = Depends(resolve_actor),
 ) -> Any:
     """Explicitly archive a product from the storefront catalog."""
-    return await service.archive_product(product_id)
+    return await service.archive_product(product_id, actor=actor)
 
 
 @router.post("/{product_id}/toggle-visibility", response_model=dict)
 async def toggle_product_visibility(
     product_id: str,
     service: ProductService = Depends(get_product_service),
-    current_user: User = Depends(require_roles(STAFF))
+    current_user: User = Depends(require_roles(STAFF)),
+    actor: Actor = Depends(resolve_actor),
 ) -> Any:
     """Toggle product visibility (ACTIVE <-> DRAFT/hidden)."""
-    return await service.toggle_hide_product(product_id)
+    return await service.toggle_hide_product(product_id, actor=actor)
 
 
 @router.post("/{product_id}/variants", response_model=ProductVariantResponse, status_code=status.HTTP_201_CREATED)

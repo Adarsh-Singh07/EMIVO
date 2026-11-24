@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db_session
 from core.dependencies import require_staff, set_db_context
+from modules.audit.dependencies import resolve_actor
+from modules.audit.service import Actor
 from modules.inventory.schemas import (
     InventoryAdjustRequest,
     InventoryListResponse,
@@ -63,6 +65,7 @@ async def adjust_stock(
     request: InventoryAdjustRequest,
     session: AsyncSession = Depends(_staff_session),
     staff=Depends(require_staff),
+    actor: Actor = Depends(resolve_actor),
 ):
     business_id = await session.execute(
         text("SELECT NULLIF(current_setting('app.business_id', true), '')")
@@ -73,4 +76,5 @@ async def adjust_stock(
         request=request,
         business_id=str(business_id.scalar()),
         actor_id=str(staff.id),
+        actor=actor,
     )

@@ -1,7 +1,7 @@
 import secrets
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -135,6 +135,87 @@ class OrderService:
     # Checkout — the ONLY customer path for creating orders              #
     # ------------------------------------------------------------------ #
 
+    async def _resolve_line_attribution(
+        self, line_items: Sequence[Tuple[str, Optional[str], int, Optional[str]]]
+    ) -> Dict[str, Dict[str, Optional[str]]]:
+        """Map each product in the basket to the seller/offer that fulfils it.
+
+        The catalog is shared: `products.seller_id` records who entered the
+        product, not who sells it. Fulfilment therefore comes from
+        `seller_listings`:
+
+          1. an explicitly chosen listing (buyer picked an offer) wins;
+          2. otherwise the cheapest active listing with stock at or above the
+             requested quantity;
+          3. otherwise the cheapest active listing at all;
+          4. only if the product has no listing does it fall back to the
+             author, so catalog-only legacy products still attribute.
+
+        Returns `{product_id: {"seller_id": ..., "listing_id": ...}}`.
+        """
+        if not line_items:
+            return {}
+
+        wanted_listing = {
+            pid: lid for pid, _vid, _qty, lid in line_items if lid
+        }
+        product_ids = sorted({pid for pid, _vid, _qty, _lid in line_items})
+        quantities = {pid: qty for pid, _vid, qty, _lid in line_items}
+
+        rows = (await self.session.execute(
+            text("""
+                SELECT sl.id, p.id AS product_id, sl.seller_id, sl.stock, sl.price,
+                       sl.is_active, p.seller_id AS author_id
+                FROM products p
+                LEFT JOIN seller_listings sl ON sl.product_id = p.id
+                WHERE p.id = ANY(:pids)
+                ORDER BY sl.price ASC NULLS LAST
+            """),
+            {"pids": product_ids},
+        )).mappings().all()
+
+        by_product: Dict[str, Dict[str, Any]] = {}
+        author_by_product: Dict[str, Optional[str]] = {}
+        for r in rows:
+            pid = str(r["product_id"])
+            author_by_product.setdefault(
+                pid, str(r["author_id"]) if r["author_id"] else None
+            )
+            if r["id"] and r["is_active"]:
+                by_product.setdefault(pid, {}).setdefault("listings", []).append(r)
+
+        attribution: Dict[str, Dict[str, Optional[str]]] = {}
+        for pid in product_ids:
+            candidates = by_product.get(pid, {}).get("listings", [])
+
+            chosen = None
+            explicit_id = wanted_listing.get(pid)
+            if explicit_id:
+                chosen = next((c for c in candidates if str(c["id"]) == explicit_id), None)
+                if chosen is None:
+                    raise DomainException(
+                        "The selected offer is no longer available — please "
+                        "refresh the product page and try again.",
+                        code="OFFER_UNAVAILABLE", status_code=409,
+                    )
+
+            if chosen is None:
+                need = int(quantities.get(pid) or 1)
+                in_stock = [c for c in candidates if int(c["stock"] or 0) >= need]
+                chosen = (in_stock or candidates or [None])[0]
+
+            if chosen is not None:
+                attribution[pid] = {
+                    "seller_id": str(chosen["seller_id"]) if chosen["seller_id"] else None,
+                    "listing_id": str(chosen["id"]),
+                }
+            else:
+                attribution[pid] = {
+                    "seller_id": author_by_product.get(pid),
+                    "listing_id": None,
+                }
+        return attribution
+
     async def _generate_order_number(self) -> str:
         stamp = datetime.now(timezone.utc).strftime("%y%m%d")
         for _ in range(6):
@@ -202,12 +283,16 @@ class OrderService:
         store_cfg = await get_store_settings(self.session)
 
         # ---- Resolve line items -------------------------------------------
-        line_items: List[Tuple[str, Optional[str], int]] = []
+        # Each line carries an optional chosen listing id so a shared-catalog
+        # product is attributed to the seller who actually fulfils it.
+        line_items: List[Tuple[str, Optional[str], int, Optional[str]]] = []
         used_cart_id: Optional[str] = None
 
         if data.items:
             for it in data.items:
-                line_items.append((it.product_id, it.variant_id, it.quantity))
+                line_items.append(
+                    (it.product_id, it.variant_id, it.quantity, it.seller_listing_id)
+                )
         else:
             cart = await self.cart_repo.get_by_user(str(current_user.id))
             if not cart or not cart.items:
@@ -216,14 +301,14 @@ class OrderService:
                 )
             used_cart_id = str(cart.id)
             for item in cart.items:
-                line_items.append((item.product_id, item.variant_id, item.quantity))
+                line_items.append((item.product_id, item.variant_id, item.quantity, None))
 
         # ---- Price resolution from DB -------------------------------------
         subtotal = 0
         order_items: List[OrderItem] = []
         products_by_id = {}
 
-        for product_id, variant_id, quantity in line_items:
+        for product_id, variant_id, quantity, _listing_id in line_items:
             product = await self.product_repo.get_by_id(product_id)
             if not product or product.business_id != business_id:
                 raise DomainException(
@@ -235,19 +320,28 @@ class OrderService:
                 )
             products_by_id[product_id] = product
 
-        # Resolve seller names for products
-        seller_ids = [str(p.seller_id) for p in products_by_id.values() if getattr(p, "seller_id", None)]
+        # Resolve seller attribution per line.
+        #
+        # This used to read `products.seller_id`, which is now *provenance only*
+        # (who entered the product into the shared catalog). With a shared
+        # catalog the fulfilling seller is whoever owns the listing the buyer
+        # chose, or — when the client sends no offer — the cheapest active offer
+        # that has stock. Only when a product has no listing at all do we fall
+        # back to the author, so legacy catalog-only products still attribute.
+        attribution = await self._resolve_line_attribution(line_items)
+
+        seller_ids = {a["seller_id"] for a in attribution.values() if a["seller_id"]}
         seller_name_map: Dict[str, str] = {}
         if seller_ids:
             s_rows = (await self.session.execute(
                 text("SELECT id, business_name FROM sellers WHERE id = ANY(:sids)"),
-                {"sids": seller_ids},
+                {"sids": list(seller_ids)},
             )).fetchall()
             for sid, bname in s_rows:
                 if bname:
                     seller_name_map[str(sid)] = bname
 
-        for product_id, variant_id, quantity in line_items:
+        for product_id, variant_id, quantity, _listing_id in line_items:
             product = products_by_id[product_id]
             unit_price = effective_price(product)
             variant_name = None
@@ -261,8 +355,9 @@ class OrderService:
                 unit_price = variant.price
                 variant_name = variant.name
 
-            s_id = str(product.seller_id) if getattr(product, "seller_id", None) else None
+            s_id = attribution.get(product_id, {}).get("seller_id")
             s_name = seller_name_map.get(s_id, "Apana Enterprises") if s_id else "Apana Enterprises"
+            listing_id = attribution.get(product_id, {}).get("listing_id")
 
             line_subtotal = unit_price * quantity
             subtotal += line_subtotal
@@ -271,6 +366,7 @@ class OrderService:
                 variant_id=variant_id,
                 seller_id=s_id,
                 seller_name=s_name,
+                seller_listing_id=listing_id,
                 quantity=quantity,
                 unit_price=unit_price,
                 subtotal=line_subtotal,
@@ -446,6 +542,20 @@ class OrderService:
         total_amount = 0
         order_items = []
 
+        # Resolve all fulfilments in one query before the item loop.
+        attribution_map = await self._resolve_line_attribution([
+            (it.product_id, it.variant_id, it.quantity, None) for it in data.items
+        ])
+        seller_names: Dict[str, str] = {}
+        _sids = {v["seller_id"] for v in attribution_map.values() if v["seller_id"]}
+        if _sids:
+            for sid, bname in (await self.session.execute(
+                text("SELECT id, business_name FROM sellers WHERE id = ANY(:sids)"),
+                {"sids": list(_sids)},
+            )).fetchall():
+                if bname:
+                    seller_names[str(sid)] = bname
+
         for item_req in data.items:
             product = await self.product_repo.get_by_id(item_req.product_id)
             if not product:
@@ -475,21 +585,18 @@ class OrderService:
             subtotal = unit_price * item_req.quantity
             total_amount += subtotal
 
-            s_id = str(product.seller_id) if getattr(product, "seller_id", None) else None
-            s_name = "Apana Enterprises"
-            if s_id:
-                s_row = (await self.session.execute(
-                    text("SELECT business_name FROM sellers WHERE id = :sid"),
-                    {"sid": s_id},
-                )).fetchone()
-                if s_row and s_row[0]:
-                    s_name = s_row[0]
+            # Attribute to the offer that fulfils this line, not the author.
+            resolved = attribution_map.get(product.id, {})
+            s_id = resolved.get("seller_id")
+            listing_id = resolved.get("listing_id")
+            s_name = seller_names.get(s_id, "Apana Enterprises") if s_id else "Apana Enterprises"
 
             order_item = OrderItem(
                 product_id=product.id,
                 variant_id=item_req.variant_id,
                 seller_id=s_id,
                 seller_name=s_name,
+                seller_listing_id=listing_id,
                 quantity=item_req.quantity,
                 unit_price=unit_price,
                 subtotal=subtotal,
@@ -597,13 +704,15 @@ class OrderService:
     async def update_order_status(
         self,
         order_id: str,
-        status_update: OrderStatusUpdate
+        status_update: OrderStatusUpdate,
+        actor=None,
     ) -> Order:
         """Staff order-state machine with commerce side effects:
         SHIPPED → timestamp + tracking + email; DELIVERED → COD stock commit +
         email; CANCELLED → reservation release / restock + email."""
         order = await self.get_order(order_id)
         target_status = status_update.status
+        status_before = order.status.value if hasattr(order.status, "value") else str(order.status)
 
         # Guard: never confirm an ONLINE order that has no captured payment —
         # otherwise staff can ship goods for an unpaid/failed checkout.
@@ -689,6 +798,34 @@ class OrderService:
             ))
 
         await self.repository.update(order)
+        try:
+            from modules.audit.models import ActorType
+            from modules.audit.service import Actor, AuditService
+
+            await AuditService(self.session).record(
+                actor=actor or Actor(
+                    type=ActorType.STAFF.value, name="order-admin",
+                    business_id=order.business_id,
+                ),
+                action="order.status_changed",
+                entity_type="order",
+                entity_id=str(order.id),
+                entity_label=order.order_number,
+                before={"status": status_before},
+                after={
+                    "status": order.status.value if hasattr(order.status, "value") else str(order.status),
+                    "tracking_number": order.tracking_number,
+                    "invoice_number": getattr(order, "invoice_number", None),
+                },
+                metadata={
+                    "reason": status_update.reason,
+                    "payment_method": order.payment_method,
+                    "total": str(order.total) if order.total is not None else None,
+                    "delivery_otp_issued": bool(getattr(order, "delivery_otp", None)),
+                },
+            )
+        except Exception:
+            logger.exception("audit write failed for order status change %s", order_id)
         await self.session.commit()
         return await self.get_order(order_id)
 
@@ -1003,7 +1140,8 @@ class OrderService:
             if seller_row:
                 seller_dict = {
                     "business_name": seller_row.business_name,
-                    "address": seller_row.pickup_address,
+                    "address": seller_row.address,
+                    "address_line2": seller_row.address_line2,
                     "city": seller_row.city,
                     "state": seller_row.state,
                     "pincode": seller_row.pincode,

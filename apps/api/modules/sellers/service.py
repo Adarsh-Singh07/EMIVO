@@ -358,19 +358,21 @@ class SellerService:
     async def list_seller_products(self, seller_id: str) -> List[SellerProductItem]:
         query = text("""
             SELECT 
-                p.id, p.name, p.slug, p.sku, p.brand, p.price, p.mrp, p.sale_price,
-                coalesce(sl.stock, i.on_hand, 0) as stock,
+                p.id, p.name, p.slug, p.sku, p.brand,
+                coalesce(sl.price, p.price) as price,
+                coalesce(sl.mrp, p.mrp) as mrp,
+                p.sale_price,
+                coalesce(sl.stock, 0) as stock,
                 coalesce(sl.is_active, TRUE) as is_active,
                 p.status, p.category_id, p.description, p.warranty_info, p.return_policy, p.specs,
                 c.name as category_name,
                 pcat.name as parent_category_name,
                 p.created_at
-            FROM products p
-            LEFT JOIN seller_listings sl ON sl.product_id = p.id AND sl.seller_id = :sid
-            LEFT JOIN inventory i ON i.product_id = p.id
+            FROM seller_listings sl
+            JOIN products p ON p.id = sl.product_id
             LEFT JOIN categories c ON c.id = p.category_id
             LEFT JOIN categories pcat ON pcat.id = c.parent_id
-            WHERE (p.seller_id = :sid OR sl.seller_id = :sid)
+            WHERE sl.seller_id = :sid
             ORDER BY p.created_at DESC;
         """)
         res = await self.session.execute(query, {"sid": seller_id})
@@ -525,8 +527,11 @@ class SellerService:
             for r in rows
         ]
 
-    async def attach_seller_offer(self, seller_id: str, data: SellerAttachOffer) -> Dict[str, Any]:
+    async def attach_seller_offer(self, seller_id: str, data: SellerAttachOffer, actor=None) -> Dict[str, Any]:
         import uuid
+        from modules.audit.models import ActorType
+        from modules.audit.service import Actor, AuditService
+
         prod = (await self.session.execute(
             text("SELECT id, name, price, mrp FROM products WHERE id = :pid AND status != 'ARCHIVED'"),
             {"pid": data.product_id},
@@ -602,6 +607,18 @@ class SellerService:
                 "rating": cur_rating,
                 "rcount": cur_count,
             })
+            await AuditService(self.session).record(
+                actor=actor or Actor(
+                    type=ActorType.SELLER.value, id=seller_id, role="seller",
+                    business_id=store_bid,
+                ),
+                action="listing.attached", entity_type="product",
+                entity_id=data.product_id, entity_label=prod[1],
+                after={"price": price_paise, "mrp": mrp_paise, "stock": data.stock,
+                       "condition": data.condition or "NEW",
+                       "estimated_delivery_days": data.estimated_delivery_days or 3},
+                metadata={"catalog": "shared", "source": "attach_offer"},
+            )
             await self.session.commit()
             return {"status": "success", "message": f"Added offer for '{prod[1]}' to your inventory!"}
         except IntegrityError as ie:
@@ -614,7 +631,19 @@ class SellerService:
             logger.exception("Unexpected error in attach_seller_offer: %s", ex)
             raise DomainException(f"Failed to attach offer: {str(ex)}", code="ATTACH_OFFER_FAILED", status_code=400)
 
-    async def create_seller_product(self, seller_id: str, data: SellerProductCreate) -> Dict[str, Any]:
+    async def create_seller_product(self, seller_id: str, data: SellerProductCreate, actor=None) -> Dict[str, Any]:
+        """Add a product to the shared ELEKTRIX catalog and open a seller offer.
+
+        Catalog and stock are deliberately separate concerns:
+          * the `products` row belongs to the ELEKTRIX store tenant and is
+            visible to every seller and to the storefront — anyone may add a
+            product and every seller may sell it;
+          * the seller owns a `seller_listings` row (price + stock), and that is
+            the only thing private to them.
+
+        `products.seller_id` is written as provenance (who entered the product
+        into the catalog), never as ownership.
+        """
         import uuid
         from modules.products.models import Product, ProductMedia, ProductStatus
         from modules.inventory.models import Inventory
@@ -635,7 +664,7 @@ class SellerService:
         price_paise = int(round(data.price * 100)) if data.price < 500000 else int(round(data.price))
         mrp_paise = int(round(data.mrp * 100)) if (data.mrp and data.mrp < 500000) else (int(round(data.mrp)) if data.mrp else price_paise)
 
-        # Ensure business_id is set (use Apana Enterprises business or store business id)
+        # Every product lives in the shared store tenant, whoever adds it.
         store_bid = await get_store_business_id(self.session)
 
         # Set PostgreSQL RLS context variable so brand, product, and inventory queries pass RLS
@@ -741,15 +770,23 @@ class SellerService:
             )
             self.session.add(product)
 
-            # Inventory
-            inv = Inventory(
-                id=str(uuid.uuid4()),
-                product_id=pid,
-                business_id=store_bid,
-                on_hand=data.stock,
-                reserved=0,
-            )
-            self.session.add(inv)
+            # The global inventory row is the store's own stock pool. A seller
+            # adding a product must not seed it with their units — those live
+            # on their listing, otherwise one seller's stock-take would change
+            # what every other seller appears to have.
+            inv_exists = (await self.session.execute(
+                text("SELECT 1 FROM inventory WHERE product_id = :pid"),
+                {"pid": pid},
+            )).first()
+            if not inv_exists:
+                inv = Inventory(
+                    id=str(uuid.uuid4()),
+                    product_id=pid,
+                    business_id=store_bid,
+                    on_hand=0,
+                    reserved=0,
+                )
+                self.session.add(inv)
 
             # Flush pending ORM objects (Product, Inventory) so foreign keys in raw SQL pass
             await self.session.flush()
@@ -800,7 +837,44 @@ class SellerService:
                             )
                         )
 
+            # Audit: the catalog entry and the opening stock are separate facts.
+            # Written in the same transaction as the product itself.
+            from modules.audit.models import ActorType
+            from modules.audit.service import Actor, AuditService
+            audit_actor = actor or Actor(
+                type=ActorType.SELLER.value, id=seller_id, role="seller",
+                business_id=store_bid,
+            )
+            await AuditService(self.session).record(
+                actor=audit_actor,
+                action="product.created",
+                entity_type="product",
+                entity_id=pid,
+                entity_label=prod_title,
+                after={
+                    "name": prod_title,
+                    "sku": prod_sku,
+                    "brand": brand_name,
+                    "category_id": clean_category_id,
+                    "price": price_paise,
+                    "mrp": mrp_paise,
+                    "status": "ACTIVE",
+                    "business_id": store_bid,
+                    "seller_id": seller_id,
+                },
+                metadata={
+                    "catalog": "shared",
+                    "source": "seller_portal",
+                    "listing": {
+                        "seller_id": seller_id,
+                        "price": price_paise,
+                        "mrp": mrp_paise,
+                        "stock": data.stock,
+                    },
+                },
+            )
             await self.session.commit()
+
             return {"id": pid, "name": prod_title, "slug": slug, "status": "created"}
 
         except IntegrityError as ie:
@@ -826,24 +900,86 @@ class SellerService:
             logger.exception("Unexpected error creating seller product: %s", ex)
             raise DomainException(f"Failed to create product: {str(ex)}", code="PRODUCT_CREATION_FAILED", status_code=400)
 
-    async def update_seller_product(self, seller_id: str, product_id: str, data: SellerProductUpdate) -> Dict[str, Any]:
+    async def update_seller_product(
+        self, seller_id: str, product_id: str, data: SellerProductUpdate, actor=None
+    ) -> Dict[str, Any]:
+        """Update a seller's offer, and optionally the shared catalog entry.
+
+        Separation of concerns (shared catalog):
+          * price / stock / visibility belong to the seller's own listing and
+            are always editable by that seller;
+          * name / brand / category / description / specs / images are *master
+            catalog* data shared by every seller, so they are writable only by
+            whoever entered the product, or by staff.
+
+        A seller who lists someone else's product may change their price and
+        stock but must not rewrite the canonical product everyone else sells.
+        """
         import uuid
         from modules.products.models import ProductMedia
+        from modules.audit.models import ActorType
+        from modules.audit.service import Actor, AuditService
 
         store_bid = await get_store_business_id(self.session)
         await self.session.execute(text("SELECT set_config('app.business_id', :bid, true)"), {"bid": str(store_bid)})
 
-        # Verify ownership or permission
-        row = (await self.session.execute(
-            text("SELECT id FROM products WHERE id = :pid AND (seller_id = :sid OR :sid IN (SELECT id FROM sellers WHERE email = 'admin@elektrix.in'))"),
+        before_row = (await self.session.execute(
+            text("""
+                SELECT p.id, p.name, p.sku, p.brand, p.price, p.mrp, p.status,
+                       p.category_id, p.description, p.warranty_info, p.return_policy,
+                       p.seller_id AS created_by,
+                       sl.id AS listing_id, sl.price AS listing_price,
+                       sl.mrp AS listing_mrp, sl.stock AS listing_stock
+                FROM products p
+                LEFT JOIN seller_listings sl
+                       ON sl.product_id = p.id AND sl.seller_id = :sid
+                WHERE p.id = :pid
+            """),
             {"pid": product_id, "sid": seller_id},
-        )).fetchone()
-        if not row:
-            raise DomainException("Product not found or access denied", code="NOT_FOUND", status_code=404)
+        )).mappings().first()
+
+        if not before_row:
+            raise DomainException("Product not found", code="NOT_FOUND", status_code=404)
+
+        is_author = str(before_row["created_by"] or "") == str(seller_id)
+        is_staff = bool(getattr(actor, "type", None) in (
+            ActorType.STAFF.value, ActorType.ADMIN.value
+        )) if actor else False
+
+        if not before_row["listing_id"] and not is_author and not is_staff:
+            raise DomainException(
+                "You do not have an offer on this product", code="NOT_FOUND", status_code=404
+            )
+
+        # ---- Master catalog fields: author or staff only -------------------
+        catalog_fields = {
+            "name": (lambda v: v.strip()),
+            "brand": (lambda v: v.strip()),
+            "category_id": (lambda v: v),
+            "description": (lambda v: v),
+            "warranty_info": (lambda v: v),
+            "return_policy": (lambda v: v),
+            "status": (lambda v: v),
+        }
+        requested_catalog = [f for f in catalog_fields if getattr(data, f, None) is not None]
+        if data.specs is not None:
+            requested_catalog.append("specs")
+        if data.images is not None:
+            requested_catalog.append("images")
+
+        if requested_catalog and not (is_author or is_staff):
+            raise DomainException(
+                "This product is part of the shared ELEKTRIX catalog. You can change your "
+                "price and stock, but only the seller who added it (or ELEKTRIX staff) can "
+                "edit its name, brand, category, description or images.",
+                code="CATALOG_EDIT_FORBIDDEN",
+                status_code=403,
+            )
 
         updates = []
         params: Dict[str, Any] = {"pid": product_id, "sid": seller_id}
 
+        p_paise = None
         if data.price is not None:
             p_paise = int(round(data.price * 100)) if data.price < 500000 else int(round(data.price))
             updates.append("price = :price")
@@ -852,27 +988,16 @@ class SellerService:
             m_paise = int(round(data.mrp * 100)) if data.mrp < 500000 else int(round(data.mrp))
             updates.append("mrp = :mrp")
             params["mrp"] = m_paise
-        if data.status is not None:
-            updates.append("status = :status")
-            params["status"] = data.status
+        for field in ("status", "category_id", "description", "warranty_info", "return_policy"):
+            if getattr(data, field, None) is not None:
+                updates.append(f"{field} = :{field}")
+                params[field] = getattr(data, field)
         if data.name is not None:
             updates.append("name = :name")
             params["name"] = data.name.strip()
         if data.brand is not None:
             updates.append("brand = :brand")
             params["brand"] = data.brand.strip()
-        if data.category_id is not None:
-            updates.append("category_id = :category_id")
-            params["category_id"] = data.category_id
-        if data.description is not None:
-            updates.append("description = :description")
-            params["description"] = data.description
-        if data.warranty_info is not None:
-            updates.append("warranty_info = :warranty_info")
-            params["warranty_info"] = data.warranty_info
-        if data.return_policy is not None:
-            updates.append("return_policy = :return_policy")
-            params["return_policy"] = data.return_policy
         if data.specs is not None:
             cleaned_specs = []
             for s in data.specs:
@@ -887,29 +1012,36 @@ class SellerService:
             updates.append("specs = CAST(:specs AS json)")
             params["specs"] = json.dumps(cleaned_specs)
 
-        if updates:
+        # Only author/staff reach here with catalog fields populated; guard the
+        # write itself so a listing-only seller cannot slip through.
+        if updates and (is_author or is_staff):
             sql = f"UPDATE products SET {', '.join(updates)}, updated_at = NOW() WHERE id = :pid"
             await self.session.execute(text(sql), params)
 
-        # Update seller_listings & inventory stock
+        # ---- The seller's own offer ---------------------------------------
+        # Stock and price are per-seller. The global `inventory` row is the
+        # store's pool and is never overwritten by a seller stock-take, or one
+        # seller would silently change every other seller's availability.
         if data.stock is not None:
             await self.session.execute(
-                text("UPDATE inventory SET on_hand = :stock, updated_at = NOW() WHERE product_id = :pid"),
-                {"stock": data.stock, "pid": product_id},
-            )
-            await self.session.execute(
-                text("UPDATE seller_listings SET stock = :stock, updated_at = NOW() WHERE product_id = :pid AND seller_id = :sid"),
+                text("""
+                    UPDATE seller_listings SET stock = :stock, updated_at = NOW()
+                    WHERE product_id = :pid AND seller_id = :sid
+                """),
                 {"stock": data.stock, "pid": product_id, "sid": seller_id},
             )
 
-        if data.price is not None:
+        if p_paise is not None:
             await self.session.execute(
-                text("UPDATE seller_listings SET price = :price, updated_at = NOW() WHERE product_id = :pid AND seller_id = :sid"),
-                {"price": params["price"], "pid": product_id, "sid": seller_id},
+                text("""
+                    UPDATE seller_listings SET price = :price, updated_at = NOW()
+                    WHERE product_id = :pid AND seller_id = :sid
+                """),
+                {"price": p_paise, "pid": product_id, "sid": seller_id},
             )
 
-        # Update images if provided
-        if data.images is not None:
+        # Images are master-catalog media, gated above with the other fields.
+        if data.images is not None and (is_author or is_staff):
             await self.session.execute(
                 text("DELETE FROM product_media WHERE product_id = :pid"),
                 {"pid": product_id},
@@ -925,10 +1057,59 @@ class SellerService:
                         )
                     )
 
+        # ---- Audit ---------------------------------------------------------
+        audit_actor = actor or Actor(
+            type=ActorType.SELLER.value, id=seller_id, role="seller",
+            business_id=store_bid,
+        )
+        after_row = (await self.session.execute(
+            text("""
+                SELECT p.name, p.sku, p.brand, p.price, p.mrp, p.status, p.category_id,
+                       sl.price AS listing_price, sl.mrp AS listing_mrp, sl.stock AS listing_stock
+                FROM products p
+                LEFT JOIN seller_listings sl
+                       ON sl.product_id = p.id AND sl.seller_id = :sid
+                WHERE p.id = :pid
+            """),
+            {"pid": product_id, "sid": seller_id},
+        )).mappings().first()
+
+        before_state = {
+            "name": before_row["name"], "brand": before_row["brand"],
+            "price": before_row["price"], "mrp": before_row["mrp"],
+            "status": before_row["status"], "category_id": before_row["category_id"],
+            "listing_price": before_row["listing_price"],
+            "listing_stock": before_row["listing_stock"],
+        }
+        after_state = {
+            "name": after_row["name"], "brand": after_row["brand"],
+            "price": after_row["price"], "mrp": after_row["mrp"],
+            "status": after_row["status"], "category_id": after_row["category_id"],
+            "listing_price": after_row["listing_price"],
+            "listing_stock": after_row["listing_stock"],
+        }
+        await AuditService(self.session).record(
+            actor=audit_actor,
+            action="product.updated",
+            entity_type="product",
+            entity_id=product_id,
+            entity_label=after_row["name"],
+            before=before_state,
+            after=after_state,
+            metadata={
+                "catalog_edit": bool(requested_catalog) and (is_author or is_staff),
+                "offer_only": not (is_author or is_staff),
+                "is_author": is_author,
+            },
+        )
+
         await self.session.commit()
         return {"status": "updated", "product_id": product_id}
 
-    async def delete_seller_product(self, seller_id: str, product_id: str) -> Dict[str, Any]:
+    async def delete_seller_product(self, seller_id: str, product_id: str, actor=None) -> Dict[str, Any]:
+        from modules.audit.models import ActorType
+        from modules.audit.service import Actor, AuditService
+
         store_bid = await get_store_business_id(self.session)
         await self.session.execute(text("SELECT set_config('app.business_id', :bid, true)"), {"bid": str(store_bid)})
 
@@ -939,12 +1120,17 @@ class SellerService:
         )).fetchone()
 
         prod = (await self.session.execute(
-            text("SELECT id, seller_id FROM products WHERE id = :pid"),
+            text("SELECT id, seller_id, name FROM products WHERE id = :pid"),
             {"pid": product_id}
         )).fetchone()
 
         if not listing and not (prod and str(prod.seller_id) == str(seller_id)):
             raise DomainException("Product not found or access denied", code="NOT_FOUND", status_code=404)
+
+        audit_actor = actor or Actor(
+            type=ActorType.SELLER.value, id=seller_id, role="seller", business_id=store_bid,
+        )
+        product_label = prod.name if prod else None
 
         # Check if this seller has order history for this product
         order_count = (await self.session.execute(
@@ -968,6 +1154,12 @@ class SellerService:
                         text("UPDATE products SET status = 'ARCHIVED', updated_at = NOW() WHERE id = :pid"),
                         {"pid": product_id}
                     )
+            await AuditService(self.session).record(
+                actor=audit_actor, action="product.archived", entity_type="product",
+                entity_id=product_id, entity_label=product_label,
+                metadata={"reason": "order_history", "order_items": int(order_count),
+                          "listing_removed": bool(listing)},
+            )
             await self.session.commit()
             return {
                 "action": "archived",
@@ -979,6 +1171,7 @@ class SellerService:
                 text("DELETE FROM seller_listings WHERE product_id = :pid AND seller_id = :sid"),
                 {"pid": product_id, "sid": seller_id}
             )
+            deleted_master = False
             # If seller was sole creator and no other sellers list it:
             if prod and str(prod.seller_id) == str(seller_id):
                 other_listings = (await self.session.execute(
@@ -1002,15 +1195,31 @@ class SellerService:
                         text("DELETE FROM products WHERE id = :pid"),
                         {"pid": product_id}
                     )
+                    deleted_master = True
+            await AuditService(self.session).record(
+                actor=audit_actor,
+                action="product.deleted" if deleted_master else "listing.deleted",
+                entity_type="product", entity_id=product_id, entity_label=product_label,
+                before={"listing_id": str(listing.id) if listing else None,
+                        "master_deleted": deleted_master},
+                severity="warning",
+            )
             await self.session.commit()
             return {
                 "action": "deleted",
                 "message": "Product deleted successfully from your inventory."
             }
 
-    async def toggle_hide_seller_product(self, seller_id: str, product_id: str) -> Dict[str, Any]:
+    async def toggle_hide_seller_product(self, seller_id: str, product_id: str, actor=None) -> Dict[str, Any]:
+        from modules.audit.models import ActorType
+        from modules.audit.service import Actor, AuditService
+
         store_bid = await get_store_business_id(self.session)
         await self.session.execute(text("SELECT set_config('app.business_id', :bid, true)"), {"bid": str(store_bid)})
+
+        audit_actor = actor or Actor(
+            type=ActorType.SELLER.value, id=seller_id, role="seller", business_id=store_bid,
+        )
 
         listing = (await self.session.execute(
             text("SELECT id, is_active FROM seller_listings WHERE product_id = :pid AND seller_id = :sid"),
@@ -1019,7 +1228,7 @@ class SellerService:
 
         if not listing:
             prod = (await self.session.execute(
-                text("SELECT id, price, mrp FROM products WHERE id = :pid AND seller_id = :sid"),
+                text("SELECT id, name, price, mrp FROM products WHERE id = :pid AND seller_id = :sid"),
                 {"pid": product_id, "sid": seller_id}
             )).fetchone()
             if not prod:
@@ -1032,6 +1241,12 @@ class SellerService:
                 """),
                 {"lid": lid, "sid": seller_id, "pid": product_id, "price": prod.price, "mrp": prod.mrp}
             )
+            await AuditService(self.session).record(
+                actor=audit_actor, action="listing.created", entity_type="product",
+                entity_id=product_id, entity_label=prod.name,
+                after={"listing_id": lid, "is_active": False, "stock": 10},
+                metadata={"source": "visibility_toggle"},
+            )
             await self.session.commit()
             return {"action": "hidden", "is_active": False, "message": "Product hidden from storefront"}
 
@@ -1040,6 +1255,13 @@ class SellerService:
             text("UPDATE seller_listings SET is_active = :act, updated_at = NOW() WHERE id = :lid"),
             {"act": new_status, "lid": listing.id}
         )
+        await AuditService(self.session).record(
+            actor=audit_actor,
+            action="listing.visibility_changed", entity_type="product",
+            entity_id=product_id,
+            before={"is_active": bool(listing.is_active)},
+            after={"is_active": new_status},
+        )
         await self.session.commit()
         return {
             "action": "visible" if new_status else "hidden",
@@ -1047,13 +1269,22 @@ class SellerService:
             "message": "Product is now visible on storefront" if new_status else "Product hidden from storefront"
         }
 
-    async def archive_seller_product(self, seller_id: str, product_id: str) -> Dict[str, Any]:
+    async def archive_seller_product(self, seller_id: str, product_id: str, actor=None) -> Dict[str, Any]:
+        from modules.audit.models import ActorType
+        from modules.audit.service import Actor, AuditService
+
         store_bid = await get_store_business_id(self.session)
         await self.session.execute(text("SELECT set_config('app.business_id', :bid, true)"), {"bid": str(store_bid)})
 
         await self.session.execute(
             text("UPDATE seller_listings SET is_active = FALSE WHERE product_id = :pid AND seller_id = :sid"),
             {"pid": product_id, "sid": seller_id}
+        )
+        await AuditService(self.session).record(
+            actor=actor or Actor(type=ActorType.SELLER.value, id=seller_id, role="seller",
+                                 business_id=store_bid),
+            action="listing.archived", entity_type="product", entity_id=product_id,
+            after={"is_active": False},
         )
         await self.session.commit()
         return {"action": "archived", "is_active": False, "message": "Product archived from your inventory"}

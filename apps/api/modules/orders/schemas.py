@@ -116,6 +116,10 @@ class CheckoutItem(BaseModel):
     product_id: str = Field(..., min_length=36, max_length=36)
     variant_id: Optional[str] = Field(None, min_length=36, max_length=36)
     quantity: int = Field(..., gt=0, le=99)
+    # Optional: the seller offer the buyer picked. When omitted, checkout
+    # attributes the line to the cheapest active offer that has stock, so a
+    # shared-catalog product routes to a seller who can actually fulfil it.
+    seller_listing_id: Optional[str] = Field(None, min_length=36, max_length=36)
 
 
 class CheckoutRequest(BaseModel):

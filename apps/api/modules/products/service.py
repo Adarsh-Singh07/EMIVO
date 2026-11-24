@@ -39,7 +39,35 @@ class ProductService:
                 return slug
             slug = f"{base}-{secrets.token_hex(3)}"
 
-    async def create_product(self, data: ProductCreate) -> Product:
+    async def _audit(
+        self,
+        actor,
+        action: str,
+        entity_id: str,
+        entity_label: Optional[str],
+        before: Optional[dict] = None,
+        after: Optional[dict] = None,
+        severity: str = "info",
+        metadata: Optional[dict] = None,
+    ) -> None:
+        """Append to the audit trail inside the caller's transaction."""
+        from modules.audit.models import ActorType, AuditSeverity
+        from modules.audit.service import Actor, AuditService
+
+        audit_actor = actor or Actor(type=ActorType.STAFF.value, name="system-admin")
+        await AuditService(self.session).record(
+            actor=audit_actor,
+            action=action,
+            entity_type="product",
+            entity_id=entity_id,
+            entity_label=entity_label,
+            before=before,
+            after=after,
+            severity=severity,
+            metadata=metadata,
+        )
+
+    async def create_product(self, data: ProductCreate, actor=None) -> Product:
         business_id = await self._get_current_business_id()
 
         product = Product(
@@ -93,6 +121,18 @@ class ProductService:
             await self.inventory.ensure_row(product.id, business_id, data.initial_stock or 0)
 
         await self.sync_product_brand_facet(data.brand, data.category_id)
+        await self._audit(
+            actor, "product.created", product.id, product.name,
+            after={
+                "name": product.name, "sku": product.sku, "brand": product.brand,
+                "price": product.price, "mrp": product.mrp, "status": product.status.value
+                if hasattr(product.status, "value") else str(product.status),
+                "category_id": product.category_id, "business_id": business_id,
+                "initial_stock": data.initial_stock or 0,
+                "variants": len(data.variants) if data.variants else 0,
+            },
+            metadata={"catalog": "shared", "source": "admin_api"},
+        )
         await self.session.commit()
         return await self.repository.get_by_id(product.id)
 
@@ -106,8 +146,15 @@ class ProductService:
             raise DomainException("Product not found", code="NOT_FOUND", status_code=404)
         return product
 
-    async def update_product(self, product_id: str, data: ProductUpdate) -> Product:
+    async def update_product(self, product_id: str, data: ProductUpdate, actor=None) -> Product:
         product = await self.get_product(product_id)
+
+        before_state = {
+            "name": product.name, "brand": product.brand, "price": product.price,
+            "mrp": product.mrp, "sku": product.sku,
+            "status": product.status.value if hasattr(product.status, "value") else str(product.status),
+            "category_id": product.category_id,
+        }
 
         if data.name is not None:
             product.name = data.name
@@ -175,14 +222,28 @@ class ProductService:
 
         await self.sync_product_brand_facet(product.brand, product.category_id)
         await self.repository.update(product)
+        after_state = {
+            "name": product.name, "brand": product.brand, "price": product.price,
+            "mrp": product.mrp, "sku": product.sku,
+            "status": product.status.value if hasattr(product.status, "value") else str(product.status),
+            "category_id": product.category_id,
+        }
+        await self._audit(
+            actor, "product.updated", product.id, product.name,
+            before=before_state, after=after_state,
+            metadata={"catalog": "shared", "source": "admin_api",
+                      "fields_submitted": sorted(data.model_fields_set)},
+        )
         await self.session.commit()
         return await self.repository.get_by_id(product.id)
 
-    async def delete_product(self, product_id: str) -> dict:
+    async def delete_product(self, product_id: str, actor=None) -> dict:
         from sqlalchemy import select, func
         from modules.orders.models import OrderItem
         
         product = await self.get_product(product_id)
+        before_state = {"name": product.name, "sku": product.sku,
+                        "status": product.status.value if hasattr(product.status, "value") else str(product.status)}
         
         stmt = select(func.count(OrderItem.id)).where(OrderItem.product_id == product.id)
         res = await self.session.execute(stmt)
@@ -194,6 +255,11 @@ class ProductService:
                 {"pid": product.id}
             )
             await self.session.delete(product)
+            await self._audit(
+                actor, "product.deleted", product_id, before_state["name"],
+                before=before_state, severity="warning",
+                metadata={"source": "admin_api", "order_items": 0, "listings_removed": True},
+            )
             await self.session.commit()
             return {"action": "deleted", "message": "Product permanently deleted"}
         else:
@@ -203,24 +269,38 @@ class ProductService:
                 text("UPDATE seller_listings SET is_active = FALSE WHERE product_id = :pid"),
                 {"pid": product.id}
             )
+            await self._audit(
+                actor, "product.archived", product.id, product.name,
+                before=before_state,
+                after={**before_state, "status": "ARCHIVED"},
+                severity="warning",
+                metadata={"source": "admin_api", "order_items": int(order_count),
+                          "reason": "has_order_history"},
+            )
             await self.session.commit()
             return {
                 "action": "archived",
                 "message": "Product has past orders; safely archived to preserve customer order history"
             }
 
-    async def archive_product(self, product_id: str) -> dict:
+    async def archive_product(self, product_id: str, actor=None) -> dict:
         product = await self.get_product(product_id)
+        before_status = product.status.value if hasattr(product.status, "value") else str(product.status)
         product.status = ProductStatus.ARCHIVED
         await self.repository.update(product)
         await self.session.execute(
             text("UPDATE seller_listings SET is_active = FALSE WHERE product_id = :pid"),
             {"pid": product.id}
         )
+        await self._audit(
+            actor, "product.archived", product.id, product.name,
+            before={"status": before_status}, after={"status": "ARCHIVED"},
+            severity="warning", metadata={"source": "admin_api"},
+        )
         await self.session.commit()
         return {"action": "archived", "status": "ARCHIVED", "message": "Product archived from storefront"}
 
-    async def toggle_hide_product(self, product_id: str) -> dict:
+    async def toggle_hide_product(self, product_id: str, actor=None) -> dict:
         product = await self.get_product(product_id)
         if product.status == ProductStatus.ACTIVE:
             product.status = ProductStatus.DRAFT
@@ -229,6 +309,11 @@ class ProductService:
             product.status = ProductStatus.ACTIVE
             hidden = False
         await self.repository.update(product)
+        await self._audit(
+            actor, "product.visibility_changed", product.id, product.name,
+            after={"status": product.status.value, "hidden": hidden},
+            metadata={"source": "admin_api"},
+        )
         await self.session.commit()
         return {
             "action": "hidden" if hidden else "visible",
