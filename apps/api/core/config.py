@@ -126,7 +126,12 @@ class Settings(BaseSettings):
     # Require email-OTP verification at registration: a freshly registered
     # account cannot sign in with a password until its email is verified.
     # The integration test-suite disables it (conftest) so register+login
-    # keep working end to end; production leaves it enabled.
+    # keep working end to end.
+    #
+    # NOTE: this defaults to False, so the gate is INACTIVE unless
+    # EMAIL_VERIFICATION_REQUIRED=true is set in the deployment environment.
+    # It is currently NOT set on the VPS — new accounts can sign in without
+    # verifying their email. Set it there to switch the gate on.
     email_verification_required: bool = Field(default=False)
     delhivery_environment: str = Field(default="prod") # "prod" or "sandbox"
 

@@ -435,10 +435,17 @@ class SellerService:
                 p.status, p.category_id, p.description, p.warranty_info, p.return_policy, p.specs,
                 c.name as category_name,
                 c.parent_id as parent_category_id,
-                pcat.name as parent_category_name
+                pcat.name as parent_category_name,
+                p.seller_id as created_by
             FROM products p
             LEFT JOIN seller_listings sl ON sl.product_id = p.id AND sl.seller_id = :sid
-            LEFT JOIN inventory i ON i.product_id = p.id
+            -- inventory holds one row per (product, business, variant), so a
+            -- plain LEFT JOIN multiplies rows and made one_or_none() raise
+            -- MultipleResultsFound. Collapse it to a single fallback figure.
+            LEFT JOIN LATERAL (
+                SELECT sum(i.on_hand) AS on_hand
+                FROM inventory i WHERE i.product_id = p.id
+            ) i ON true
             LEFT JOIN categories c ON c.id = p.category_id
             LEFT JOIN categories pcat ON pcat.id = c.parent_id
             WHERE p.id = :pid AND (p.seller_id = :sid OR sl.seller_id = :sid);
@@ -484,6 +491,12 @@ class SellerService:
             "return_policy": row.get("return_policy"),
             "specs": parsed_specs,
             "images": images,
+            # Whether this seller entered the shared catalog entry. Only the
+            # author (or staff) may edit master-catalog fields; everyone else
+            # may only change their own price/stock. The seller portal uses
+            # this to render those inputs read-only instead of letting the
+            # form submit fields the API will reject with 403.
+            "is_author": str(row.get("created_by") or "") == str(seller_id),
         }
 
     async def search_catalog(self, query: str, brand: Optional[str] = None) -> List[Dict[str, Any]]:

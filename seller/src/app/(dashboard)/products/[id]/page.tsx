@@ -47,6 +47,9 @@ export default function EditProductPage() {
 
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [saving, setSaving] = useState(false);
+  // False when another seller entered this product in the shared ELEKTRIX
+  // catalog: this seller may then edit only price/stock/visibility.
+  const [isAuthor, setIsAuthor] = useState(true);
 
   // Load Categories & Product Details
   useEffect(() => {
@@ -71,10 +74,12 @@ export default function EditProductPage() {
             return_policy?: string;
             specs?: Array<{ name: string; value: string }>;
             images?: string[];
+            is_author?: boolean;
           }>(`/seller/products/${productId}`),
         ]);
 
         setCategories(Array.isArray(cats) ? cats : []);
+        setIsAuthor(prod.is_author !== false);
 
         setName(prod.name || "");
         setBrand(prod.brand || "");
@@ -104,6 +109,12 @@ export default function EditProductPage() {
     }
     if (productId) loadData();
   }, [productId, router]);
+
+  // Shared-catalog fields are read-only for a seller who does not own the
+  // catalog entry — the API would reject them anyway.
+  const catalogLocked = isAuthor
+    ? ""
+    : "bg-neutral-50 text-neutral-500 cursor-not-allowed";
 
   const availableSubcategories = useMemo(() => {
     if (!selectedMainCatId || !Array.isArray(categories)) return [];
@@ -205,22 +216,40 @@ export default function EditProductPage() {
 
     setSaving(true);
     try {
-      await apiClient.put(`/seller/products/${productId}`, {
-        name: name.trim(),
-        brand: brand.trim() || undefined,
-        category_id: finalCategoryId,
-        price: pNum,
-        mrp: mrp ? Number(mrp) : undefined,
-        stock: sNum,
-        status: status,
-        description: description.trim() || undefined,
-        warranty_info: warrantyInfo.trim() || undefined,
-        return_policy: returnPolicy.trim() || undefined,
-        specs: filteredSpecs,
-        images: images || [],
-      });
+      // Shared-catalog rule: a seller who is not the product's author may only
+      // change their own offer (price, stock, visibility). Master-catalog
+      // fields belong to the author or ELEKTRIX staff, and the API rejects the
+      // whole request with 403 CATALOG_EDIT_FORBIDDEN if any are sent — so the
+      // payload must be narrowed here rather than relying on the inputs being
+      // disabled.
+      const payload: Record<string, unknown> = isAuthor
+        ? {
+            name: name.trim(),
+            brand: brand.trim() || undefined,
+            category_id: finalCategoryId,
+            price: pNum,
+            mrp: mrp ? Number(mrp) : undefined,
+            stock: sNum,
+            status: status,
+            description: description.trim() || undefined,
+            warranty_info: warrantyInfo.trim() || undefined,
+            return_policy: returnPolicy.trim() || undefined,
+            specs: filteredSpecs,
+            images: images || [],
+          }
+        : {
+            price: pNum,
+            stock: sNum,
+            status: status,
+          };
 
-      toast.success("Product details and inventory updated successfully!");
+      await apiClient.put(`/seller/products/${productId}`, payload);
+
+      toast.success(
+        isAuthor
+          ? "Product details and inventory updated successfully!"
+          : "Your price and stock were updated. Catalog details are shared and can only be changed by the seller who added this product.",
+      );
       router.push("/products");
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Failed to update product";
@@ -256,7 +285,9 @@ export default function EditProductPage() {
               Edit Product Details
             </h1>
             <p className="text-xs text-neutral-500">
-              Update catalog details, pricing, warranty, specs, and gallery.
+              {isAuthor
+                ? "Update catalog details, pricing, warranty, specs, and gallery."
+                : "You can update your price and stock. Catalog details are shared across ELEKTRIX and can only be changed by the seller who added this product."}
             </p>
           </div>
         </div>
@@ -285,10 +316,11 @@ export default function EditProductPage() {
               <input
                 type="text"
                 required
+                readOnly={!isAuthor}
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
                 placeholder="e.g. Apple, Sony"
-                className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                className={`mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 ${catalogLocked}`}
               />
             </div>
 
@@ -297,10 +329,11 @@ export default function EditProductPage() {
               <input
                 type="text"
                 required
+                readOnly={!isAuthor}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Title"
-                className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm font-semibold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                className={`mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-sm font-semibold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 ${catalogLocked}`}
               />
             </div>
           </div>
@@ -463,9 +496,10 @@ export default function EditProductPage() {
             <label className="block text-xs font-semibold text-neutral-700">HTML Description</label>
             <textarea
               rows={5}
+              readOnly={!isAuthor}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-neutral-200 p-3 text-xs font-mono text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 leading-relaxed"
+              className={`mt-1.5 w-full rounded-xl border border-neutral-200 p-3 text-xs font-mono text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 leading-relaxed ${catalogLocked}`}
             />
           </div>
 
@@ -475,9 +509,10 @@ export default function EditProductPage() {
               <input
                 type="text"
                 required
+                readOnly={!isAuthor}
                 value={warrantyInfo}
                 onChange={(e) => setWarrantyInfo(e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                className={`mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 ${catalogLocked}`}
               />
             </div>
 
@@ -486,9 +521,10 @@ export default function EditProductPage() {
               <input
                 type="text"
                 required
+                readOnly={!isAuthor}
                 value={returnPolicy}
                 onChange={(e) => setReturnPolicy(e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                className={`mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 ${catalogLocked}`}
               />
             </div>
           </div>
