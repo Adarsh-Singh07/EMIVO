@@ -276,3 +276,71 @@ async def optional_db_context(
         text("SELECT set_config('app.business_id', :bid, true)"), {"bid": store_id}
     )
     return session
+
+
+async def token_db_context(
+    token: Optional[str] = None,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
+    session: AsyncSession = Depends(get_db_session),
+) -> AsyncSession:
+    """RLS context for endpoints opened as a top-level document.
+
+    ``window.open(invoiceUrl)`` cannot attach an Authorization header, so the
+    invoice route accepts the JWT as ``?token=``. Without this the session ran
+    with every ``app.*`` setting empty, the orders RLS policy matched nothing,
+    and a perfectly valid invoice came back as 404 "Order not found".
+
+    Mirrors both the staff and the seller half of the context so the same
+    call works for the admin console and the seller portal.
+    """
+    raw = token or (credentials.credentials if credentials else None)
+    if not raw:
+        store_id = await get_store_business_id(session)
+        await session.execute(
+            text("SELECT set_config('app.business_id', :bid, true)"),
+            {"bid": store_id},
+        )
+        return session
+
+    try:
+        payload = jwt.decode(
+            raw,
+            settings.jwt_secret.get_secret_value(),
+            algorithms=[settings.jwt_algorithm],
+        )
+    except JWTError:
+        return session
+
+    roles = [str(r) for r in (payload.get("roles") or [])]
+    sub = payload.get("sub")
+    staff_role = next((r for r in STAFF_ROLES if r in roles), None)
+    claimed_sid = payload.get("seller_id") or ("seller" in roles and sub) or None
+
+    seller_id = None
+    if claimed_sid:
+        row = (
+            await session.execute(
+                text("SELECT 1 FROM sellers WHERE id = :sid"), {"sid": str(claimed_sid)}
+            )
+        ).first()
+        if row:
+            seller_id = str(claimed_sid)
+
+    await session.execute(
+        text("SELECT set_config('app.user_id', :uid, true)"),
+        {"uid": str(sub) if sub and staff_role else ""},
+    )
+    await session.execute(
+        text("SELECT set_config('app.seller_id', :sid, true)"), {"sid": seller_id or ""}
+    )
+    await session.execute(
+        text("SELECT set_config('app.role', :role, true)"),
+        {"role": staff_role or ("seller" if seller_id else "")},
+    )
+
+    store_id = await get_store_business_id(session)
+    await session.execute(
+        text("SELECT set_config('app.business_id', :bid, true)"),
+        {"bid": str(store_id) if (seller_id or staff_role) else ""},
+    )
+    return session

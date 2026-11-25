@@ -279,12 +279,33 @@ export default function OrderDetailPage() {
     }
   };
 
-  const handleDownloadInvoice = () => {
+  const handleDownloadInvoice = async () => {
     if (!order?.id) return;
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
     const base = process.env.NEXT_PUBLIC_API_URL || "https://api.elektrix.in/api/v1";
-    const url = `${base}/orders/${order.id}/invoice${token ? `?token=${encodeURIComponent(token)}` : ""}`;
-    window.open(url, "_blank");
+    try {
+      // Fetch with a Bearer header and open a blob URL instead of putting the
+      // token in a query string: the URL form leaked the JWT into proxy logs
+      // and browser history, and returned 404 because the session had no RLS
+      // context.
+      const res = await fetch(`${base}/orders/${order.id}/invoice`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({} as Record<string, unknown>));
+        throw new Error(
+          (typeof data.error === "string" && data.error) ||
+            (typeof data.detail === "string" && data.detail) ||
+            `Invoice unavailable (${res.status})`
+        );
+      }
+      const html = await res.text();
+      const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not open invoice");
+    }
   };
 
   const saveFulfillmentDetails = async () => {

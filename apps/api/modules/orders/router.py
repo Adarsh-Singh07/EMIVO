@@ -15,6 +15,7 @@ from core.dependencies import (
     require_staff,
     security_optional,
     set_db_context,
+    token_db_context,
 )
 from core.exceptions import DomainException
 from modules.audit.dependencies import resolve_actor
@@ -222,8 +223,8 @@ async def update_fulfillment_details(
 async def get_order_invoice_html(
     order_id: str,
     token: Optional[str] = Query(None),
-    service: OrderService = Depends(get_order_service),
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
+    session: AsyncSession = Depends(token_db_context),
 ) -> Any:
     """Download/view official Tax Invoice HTML (print-ready) for delivered orders."""
     raw_token = token or (credentials.credentials if credentials else None)
@@ -247,7 +248,7 @@ async def get_order_invoice_html(
         except Exception:
             pass
 
-    html = await service.get_order_invoice_html(
+    html = await OrderService(session).get_order_invoice_html(
         order_id=order_id,
         user_id=token_user_id,
         is_staff=is_staff,
@@ -260,8 +261,8 @@ async def get_order_invoice_html(
 async def get_order_invoice_data(
     order_id: str,
     token: Optional[str] = Query(None),
-    service: OrderService = Depends(get_order_service),
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
+    session: AsyncSession = Depends(token_db_context),
 ) -> Any:
     """Get structured tax invoice data for frontend display."""
     raw_token = token or (credentials.credentials if credentials else None)
@@ -285,7 +286,7 @@ async def get_order_invoice_data(
         except Exception:
             pass
 
-    order = await service.get_order(order_id)
+    order = await OrderService(session).get_order(order_id)
     if not is_staff and not seller_id and token_user_id and str(order.user_id) != str(token_user_id):
         raise DomainException("Access denied", code="FORBIDDEN", status_code=403)
     from modules.orders.invoice import build_tax_invoice_data
