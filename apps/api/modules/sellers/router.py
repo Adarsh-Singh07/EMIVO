@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.ai_gateway import AIGateway
 from core.config import settings
 from core.database import get_db_session
-from core.dependencies import get_seller_db_context
+from core.dependencies import STAFF_ROLES, get_seller_db_context, require_staff
 from core.exceptions import DomainException
 from modules.audit.dependencies import resolve_actor
 from modules.audit.service import Actor
@@ -20,12 +20,14 @@ from modules.sellers.schemas import (
     CategorySuggestion,
     DuplicateCandidateItem,
     DuplicateMergeRequest,
+    ProductChangeReview,
     SellerAdminUpdate,
     SellerApplicationCreate,
     SellerApprovalRequest,
     SellerAttachOffer,
     SellerCreateAdmin,
     SellerFulfillmentUpdate,
+    SellerOrderDetail,
     SellerOrderItem,
     SellerOtpRequest,
     SellerOtpVerify,
@@ -263,6 +265,16 @@ async def get_seller_orders(
     return await service.get_seller_orders(seller.id)
 
 
+@router.get("/api/v1/seller/orders/{order_id}", response_model=SellerOrderDetail)
+async def get_seller_order_detail(
+    order_id: str,
+    seller: Seller = Depends(get_current_seller),
+    service: SellerService = Depends(_get_service),
+):
+    """Order detail for the seller's own lines: address, payment, status, items."""
+    return await service.get_seller_order_detail(seller.id, order_id)
+
+
 @router.post("/api/v1/seller/orders/{order_id}/items/{item_id}/pack")
 async def mark_item_packed(
     order_id: str,
@@ -317,6 +329,7 @@ async def get_seller_order_invoice(
 ):
     """Download/view tax invoice for seller's order."""
     seller_id = None
+    is_staff = False
     raw_token = token or (credentials.credentials if credentials else None)
     if raw_token:
         try:
@@ -326,6 +339,8 @@ async def get_seller_order_invoice(
                 algorithms=[settings.jwt_algorithm],
             )
             seller_id = payload.get("seller_id") or payload.get("sub")
+            roles = [str(r) for r in (payload.get("roles") or [])]
+            is_staff = any(r in STAFF_ROLES for r in roles)
         except Exception:
             pass
 
@@ -334,7 +349,12 @@ async def get_seller_order_invoice(
 
     from modules.orders.service import OrderService
     order_svc = OrderService(service.session)
-    html = await order_svc.get_order_invoice_html(order_id, seller_id=seller_id, is_staff=True)
+    # Never pass is_staff=True unconditionally: that let any authenticated
+    # seller read any order's invoice by guessing an id. Staff status must come
+    # from the token, and the seller_id ownership check must always run.
+    html = await order_svc.get_order_invoice_html(
+        order_id, seller_id=seller_id, is_staff=is_staff
+    )
     return HTMLResponse(content=html)
 
 
@@ -413,6 +433,64 @@ async def admin_update_seller_status(
     service: SellerService = Depends(_get_service),
 ):
     return await service.update_seller_status(seller_id, data.status)
+
+
+# -----------------------------------------------------------------------------
+# Catalog Change Requests (seller proposes, admin approves)
+# -----------------------------------------------------------------------------
+
+@router.get("/api/v1/seller/change-requests")
+async def list_my_change_requests(
+    seller: Seller = Depends(get_current_seller),
+    service: SellerService = Depends(_get_service),
+):
+    """This seller's catalog-edit proposals and their review status."""
+    return await service.list_my_change_requests(seller.id)
+
+
+@router.delete("/api/v1/seller/change-requests/{request_id}")
+async def withdraw_change_request(
+    request_id: str,
+    seller: Seller = Depends(get_current_seller),
+    service: SellerService = Depends(_get_service),
+):
+    return await service.withdraw_change_request(seller.id, request_id)
+
+
+@router.get("/api/v1/admin/product-change-requests")
+async def admin_list_change_requests(
+    status_filter: str = Query("PENDING", alias="status"),
+    service: SellerService = Depends(_get_service),
+    _staff: Any = Depends(require_staff),
+):
+    """Review queue for seller-proposed catalog edits. status=PENDING|APPROVED|REJECTED|ALL."""
+    return await service.list_pending_change_requests(status_filter)
+
+
+@router.post("/api/v1/admin/product-change-requests/{request_id}/approve")
+async def admin_approve_change_request(
+    request_id: str,
+    data: Optional[ProductChangeReview] = None,
+    service: SellerService = Depends(_get_service),
+    actor: Actor = Depends(resolve_actor),
+    _staff: Any = Depends(require_staff),
+):
+    return await service.approve_change_request(
+        request_id, data.note if data else None, actor
+    )
+
+
+@router.post("/api/v1/admin/product-change-requests/{request_id}/reject")
+async def admin_reject_change_request(
+    request_id: str,
+    data: Optional[ProductChangeReview] = None,
+    service: SellerService = Depends(_get_service),
+    actor: Actor = Depends(resolve_actor),
+    _staff: Any = Depends(require_staff),
+):
+    return await service.reject_change_request(
+        request_id, data.note if data else None, actor
+    )
 
 
 @router.get("/api/v1/admin/categories/pending", response_model=List[CategoryApprovalItem])

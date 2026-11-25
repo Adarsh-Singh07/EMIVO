@@ -32,6 +32,8 @@ from modules.sellers.schemas import (
     SellerApprovalRequest,
     SellerAttachOffer,
     SellerCreateAdmin,
+    SellerOrderDetail,
+    SellerOrderDetailLine,
     SellerOrderItem,
     SellerProductCreate,
     SellerProductItem,
@@ -471,6 +473,34 @@ class SellerService:
             except Exception:
                 parsed_specs = []
 
+        # A seller who proposed catalog edits needs to see that they are waiting
+        # on review, and what they asked for, when they reopen this product.
+        pending_rows = (await self.session.execute(
+            text("""
+                SELECT id, changes, status, review_note, created_at
+                FROM product_change_requests
+                WHERE product_id = :pid AND requested_by_seller_id = :sid
+                  AND status = 'PENDING'
+                ORDER BY created_at DESC
+                LIMIT 1
+            """),
+            {"pid": product_id, "sid": seller_id},
+        )).mappings().first()
+        pending_change = None
+        if pending_rows:
+            changes = pending_rows["changes"]
+            if isinstance(changes, str):
+                try:
+                    changes = json.loads(changes)
+                except Exception:
+                    changes = {}
+            pending_change = {
+                "id": str(pending_rows["id"]),
+                "changes": changes or {},
+                "status": pending_rows["status"],
+                "created_at": pending_rows["created_at"],
+            }
+
         return {
             "id": str(row["id"]),
             "name": row["name"],
@@ -497,6 +527,9 @@ class SellerService:
             # this to render those inputs read-only instead of letting the
             # form submit fields the API will reject with 403.
             "is_author": str(row.get("created_by") or "") == str(seller_id),
+            # An open proposal on this product, if any, so the seller form can
+            # show "waiting for admin approval" instead of silently reverting.
+            "pending_change": pending_change,
         }
 
     async def search_catalog(self, query: str, brand: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -972,7 +1005,6 @@ class SellerService:
             "description": (lambda v: v),
             "warranty_info": (lambda v: v),
             "return_policy": (lambda v: v),
-            "status": (lambda v: v),
         }
         requested_catalog = [f for f in catalog_fields if getattr(data, f, None) is not None]
         if data.specs is not None:
@@ -980,14 +1012,29 @@ class SellerService:
         if data.images is not None:
             requested_catalog.append("images")
 
+        # `status` is the shared product's state for the author, but for anyone
+        # else it means "show or hide my own offer" — their listing, not the
+        # catalog. It is therefore applied immediately below, never queued.
+        if data.status is not None and (is_author or is_staff):
+            requested_catalog.append("status")
+
+        # A seller who did not author the catalog entry cannot rewrite shared
+        # data directly — but they can submit their proposed values for admin
+        # approval. Price and stock still apply immediately below.
+        pending_request_id: Optional[str] = None
         if requested_catalog and not (is_author or is_staff):
-            raise DomainException(
-                "This product is part of the shared ELEKTRIX catalog. You can change your "
-                "price and stock, but only the seller who added it (or ELEKTRIX staff) can "
-                "edit its name, brand, category, description or images.",
-                code="CATALOG_EDIT_FORBIDDEN",
-                status_code=403,
+            pending_request_id = await self._submit_change_request(
+                seller_id=seller_id,
+                product_id=product_id,
+                data=data,
+                fields=requested_catalog,
+                actor=actor,
+                store_bid=store_bid,
             )
+            if pending_request_id:
+                # Do not fall through to the catalog UPDATE below: the proposal
+                # must not take effect before it is approved.
+                requested_catalog = []
 
         updates = []
         params: Dict[str, Any] = {"pid": product_id, "sid": seller_id}
@@ -1053,6 +1100,22 @@ class SellerService:
                 {"price": p_paise, "pid": product_id, "sid": seller_id},
             )
 
+        # A listing-only seller's status choice toggles their own offer on the
+        # storefront; it must not gate on catalog permissions.
+        if data.status is not None and not (is_author or is_staff):
+            await self.session.execute(
+                text("""
+                    UPDATE seller_listings
+                    SET is_active = :active, updated_at = NOW()
+                    WHERE product_id = :pid AND seller_id = :sid
+                """),
+                {
+                    "active": str(data.status).upper() == "ACTIVE",
+                    "pid": product_id,
+                    "sid": seller_id,
+                },
+            )
+
         # Images are master-catalog media, gated above with the other fields.
         if data.images is not None and (is_author or is_staff):
             await self.session.execute(
@@ -1113,11 +1176,468 @@ class SellerService:
                 "catalog_edit": bool(requested_catalog) and (is_author or is_staff),
                 "offer_only": not (is_author or is_staff),
                 "is_author": is_author,
+                "change_request_id": pending_request_id,
             },
         )
 
         await self.session.commit()
+        if pending_request_id:
+            return {
+                "status": "pending_approval",
+                "product_id": product_id,
+                "change_request_id": pending_request_id,
+                "message": (
+                    "Your price and stock were saved. The catalog details you edited "
+                    "have been sent to ELEKTRIX for approval."
+                ),
+            }
         return {"status": "updated", "product_id": product_id}
+
+    # -------------------------------------------------------------------------
+    # Catalog change requests (seller proposes, admin approves)
+    # -------------------------------------------------------------------------
+
+    # Fields of `products` a seller may propose changing, mapped to their
+    # column. Price/mrp/stock are absent on purpose: those are the seller's own
+    # offer and are applied immediately.
+    CATALOG_REQUEST_FIELDS = (
+        "name", "brand", "category_id", "description",
+        "warranty_info", "return_policy", "specs", "images", "status",
+    )
+
+    async def _submit_change_request(
+        self,
+        seller_id: str,
+        product_id: str,
+        data: "SellerProductUpdate",
+        fields: List[str],
+        actor,
+        store_bid: str,
+    ) -> Optional[str]:
+        """Insert (or replace) this seller's pending proposal for a product.
+
+        Returns the request id, or None when nothing actually differs from the
+        catalog — in which case there is nothing to review.
+        """
+        import uuid
+        from modules.audit.models import ActorType
+        from modules.audit.service import Actor as AuditActor, AuditService
+
+        current = (await self.session.execute(
+            text("""
+                SELECT name, brand, category_id, description,
+                       warranty_info, return_policy, specs, status
+                FROM products WHERE id = :pid
+            """),
+            {"pid": product_id},
+        )).mappings().first()
+        if not current:
+            raise DomainException("Product not found", code="NOT_FOUND", status_code=404)
+
+        # Images live in product_media, not on the products row. Without this
+        # the comparison below would always see "no current images" and queue a
+        # bogus request for every seller who only changed their price.
+        current_images = [
+            r[0] for r in (await self.session.execute(
+                text("SELECT media_url FROM product_media WHERE product_id = :pid ORDER BY position ASC"),
+                {"pid": product_id},
+            )).all()
+        ]
+        current = {**dict(current), "images": current_images}
+
+        changes: Dict[str, Any] = {}
+        for field in fields:
+            value = getattr(data, field, None)
+            if value is None:
+                continue
+            if field == "name" or field == "brand":
+                value = value.strip()
+            if field == "specs":
+                cleaned = []
+                for s in value:
+                    if isinstance(s, dict):
+                        k = str(s.get("name") or s.get("key") or "").strip()
+                        v = str(s.get("value") or s.get("val") or "").strip()
+                    else:
+                        k = str(getattr(s, "name", "")).strip()
+                        v = str(getattr(s, "value", "")).strip()
+                    if k and v:
+                        cleaned.append({"name": k, "value": v})
+                value = cleaned
+            if field == "images":
+                value = [u.strip() for u in value if u and str(u).strip()]
+
+            old = current.get(field)
+            # jsonb columns come back from asyncpg as JSON text, while the
+            # incoming value is a Python list. Decode before comparing, or every
+            # re-save of an unchanged spec sheet would queue a pointless request.
+            if isinstance(old, str):
+                try:
+                    old = json.loads(old)
+                except Exception:
+                    pass
+            if field == "category_id":
+                old_cmp = str(old) if old is not None else None
+                new_cmp = str(value) if value is not None else None
+                if new_cmp == old_cmp:
+                    continue
+            else:
+                # Compare on a normalised form so a JSON-decoded specs list and
+                # a re-serialised one do not register as a change.
+                if json.dumps(old, sort_keys=True, default=str) == json.dumps(
+                    value, sort_keys=True, default=str
+                ):
+                    continue
+            changes[field] = value
+
+        if not changes:
+            return None
+
+        # Replace any open proposal from this seller for this product. The row
+        # is amended in place rather than deleted: the table is a review trail,
+        # and the application role has no DELETE grant on it.
+        existing = (await self.session.execute(
+            text("""
+                SELECT id FROM product_change_requests
+                WHERE product_id = :pid AND requested_by_seller_id = :sid
+                  AND status = 'PENDING'
+                ORDER BY created_at DESC
+                LIMIT 1
+            """),
+            {"pid": product_id, "sid": seller_id},
+        )).first()
+
+        if existing:
+            req_id = str(existing[0])
+            await self.session.execute(
+                text("""
+                    UPDATE product_change_requests
+                    SET changes = CAST(:changes AS jsonb),
+                        review_note = NULL, reviewed_by = NULL,
+                        reviewed_by_email = NULL, reviewed_at = NULL,
+                        updated_at = NOW()
+                    WHERE id = :id
+                """),
+                {"id": req_id, "changes": json.dumps(changes, default=str)},
+            )
+        else:
+            req_id = str(uuid.uuid4())
+            await self.session.execute(
+                text("""
+                    INSERT INTO product_change_requests
+                        (id, product_id, requested_by_seller_id, business_id, changes, status)
+                    VALUES
+                        (:id, :pid, :sid, :bid, CAST(:changes AS jsonb), 'PENDING')
+                """),
+                {
+                    "id": req_id,
+                    "pid": product_id,
+                    "sid": seller_id,
+                    "bid": str(store_bid),
+                    "changes": json.dumps(changes, default=str),
+                },
+            )
+
+        audit_actor = actor or AuditActor(
+            type=ActorType.SELLER.value, id=seller_id, role="seller",
+            business_id=store_bid,
+        )
+        await AuditService(self.session).record(
+            actor=audit_actor,
+            action="product.change_requested",
+            entity_type="product_change_request",
+            entity_id=req_id,
+            entity_label=current["name"],
+            after={"product_id": product_id, "changes": changes},
+            metadata={"fields": sorted(changes.keys())},
+        )
+        return req_id
+
+    async def list_my_change_requests(self, seller_id: str) -> List[Dict[str, Any]]:
+        rows = (await self.session.execute(
+            text("""
+                SELECT pcr.id, pcr.product_id, pcr.status, pcr.changes,
+                       pcr.review_note, pcr.reviewed_at, pcr.created_at,
+                       p.name AS product_name, p.sku AS product_sku
+                FROM product_change_requests pcr
+                JOIN products p ON p.id = pcr.product_id
+                WHERE pcr.requested_by_seller_id = :sid
+                ORDER BY pcr.created_at DESC
+                LIMIT 100
+            """),
+            {"sid": seller_id},
+        )).mappings().all()
+        return [self._change_request_row(r) for r in rows]
+
+    async def withdraw_change_request(self, seller_id: str, request_id: str) -> Dict[str, Any]:
+        from modules.audit.models import ActorType
+        from modules.audit.service import Actor as AuditActor, AuditService
+
+        row = (await self.session.execute(
+            text("""
+                SELECT id, status FROM product_change_requests
+                WHERE id = :id AND requested_by_seller_id = :sid
+            """),
+            {"id": request_id, "sid": seller_id},
+        )).first()
+        if not row:
+            raise DomainException("Change request not found", code="NOT_FOUND", status_code=404)
+        if str(row[1]) != "PENDING":
+            raise DomainException(
+                "Only a pending request can be withdrawn.",
+                code="INVALID_STATE", status_code=400,
+            )
+        await self.session.execute(
+            text("""
+                UPDATE product_change_requests
+                SET status = 'WITHDRAWN', updated_at = NOW()
+                WHERE id = :id
+            """),
+            {"id": request_id},
+        )
+        store_bid = await get_store_business_id(self.session)
+        await AuditService(self.session).record(
+            actor=AuditActor(type=ActorType.SELLER.value, id=seller_id, role="seller",
+                             business_id=store_bid),
+            action="product.change_withdrawn",
+            entity_type="product_change_request",
+            entity_id=request_id,
+            before={"status": "PENDING"},
+            after={"status": "WITHDRAWN"},
+        )
+        await self.session.commit()
+        return {"status": "WITHDRAWN", "request_id": request_id}
+
+    async def list_pending_change_requests(self, status_filter: str = "PENDING") -> List[Dict[str, Any]]:
+        """Admin review queue. `status_filter` may be PENDING/APPROVED/REJECTED/ALL."""
+        where = "" if status_filter.upper() == "ALL" else "WHERE pcr.status = :status"
+        params: Dict[str, Any] = {}
+        if where:
+            params["status"] = status_filter.upper()
+        rows = (await self.session.execute(
+            text(f"""
+                SELECT pcr.id, pcr.product_id, pcr.requested_by_seller_id, pcr.status,
+                       pcr.changes, pcr.review_note, pcr.reviewed_by,
+                       pcr.reviewed_by_email, pcr.reviewed_at, pcr.created_at,
+                       p.name AS product_name, p.sku AS product_sku,
+                       p.name AS cur_name, p.brand AS cur_brand,
+                       p.category_id AS cur_category_id, p.description AS cur_description,
+                       p.warranty_info AS cur_warranty_info,
+                       p.return_policy AS cur_return_policy,
+                       p.specs AS cur_specs, p.status AS cur_status,
+                       coalesce(s.business_name, s.name) AS seller_name
+                FROM product_change_requests pcr
+                JOIN products p ON p.id = pcr.product_id
+                LEFT JOIN sellers s ON s.id = pcr.requested_by_seller_id
+                {where}
+                ORDER BY pcr.created_at DESC
+                LIMIT 200
+            """),
+            params,
+        )).mappings().all()
+
+        out = []
+        for r in rows:
+            item = self._change_request_row(r)
+            item["requested_by_seller_id"] = str(r["requested_by_seller_id"])
+            item["seller_name"] = r.get("seller_name")
+            item["current_values"] = {
+                "name": r.get("cur_name"),
+                "brand": r.get("cur_brand"),
+                "category_id": str(r["cur_category_id"]) if r.get("cur_category_id") else None,
+                "description": r.get("cur_description"),
+                "warranty_info": r.get("cur_warranty_info"),
+                "return_policy": r.get("cur_return_policy"),
+                "specs": r.get("cur_specs"),
+                "status": r.get("cur_status"),
+            }
+            out.append(item)
+        return out
+
+    @staticmethod
+    def _change_request_row(r) -> Dict[str, Any]:
+        changes = r.get("changes")
+        if isinstance(changes, str):
+            try:
+                changes = json.loads(changes)
+            except Exception:
+                changes = {}
+        return {
+            "id": str(r["id"]),
+            "product_id": str(r["product_id"]),
+            "product_name": r.get("product_name"),
+            "product_sku": r.get("product_sku"),
+            "requested_by_seller_id": (
+                str(r["requested_by_seller_id"]) if r.get("requested_by_seller_id") else ""
+            ),
+            "seller_name": r.get("seller_name"),
+            "changes": changes or {},
+            "status": r["status"],
+            "review_note": r.get("review_note"),
+            "reviewed_by": str(r["reviewed_by"]) if r.get("reviewed_by") else None,
+            "reviewed_by_email": r.get("reviewed_by_email"),
+            "reviewed_at": r.get("reviewed_at"),
+            "created_at": r.get("created_at"),
+        }
+
+    async def approve_change_request(self, request_id: str, note: Optional[str], actor) -> Dict[str, Any]:
+        """Apply an approved proposal to the catalog and close the request."""
+        import uuid
+        from modules.audit.models import ActorType
+        from modules.audit.service import Actor as AuditActor, AuditService
+
+        store_bid = await get_store_business_id(self.session)
+        await self.session.execute(
+            text("SELECT set_config('app.business_id', :bid, true)"), {"bid": str(store_bid)}
+        )
+
+        row = (await self.session.execute(
+            text("""
+                SELECT id, product_id, status, changes FROM product_change_requests
+                WHERE id = :id
+            """),
+            {"id": request_id},
+        )).mappings().first()
+        if not row:
+            raise DomainException("Change request not found", code="NOT_FOUND", status_code=404)
+        if str(row["status"]) != "PENDING":
+            raise DomainException(
+                f"This request was already {str(row['status']).lower()}.",
+                code="INVALID_STATE", status_code=400,
+            )
+
+        changes = row["changes"]
+        if isinstance(changes, str):
+            changes = json.loads(changes)
+        changes = changes or {}
+
+        before = (await self.session.execute(
+            text("""
+                SELECT name, brand, category_id, description,
+                       warranty_info, return_policy, specs, status
+                FROM products WHERE id = :pid
+            """),
+            {"pid": str(row["product_id"])},
+        )).mappings().first()
+
+        updates: List[str] = []
+        params: Dict[str, Any] = {"pid": str(row["product_id"])}
+        for field, value in changes.items():
+            if field not in self.CATALOG_REQUEST_FIELDS:
+                continue  # price/stock are never part of an approved proposal
+            if field == "specs":
+                updates.append("specs = CAST(:specs AS json)")
+                params["specs"] = json.dumps(value)
+            elif field == "images":
+                continue  # applied below, they live in product_media
+            else:
+                updates.append(f"{field} = :{field}")
+                params[field] = value
+
+        if updates:
+            await self.session.execute(
+                text(f"UPDATE products SET {', '.join(updates)}, updated_at = NOW() WHERE id = :pid"),
+                params,
+            )
+
+        images = changes.get("images")
+        if isinstance(images, list):
+            from modules.products.models import ProductMedia
+            await self.session.execute(
+                text("DELETE FROM product_media WHERE product_id = :pid"),
+                {"pid": str(row["product_id"])},
+            )
+            for idx, img_url in enumerate(images):
+                if img_url and str(img_url).strip():
+                    self.session.add(ProductMedia(
+                        id=str(uuid.uuid4()),
+                        product_id=str(row["product_id"]),
+                        media_url=str(img_url).strip(),
+                        position=idx,
+                    ))
+
+        reviewer_id = getattr(actor, "id", None)
+        reviewer_email = getattr(actor, "email", None)
+        await self.session.execute(
+            text("""
+                UPDATE product_change_requests
+                SET status = 'APPROVED', review_note = :note,
+                    reviewed_by = :rid, reviewed_by_email = :remail,
+                    reviewed_at = NOW(), updated_at = NOW()
+                WHERE id = :id
+            """),
+            {"id": request_id, "note": note, "rid": reviewer_id, "remail": reviewer_email},
+        )
+
+        after = (await self.session.execute(
+            text("""
+                SELECT name, brand, category_id, description,
+                       warranty_info, return_policy, specs, status
+                FROM products WHERE id = :pid
+            """),
+            {"pid": str(row["product_id"])},
+        )).mappings().first()
+
+        await AuditService(self.session).record(
+            actor=actor or AuditActor(type=ActorType.STAFF.value, role="staff",
+                                      business_id=store_bid),
+            action="product.change_approved",
+            entity_type="product_change_request",
+            entity_id=request_id,
+            entity_label=after["name"] if after else None,
+            before=dict(before) if before else None,
+            after=dict(after) if after else None,
+            metadata={"product_id": str(row["product_id"]),
+                      "fields": sorted(changes.keys()), "note": note},
+        )
+        await self.session.commit()
+        return {"status": "APPROVED", "request_id": request_id,
+                "product_id": str(row["product_id"])}
+
+    async def reject_change_request(self, request_id: str, note: Optional[str], actor) -> Dict[str, Any]:
+        from modules.audit.models import ActorType
+        from modules.audit.service import Actor as AuditActor, AuditService
+
+        store_bid = await get_store_business_id(self.session)
+        row = (await self.session.execute(
+            text("SELECT id, product_id, status, changes FROM product_change_requests WHERE id = :id"),
+            {"id": request_id},
+        )).mappings().first()
+        if not row:
+            raise DomainException("Change request not found", code="NOT_FOUND", status_code=404)
+        if str(row["status"]) != "PENDING":
+            raise DomainException(
+                f"This request was already {str(row['status']).lower()}.",
+                code="INVALID_STATE", status_code=400,
+            )
+
+        await self.session.execute(
+            text("""
+                UPDATE product_change_requests
+                SET status = 'REJECTED', review_note = :note,
+                    reviewed_by = :rid, reviewed_by_email = :remail,
+                    reviewed_at = NOW(), updated_at = NOW()
+                WHERE id = :id
+            """),
+            {
+                "id": request_id,
+                "note": note,
+                "rid": getattr(actor, "id", None),
+                "remail": getattr(actor, "email", None),
+            },
+        )
+        await AuditService(self.session).record(
+            actor=actor or AuditActor(type=ActorType.STAFF.value, role="staff",
+                                      business_id=store_bid),
+            action="product.change_rejected",
+            entity_type="product_change_request",
+            entity_id=request_id,
+            before={"status": "PENDING"},
+            after={"status": "REJECTED", "note": note},
+            metadata={"product_id": str(row["product_id"])},
+        )
+        await self.session.commit()
+        return {"status": "REJECTED", "request_id": request_id}
 
     async def delete_seller_product(self, seller_id: str, product_id: str, actor=None) -> Dict[str, Any]:
         from modules.audit.models import ActorType
@@ -1306,7 +1826,22 @@ class SellerService:
     # Seller Orders & "Mark as Packed"
     # -------------------------------------------------------------------------
 
+    # Orders a seller may act on. Everything else (cancelled, payment failed,
+    # abandoned checkouts) belongs to admin only — showing them here made the
+    # seller queue look like a dump of dead orders.
+    SELLER_VISIBLE_ORDER_STATUSES = (
+        "CONFIRMED",
+        "PROCESSING",
+        "PACKED",
+        "SHIPPED",
+        "OUT_FOR_DELIVERY",
+        "DELIVERED",
+    )
+
     async def get_seller_orders(self, seller_id: str) -> List[SellerOrderItem]:
+        # An order is sellable when it has actually been paid for (or is a COD
+        # order, which is legitimately unpaid but still needs packing). PENDING
+        # online orders are abandoned/failed checkouts — admin-only.
         query = text("""
             SELECT 
                 o.id as order_id,
@@ -1332,10 +1867,30 @@ class SellerService:
             JOIN orders o ON o.id = oi.order_id
             JOIN products p ON p.id = oi.product_id
             LEFT JOIN sellers s ON s.id = p.seller_id
-            WHERE p.seller_id = :sid OR oi.seller_id = :sid
+            WHERE (p.seller_id = :sid OR oi.seller_id = :sid)
+              AND (
+                    o.status = ANY(:visible_statuses)
+                 OR (
+                        o.status = 'PENDING'
+                    AND (
+                            upper(coalesce(o.payment_method, '')) = 'COD'
+                         OR EXISTS (
+                                SELECT 1 FROM payments pay
+                                WHERE pay.order_id = o.id
+                                  AND upper(pay.status) IN ('SUCCESS', 'CAPTURED')
+                            )
+                        )
+                    )
+              )
             ORDER BY o.created_at DESC;
         """)
-        res = await self.session.execute(query, {"sid": seller_id})
+        res = await self.session.execute(
+            query,
+            {
+                "sid": seller_id,
+                "visible_statuses": list(self.SELLER_VISIBLE_ORDER_STATUSES),
+            },
+        )
         rows = res.mappings().all()
 
         items = []
@@ -1375,6 +1930,153 @@ class SellerService:
                 )
             )
         return items
+
+    async def get_seller_order_detail(self, seller_id: str, order_id: str) -> SellerOrderDetail:
+        """Full order view for a seller that owns at least one line of it.
+
+        Returns only this seller's lines, but the whole order's payment,
+        address and status — a seller packing a parcel needs the destination
+        and whether the money is actually in. Anything not sellable (a
+        cancelled or unpaid online order) is admin-only, matching the queue.
+        """
+        header = (await self.session.execute(
+            text("""
+                SELECT o.id, o.order_number, o.status, o.payment_method,
+                       o.fulfillment_type, o.is_open_box, o.delivery_verified_at,
+                       o.invoice_number, o.manual_invoice_url,
+                       o.tracking_number, o.tracking_url,
+                       o.shipped_at, o.delivered_at, o.created_at,
+                       o.currency, o.subtotal, o.tax_total, o.shipping_total,
+                       o.discount_total, o.total, o.shipping_address
+                FROM orders o
+                WHERE o.id = :oid
+                  AND o.deleted_at IS NULL
+                  AND EXISTS (
+                        SELECT 1 FROM order_items oi
+                        LEFT JOIN products p ON p.id = oi.product_id
+                        WHERE oi.order_id = o.id
+                          AND (
+                                oi.seller_id = :sid
+                             OR (oi.seller_id IS NULL AND p.seller_id = :sid)
+                          )
+                  )
+            """),
+            {"oid": order_id, "sid": seller_id},
+        )).mappings().first()
+        if not header:
+            raise DomainException("Order not found for this seller", code="NOT_FOUND", status_code=404)
+
+        status = str(header["status"] or "").upper()
+        pay_row = (await self.session.execute(
+            text("""
+                SELECT status FROM payments
+                WHERE order_id = :oid
+                ORDER BY created_at DESC
+                LIMIT 1
+            """),
+            {"oid": order_id},
+        )).first()
+        payment_status = str(pay_row[0]) if pay_row else None
+        paid = payment_status is not None and payment_status.upper() in ("SUCCESS", "CAPTURED")
+        is_cod = (header["payment_method"] or "").upper() == "COD"
+
+        sellable = status in self.SELLER_VISIBLE_ORDER_STATUSES or (
+            status == "PENDING" and (is_cod or paid)
+        )
+        if not sellable:
+            raise DomainException(
+                "This order is not actionable yet — it is still with admin.",
+                code="ORDER_NOT_ACTIONABLE",
+                status_code=403,
+            )
+
+        lines = (await self.session.execute(
+            text("""
+                SELECT oi.id AS item_id, oi.product_id, oi.product_name,
+                       oi.variant_name, oi.quantity, oi.unit_price, oi.total,
+                       coalesce(oi.seller_name, s.business_name) AS seller_name,
+                       oi.serial_numbers, oi.imei_numbers
+                FROM order_items oi
+                LEFT JOIN products p ON p.id = oi.product_id
+                LEFT JOIN sellers s ON s.id = coalesce(oi.seller_id, p.seller_id)
+                WHERE oi.order_id = :oid
+                  AND (
+                        oi.seller_id = :sid
+                     OR (oi.seller_id IS NULL AND p.seller_id = :sid)
+                  )
+                ORDER BY oi.created_at ASC, oi.id ASC
+            """),
+            {"oid": order_id, "sid": seller_id},
+        )).mappings().all()
+
+        addr = header["shipping_address"] or {}
+        if isinstance(addr, str):
+            import json
+            try:
+                addr = json.loads(addr)
+            except Exception:
+                addr = {}
+
+        items_out: List[SellerOrderDetailLine] = []
+        items_subtotal = 0
+        for row in lines:
+            serials = row["serial_numbers"]
+            imeis = row["imei_numbers"]
+            if isinstance(serials, str):
+                import json
+                try:
+                    serials = json.loads(serials)
+                except Exception:
+                    serials = [serials]
+            if isinstance(imeis, str):
+                import json
+                try:
+                    imeis = json.loads(imeis)
+                except Exception:
+                    imeis = [imeis]
+            total = int(row["total"] or 0)
+            items_subtotal += total
+            items_out.append(SellerOrderDetailLine(
+                item_id=str(row["item_id"]),
+                product_id=str(row["product_id"]),
+                product_name=row["product_name"],
+                variant_name=row["variant_name"],
+                quantity=int(row["quantity"] or 0),
+                unit_price=int(row["unit_price"] or 0),
+                total=total,
+                seller_name=row["seller_name"],
+                serial_numbers=serials if isinstance(serials, list) else None,
+                imei_numbers=imeis if isinstance(imeis, list) else None,
+            ))
+
+        return SellerOrderDetail(
+            order_id=str(header["id"]),
+            order_number=header["order_number"],
+            status=status,
+            payment_method=header["payment_method"],
+            payment_status=payment_status,
+            fulfillment_type=header["fulfillment_type"],
+            is_open_box=bool(header["is_open_box"]),
+            delivery_verified_at=header["delivery_verified_at"],
+            invoice_number=header["invoice_number"],
+            manual_invoice_url=header["manual_invoice_url"],
+            tracking_number=header["tracking_number"],
+            tracking_url=header["tracking_url"],
+            shipped_at=header["shipped_at"],
+            delivered_at=header["delivered_at"],
+            created_at=header["created_at"],
+            currency=header["currency"] or "INR",
+            order_subtotal=int(header["subtotal"] or 0),
+            order_tax_total=int(header["tax_total"] or 0),
+            order_shipping_total=int(header["shipping_total"] or 0),
+            order_discount_total=int(header["discount_total"] or 0),
+            order_total=int(header["total"] or 0),
+            items_subtotal=items_subtotal,
+            shipping_address=addr if isinstance(addr, dict) else None,
+            customer_name=(addr.get("full_name") or addr.get("name")) if isinstance(addr, dict) else None,
+            customer_phone=addr.get("phone") if isinstance(addr, dict) else None,
+            items=items_out,
+        )
 
     async def mark_order_item_packed(self, seller_id: str, order_id: str, item_id: str) -> Dict[str, Any]:
         # Verify item belongs to this seller
@@ -1418,12 +2120,23 @@ class SellerService:
         if not row:
             raise DomainException("Order not found for this seller", code="NOT_FOUND", status_code=404)
 
+        current_status = str(row[2] or "").upper()
+        if current_status in ("CANCELLED", "REFUNDED", "PAYMENT_FAILED"):
+            raise DomainException(
+                f"Cannot start store pickup on a {current_status.lower()} order.",
+                code="INVALID_STATE_TRANSITION",
+                status_code=400,
+            )
+
         from modules.orders.service import OrderService
-        from modules.orders.schemas import OrderStatusUpdate, OrderStatus
+        from modules.orders.schemas import OrderStatusUpdate
+        from modules.orders.models import OrderStatus
+
         order_svc = OrderService(self.session)
-        updated = await order_svc.transition(
+        # OrderService has update_order_status(); there is no transition()
+        # (calling it raised AttributeError → 500).
+        await order_svc.update_order_status(
             order_id,
-            OrderStatus.OUT_FOR_DELIVERY,
             OrderStatusUpdate(
                 status=OrderStatus.OUT_FOR_DELIVERY,
                 reason="Walk-in Store Pickup / Direct Seller Delivery Handover",

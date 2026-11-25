@@ -1111,7 +1111,24 @@ class OrderService:
                 str(getattr(item, "seller_id", "")) == str(seller_id)
                 for item in order.items
             )
-            if seller_match or not order.items:
+            if not seller_match:
+                # Legacy rows can carry a NULL order_items.seller_id; ownership
+                # is then derived from the product. Mirror the RLS helper so the
+                # check does not depend on the backfill having caught every row.
+                seller_match = bool((await self.session.execute(text(
+                    """
+                    SELECT 1
+                    FROM order_items oi
+                    LEFT JOIN products p ON p.id = oi.product_id
+                    WHERE oi.order_id = :oid
+                      AND (
+                            oi.seller_id::text = :sid
+                         OR (oi.seller_id IS NULL AND p.seller_id::text = :sid)
+                      )
+                    LIMIT 1
+                    """
+                ), {"oid": order_id, "sid": str(seller_id)})).first())
+            if seller_match:
                 has_access = True
         elif effective_uid and str(order.user_id) == str(effective_uid):
             has_access = True
@@ -1129,9 +1146,32 @@ class OrderService:
                 status_code=400,
             )
 
-        # Get seller details if available
+        # Get seller details if available. A seller downloading an invoice must
+        # see the seller who actually fulfilled the line, not their own details:
+        # `seller_id` here is the *caller*, used only for the access check.
         seller_dict = None
-        target_sid = seller_id or (order.items[0].seller_id if order.items and getattr(order.items[0], "seller_id", None) else None)
+        target_sid = None
+        if order.items:
+            target_sid = next(
+                (
+                    getattr(item, "seller_id", None)
+                    for item in order.items
+                    if getattr(item, "seller_id", None)
+                ),
+                None,
+            )
+        if not target_sid:
+            # Legacy rows carry a NULL order_items.seller_id; fall back to the
+            # catalog author so the invoice is still issued by a real seller.
+            target_sid = (await self.session.execute(text(
+                """
+                SELECT p.seller_id
+                FROM order_items oi
+                JOIN products p ON p.id = oi.product_id
+                WHERE oi.order_id = :oid AND p.seller_id IS NOT NULL
+                LIMIT 1
+                """
+            ), {"oid": order_id})).scalar()
         if target_sid:
             from modules.sellers.models import Seller
             seller_row = (await self.session.execute(

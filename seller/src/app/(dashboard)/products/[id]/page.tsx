@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Save, Sparkles, Image as ImageIcon, Plus, Trash2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Save, Sparkles, Image as ImageIcon, Plus, Trash2, ShieldCheck, Clock, X } from "lucide-react";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { formatINR, paiseToRupees } from "@/lib/money";
 import { toast } from "sonner";
@@ -48,8 +48,14 @@ export default function EditProductPage() {
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [saving, setSaving] = useState(false);
   // False when another seller entered this product in the shared ELEKTRIX
-  // catalog: this seller may then edit only price/stock/visibility.
+  // catalog: this seller may then edit only price/stock/visibility, and any
+  // catalog edit is submitted for admin approval instead of applied directly.
   const [isAuthor, setIsAuthor] = useState(true);
+  const [pendingChange, setPendingChange] = useState<{
+    id: string;
+    changes: Record<string, unknown>;
+    created_at?: string | null;
+  } | null>(null);
 
   // Load Categories & Product Details
   useEffect(() => {
@@ -75,11 +81,17 @@ export default function EditProductPage() {
             specs?: Array<{ name: string; value: string }>;
             images?: string[];
             is_author?: boolean;
+            pending_change?: {
+              id: string;
+              changes: Record<string, unknown>;
+              created_at?: string | null;
+            } | null;
           }>(`/seller/products/${productId}`),
         ]);
 
         setCategories(Array.isArray(cats) ? cats : []);
         setIsAuthor(prod.is_author !== false);
+        setPendingChange(prod.pending_change || null);
 
         setName(prod.name || "");
         setBrand(prod.brand || "");
@@ -110,11 +122,26 @@ export default function EditProductPage() {
     if (productId) loadData();
   }, [productId, router]);
 
-  // Shared-catalog fields are read-only for a seller who does not own the
-  // catalog entry — the API would reject them anyway.
+  // Catalog fields stay editable for a listing-only seller, but their changes
+  // go to ELEKTRIX for approval instead of taking effect immediately. The amber
+  // treatment tells them that before they type.
   const catalogLocked = isAuthor
     ? ""
-    : "bg-neutral-50 text-neutral-500 cursor-not-allowed";
+    : "bg-amber-50/40 border-amber-200 focus:ring-amber-500";
+  // Only the author's `status` choice changes the shared product; for anyone
+  // else it applies to their own listing and is saved immediately.
+  const statusPendingHint = !isAuthor;
+
+  const withdrawPendingChange = async () => {
+    if (!pendingChange) return;
+    try {
+      await apiClient.delete(`/seller/change-requests/${pendingChange.id}`);
+      setPendingChange(null);
+      toast.success("Pending change withdrawn.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not withdraw the request");
+    }
+  };
 
   const availableSubcategories = useMemo(() => {
     if (!selectedMainCatId || !Array.isArray(categories)) return [];
@@ -216,40 +243,43 @@ export default function EditProductPage() {
 
     setSaving(true);
     try {
-      // Shared-catalog rule: a seller who is not the product's author may only
-      // change their own offer (price, stock, visibility). Master-catalog
-      // fields belong to the author or ELEKTRIX staff, and the API rejects the
-      // whole request with 403 CATALOG_EDIT_FORBIDDEN if any are sent — so the
-      // payload must be narrowed here rather than relying on the inputs being
-      // disabled.
-      const payload: Record<string, unknown> = isAuthor
-        ? {
-            name: name.trim(),
-            brand: brand.trim() || undefined,
-            category_id: finalCategoryId,
-            price: pNum,
-            mrp: mrp ? Number(mrp) : undefined,
-            stock: sNum,
-            status: status,
-            description: description.trim() || undefined,
-            warranty_info: warrantyInfo.trim() || undefined,
-            return_policy: returnPolicy.trim() || undefined,
-            specs: filteredSpecs,
-            images: images || [],
-          }
-        : {
-            price: pNum,
-            stock: sNum,
-            status: status,
-          };
+      // Price and stock are this seller's own offer and apply immediately.
+      // Every other field is shared catalog data: for the author (or staff) it
+      // saves straight away, for any other seller the API stores it as a
+      // pending change request for ELEKTRIX to approve.
+      const payload: Record<string, unknown> = {
+        name: name.trim(),
+        brand: brand.trim() || undefined,
+        category_id: finalCategoryId,
+        price: pNum,
+        mrp: mrp ? Number(mrp) : undefined,
+        stock: sNum,
+        status: status,
+        description: description.trim() || undefined,
+        warranty_info: warrantyInfo.trim() || undefined,
+        return_policy: returnPolicy.trim() || undefined,
+        specs: filteredSpecs,
+        images: images || [],
+      };
 
-      await apiClient.put(`/seller/products/${productId}`, payload);
+      const res = await apiClient.put<{
+        status?: string;
+        change_request_id?: string;
+        message?: string;
+      }>(`/seller/products/${productId}`, payload);
 
-      toast.success(
-        isAuthor
-          ? "Product details and inventory updated successfully!"
-          : "Your price and stock were updated. Catalog details are shared and can only be changed by the seller who added this product.",
-      );
+      if (res?.status === "pending_approval") {
+        toast.success(
+          res.message ||
+            "Your price and stock were saved. Catalog details are waiting for ELEKTRIX approval.",
+        );
+      } else {
+        toast.success(
+          isAuthor
+            ? "Product details and inventory updated successfully!"
+            : "Your price and stock were updated successfully!",
+        );
+      }
       router.push("/products");
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Failed to update product";
@@ -287,7 +317,7 @@ export default function EditProductPage() {
             <p className="text-xs text-neutral-500">
               {isAuthor
                 ? "Update catalog details, pricing, warranty, specs, and gallery."
-                : "You can update your price and stock. Catalog details are shared across ELEKTRIX and can only be changed by the seller who added this product."}
+                : "Price and stock save instantly. Edits to shared catalog details are sent to ELEKTRIX for approval before they go live."}
             </p>
           </div>
         </div>
@@ -304,6 +334,49 @@ export default function EditProductPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Pending catalog change */}
+        {pendingChange && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <Clock className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                <div>
+                  <h2 className="text-sm font-bold text-amber-900">
+                    Waiting for ELEKTRIX approval
+                  </h2>
+                  <p className="mt-1 text-xs text-amber-800">
+                    You proposed catalog changes on{" "}
+                    {pendingChange.created_at
+                      ? new Date(pendingChange.created_at).toLocaleDateString("en-IN", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "this product"}
+                    . They go live once ELEKTRIX approves them. Until then the
+                    current values below stay published.
+                  </p>
+                  <ul className="mt-2 space-y-1">
+                    {Object.keys(pendingChange.changes || {}).map((key) => (
+                      <li key={key} className="text-[11px] text-amber-900">
+                        <span className="font-semibold capitalize">{key.replace(/_/g, " ")}</span>
+                        <span className="text-amber-700"> — pending review</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={withdrawPendingChange}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-amber-300 bg-white text-[11px] font-semibold text-amber-800 hover:bg-amber-100 shrink-0"
+              >
+                <X className="w-3 h-3" />
+                Withdraw
+              </button>
+            </div>
+          </div>
+        )}
         {/* Core Product Info */}
         <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm space-y-4">
           <h2 className="text-sm font-bold text-neutral-900 border-b border-neutral-100 pb-3">
@@ -316,7 +389,6 @@ export default function EditProductPage() {
               <input
                 type="text"
                 required
-                readOnly={!isAuthor}
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
                 placeholder="e.g. Apple, Sony"
@@ -329,7 +401,6 @@ export default function EditProductPage() {
               <input
                 type="text"
                 required
-                readOnly={!isAuthor}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Title"
@@ -432,6 +503,11 @@ export default function EditProductPage() {
                 <option value="DRAFT">DRAFT</option>
                 <option value="ARCHIVED">ARCHIVED</option>
               </select>
+              {statusPendingHint && (
+                <p className="mt-1 text-[10px] text-neutral-500">
+                  Controls your own offer, saved immediately.
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -496,7 +572,6 @@ export default function EditProductPage() {
             <label className="block text-xs font-semibold text-neutral-700">HTML Description</label>
             <textarea
               rows={5}
-              readOnly={!isAuthor}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className={`mt-1.5 w-full rounded-xl border border-neutral-200 p-3 text-xs font-mono text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 leading-relaxed ${catalogLocked}`}
@@ -509,7 +584,6 @@ export default function EditProductPage() {
               <input
                 type="text"
                 required
-                readOnly={!isAuthor}
                 value={warrantyInfo}
                 onChange={(e) => setWarrantyInfo(e.target.value)}
                 className={`mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 ${catalogLocked}`}
@@ -521,7 +595,6 @@ export default function EditProductPage() {
               <input
                 type="text"
                 required
-                readOnly={!isAuthor}
                 value={returnPolicy}
                 onChange={(e) => setReturnPolicy(e.target.value)}
                 className={`mt-1.5 w-full rounded-xl border border-neutral-200 px-3.5 py-2 text-xs text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 ${catalogLocked}`}

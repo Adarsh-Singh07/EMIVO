@@ -136,6 +136,32 @@ class SellerProductUpdate(BaseModel):
     images: Optional[List[str]] = None
 
 
+class ProductChangeRequestItem(BaseModel):
+    """A seller's proposed catalog edit, awaiting admin review."""
+
+    id: str
+    product_id: str
+    product_name: Optional[str] = None
+    product_sku: Optional[str] = None
+    requested_by_seller_id: str
+    seller_name: Optional[str] = None
+    changes: Dict[str, Any]
+    status: str
+    review_note: Optional[str] = None
+    reviewed_by: Optional[str] = None
+    reviewed_by_email: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    # Current catalog values for the same keys, so admin can see a diff.
+    current_values: Optional[Dict[str, Any]] = None
+
+
+class ProductChangeReview(BaseModel):
+    """Admin decision on a pending change request."""
+
+    note: Optional[str] = None
+
+
 class SellerPasswordLogin(BaseModel):
     email: EmailStr
     password: str
@@ -230,6 +256,55 @@ class SellerFulfillmentUpdate(BaseModel):
     manual_invoice_url: Optional[str] = None
     item_serials: Optional[Dict[str, List[str]]] = None
     item_imeis: Optional[Dict[str, List[str]]] = None
+
+
+class SellerOrderDetailLine(BaseModel):
+    """One line of a seller's order detail. Only this seller's lines are returned."""
+
+    item_id: str
+    product_id: str
+    product_name: str
+    variant_name: Optional[str] = None
+    quantity: int
+    unit_price: int
+    total: int
+    seller_name: Optional[str] = None
+    serial_numbers: Optional[List[str]] = None
+    imei_numbers: Optional[List[str]] = None
+
+
+class SellerOrderDetail(BaseModel):
+    """Full order view for the seller who owns the items: customer address,
+    payment, money breakdown and the printable invoice reference."""
+
+    order_id: str
+    order_number: Optional[str] = None
+    status: str
+    payment_method: Optional[str] = None
+    payment_status: Optional[str] = None
+    fulfillment_type: Optional[str] = None
+    is_open_box: bool = True
+    delivery_verified_at: Optional[datetime] = None
+    invoice_number: Optional[str] = None
+    manual_invoice_url: Optional[str] = None
+    tracking_number: Optional[str] = None
+    tracking_url: Optional[str] = None
+    shipped_at: Optional[datetime] = None
+    delivered_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    currency: str = "INR"
+    # Money, minor units (paise). Line totals are this seller's share only;
+    # the order-level totals cover the whole order.
+    order_subtotal: int = 0
+    order_tax_total: int = 0
+    order_shipping_total: int = 0
+    order_discount_total: int = 0
+    order_total: int = 0
+    items_subtotal: int = 0
+    shipping_address: Optional[Dict[str, Any]] = None
+    customer_name: Optional[str] = None
+    customer_phone: Optional[str] = None
+    items: List[SellerOrderDetailLine] = []
 
 
 class CategorySuggestion(BaseModel):

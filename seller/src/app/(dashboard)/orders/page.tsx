@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { 
   ShoppingCart, 
   Search, 
@@ -69,11 +70,33 @@ export default function SellerOrdersPage() {
   const [fulfillmentSubmitting, setFulfillmentSubmitting] = useState(false);
   const [uploadingBill, setUploadingBill] = useState(false);
 
-  const handleDownloadInvoice = (orderId: string) => {
+  const handleDownloadInvoice = async (orderId: string) => {
+    // The invoice must come from the seller route: the customer route runs
+    // under optional_db_context, which pins the tenant to the seller's own
+    // business and therefore 404s on store-tenant orders. Fetch with the auth
+    // header rather than ?token= so the JWT never appears in a URL/log.
     const token = authStorage.getToken() || "";
     const base = process.env.NEXT_PUBLIC_API_URL || "https://api.elektrix.in/api/v1";
-    const url = `${base}/orders/${orderId}/invoice${token ? `?token=${encodeURIComponent(token)}` : ""}`;
-    window.open(url, "_blank");
+    try {
+      const res = await fetch(`${base}/seller/orders/${orderId}/invoice`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({} as Record<string, unknown>));
+        throw new Error(
+          (typeof data.error === "string" && data.error) ||
+            (typeof data.detail === "string" && data.detail) ||
+            `Invoice unavailable (${res.status})`
+        );
+      }
+      const html = await res.text();
+      const blob = new Blob([html], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not open invoice");
+    }
   };
 
   const loadOrders = useCallback(async () => {
@@ -315,9 +338,12 @@ export default function SellerOrdersPage() {
                   return (
                     <tr key={item.item_id} className="hover:bg-neutral-50/70 transition-colors">
                       <td className="px-5 py-3.5">
-                        <span className="font-mono text-xs font-bold text-neutral-900 block">
+                        <Link
+                          href={`/orders/${item.order_id}`}
+                          className="font-mono text-xs font-bold text-neutral-900 hover:text-amber-600 hover:underline transition-colors block"
+                        >
                           #{item.order_number || item.order_id.slice(0, 8)}
-                        </span>
+                        </Link>
                         <span className="text-[11px] text-neutral-400">
                           {item.created_at
                             ? new Date(item.created_at).toLocaleDateString("en-IN", {
@@ -330,9 +356,12 @@ export default function SellerOrdersPage() {
                       </td>
 
                       <td className="px-5 py-3.5">
-                        <span className="font-semibold text-neutral-900 block truncate max-w-[220px]">
+                        <Link
+                          href={`/orders/${item.order_id}`}
+                          className="font-semibold text-neutral-900 block truncate max-w-[220px] hover:text-amber-600 transition-colors"
+                        >
                           {item.product_name}
-                        </span>
+                        </Link>
                         {item.variant_name && (
                           <span className="text-xs text-neutral-500 block">{item.variant_name}</span>
                         )}

@@ -24,6 +24,7 @@ import {
   CheckCircle2,
   Store,
   GitMerge,
+  ClipboardCheck,
   ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
@@ -53,6 +54,7 @@ const NAV_SECTIONS: Array<{
     links: [
       { href: "/orders", label: "Orders", icon: ShoppingCart },
       { href: "/products", label: "Marketplace Catalog", icon: Package },
+      { href: "/products/change-requests", label: "Product Edits", icon: ClipboardCheck },
       { href: "/catalog/duplicates", label: "Duplicate Merges", icon: GitMerge },
       { href: "/products/categories", label: "Categories", icon: Package },
       { href: "/products/categories/approvals", label: "Category Approvals", icon: CheckCircle2 },
