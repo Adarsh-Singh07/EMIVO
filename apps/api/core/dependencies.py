@@ -326,9 +326,13 @@ async def token_db_context(
         if row:
             seller_id = str(claimed_sid)
 
+    # A customer's own order is only visible when app.user_id matches
+    # orders.user_id, so this must be set for every authenticated subject --
+    # not just staff. Sellers carry a seller id in `sub`, which never matches
+    # orders.user_id and is harmless here.
     await session.execute(
         text("SELECT set_config('app.user_id', :uid, true)"),
-        {"uid": str(sub) if sub and staff_role else ""},
+        {"uid": str(sub) if sub else ""},
     )
     await session.execute(
         text("SELECT set_config('app.seller_id', :sid, true)"), {"sid": seller_id or ""}
@@ -341,6 +345,6 @@ async def token_db_context(
     store_id = await get_store_business_id(session)
     await session.execute(
         text("SELECT set_config('app.business_id', :bid, true)"),
-        {"bid": str(store_id) if (seller_id or staff_role) else ""},
+        {"bid": str(store_id)},
     )
     return session
