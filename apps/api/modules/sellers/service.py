@@ -1877,7 +1877,10 @@ class SellerService:
                          OR EXISTS (
                                 SELECT 1 FROM payments pay
                                 WHERE pay.order_id = o.id
-                                  AND upper(pay.status) IN ('SUCCESS', 'CAPTURED')
+                                  -- payments.status is the `paymentstatus`
+                                  -- enum, which has no upper() overload; cast to
+                                  -- text before comparing.
+                                  AND pay.status::text = 'SUCCESS'
                             )
                         )
                     )
