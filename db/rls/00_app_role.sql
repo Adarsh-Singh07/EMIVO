@@ -48,5 +48,18 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.alembic_version TO emivo_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO emivo_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO emivo_app;
 
+-- audit_logs is append-only. The blanket grant above (and the ALTER DEFAULT
+-- PRIVILEGES) would otherwise make the trail mutable, so re-revoke here. This
+-- only has an effect once the table exists — later migrations recreate the
+-- restriction for their own tables.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables
+               WHERE table_schema = 'public' AND table_name = 'audit_logs') THEN
+        REVOKE UPDATE, DELETE, TRUNCATE ON public.audit_logs FROM emivo_app;
+        GRANT SELECT, INSERT ON public.audit_logs TO emivo_app;
+    END IF;
+END $$;
+
 -- Grant sequence usage for auto-increment/UUID generation
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO emivo_app;

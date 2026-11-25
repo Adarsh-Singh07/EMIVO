@@ -4,6 +4,16 @@ BEGIN
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'emivo_app') THEN
         GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO emivo_app;
         GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO emivo_app;
+
+        -- audit_logs is append-only: the blanket grant above runs *after*
+        -- migration 20261124_1200 revoked UPDATE/DELETE on it, so without this
+        -- re-revoke the trail would be mutable in production. Kept in sync with
+        -- that migration.
+        IF EXISTS (SELECT 1 FROM information_schema.tables
+                   WHERE table_schema = 'public' AND table_name = 'audit_logs') THEN
+            REVOKE UPDATE, DELETE, TRUNCATE ON public.audit_logs FROM emivo_app;
+            GRANT SELECT, INSERT ON public.audit_logs TO emivo_app;
+        END IF;
         
         IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'sellers') THEN
             GRANT SELECT, INSERT, UPDATE, DELETE ON public.sellers TO emivo_app;
