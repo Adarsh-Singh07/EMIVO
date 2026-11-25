@@ -112,11 +112,23 @@ def upgrade() -> None:
     for stmt in (
         "REVOKE ALL ON FUNCTION public.elektrix_seller_owns_item(text) FROM PUBLIC",
         "REVOKE ALL ON FUNCTION public.elektrix_seller_owns_order(text) FROM PUBLIC",
-        "GRANT EXECUTE ON FUNCTION public.elektrix_seller_owns_item(text) TO emivo_app",
-        "GRANT EXECUTE ON FUNCTION public.elektrix_seller_owns_order(text) TO emivo_app",
-        "GRANT EXECUTE ON FUNCTION public.elektrix_current_seller() TO emivo_app",
     ):
         op.execute(stmt)
+
+    # The application role exists in production but not on a fresh CI database,
+    # so grant conditionally — an unguarded GRANT aborts the whole migration.
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'emivo_app') THEN
+                GRANT EXECUTE ON FUNCTION public.elektrix_seller_owns_item(text) TO emivo_app;
+                GRANT EXECUTE ON FUNCTION public.elektrix_seller_owns_order(text) TO emivo_app;
+                GRANT EXECUTE ON FUNCTION public.elektrix_current_seller() TO emivo_app;
+            END IF;
+        END $$
+        """
+    )
 
     # Backfill attribution on items created before seller_id was written at
     # checkout. Idempotent: only touches rows that are still NULL and whose

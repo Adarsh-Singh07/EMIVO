@@ -130,9 +130,14 @@ class OrderItem(Base, TimestampMixin):
     seller_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     # The seller offer (seller_listings row) this line was fulfilled from.
     # Nullable: lines created before per-seller offers existed have none.
+    #
+    # Deliberately no ForeignKey() here: seller_listings has no ORM model (it is
+    # accessed through raw SQL), so a metadata-level reference raises
+    # NoReferencedTableError as soon as order_items is mapped. The database
+    # still enforces the relation — fk_order_items_seller_listing is created by
+    # migration 20261124_1200.
     seller_listing_id: Mapped[Optional[str]] = mapped_column(
-        String(36), ForeignKey("seller_listings.id", ondelete="SET NULL"),
-        nullable=True, index=True,
+        String(36), nullable=True, index=True,
     )
 
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)

@@ -34,5 +34,21 @@ BEGIN
                 USING (true)
                 WITH CHECK (true);
         END IF;
+
+        -- RLS helper functions: policies call these, so the app role needs
+        -- EXECUTE on them. Granted here (not only in the migration) because
+        -- in CI the role is created *after* `alembic upgrade head`.
+        IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'elektrix_current_seller') THEN
+            GRANT EXECUTE ON FUNCTION public.elektrix_current_seller() TO emivo_app;
+        END IF;
+        IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'elektrix_seller_owns_item') THEN
+            GRANT EXECUTE ON FUNCTION public.elektrix_seller_owns_item(text) TO emivo_app;
+        END IF;
+        IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'elektrix_seller_owns_order') THEN
+            GRANT EXECUTE ON FUNCTION public.elektrix_seller_owns_order(text) TO emivo_app;
+        END IF;
+        IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'elektrix_is_staff') THEN
+            GRANT EXECUTE ON FUNCTION public.elektrix_is_staff() TO emivo_app;
+        END IF;
     END IF;
 END $$;

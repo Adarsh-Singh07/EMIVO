@@ -70,12 +70,16 @@ async def resolve_actor(
     if not sub:
         return Actor(type=ActorType.SYSTEM.value, name="no-subject", **meta)
 
-    # Staff / admin (users table)
+    # Staff / admin (users table). There is no users.business_id column —
+    # a user's tenant comes from business_members, so resolve it that way.
     if any(r in STAFF_ROLE_NAMES for r in roles):
         row = (await session.execute(
             text("""
-                SELECT id, email, first_name, last_name, business_id
-                FROM users WHERE id = :uid
+                SELECT u.id, u.email, u.first_name, u.last_name,
+                       (SELECT bm.business_id FROM business_members bm
+                        WHERE bm.user_id = u.id
+                        ORDER BY bm.created_at LIMIT 1) AS business_id
+                FROM users u WHERE u.id = :uid
             """),
             {"uid": str(sub)},
         )).mappings().first()

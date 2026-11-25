@@ -173,16 +173,47 @@ def upgrade() -> None:
         op.execute(stmt)
 
     # Append-only by privilege: the application role may read and append only.
-    for stmt in (
-        "REVOKE ALL ON TABLE public.audit_logs FROM PUBLIC",
-        "GRANT SELECT, INSERT ON TABLE public.audit_logs TO emivo_app",
-        "REVOKE UPDATE, DELETE, TRUNCATE ON TABLE public.audit_logs FROM emivo_app",
-        "GRANT USAGE, SELECT ON SEQUENCE public.audit_logs_seq_seq TO emivo_app",
-    ):
-        op.execute(stmt)
+    op.execute("REVOKE ALL ON TABLE public.audit_logs FROM PUBLIC")
+    # The application role exists in production but not on a fresh CI database,
+    # so the grants are conditional — an unguarded GRANT aborts the migration.
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'emivo_app') THEN
+                GRANT SELECT, INSERT ON TABLE public.audit_logs TO emivo_app;
+                REVOKE UPDATE, DELETE, TRUNCATE ON TABLE public.audit_logs FROM emivo_app;
+                GRANT USAGE, SELECT ON SEQUENCE public.audit_logs_seq_seq TO emivo_app;
+            END IF;
+        END $$
+        """
+    )
 
     op.execute("ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY")
     op.execute("ALTER TABLE public.audit_logs FORCE ROW LEVEL SECURITY")
+
+    # The staff helper normally comes from db/rls/10_v02_commerce.sql, which CI
+    # applies *after* `alembic upgrade head`. Define it here when missing (same
+    # body) so the policy below compiles on a fresh database; production keeps
+    # the function it already has.
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_proc p
+                JOIN pg_namespace n ON n.oid = p.pronamespace
+                WHERE p.proname = 'elektrix_is_staff' AND n.nspname = 'public'
+            ) THEN
+                CREATE FUNCTION public.elektrix_is_staff() RETURNS boolean
+                LANGUAGE sql STABLE AS $fn$
+                    SELECT NULLIF(current_setting('app.role', true), '')
+                           IN ('staff', 'owner', 'platform_admin');
+                $fn$;
+            END IF;
+        END $$
+        """
+    )
 
     # Staff see the whole trail for their tenant; sellers see only their own
     # actions; the worker/system writes freely.
