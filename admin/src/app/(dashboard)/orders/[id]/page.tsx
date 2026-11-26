@@ -218,9 +218,16 @@ export default function OrderDetailPage() {
         apiClient.get<Order>(`/orders/${id}`),
         apiClient.get<{ items: Payment[] }>(`/payments?order_id=${id}`).catch(() => ({ items: [] as Payment[] })),
       ]);
-      setOrder(o);
-      setPayments(p?.items || []);
-      apiClient.get<OrderNote[]>(`/orders/${id}/notes`).then(setNotes).catch(() => setNotes([]));
+      // Every render path below reads `order.items.length` / `.map`, so
+      // normalize once here — a payload without `items` must not be able to
+      // crash the page with "Cannot read properties of undefined (reading
+      // 'length')".
+      setOrder({ ...o, items: Array.isArray(o?.items) ? o.items : [] });
+      setPayments(Array.isArray(p?.items) ? p.items : []);
+      apiClient
+        .get<OrderNote[]>(`/orders/${id}/notes`)
+        .then((n) => setNotes(Array.isArray(n) ? n : []))
+        .catch(() => setNotes([]));
       apiClient.get<any>("/admin/store-settings").then((cfg) => {
         if (cfg?.pickup_location) {
           setPickupName(cfg.pickup_location.name || "ELEKTRIX");
