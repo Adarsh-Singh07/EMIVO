@@ -1191,5 +1191,20 @@ class OrderService:
                 }
 
         from modules.orders.invoice import build_tax_invoice_data, render_invoice_html
-        invoice_data = build_tax_invoice_data(order, seller_dict)
+
+        # The invoice shows a real payment reference, so pull the SUCCESS
+        # payment (if any) rather than rendering "—" for prepaid orders.
+        payment_row = (await self.session.execute(text(
+            """
+            SELECT provider_payment_id, provider::text AS provider, amount
+            FROM payments
+            WHERE order_id = :oid AND status::text = 'SUCCESS'
+            ORDER BY created_at DESC
+            LIMIT 1
+            """
+        ), {"oid": order_id})).mappings().first()
+
+        invoice_data = build_tax_invoice_data(
+            order, seller_dict, dict(payment_row) if payment_row else None
+        )
         return render_invoice_html(invoice_data)

@@ -25,7 +25,7 @@ import {
   Upload,
 } from "lucide-react";
 import { toast } from "sonner";
-import { apiClient, ApiError } from "@/lib/api-client";
+import { apiClient, ApiError, getAccessToken } from "@/lib/api-client";
 import { uploadMediaFile } from "@/lib/media";
 import { formatINR } from "@/lib/money";
 import { OrderStatusBadge, PaymentMethodBadge, PaymentStatusBadge } from "@/components/admin/status-badges";
@@ -281,7 +281,10 @@ export default function OrderDetailPage() {
 
   const handleDownloadInvoice = async () => {
     if (!order?.id) return;
-    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    // Admin keeps its session in the `access_token` cookie, not localStorage.
+    // Reading localStorage here sent no header at all, so the API saw an
+    // anonymous request and answered 404 "Order not found".
+    const token = getAccessToken();
     const base = process.env.NEXT_PUBLIC_API_URL || "https://api.elektrix.in/api/v1";
     try {
       // Fetch with a Bearer header and open a blob URL instead of putting the
