@@ -374,7 +374,7 @@ class AdminService:
         rows = (await self.session.execute(text(f"""
             SELECT u.id, u.email, u.first_name, u.last_name, u.is_active, u.suspended,
                    u.suspension_reason, u.created_at,
-                   COALESCE(array_agg(bm.role) FILTER (WHERE bm.role IS NOT NULL), ARRAY[]::text[]) AS roles
+                   COALESCE(array_agg(DISTINCT bm.role) FILTER (WHERE bm.role IS NOT NULL), ARRAY[]::text[]) AS roles
             FROM users u
             LEFT JOIN business_members bm ON bm.user_id = u.id
             {filters}

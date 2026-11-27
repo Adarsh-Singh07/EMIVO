@@ -224,24 +224,41 @@ async def handle_contact_form(form: ContactForm):
     from core.config import settings
     
     provider = get_email_provider()
-    
+
     # 1. Send query to support (user text HTML-escaped — the support mailbox
     # is rendered as HTML and must not become an injection target)
-    admin_subject = f"Support Request: {form.esc(form.subject)} (from {form.esc(form.name)})"
-    admin_html = f"""
-    <h2>New Contact Form Submission</h2>
-    <p><strong>Name:</strong> {form.esc(form.name)}</p>
-    <p><strong>Email:</strong> {form.esc(form.email)}</p>
-    <p><strong>Mobile:</strong> {form.esc(form.mobile)}</p>
-    <p><strong>Subject:</strong> {form.esc(form.subject)}</p>
-    <h3>Message:</h3>
-    <p>{form.esc(form.message)}</p>
-    """
+    from modules.notifications.templates import _shell
     from modules.notifications.aliases import (
         ALIAS_SUPPORT,
         ALIAS_TRANSACTIONAL,
         CONTACT_INBOX,
     )
+    message_html = form.esc(form.message).replace("\n", "<br/>")
+    detail_rows = "".join(
+        f"<tr><td style='padding:8px 4px;border-bottom:1px solid #e4e4e7;color:#71717a;"
+        f"font-size:13px;white-space:nowrap;'>{k}</td>"
+        f"<td style='padding:8px 4px;border-bottom:1px solid #e4e4e7;color:#0a0a0a;"
+        f"font-size:13px;text-align:right;'>{v}</td></tr>"
+        for k, v in (
+            ("Name", form.esc(form.name)),
+            ("Email", form.esc(form.email)),
+            ("Mobile", form.esc(form.mobile)),
+            ("Subject", form.esc(form.subject)),
+        )
+    )
+    admin_html = _shell(
+        "New contact form submission",
+        "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' "
+        "style='border:1px solid #e4e4e7;border-radius:12px;border-collapse:separate;"
+        f"margin:6px 0 14px;'>{detail_rows}</table>"
+        "<div style='margin:0;background:#fafafa;border:1px solid #e4e4e7;"
+        "border-radius:12px;padding:14px 18px;font-size:14px;line-height:1.6;"
+        f"color:#3f3f46;'>{message_html}</div>",
+        preheader=f"Support request from {form.esc(form.name)}: {form.esc(form.subject)}",
+        pill=("SUPPORT REQUEST", "#b45309"),
+    )
+    admin_subject = f"Support Request: {form.esc(form.subject)} (from {form.esc(form.name)})"
+
     # Submissions land in the contact@ inbox; Reply-To is the customer so
     # staff can answer by simply hitting reply. Sent as no-reply@ (it is an
     # automated relay of the form, not a reply).
@@ -252,37 +269,32 @@ async def handle_contact_form(form: ContactForm):
         from_address=ALIAS_TRANSACTIONAL,
         reply_to=form.email,
     )
-    
+
     # 2. Send confirmation to the address the user typed. The subject and
     # name are escaped and the body is fully template-controlled except for
     # the escaped name — a verified user copy would be a spam relay, so this
     # stays a fixed template.
     user_subject = f"We received your message: {form.esc(form.subject)}"
-    user_html = f"""
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">
-        <div style="text-align: center; padding: 20px 0; border-bottom: 2px solid #f3f4f6;">
-            <h1 style="color: #0f172a; margin: 0; font-size: 24px;">Apana Enterprises</h1>
-        </div>
-        <div style="padding: 30px 20px;">
-            <h2 style="font-size: 18px; color: #111;">Hi {form.esc(form.name)},</h2>
-            <p style="margin-bottom: 20px;">Thank you for contacting <strong>Apana Enterprises</strong>. We have received your message regarding "<strong>{form.esc(form.subject)}</strong>".</p>
-            <p style="margin-bottom: 20px;">Our support team is reviewing your request and will get back to you within 24 hours.</p>
-            <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
-                <p style="margin: 0; font-size: 14px; color: #4b5563;"><strong>For urgent queries:</strong><br>Please call us at +91 80920 24066</p>
-            </div>
-            <p style="margin: 0;">Best regards,<br><strong>The Apana Enterprises Support Team</strong></p>
-        </div>
-        <div style="text-align: center; padding: 20px; font-size: 12px; color: #6b7280; border-top: 1px solid #f3f4f6;">
-            Apana Enterprises | DS1, 109, Near Indian Petrol Pump, Vijayipur, Gopalganj, Bihar - 841508
-        </div>
-    </div>
-    """
+    user_html = _shell(
+        "Thanks for reaching out",
+        f"Hi <b style='color:#0a0a0a;'>{form.esc(form.name)}</b>, thank you for contacting "
+        f"<b style='color:#0a0a0a;'>ELEKTRIX</b>. We have received your message about "
+        "&ldquo;<b style='color:#0a0a0a;'>" + form.esc(form.subject) + "</b>&rdquo; and our "
+        "support team will get back to you within 24 hours."
+        "<div style='margin:18px 0 0;background:#fafafa;border:1px solid #e4e4e7;"
+        "border-radius:12px;padding:14px 18px;font-size:14px;color:#3f3f46;'>"
+        "<b style='color:#0a0a0a;'>Need something urgent?</b><br/>"
+        "Call us at <a href='tel:+918092024066' style='color:#0a0a0a;font-weight:600;"
+        "text-decoration:none;'>+91 80920 24066</a> (9 AM – 8 PM IST).</div>",
+        preheader=f"We received your message — our team replies within 24 hours.",
+        pill=("MESSAGE RECEIVED", "#059669"),
+    )
     # Confirmation comes from the support desk identity — the mail promises a
     # human reply within 24 hours, so it should wear that sender.
     await provider.send_email(
         to_email=form.email, subject=user_subject, html=user_html, from_address=ALIAS_SUPPORT
     )
-    
+
     return {"status": "ok"}
 
 

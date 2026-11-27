@@ -1,22 +1,28 @@
-import * as React from "react"
+import * as React from "react";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
-const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
-  ({ className, type, ...props }, ref) => {
-    return (
-      <input
-        type={type}
-        className={cn(
-          "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-          className
-        )}
-        ref={ref}
-        {...props}
-      />
-    )
-  }
-)
-Input.displayName = "Input"
+/** Text field. The look lives in the `.ex-input` rule in globals.css. */
+export const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
+  ({ className, type = "text", ...props }, ref) => (
+    <input ref={ref} type={type} className={cn("ex-input", className)} {...props} />
+  ),
+);
+Input.displayName = "Input";
 
-export { Input }
+export const Textarea = React.forwardRef<HTMLTextAreaElement, React.ComponentProps<"textarea">>(
+  ({ className, ...props }, ref) => <textarea ref={ref} className={cn("ex-input", className)} {...props} />,
+);
+Textarea.displayName = "Textarea";
+
+export const Select = React.forwardRef<HTMLSelectElement, React.ComponentProps<"select">>(
+  ({ className, ...props }, ref) => <select ref={ref} className={cn("ex-input", className)} {...props} />,
+);
+Select.displayName = "Select";
+
+export const Label = React.forwardRef<HTMLLabelElement, React.ComponentProps<"label">>(
+  ({ className, ...props }, ref) => (
+    <label ref={ref} className={cn("block text-sm font-medium text-neutral-800", className)} {...props} />
+  ),
+);
+Label.displayName = "Label";

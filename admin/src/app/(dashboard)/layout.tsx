@@ -30,7 +30,6 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ReactNode, useEffect, useState, useRef, useCallback } from "react";
-import { PageTransition } from "@/components/animations/PageTransition";
 import { BrandLogo } from "@/components/branding/BrandLogo";
 import { BRAND_CONFIG } from "@/config/branding";
 import { useAuth, ADMIN_ROLES } from "@/lib/auth-context";
@@ -150,11 +149,11 @@ function NotificationBell() {
 
   const statusTone = (s: string) => {
     const u = s?.toUpperCase() || "";
-    if (["CONFIRMED", "SUCCESS"].includes(u)) return "text-green-700 bg-green-50";
-    if (["PENDING", "CREATED", "PROCESSING"].includes(u)) return "text-amber-700 bg-amber-50";
-    if (["PAYMENT_FAILED", "FAILED", "FAILURE"].includes(u)) return "text-red-700 bg-red-50";
-    if (["SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(u)) return "text-blue-700 bg-blue-50";
-    return "text-neutral-600 bg-neutral-100";
+    if (["CONFIRMED", "SUCCESS", "DELIVERED", "CAPTURED"].includes(u)) return "bg-emerald-50 text-emerald-800";
+    if (["PENDING", "CREATED", "PROCESSING"].includes(u)) return "bg-amber-50 text-amber-800";
+    if (["PAYMENT_FAILED", "FAILED", "FAILURE", "CANCELLED"].includes(u)) return "bg-red-50 text-red-700";
+    if (["SHIPPED", "OUT_FOR_DELIVERY"].includes(u)) return "bg-sky-50 text-sky-800";
+    return "bg-neutral-100 text-neutral-600";
   };
 
   return (
@@ -162,38 +161,36 @@ function NotificationBell() {
       <button
         onClick={toggle}
         aria-label="Store activity"
-        className="relative inline-flex items-center justify-center rounded-xl p-2 text-neutral-400 hover:bg-neutral-50 hover:text-neutral-700 transition-colors"
+        className="relative rounded-md p-2 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800 transition-colors"
       >
         <Bell className="h-5 w-5" />
         {unread > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-medium text-white">
             {unread > 99 ? "99+" : unread}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-11 z-50 w-80 rounded-2xl border border-neutral-200 bg-white shadow-xl">
-          <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">
-            <p className="text-sm font-semibold text-neutral-900">Store activity</p>
-            <span className="text-[11px] text-neutral-400">last 3 days</span>
+        <div className="absolute right-0 top-11 z-50 w-80 rounded-md border border-neutral-200 bg-white shadow-lg">
+          <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-2.5">
+            <p className="text-sm font-medium text-neutral-900">Store activity</p>
+            <span className="text-xs text-neutral-500">last 3 days</span>
           </div>
           <div className="max-h-96 overflow-y-auto">
-            {!items && (
-              <p className="px-4 py-6 text-center text-sm text-neutral-400">Loading…</p>
-            )}
+            {!items && <p className="px-4 py-6 text-center text-sm text-neutral-500">Loading…</p>}
             {items && items.length === 0 && (
-              <p className="px-4 py-6 text-center text-sm text-neutral-400">No activity in the last 3 days.</p>
+              <p className="px-4 py-6 text-center text-sm text-neutral-500">No activity in the last 3 days.</p>
             )}
             {items && items.length > 0 && items.map((it, idx) => (
               <Link
                 key={`${it.kind}-${it.ref}-${idx}`}
                 href={`/orders/${it.order_id}`}
                 onClick={() => setOpen(false)}
-                className="flex items-start gap-3 border-b border-neutral-50 px-4 py-3 last:border-0 hover:bg-neutral-50"
+                className="flex items-start gap-3 border-b border-neutral-100 px-4 py-3 last:border-0 hover:bg-neutral-50"
               >
-                <span className={"mt-0.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide " + statusTone(it.status)}>
-                  {it.kind === "payment" ? "₹" : "📦"} {it.status}
+                <span className={`mt-0.5 rounded px-1.5 py-0.5 text-xs font-medium ${statusTone(it.status)}`}>
+                  {it.kind === "payment" ? "Payment" : "Order"} · {it.status}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium text-neutral-900">{it.ref}</span>
@@ -207,7 +204,7 @@ function NotificationBell() {
           <Link
             href="/orders"
             onClick={toggle}
-            className="block border-t border-neutral-100 px-4 py-2.5 text-center text-xs font-medium text-neutral-500 hover:bg-neutral-50"
+            className="block border-t border-neutral-100 px-4 py-2.5 text-center text-sm text-neutral-500 hover:bg-neutral-50"
           >
             View all orders
           </Link>
@@ -230,117 +227,106 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <AuthGuard requiredRoles={[...ADMIN_ROLES]}>
-      <>
-        <div className="flex min-h-screen w-full bg-neutral-50 font-sans text-neutral-900">
-          {/* Sidebar */}
-          {sidebarOpen && (
-            <div
-              className="fixed inset-0 z-30 bg-neutral-950/40 lg:hidden"
-              onClick={() => setSidebarOpen(false)}
-              aria-hidden
-            />
-          )}
-          <aside className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r border-neutral-200 bg-white transition-all duration-300 ease-in-out ${sidebarOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full overflow-hidden opacity-0'}`}>
-            <div className="h-16 flex-shrink-0 flex items-center px-5 border-b border-neutral-200 w-64 justify-between">
-              <Link href="/dashboard" className="flex items-center gap-3">
-                <BrandLogo variant="wordmark" size={32} subtitle="ADMIN CONSOLE" />
-              </Link>
-            </div>
-            <nav className="flex-1 min-h-0 overflow-y-auto py-4 px-3 space-y-4 w-64">
-              {NAV_SECTIONS.map((section) => (
-                <div key={section.label} className="space-y-1">
-                  <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
-                    {section.label}
-                  </p>
-                  {section.links.map(({ href, label, icon: Icon }) => {
-                    const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
-                    return (
-                      <Link
-                        key={href}
-                        href={href}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all ${
-                          isActive
-                            ? "bg-neutral-950 text-white font-semibold shadow-sm"
-                            : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 font-medium"
-                        }`}
-                      >
-                        <Icon className={`w-4 h-4 ${isActive ? "text-amber-400" : "text-neutral-400"}`} />
-                        <span>{label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              ))}
-            </nav>
-            <div className="p-3 border-t border-neutral-200 w-64 space-y-1">
+      <div className="flex min-h-screen w-full">
+        {/* Sidebar */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-30 bg-neutral-950/40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden
+          />
+        )}
+        <aside className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r border-neutral-200 bg-white transition-[margin,width] duration-150 ease-out ${sidebarOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full overflow-hidden opacity-0'}`}>
+          <div className="flex h-14 w-64 flex-shrink-0 items-center justify-between border-b border-neutral-200 px-4">
+            <Link href="/dashboard" className="flex items-center">
+              <BrandLogo size={28} subtitle="Admin console" />
+            </Link>
+          </div>
+          <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-4 w-64">
+            {NAV_SECTIONS.map((section) => (
+              <div key={section.label} className="space-y-0.5">
+                <p className="px-3 pb-1 text-xs text-neutral-400">{section.label}</p>
+                {section.links.map(({ href, label, icon: Icon }) => {
+                  const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      className={`flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors ${
+                        isActive
+                          ? "bg-neutral-100 font-medium text-neutral-900"
+                          : "text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
+                      }`}
+                    >
+                      <Icon className={`h-4 w-4 ${isActive ? "text-neutral-700" : "text-neutral-400"}`} />
+                      <span className="truncate">{label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
+          </nav>
+          <div className="w-64 space-y-0.5 border-t border-neutral-200 p-3">
+            <button
+              onClick={logout}
+              className="flex w-full items-center gap-3 rounded-md px-3 py-1.5 text-sm text-red-700 hover:bg-red-50 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </button>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className={`flex min-w-0 flex-1 flex-col transition-[margin,width] duration-150 ease-out ${sidebarOpen ? 'lg:ml-64' : 'ml-0'}`}>
+          {/* Topbar */}
+          <header className="sticky top-0 z-30 flex h-14 flex-shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-3 sm:px-6">
+            <div className="flex items-center gap-3">
               <button
-                onClick={logout}
-                className="flex w-full items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="-ml-2 rounded-md p-2 text-neutral-500 hover:bg-neutral-100 transition-colors"
+                aria-label="Toggle sidebar"
               >
-                <LogOut className="w-4 h-4" />
-                Sign Out
+                <Menu className="h-5 w-5" />
               </button>
             </div>
-          </aside>
-
-          {/* Main Content */}
-          <main className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${sidebarOpen ? 'lg:ml-64' : 'ml-0'}`}>
-            {/* Topbar */}
-            <header className="sticky top-0 z-30 h-14 sm:h-16 flex-shrink-0 border-b border-neutral-200 bg-white/95 backdrop-blur-md flex items-center justify-between px-3 sm:px-6">
-              <div className="flex items-center gap-3">
-                <button 
-                  onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className="p-2 -ml-2 rounded-lg text-neutral-500 hover:bg-neutral-100 transition-colors"
-                  aria-label="Toggle Sidebar"
-                >
-                  <Menu className="w-5 h-5" />
-                </button>
-                <div className="hidden sm:flex items-center gap-2">
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-neutral-100 text-neutral-700 border border-neutral-200">
-                    ELEKTRIX Central Operations
-                  </span>
+            <div className="flex items-center gap-2">
+              <a
+                href={BRAND_CONFIG.sellerUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="hidden items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors md:inline-flex"
+              >
+                <Store className="h-3.5 w-3.5" />
+                Seller central
+              </a>
+              <a
+                href={BRAND_CONFIG.officialUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="hidden items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors sm:inline-flex"
+              >
+                <ExternalLink className="h-3.5 w-3.5 text-neutral-400" />
+                Storefront
+              </a>
+              <NotificationBell />
+              <Link href="/profile" className="flex items-center gap-2.5 rounded-md p-1 hover:bg-neutral-50 transition-colors">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-900 text-xs font-medium text-white">
+                  {userInitial}
                 </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <a
-                  href="https://sell.elektrix.in"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-200 bg-white text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors"
-                >
-                  <Store className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Seller Central</span>
-                </a>
-                <a
-                  href="https://elektrix.in"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-200 bg-white text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors"
-                >
-                  <ExternalLink className="w-3.5 h-3.5 text-neutral-400" />
-                  <span>Live Storefront</span>
-                </a>
-                <NotificationBell />
-                <Link href="/profile" className="flex items-center gap-2.5 p-1 rounded-lg hover:bg-neutral-50 transition-colors">
-                  <div className="w-7 h-7 rounded-full bg-neutral-950 flex items-center justify-center text-white text-xs font-bold">
-                    {userInitial}
-                  </div>
-                  <span className="text-xs font-medium text-neutral-700 hidden sm:block max-w-[120px] truncate">
-                    {userName}
-                  </span>
-                </Link>
-              </div>
-            </header>
-
-            {/* Page Content */}
-            <div className="flex-1 p-3 sm:p-6 bg-neutral-50/50">
-              <div className="mx-auto max-w-6xl">
-                <PageTransition>{children}</PageTransition>
-              </div>
+                <span className="hidden max-w-[120px] truncate text-sm text-neutral-700 sm:block">
+                  {userName}
+                </span>
+              </Link>
             </div>
-          </main>
-        </div>
-      </>
+          </header>
+
+          {/* Page Content */}
+          <div className="flex-1 p-4 sm:p-6">
+            <div className="mx-auto max-w-6xl space-y-6">{children}</div>
+          </div>
+        </main>
+      </div>
     </AuthGuard>
   );
 }

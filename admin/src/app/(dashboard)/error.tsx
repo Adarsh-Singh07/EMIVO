@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { useEffect } from "react";
@@ -11,29 +11,23 @@ export default function DashboardError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log the error to an error reporting service
     console.error(error);
   }, [error]);
 
   return (
-    <div className="h-[50vh] flex items-center justify-center">
-      <div className="max-w-md w-full p-6 text-center">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 mb-4">
-          <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
-        </div>
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-          Something went wrong
-        </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-          {error.message ||
-            "An unexpected error occurred while loading this page."}
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <div className="w-full max-w-md rounded-md border border-neutral-200 bg-white p-6 text-center">
+        <AlertCircle className="mx-auto h-5 w-5 text-red-600" aria-hidden />
+        <h2 className="mt-2 text-base font-semibold text-neutral-900">Something went wrong</h2>
+        <p className="mt-1 text-sm text-neutral-600">
+          {error.message || "An unexpected error occurred while loading this page."}
         </p>
         <button
           onClick={reset}
-          className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium text-sm transition-colors shadow-sm"
+          className="mt-4 inline-flex items-center justify-center gap-2 rounded-md border border-neutral-900 bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-neutral-700"
         >
-          <RefreshCw className="w-4 h-4" />
-          Try Again
+          <RefreshCw className="h-4 w-4" />
+          Try again
         </button>
       </div>
     </div>

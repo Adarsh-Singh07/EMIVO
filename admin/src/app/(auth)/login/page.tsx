@@ -3,35 +3,12 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { motion, Variants } from "framer-motion";
-import { Eye, EyeOff, Mail, Lock, AlertCircle, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { FadeIn } from "@/components/animations/FadeIn";
 import { BrandLogo } from "@/components/branding/BrandLogo";
 import { BRAND_CONFIG } from "@/config/branding";
+import { Alert } from "@/components/ui/alert";
 import { toast } from "sonner";
-
-const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-    },
-  },
-};
-
-const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.5,
-      ease: [0.25, 0.46, 0.45, 0.94],
-    },
-  },
-};
 
 function LoginForm() {
   const router = useRouter();
@@ -54,147 +31,121 @@ function LoginForm() {
     setError("");
 
     if (!email || !password) {
-      setError("Please enter your email and password");
+      setError("Enter your email and password.");
       return;
     }
 
     setIsLoading(true);
     try {
       await login({ email, password });
-      toast.success(`Welcome to ${BRAND_CONFIG.name}`);
+      toast.success(`Signed in to ${BRAND_CONFIG.name}`);
       router.push(callbackUrl);
     } catch (err: any) {
-      setError(err?.message || "Invalid credentials. Please try again.");
+      setError(err?.message || "Invalid credentials. Try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <motion.div
-      className="relative overflow-hidden rounded-2xl bg-neutral-900 border border-neutral-800 shadow-2xl p-8 sm:p-10"
-      variants={itemVariants}
-    >
-      {/* Header */}
-      <FadeIn direction="up" delay={0.1} className="text-center mb-8 flex flex-col items-center">
-        <BrandLogo variant="icon" size={48} className="mb-3" />
-        <h1 className="text-2xl font-bold tracking-tight text-white">{BRAND_CONFIG.name} Admin Console</h1>
-        <p className="mt-1 text-neutral-400 text-xs">Operations, Marketplace Governance & Store Management</p>
-      </FadeIn>
+    <div className="w-full max-w-sm">
+      <Link
+        href="/"
+        className="mb-6 inline-flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-800"
+      >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+        Back to elektrix.in
+      </Link>
 
-      {/* Error Message */}
-      {error && (
-        <FadeIn direction="up" delay={0.15} className="mb-6">
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-red-950/40 border border-red-800/60 text-red-300">
-            <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-400" />
-            <p className="text-sm">{error}</p>
-          </div>
-        </FadeIn>
-      )}
+      <div className="rounded-md border border-neutral-200 bg-white p-6 sm:p-8">
+        <BrandLogo size={36} showText={false} />
+        <h1 className="mt-4 text-xl font-semibold text-neutral-900">Admin sign in</h1>
+        <p className="mt-1 text-sm text-neutral-600">Staff access to orders, catalog and settings.</p>
 
-      {/* Form */}
-      <form onSubmit={handleLoginSubmit} className="space-y-5">
-        <div className="space-y-2">
-          <label htmlFor="email" className="block text-sm font-medium text-neutral-300">
-            Email Address
-          </label>
-          <div className="relative">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500" />
+        {error && (
+          <Alert tone="danger" className="mt-4">
+            {error}
+          </Alert>
+        )}
+
+        <form onSubmit={handleLoginSubmit} className="mt-5 space-y-4">
+          <div>
+            <label htmlFor="email" className="mb-1 block text-sm font-medium text-neutral-800">
+              Email
+            </label>
             <input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@company.com"
-              className="w-full h-12 pl-12 pr-4 rounded-xl border border-neutral-800 bg-neutral-950 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
+              placeholder="name@elektrix.in"
+              className="ex-input"
+              autoComplete="email"
               required
               disabled={isLoading}
             />
           </div>
-        </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label htmlFor="password" className="block text-sm font-medium text-neutral-300">
-              Password
-            </label>
-            <Link
-              href="/forgot-password"
-              className="text-xs text-amber-500 hover:text-amber-400 hover:underline underline-offset-2 transition-colors"
-            >
-              Forgot password?
-            </Link>
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <label htmlFor="password" className="block text-sm font-medium text-neutral-800">
+                Password
+              </label>
+              <Link href="/forgot-password" className="text-xs text-emerald-700 hover:underline">
+                Forgot password?
+              </Link>
+            </div>
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="ex-input pr-10"
+                autoComplete="current-password"
+                required
+                disabled={isLoading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-neutral-400 hover:text-neutral-700"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
-          <div className="relative">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500" />
-            <input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full h-12 pl-12 pr-12 rounded-xl border border-neutral-800 bg-neutral-950 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
-              required
-              disabled={isLoading}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300"
-            >
-              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-            </button>
-          </div>
-        </div>
 
-        <motion.button
-          type="submit"
-          disabled={isLoading || !email || !password}
-          className="w-full h-12 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold text-base hover:from-amber-600 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50 transition-all shadow-lg shadow-amber-500/25"
-          whileTap={{ scale: 0.98 }}
-        >
-          {isLoading ? (
-            <span className="flex items-center justify-center gap-2">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Signing In...
-            </span>
-          ) : (
-            "Sign In"
-          )}
-        </motion.button>
-      </form>
-
-      {/* Footer */}
-    </motion.div>
+          <button
+            type="submit"
+            disabled={isLoading || !email || !password}
+            className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-neutral-900 bg-neutral-900 px-3.5 text-sm font-medium text-white transition-colors hover:border-neutral-700 hover:bg-neutral-700 disabled:pointer-events-none disabled:opacity-50"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                Signing in…
+              </>
+            ) : (
+              "Sign in"
+            )}
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 px-4 py-12 text-white">
-      <motion.div
-        className="w-full max-w-md"
-        initial="hidden"
-        animate="visible"
-        variants={containerVariants}
-      >
-        {/* Back link */}
-        <FadeIn direction="up" delay={0.1} className="mb-6">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Back to Home
-          </Link>
-        </FadeIn>
-
-        <Suspense fallback={<div className="p-8 text-center text-neutral-500">Loading ELEKTRIX login...</div>}>
-          <LoginForm />
-        </Suspense>
-      </motion.div>
+    <div className="flex min-h-screen items-center justify-center px-4 py-12">
+      <Suspense fallback={<div className="p-8 text-sm text-neutral-500">Loading…</div>}>
+        <LoginForm />
+      </Suspense>
     </div>
   );
 }
