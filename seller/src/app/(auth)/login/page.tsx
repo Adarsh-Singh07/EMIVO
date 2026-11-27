@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mail, Lock, KeyRound, ArrowRight, ShieldCheck, AlertCircle, Eye, EyeOff, Store, X, CheckCircle2 } from "lucide-react";
+import { Eye, EyeOff, KeyRound, ArrowRight, ShieldCheck, AlertCircle, Store, X, CheckCircle2 } from "lucide-react";
 import { apiClient, ApiError, authStorage } from "@/lib/api-client";
 import { BrandLogo } from "@/components/branding/BrandLogo";
 import { toast } from "sonner";
@@ -51,7 +51,7 @@ export default function SellerLoginPage() {
       );
       setRegSuccess(
         res.message ||
-          "Application submitted successfully! ELEKTRIX Administration will review your details and email your login credentials once approved."
+          "Application submitted. The Elektrix team will review your details and email your login credentials once approved."
       );
       toast.success("Seller application submitted!");
     } catch (err) {
@@ -67,11 +67,11 @@ export default function SellerLoginPage() {
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !email.includes("@")) {
-      toast.error("Please enter a valid merchant email address");
+      toast.error("Enter a valid merchant email address");
       return;
     }
     if (!password) {
-      toast.error("Please enter your password");
+      toast.error("Enter your password");
       return;
     }
 
@@ -111,7 +111,7 @@ export default function SellerLoginPage() {
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !email.includes("@")) {
-      toast.error("Please enter a valid business email address");
+      toast.error("Enter a valid business email address");
       return;
     }
 
@@ -137,7 +137,7 @@ export default function SellerLoginPage() {
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otpCode || otpCode.trim().length !== 6) {
-      toast.error("Please enter the 6-digit verification code");
+      toast.error("Enter the 6-digit verification code");
       return;
     }
 
@@ -173,48 +173,47 @@ export default function SellerLoginPage() {
     }
   };
 
+  const primaryBtn =
+    "inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-neutral-900 bg-neutral-900 px-3.5 text-sm font-medium text-white transition-colors hover:border-neutral-700 hover:bg-neutral-700 disabled:pointer-events-none disabled:opacity-50";
+
   return (
-    <div className="min-h-screen bg-neutral-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 text-neutral-100 relative">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md px-4">
-        {/* Brand Header */}
-        <div className="text-center flex flex-col items-center">
-          <BrandLogo size={44} subtitle="SELLER CENTRAL" className="mb-3" />
-          <p className="text-xs text-neutral-400">
-            Marketplace Merchant Portal & Fulfillment Management
-          </p>
+    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-12">
+      <div className="w-full max-w-sm">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <BrandLogo size={36} subtitle="Seller central" />
+          <p className="mt-2 text-sm text-neutral-600">Manage your catalog, stock and orders.</p>
         </div>
 
-        {/* Tab Toggle */}
-        <div className="mt-8 flex rounded-xl bg-neutral-900 p-1 border border-neutral-800">
-          <button
-            type="button"
-            onClick={() => { setTab("PASSWORD"); setError(null); }}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
-              tab === "PASSWORD"
-                ? "bg-neutral-800 text-white shadow-sm"
-                : "text-neutral-400 hover:text-neutral-200"
-            }`}
-          >
-            Password Sign-In
-          </button>
-          <button
-            type="button"
-            onClick={() => { setTab("OTP"); setError(null); }}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
-              tab === "OTP"
-                ? "bg-neutral-800 text-white shadow-sm"
-                : "text-neutral-400 hover:text-neutral-200"
-            }`}
-          >
-            Email OTP Sign-In
-          </button>
-        </div>
+        <div className="rounded-md border border-neutral-200 bg-white p-6">
+          {/* Sign-in method tabs */}
+          <div className="mb-4 flex gap-4 border-b border-neutral-200">
+            {(
+              [
+                ["PASSWORD", "Password"],
+                ["OTP", "Email code"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => {
+                  setTab(key);
+                  setError(null);
+                }}
+                className={`-mb-px border-b-2 pb-2 text-sm font-medium transition-colors ${
+                  tab === key
+                    ? "border-neutral-900 text-neutral-900"
+                    : "border-transparent text-neutral-500 hover:text-neutral-800"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
 
-        {/* Form Card */}
-        <div className="mt-4 bg-neutral-900 border border-neutral-800 py-8 px-6 shadow-xl rounded-2xl sm:px-8">
           {error && (
-            <div className="mb-5 rounded-xl border border-red-500/30 bg-red-950/40 p-3.5 text-xs text-red-300 flex items-center gap-2.5">
-              <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+            <div className="mb-4 flex items-start gap-2.5 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
               <span>{error}</span>
             </div>
           )}
@@ -222,60 +221,44 @@ export default function SellerLoginPage() {
           {tab === "PASSWORD" ? (
             <form onSubmit={handlePasswordLogin} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-300">
-                  Business Email
-                </label>
-                <div className="mt-1.5 relative rounded-xl">
-                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-500">
-                    <Mail className="w-4 h-4" />
-                  </span>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="merchant@elektrix.in"
-                    className="block w-full pl-10 pr-3.5 py-2.5 bg-neutral-950 border border-neutral-800 rounded-xl text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-amber-500/80"
-                  />
-                </div>
+                <label className="mb-1 block text-sm font-medium text-neutral-800">Business email</label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="merchant@elektrix.in"
+                  className="ex-input"
+                  autoComplete="email"
+                />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-300">
-                  Password
-                </label>
-                <div className="mt-1.5 relative rounded-xl">
-                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-500">
-                    <Lock className="w-4 h-4" />
-                  </span>
+                <label className="mb-1 block text-sm font-medium text-neutral-800">Password</label>
+                <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="block w-full pl-10 pr-10 py-2.5 bg-neutral-950 border border-neutral-800 rounded-xl text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-amber-500/80"
+                    placeholder="••••••••"
+                    className="ex-input pr-10"
+                    autoComplete="current-password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-neutral-500 hover:text-neutral-300"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-neutral-400 hover:text-neutral-700"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                <p className="mt-1.5 text-[11px] text-neutral-400">
-                  Apana Enterprises / Admin can use the production admin password.
-                </p>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full mt-4 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-semibold text-neutral-950 bg-amber-500 hover:bg-amber-400 transition-colors disabled:opacity-50"
-              >
-                {loading ? "Authenticating..." : "Sign In to Seller Central"}
-                <ArrowRight className="w-4 h-4" />
+              <button type="submit" disabled={loading} className={primaryBtn}>
+                {loading ? "Signing in…" : "Sign in"}
+                {!loading && <ArrowRight className="h-4 w-4" aria-hidden />}
               </button>
             </form>
           ) : (
@@ -283,85 +266,65 @@ export default function SellerLoginPage() {
               {otpStep === "EMAIL" ? (
                 <form onSubmit={handleRequestOtp} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-300">
-                      Registered Merchant Email
+                    <label className="mb-1 block text-sm font-medium text-neutral-800">
+                      Registered merchant email
                     </label>
-                    <div className="mt-1.5 relative rounded-xl">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-500">
-                        <Mail className="w-4 h-4" />
-                      </span>
-                      <input
-                        type="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="merchant@elektrix.in"
-                        className="block w-full pl-10 pr-3.5 py-2.5 bg-neutral-950 border border-neutral-800 rounded-xl text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-amber-500/80"
-                      />
-                    </div>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="merchant@elektrix.in"
+                      className="ex-input"
+                      autoComplete="email"
+                    />
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full mt-2 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-semibold text-neutral-950 bg-amber-500 hover:bg-amber-400 transition-colors disabled:opacity-50"
-                  >
-                    {loading ? "Sending One-Time Passcode..." : "Send Verification Code"}
-                    <ArrowRight className="w-4 h-4" />
+                  <button type="submit" disabled={loading} className={primaryBtn}>
+                    {loading ? "Sending code…" : "Email me a code"}
+                    {!loading && <ArrowRight className="h-4 w-4" aria-hidden />}
                   </button>
                 </form>
               ) : (
                 <form onSubmit={handleVerifyOtp} className="space-y-4">
                   <div>
-                    <div className="flex items-center justify-between">
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-300">
-                        6-Digit Verification Code
-                      </label>
+                    <div className="mb-1 flex items-center justify-between">
+                      <label className="block text-sm font-medium text-neutral-800">Verification code</label>
                       <button
                         type="button"
                         onClick={() => setOtpStep("EMAIL")}
-                        className="text-xs text-amber-500 hover:underline"
+                        className="text-xs text-emerald-700 hover:underline"
                       >
-                        Change Email
+                        Change email
                       </button>
                     </div>
-                    <div className="mt-1.5 relative rounded-xl">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-500">
-                        <KeyRound className="w-4 h-4" />
-                      </span>
-                      <input
-                        type="text"
-                        maxLength={6}
-                        required
-                        value={otpCode}
-                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
-                        placeholder="123456"
-                        className="block w-full pl-10 pr-3.5 py-2.5 bg-neutral-950 border border-neutral-800 rounded-xl text-center text-lg tracking-widest font-mono text-neutral-100 focus:outline-none focus:ring-2 focus:ring-amber-500/80"
-                      />
-                    </div>
-                    <p className="mt-1 text-[11px] text-neutral-400">
-                      Enter the single-use code sent to {email}.
+                    <input
+                      type="text"
+                      maxLength={6}
+                      required
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                      placeholder="123456"
+                      className="ex-input text-center font-mono text-base tracking-widest"
+                      inputMode="numeric"
+                    />
+                    <p className="mt-1 text-xs text-neutral-500">
+                      Single-use code sent to {email}.
                     </p>
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full mt-2 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-semibold text-neutral-950 bg-amber-500 hover:bg-amber-400 transition-colors disabled:opacity-50"
-                  >
-                    {loading ? "Verifying..." : "Verify & Enter Portal"}
-                    <ShieldCheck className="w-4 h-4" />
+                  <button type="submit" disabled={loading} className={primaryBtn}>
+                    {loading ? "Verifying…" : "Verify and sign in"}
+                    {!loading && <ShieldCheck className="h-4 w-4" aria-hidden />}
                   </button>
                 </form>
               )}
             </div>
           )}
 
-          {/* Sell on Elektrix Interest Callout */}
-          <div className="mt-6 pt-5 border-t border-neutral-800 text-center">
-            <p className="text-xs text-neutral-400 mb-2">
-              Want to become an official merchant?
-            </p>
+          {/* Apply to sell */}
+          <div className="mt-5 border-t border-neutral-200 pt-4 text-center">
+            <p className="text-sm text-neutral-600">Want to sell on Elektrix?</p>
             <button
               type="button"
               onClick={() => {
@@ -369,10 +332,10 @@ export default function SellerLoginPage() {
                 setRegSuccess(null);
                 setShowRegisterModal(true);
               }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all hover:scale-[1.02]"
+              className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700 hover:underline"
             >
-              <Store className="w-4 h-4" />
-              Sell on Elektrix — Register Interest
+              <Store className="h-4 w-4" aria-hidden />
+              Apply to become a seller
             </button>
           </div>
         </div>
@@ -380,85 +343,78 @@ export default function SellerLoginPage() {
 
       {/* Registration Modal Dialog */}
       {showRegisterModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-xl w-full p-6 sm:p-8 shadow-2xl relative my-8 animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-neutral-950/40 p-4">
+          <div className="relative mx-auto my-8 w-full max-w-xl rounded-md border border-neutral-200 bg-white p-6 shadow-lg">
             <button
               onClick={() => setShowRegisterModal(false)}
-              className="absolute top-5 right-5 text-neutral-400 hover:text-white p-1 rounded-lg bg-neutral-800/60 hover:bg-neutral-800 transition-colors"
+              className="absolute right-4 top-4 rounded-md p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+              aria-label="Close"
             >
-              <X className="w-5 h-5" />
+              <X className="h-4 w-4" />
             </button>
 
-            <div className="mb-6">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-[11px] font-semibold uppercase tracking-wider mb-2">
-                <Store className="w-3.5 h-3.5" />
-                Merchant Onboarding
-              </div>
-              <h2 className="text-xl font-bold text-white">Sell on ELEKTRIX</h2>
-              <p className="text-xs text-neutral-400 mt-1">
-                Submit your business details. Admin will verify and send your credentials to your email.
+            <div className="mb-5">
+              <h2 className="text-base font-semibold text-neutral-900">Sell on Elektrix</h2>
+              <p className="mt-1 text-sm text-neutral-600">
+                Submit your business details. We verify each application and email your credentials.
               </p>
             </div>
 
             {regSuccess ? (
-              <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-xl p-6 text-center space-y-3">
-                <div className="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-full mx-auto flex items-center justify-center">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-                <h3 className="text-base font-bold text-emerald-300">Application Received</h3>
-                <p className="text-xs text-neutral-300 leading-relaxed max-w-md mx-auto">
-                  {regSuccess}
-                </p>
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 p-5 text-center">
+                <CheckCircle2 className="mx-auto h-6 w-6 text-emerald-700" aria-hidden />
+                <h3 className="mt-2 text-sm font-semibold text-emerald-900">Application received</h3>
+                <p className="mx-auto mt-1 max-w-md text-sm text-emerald-900/80">{regSuccess}</p>
                 <button
                   type="button"
                   onClick={() => setShowRegisterModal(false)}
-                  className="mt-3 px-5 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg text-xs font-semibold"
+                  className="mt-4 inline-flex h-8 items-center rounded-md border border-neutral-300 bg-white px-3 text-xs font-medium text-neutral-800 hover:bg-neutral-50"
                 >
-                  Close & Back to Login
+                  Back to sign in
                 </button>
               </div>
             ) : (
               <form onSubmit={handleRegisterSubmit} className="space-y-4">
                 {regError && (
-                  <div className="p-3 bg-red-950/40 border border-red-500/30 rounded-lg text-xs text-red-300 flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+                  <div className="flex items-start gap-2.5 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
                     <span>{regError}</span>
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">
-                      Business / Store Name <span className="text-amber-500">*</span>
+                    <label className="mb-1 block text-sm font-medium text-neutral-800">
+                      Business / store name <span className="text-red-600">*</span>
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Apex Electronics"
+                      placeholder="Apex Electronics"
                       value={regData.business_name}
                       onChange={(e) => setRegData({ ...regData, business_name: e.target.value })}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500"
+                      className="ex-input"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">
-                      Contact Person <span className="text-amber-500">*</span>
+                    <label className="mb-1 block text-sm font-medium text-neutral-800">
+                      Contact person <span className="text-red-600">*</span>
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Rahul Sharma"
+                      placeholder="Full name"
                       value={regData.name}
                       onChange={(e) => setRegData({ ...regData, name: e.target.value })}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500"
+                      className="ex-input"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">
-                      Registered Email <span className="text-amber-500">*</span>
+                    <label className="mb-1 block text-sm font-medium text-neutral-800">
+                      Registered email <span className="text-red-600">*</span>
                     </label>
                     <input
                       type="email"
@@ -466,12 +422,12 @@ export default function SellerLoginPage() {
                       placeholder="merchant@firm.com"
                       value={regData.email}
                       onChange={(e) => setRegData({ ...regData, email: e.target.value })}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500"
+                      className="ex-input"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">
-                      Mobile / WhatsApp <span className="text-amber-500">*</span>
+                    <label className="mb-1 block text-sm font-medium text-neutral-800">
+                      Mobile / WhatsApp <span className="text-red-600">*</span>
                     </label>
                     <input
                       type="tel"
@@ -479,38 +435,38 @@ export default function SellerLoginPage() {
                       placeholder="10-digit number"
                       value={regData.phone}
                       onChange={(e) => setRegData({ ...regData, phone: e.target.value })}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500"
+                      className="ex-input"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">
-                      City <span className="text-amber-500">*</span>
+                    <label className="mb-1 block text-sm font-medium text-neutral-800">
+                      City <span className="text-red-600">*</span>
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Patna"
+                      placeholder="Patna"
                       value={regData.city}
                       onChange={(e) => setRegData({ ...regData, city: e.target.value })}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500"
+                      className="ex-input"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">State</label>
+                    <label className="mb-1 block text-sm font-medium text-neutral-800">State</label>
                     <input
                       type="text"
-                      placeholder="e.g. Bihar"
+                      placeholder="Bihar"
                       value={regData.state}
                       onChange={(e) => setRegData({ ...regData, state: e.target.value })}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500"
+                      className="ex-input"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">
-                      PIN Code <span className="text-amber-500">*</span>
+                    <label className="mb-1 block text-sm font-medium text-neutral-800">
+                      PIN code <span className="text-red-600">*</span>
                     </label>
                     <input
                       type="text"
@@ -519,44 +475,53 @@ export default function SellerLoginPage() {
                       maxLength={6}
                       value={regData.pincode}
                       onChange={(e) => setRegData({ ...regData, pincode: e.target.value })}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500"
+                      className="ex-input"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">GSTIN (Optional)</label>
+                    <label className="mb-1 block text-sm font-medium text-neutral-800">GSTIN (optional)</label>
                     <input
                       type="text"
                       placeholder="15-digit GSTIN"
                       value={regData.gstin}
                       onChange={(e) => setRegData({ ...regData, gstin: e.target.value.toUpperCase() })}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500 uppercase"
+                      className="ex-input uppercase"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">Category / Specialty</label>
+                    <label className="mb-1 block text-sm font-medium text-neutral-800">Category / specialty</label>
                     <input
                       type="text"
-                      placeholder="e.g. Audio, Chargers"
+                      placeholder="Audio, chargers"
                       value={regData.category}
                       onChange={(e) => setRegData({ ...regData, category: e.target.value })}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500"
+                      className="ex-input"
                     />
                   </div>
                 </div>
 
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    disabled={regLoading}
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-neutral-950 bg-amber-500 hover:bg-amber-400 transition-colors disabled:opacity-50"
-                  >
-                    {regLoading ? "Submitting Application..." : "Submit Seller Registration"}
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-neutral-800">Address</label>
+                  <textarea
+                    placeholder="Shop or warehouse address"
+                    value={regData.address}
+                    onChange={(e) => setRegData({ ...regData, address: e.target.value })}
+                    className="ex-input"
+                    rows={2}
+                  />
                 </div>
+
+                <button
+                  type="submit"
+                  disabled={regLoading}
+                  className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-neutral-900 bg-neutral-900 px-3.5 text-sm font-medium text-white transition-colors hover:border-neutral-700 hover:bg-neutral-700 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  {regLoading ? "Submitting…" : "Submit application"}
+                  {!regLoading && <ArrowRight className="h-4 w-4" aria-hidden />}
+                </button>
               </form>
             )}
           </div>

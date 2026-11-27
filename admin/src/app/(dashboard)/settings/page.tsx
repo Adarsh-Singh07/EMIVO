@@ -1,801 +1,801 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Settings, Save, Loader2, RefreshCw, AlertCircle, Shield, Globe, Truck, Banknote, Megaphone, Zap, CreditCard, Check, X } from "lucide-react";
-import { toast } from "sonner";
-import { apiClient, ApiError } from "@/lib/api-client";
-import { uploadMediaFile } from "@/lib/media";
-import { formatINR, rupeesToPaise, paiseToRupeeInput } from "@/lib/money";
-import { BRAND_CONFIG } from "@/config/branding";
+import { useState, useEffect, useCallback } from"react";
+import { Settings, Save, Loader2, RefreshCw, AlertCircle, Shield, Globe, Truck, Banknote, Megaphone, Zap, CreditCard, Check, X } from"lucide-react";
+import { toast } from"sonner";
+import { apiClient, ApiError } from"@/lib/api-client";
+import { uploadMediaFile } from"@/lib/media";
+import { formatINR, rupeesToPaise, paiseToRupeeInput } from"@/lib/money";
+import { BRAND_CONFIG } from"@/config/branding";
 
 interface BusinessSettings {
-  id: string;
-  business_id: string;
-  config: {
-    currency?: string;
-    theme?: { primaryColor?: string };
-    branding?: { companyName?: string };
-  };
+ id: string;
+ business_id: string;
+ config: {
+ currency?: string;
+ theme?: { primaryColor?: string };
+ branding?: { companyName?: string };
+ };
 }
 
 interface StoreBanner {
-  title?: string | null;
-  subtitle?: string | null;
-  image_url?: string | null;
-  link?: string | null;
-  active?: boolean;
-  starts_at?: string | null;
-  ends_at?: string | null;
+ title?: string | null;
+ subtitle?: string | null;
+ image_url?: string | null;
+ link?: string | null;
+ active?: boolean;
+ starts_at?: string | null;
+ ends_at?: string | null;
 }
 
 interface PickupLocation {
-  name: string;
-  add: string;
-  city: string;
-  state: string;
-  pin_code: string;
-  country: string;
-  phone: string;
+ name: string;
+ add: string;
+ city: string;
+ state: string;
+ pin_code: string;
+ country: string;
+ phone: string;
 }
 
 interface StoreSettings {
-  cod_enabled: boolean;
-  cod_fee_paise: number;
-  cod_max_order_paise: number;
-  free_shipping_threshold_paise: number;
-  min_order_paise?: number;
-  flat_shipping_paise: number;
-  banner: StoreBanner | null;
-  announcement: string | null;
-  hero_slides?: any[];
-  promo_tiles?: any[];
-  category_pages?: Record<string, any>;
-  default_gateway?: string | null;
-  pickup_location?: PickupLocation | null;
+ cod_enabled: boolean;
+ cod_fee_paise: number;
+ cod_max_order_paise: number;
+ free_shipping_threshold_paise: number;
+ min_order_paise?: number;
+ flat_shipping_paise: number;
+ banner: StoreBanner | null;
+ announcement: string | null;
+ hero_slides?: any[];
+ promo_tiles?: any[];
+ category_pages?: Record<string, any>;
+ default_gateway?: string | null;
+ pickup_location?: PickupLocation | null;
 }
 
 const inputClass =
-  "w-full h-11 px-4 rounded-xl bg-white border border-neutral-200 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-amber-500";
-const labelClass = "block text-sm font-semibold text-neutral-700 mb-1.5";
+"ex-input w-full h-11 px-4 rounded-md bg-white border border-neutral-200 text-sm text-neutral-900 placeholder-neutral-400";
+const labelClass ="block text-sm font-semibold text-neutral-700 mb-1.5";
 
 function RupeeField({
-  label,
-  value,
-  onChange,
-  hint,
-  placeholder,
+ label,
+ value,
+ onChange,
+ hint,
+ placeholder,
 }: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  hint?: string;
-  placeholder?: string;
+ label: string;
+ value: string;
+ onChange: (v: string) => void;
+ hint?: string;
+ placeholder?: string;
 }) {
-  const paise = rupeesToPaise(value);
-  return (
-    <div>
-      <label className={labelClass}>{label}</label>
-      <div className="relative">
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-400">₹</span>
-        <input
-          className={`${inputClass} pl-8`}
-          type="number"
-          min="0"
-          step="0.01"
-          value={value}
-          placeholder={placeholder}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </div>
-      <p className="mt-1 text-xs text-neutral-400">
-        {hint || (paise != null ? `${formatINR(paise)} · ${paise} paise` : "0 — stored as 0 paise")}
-      </p>
-    </div>
-  );
+ const paise = rupeesToPaise(value);
+ return (
+ <div>
+ <label className={labelClass}>{label}</label>
+ <div className="relative">
+ <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-400">₹</span>
+ <input
+ className={`ex-input ${inputClass} pl-8`}
+ type="number"
+ min="0"
+ step="0.01"
+ value={value}
+ placeholder={placeholder}
+ onChange={(e) => onChange(e.target.value)}
+ />
+ </div>
+ <p className="mt-1 text-xs text-neutral-400">
+ {hint || (paise != null ?`${formatINR(paise)} · ${paise} paise`:"0 — stored as 0 paise")}
+ </p>
+ </div>
+ );
 }
 
 export default function SettingsPage() {
-  // Business settings (existing)
-  const [businessSettings, setBusinessSettings] = useState<BusinessSettings | null>(null);
-  const [businessLoading, setBusinessLoading] = useState(true);
-  const [businessSaving, setBusinessSaving] = useState(false);
-  const [businessError, setBusinessError] = useState<string | null>(null);
-  const [currency, setCurrency] = useState("INR");
-  const [companyName, setCompanyName] = useState(BRAND_CONFIG.company.name);
-  const [primaryColor, setPrimaryColor] = useState("#f59e0b");
+ // Business settings (existing)
+ const [businessSettings, setBusinessSettings] = useState<BusinessSettings | null>(null);
+ const [businessLoading, setBusinessLoading] = useState(true);
+ const [businessSaving, setBusinessSaving] = useState(false);
+ const [businessError, setBusinessError] = useState<string | null>(null);
+ const [currency, setCurrency] = useState("INR");
+ const [companyName, setCompanyName] = useState(BRAND_CONFIG.company.name);
+ const [primaryColor, setPrimaryColor] = useState("#f59e0b");
 
-  // Store commerce settings (new)
-  const [store, setStore] = useState<StoreSettings | null>(null);
-  const [storeLoading, setStoreLoading] = useState(true);
-  const [storeSaving, setStoreSaving] = useState(false);
-  const [storeError, setStoreError] = useState<string | null>(null);
+ // Store commerce settings (new)
+ const [store, setStore] = useState<StoreSettings | null>(null);
+ const [storeLoading, setStoreLoading] = useState(true);
+ const [storeSaving, setStoreSaving] = useState(false);
+ const [storeError, setStoreError] = useState<string | null>(null);
 
-  const [codEnabled, setCodEnabled] = useState(false);
-  const [codFee, setCodFee] = useState("");
-  const [codMaxOrder, setCodMaxOrder] = useState("");
-  const [freeShippingThreshold, setFreeShippingThreshold] = useState("");
-  const [flatShipping, setFlatShipping] = useState("");
-  const [minOrder, setMinOrder] = useState("");
-  const [bannerTitle, setBannerTitle] = useState("");
-  const [bannerSubtitle, setBannerSubtitle] = useState("");
-  const [bannerImage, setBannerImage] = useState("");
-  const [bannerLink, setBannerLink] = useState("");
-  const [bannerActive, setBannerActive] = useState(false);
-  const [bannerStartsAt, setBannerStartsAt] = useState("");
-  const [bannerEndsAt, setBannerEndsAt] = useState("");
-  const [announcement, setAnnouncement] = useState("");
-  const [heroSlides, setHeroSlides] = useState<any[]>([]);
-  const [promoTiles, setPromoTiles] = useState<any[]>([]);
+ const [codEnabled, setCodEnabled] = useState(false);
+ const [codFee, setCodFee] = useState("");
+ const [codMaxOrder, setCodMaxOrder] = useState("");
+ const [freeShippingThreshold, setFreeShippingThreshold] = useState("");
+ const [flatShipping, setFlatShipping] = useState("");
+ const [minOrder, setMinOrder] = useState("");
+ const [bannerTitle, setBannerTitle] = useState("");
+ const [bannerSubtitle, setBannerSubtitle] = useState("");
+ const [bannerImage, setBannerImage] = useState("");
+ const [bannerLink, setBannerLink] = useState("");
+ const [bannerActive, setBannerActive] = useState(false);
+ const [bannerStartsAt, setBannerStartsAt] = useState("");
+ const [bannerEndsAt, setBannerEndsAt] = useState("");
+ const [announcement, setAnnouncement] = useState("");
+ const [heroSlides, setHeroSlides] = useState<any[]>([]);
+ const [promoTiles, setPromoTiles] = useState<any[]>([]);
 
-  // Delhivery Pickup Warehouse (Origin Address)
-  const [pickupName, setPickupName] = useState("ELEKTRIX");
-  const [pickupAdd, setPickupAdd] = useState("DS1, 109, Near Indian Petrol Pump, Vijayipur");
-  const [pickupCity, setPickupCity] = useState("Gopalganj");
-  const [pickupState, setPickupState] = useState("Bihar");
-  const [pickupPin, setPickupPin] = useState("841508");
-  const [pickupPhone, setPickupPhone] = useState("8092024066");
+ // Delhivery Pickup Warehouse (Origin Address)
+ const [pickupName, setPickupName] = useState("ELEKTRIX");
+ const [pickupAdd, setPickupAdd] = useState("DS1, 109, Near Indian Petrol Pump, Vijayipur");
+ const [pickupCity, setPickupCity] = useState("Gopalganj");
+ const [pickupState, setPickupState] = useState("Bihar");
+ const [pickupPin, setPickupPin] = useState("841508");
+ const [pickupPhone, setPickupPhone] = useState("8092024066");
 
-  // Default payment gateway (customers pay through this; no buyer chooser).
-  const [defaultGateway, setDefaultGateway] = useState<string>("cashfree");
-  const [gwStatus, setGwStatus] = useState<{
-    cashfree?: boolean;
-    easebuzz?: boolean;
-    cashfreeSandbox?: boolean;
-  }>({});
+ // Default payment gateway (customers pay through this; no buyer chooser).
+ const [defaultGateway, setDefaultGateway] = useState<string>("cashfree");
+ const [gwStatus, setGwStatus] = useState<{
+ cashfree?: boolean;
+ easebuzz?: boolean;
+ cashfreeSandbox?: boolean;
+ }>({});
 
-  const loadBusiness = useCallback(async () => {
-    try {
-      setBusinessLoading(true);
-      setBusinessError(null);
-      const data = await apiClient.get<BusinessSettings>("/settings");
-      if (data) {
-        setBusinessSettings(data);
-        if (data.config?.currency) setCurrency(data.config.currency);
-        if (data.config?.branding?.companyName) setCompanyName(data.config.branding.companyName);
-        if (data.config?.theme?.primaryColor) setPrimaryColor(data.config.theme.primaryColor);
-      }
-    } catch (err) {
-      setBusinessError(err instanceof ApiError ? `${err.message}${err.code ? ` (${err.code})` : ""}` : "Could not load business settings");
-    } finally {
-      setBusinessLoading(false);
-    }
-  }, []);
+ const loadBusiness = useCallback(async () => {
+ try {
+ setBusinessLoading(true);
+ setBusinessError(null);
+ const data = await apiClient.get<BusinessSettings>("/settings");
+ if (data) {
+ setBusinessSettings(data);
+ if (data.config?.currency) setCurrency(data.config.currency);
+ if (data.config?.branding?.companyName) setCompanyName(data.config.branding.companyName);
+ if (data.config?.theme?.primaryColor) setPrimaryColor(data.config.theme.primaryColor);
+ }
+ } catch (err) {
+ setBusinessError(err instanceof ApiError ?`${err.message}${err.code ?`(${err.code})`:""}`:"Could not load business settings");
+ } finally {
+ setBusinessLoading(false);
+ }
+ }, []);
 
-  const loadStore = useCallback(async () => {
-    try {
-      setStoreLoading(true);
-      setStoreError(null);
-      const data = await apiClient.get<StoreSettings>("/admin/store-settings");
-      setStore(data);
-      setCodEnabled(!!data.cod_enabled);
-      setCodFee(paiseToRupeeInput(data.cod_fee_paise));
-      setCodMaxOrder(paiseToRupeeInput(data.cod_max_order_paise));
-      setFreeShippingThreshold(paiseToRupeeInput(data.free_shipping_threshold_paise));
-      setMinOrder(paiseToRupeeInput(data.min_order_paise ?? 0));
-      setFlatShipping(paiseToRupeeInput(data.flat_shipping_paise));
-      setBannerTitle(data.banner?.title || "");
-      setBannerSubtitle(data.banner?.subtitle || "");
-      setBannerImage(data.banner?.image_url || "");
-      setBannerLink(data.banner?.link || "");
-      setBannerActive(!!data.banner?.active);
-      setBannerStartsAt(data.banner?.starts_at || "");
-      setBannerEndsAt(data.banner?.ends_at || "");
-      setAnnouncement(data.announcement || "");
-      setHeroSlides(data.hero_slides || []);
-      setPromoTiles(data.promo_tiles || []);
-      setDefaultGateway(data.default_gateway || "cashfree");
-      if (data.pickup_location) {
-        setPickupName(data.pickup_location.name || "ELEKTRIX");
-        setPickupAdd(data.pickup_location.add || "DS1, 109, Near Indian Petrol Pump, Vijayipur");
-        setPickupCity(data.pickup_location.city || "Gopalganj");
-        setPickupState(data.pickup_location.state || "Bihar");
-        setPickupPin(data.pickup_location.pin_code || "841508");
-        setPickupPhone(data.pickup_location.phone || "8092024066");
-      }
-    } catch (err) {
-      setStoreError(err instanceof ApiError ? `${err.message}${err.code ? ` (${err.code})` : ""}` : "Could not load store settings");
-    } finally {
-      setStoreLoading(false);
-    }
-  }, []);
+ const loadStore = useCallback(async () => {
+ try {
+ setStoreLoading(true);
+ setStoreError(null);
+ const data = await apiClient.get<StoreSettings>("/admin/store-settings");
+ setStore(data);
+ setCodEnabled(!!data.cod_enabled);
+ setCodFee(paiseToRupeeInput(data.cod_fee_paise));
+ setCodMaxOrder(paiseToRupeeInput(data.cod_max_order_paise));
+ setFreeShippingThreshold(paiseToRupeeInput(data.free_shipping_threshold_paise));
+ setMinOrder(paiseToRupeeInput(data.min_order_paise ?? 0));
+ setFlatShipping(paiseToRupeeInput(data.flat_shipping_paise));
+ setBannerTitle(data.banner?.title ||"");
+ setBannerSubtitle(data.banner?.subtitle ||"");
+ setBannerImage(data.banner?.image_url ||"");
+ setBannerLink(data.banner?.link ||"");
+ setBannerActive(!!data.banner?.active);
+ setBannerStartsAt(data.banner?.starts_at ||"");
+ setBannerEndsAt(data.banner?.ends_at ||"");
+ setAnnouncement(data.announcement ||"");
+ setHeroSlides(data.hero_slides || []);
+ setPromoTiles(data.promo_tiles || []);
+ setDefaultGateway(data.default_gateway ||"cashfree");
+ if (data.pickup_location) {
+ setPickupName(data.pickup_location.name ||"ELEKTRIX");
+ setPickupAdd(data.pickup_location.add ||"DS1, 109, Near Indian Petrol Pump, Vijayipur");
+ setPickupCity(data.pickup_location.city ||"Gopalganj");
+ setPickupState(data.pickup_location.state ||"Bihar");
+ setPickupPin(data.pickup_location.pin_code ||"841508");
+ setPickupPhone(data.pickup_location.phone ||"8092024066");
+ }
+ } catch (err) {
+ setStoreError(err instanceof ApiError ?`${err.message}${err.code ?`(${err.code})`:""}`:"Could not load store settings");
+ } finally {
+ setStoreLoading(false);
+ }
+ }, []);
 
-  useEffect(() => {
-    loadBusiness();
-    loadStore();
-    // Gateway availability/status comes from the public store config.
-    apiClient
-      .get<{ cashfree_available?: boolean; easebuzz_available?: boolean; cashfree_sandbox?: boolean; default_gateway?: string | null }>("/store/config")
-      .then((cfg) => {
-        setGwStatus({
-          cashfree: !!cfg.cashfree_available,
-          easebuzz: !!cfg.easebuzz_available,
-          cashfreeSandbox: !!cfg.cashfree_sandbox,
-        });
-        // Reflect the effective default if the admin hasn't chosen one yet.
-        if (cfg.default_gateway) setDefaultGateway(cfg.default_gateway);
-      })
-      .catch(() => {});
-  }, [loadBusiness, loadStore]);
+ useEffect(() => {
+ loadBusiness();
+ loadStore();
+ // Gateway availability/status comes from the public store config.
+ apiClient
+ .get<{ cashfree_available?: boolean; easebuzz_available?: boolean; cashfree_sandbox?: boolean; default_gateway?: string | null }>("/store/config")
+ .then((cfg) => {
+ setGwStatus({
+ cashfree: !!cfg.cashfree_available,
+ easebuzz: !!cfg.easebuzz_available,
+ cashfreeSandbox: !!cfg.cashfree_sandbox,
+ });
+ // Reflect the effective default if the admin hasn't chosen one yet.
+ if (cfg.default_gateway) setDefaultGateway(cfg.default_gateway);
+ })
+ .catch(() => {});
+ }, [loadBusiness, loadStore]);
 
-  const saveBusiness = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusinessSaving(true);
-    try {
-      const updatedConfig = {
-        ...(businessSettings?.config || {}),
-        currency,
-        theme: { ...(businessSettings?.config?.theme || {}), primaryColor },
-        branding: { ...(businessSettings?.config?.branding || {}), companyName },
-      };
-      const data = await apiClient.put<BusinessSettings>("/settings", { config: updatedConfig });
-      setBusinessSettings(data);
-      toast.success("Business settings saved");
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Failed to save business settings");
-    } finally {
-      setBusinessSaving(false);
-    }
-  };
+ const saveBusiness = async (e: React.FormEvent) => {
+ e.preventDefault();
+ setBusinessSaving(true);
+ try {
+ const updatedConfig = {
+ ...(businessSettings?.config || {}),
+ currency,
+ theme: { ...(businessSettings?.config?.theme || {}), primaryColor },
+ branding: { ...(businessSettings?.config?.branding || {}), companyName },
+ };
+ const data = await apiClient.put<BusinessSettings>("/settings", { config: updatedConfig });
+ setBusinessSettings(data);
+ toast.success("Business settings saved");
+ } catch (err) {
+ toast.error(err instanceof ApiError ? err.message :"Failed to save business settings");
+ } finally {
+ setBusinessSaving(false);
+ }
+ };
 
-  const saveStore = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setStoreSaving(true);
-    try {
-      const payload: Record<string, unknown> = {
-        cod_enabled: codEnabled,
-        cod_fee_paise: rupeesToPaise(codFee) ?? 0,
-        cod_max_order_paise: rupeesToPaise(codMaxOrder) ?? 0,
-        free_shipping_threshold_paise: rupeesToPaise(freeShippingThreshold) ?? 0,
-        flat_shipping_paise: rupeesToPaise(flatShipping) ?? 0,
-        min_order_paise: rupeesToPaise(minOrder) ?? 0,
-        banner_title: bannerTitle.trim() || null,
-        banner_subtitle: bannerSubtitle.trim() || null,
-        banner_image_url: bannerImage.trim() || null,
-        banner_link: bannerLink.trim() || null,
-        banner_active: bannerActive,
-        banner_starts_at: bannerStartsAt || null,
-        banner_ends_at: bannerEndsAt || null,
-        announcement: announcement.trim() || null,
-        hero_slides: heroSlides,
-        promo_tiles: promoTiles,
-        default_gateway: defaultGateway,
-        pickup_location: {
-          name: pickupName.trim() || "ELEKTRIX",
-          add: pickupAdd.trim(),
-          city: pickupCity.trim(),
-          state: pickupState.trim(),
-          pin_code: pickupPin.trim(),
-          country: "India",
-          phone: pickupPhone.trim(),
-        },
-      };
-      const data = await apiClient.put<StoreSettings>("/admin/store-settings", payload);
-      setStore(data);
-      toast.success("Store commerce settings saved");
-    } catch (err) {
-      toast.error(err instanceof ApiError ? `${err.message}${err.code ? ` (${err.code})` : ""}` : "Failed to save store settings");
-    } finally {
-      setStoreSaving(false);
-    }
-  };
+ const saveStore = async (e: React.FormEvent) => {
+ e.preventDefault();
+ setStoreSaving(true);
+ try {
+ const payload: Record<string, unknown> = {
+ cod_enabled: codEnabled,
+ cod_fee_paise: rupeesToPaise(codFee) ?? 0,
+ cod_max_order_paise: rupeesToPaise(codMaxOrder) ?? 0,
+ free_shipping_threshold_paise: rupeesToPaise(freeShippingThreshold) ?? 0,
+ flat_shipping_paise: rupeesToPaise(flatShipping) ?? 0,
+ min_order_paise: rupeesToPaise(minOrder) ?? 0,
+ banner_title: bannerTitle.trim() || null,
+ banner_subtitle: bannerSubtitle.trim() || null,
+ banner_image_url: bannerImage.trim() || null,
+ banner_link: bannerLink.trim() || null,
+ banner_active: bannerActive,
+ banner_starts_at: bannerStartsAt || null,
+ banner_ends_at: bannerEndsAt || null,
+ announcement: announcement.trim() || null,
+ hero_slides: heroSlides,
+ promo_tiles: promoTiles,
+ default_gateway: defaultGateway,
+ pickup_location: {
+ name: pickupName.trim() ||"ELEKTRIX",
+ add: pickupAdd.trim(),
+ city: pickupCity.trim(),
+ state: pickupState.trim(),
+ pin_code: pickupPin.trim(),
+ country:"India",
+ phone: pickupPhone.trim(),
+ },
+ };
+ const data = await apiClient.put<StoreSettings>("/admin/store-settings", payload);
+ setStore(data);
+ toast.success("Store commerce settings saved");
+ } catch (err) {
+ toast.error(err instanceof ApiError ?`${err.message}${err.code ?`(${err.code})`:""}`:"Failed to save store settings");
+ } finally {
+ setStoreSaving(false);
+ }
+ };
 
-  
-  const [uploadingBannerIdx, setUploadingBannerIdx] = useState<number | null>(null);
-  const [uploadingPromoIdx, setUploadingPromoIdx] = useState<number | null>(null);
+ 
+ const [uploadingBannerIdx, setUploadingBannerIdx] = useState<number | null>(null);
+ const [uploadingPromoIdx, setUploadingPromoIdx] = useState<number | null>(null);
 
-  
-  const handlePromoImageUpload = async (idx: number, file: File) => {
-    try {
-      setUploadingPromoIdx(idx);
-      const publicUrl = await uploadMediaFile(file);
-      setPromoTiles(prev => {
-        const n = [...prev];
-        n[idx].img = publicUrl;
-        return n;
-      });
-      toast.success("Promo image uploaded");
-    } catch (err) {
-      toast.error("Failed to upload image");
-    } finally {
-      setUploadingPromoIdx(null);
-    }
-  };
+ 
+ const handlePromoImageUpload = async (idx: number, file: File) => {
+ try {
+ setUploadingPromoIdx(idx);
+ const publicUrl = await uploadMediaFile(file);
+ setPromoTiles(prev => {
+ const n = [...prev];
+ n[idx].img = publicUrl;
+ return n;
+ });
+ toast.success("Promo image uploaded");
+ } catch (err) {
+ toast.error("Failed to upload image");
+ } finally {
+ setUploadingPromoIdx(null);
+ }
+ };
 
-  const handleBannerImageUpload = async (idx: number, file: File) => {
-    try {
-      setUploadingBannerIdx(idx);
-      const publicUrl = await uploadMediaFile(file);
+ const handleBannerImageUpload = async (idx: number, file: File) => {
+ try {
+ setUploadingBannerIdx(idx);
+ const publicUrl = await uploadMediaFile(file);
 
-      setHeroSlides((prev) => {
-        const n = [...prev];
-        n[idx].img = publicUrl;
-        return n;
-      });
-      toast.success("Image uploaded, please save settings to apply");
-    } catch (err) {
-      toast.error("Failed to upload image");
-    } finally {
-      setUploadingBannerIdx(null);
-    }
-  };
+ setHeroSlides((prev) => {
+ const n = [...prev];
+ n[idx].img = publicUrl;
+ return n;
+ });
+ toast.success("Image uploaded, please save settings to apply");
+ } catch (err) {
+ toast.error("Failed to upload image");
+ } finally {
+ setUploadingBannerIdx(null);
+ }
+ };
 
-  const reloadAll = () => {
-    loadBusiness();
-    loadStore();
-  };
+ const reloadAll = () => {
+ loadBusiness();
+ loadStore();
+ };
 
-  return (
-    <div className="flex flex-col gap-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-neutral-900 flex items-center gap-3">
-            <Settings className="w-8 h-8 text-amber-500" />
-            Settings
-          </h1>
-          <p className="text-neutral-500 text-sm mt-1">Business profile and storefront commerce configuration.</p>
-        </div>
-        <button
-          onClick={reloadAll}
-          disabled={businessLoading || storeLoading}
-          className="inline-flex items-center gap-2 self-start rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-700 transition-all hover:bg-neutral-50 disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${businessLoading || storeLoading ? "animate-spin" : ""}`} />
-          Reload
-        </button>
-      </div>
+ return (
+ <div className="flex flex-col gap-6">
+ {/* Header */}
+ <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+ <div>
+ <h1 className="text-xl font-semibold tracking-tight text-neutral-900 flex items-center gap-3">
+ <Settings className="w-8 h-8 text-neutral-500" />
+ Settings
+ </h1>
+ <p className="text-neutral-500 text-sm mt-1">Business profile and storefront commerce configuration.</p>
+ </div>
+ <button
+ onClick={reloadAll}
+ disabled={businessLoading || storeLoading}
+ className="inline-flex items-center gap-2 self-start rounded-md border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 disabled:opacity-50"
+ >
+ <RefreshCw className={`w-4 h-4 ${businessLoading || storeLoading ?"animate-spin" :""}`} />
+ Reload
+ </button>
+ </div>
 
-      {(businessError || storeError) && (
-        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
-          <div>
-            {businessError && <p>{businessError}</p>}
-            {storeError && <p>{storeError}</p>}
-          </div>
-        </div>
-      )}
+ {(businessError || storeError) && (
+ <div className="flex items-start gap-3 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+ <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
+ <div>
+ {businessError && <p>{businessError}</p>}
+ {storeError && <p>{storeError}</p>}
+ </div>
+ </div>
+ )}
 
-      {/* Store commerce settings (new) */}
-      <form onSubmit={saveStore} className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
-        {storeLoading ? (
-          <div className="space-y-6 animate-pulse">
-            <div className="h-6 w-1/3 rounded-md bg-neutral-100" />
-            <div className="h-12 w-full rounded-xl bg-neutral-100" />
-            <div className="h-12 w-full rounded-xl bg-neutral-100" />
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <div className="flex items-center gap-2">
-              <Banknote className="h-5 w-5 text-amber-500" />
-              <h2 className="text-lg font-bold text-neutral-900">Store Commerce</h2>
-            </div>
-            <p className="-mt-3 text-xs text-neutral-400">
-              Cash on delivery and shipping rules applied at checkout. All ₹ inputs are stored as integer paise.
-            </p>
+ {/* Store commerce settings (new) */}
+ <form onSubmit={saveStore} className="rounded-md border border-neutral-200 bg-white p-6 sm:p-8">
+ {storeLoading ? (
+ <div className="space-y-6 animate-pulse">
+ <div className="h-6 w-1/3 rounded-md bg-neutral-100" />
+ <div className="h-12 w-full rounded-md bg-neutral-100" />
+ <div className="h-12 w-full rounded-md bg-neutral-100" />
+ </div>
+ ) : (
+ <div className="space-y-6">
+ <div className="flex items-center gap-2">
+ <Banknote className="h-5 w-5 text-neutral-500" />
+ <h2 className="text-base font-semibold text-neutral-900">Store Commerce</h2>
+ </div>
+ <p className="-mt-3 text-xs text-neutral-400">
+ Cash on delivery and shipping rules applied at checkout. All ₹ inputs are stored as integer paise.
+ </p>
 
-            {/* COD */}
-            <div className="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/50 p-4">
-              <label className="flex cursor-pointer items-center justify-between">
-                <span className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-700">
-                  <Banknote className="h-4 w-4 text-amber-500" /> Enable Cash on Delivery
-                </span>
-                <input type="checkbox" checked={codEnabled} onChange={(e) => setCodEnabled(e.target.checked)} className="h-5 w-5 accent-amber-500" />
-              </label>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <RupeeField label="COD fee" value={codFee} onChange={setCodFee} placeholder="0" />
-                <RupeeField label="COD max order value" value={codMaxOrder} onChange={setCodMaxOrder} placeholder="e.g. 10000" hint="Orders above this must pay online." />
-              </div>
-            </div>
+ {/* COD */}
+ <div className="space-y-4 rounded-md border border-neutral-200 bg-neutral-50/50 p-4">
+ <label className="flex cursor-pointer items-center justify-between">
+ <span className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-700">
+ <Banknote className="h-4 w-4 text-neutral-500" /> Enable Cash on Delivery
+ </span>
+ <input type="checkbox" checked={codEnabled} onChange={(e) => setCodEnabled(e.target.checked)} className="ex-input h-5 w-5 accent-neutral-900" />
+ </label>
+ <div className="grid gap-4 sm:grid-cols-2">
+ <RupeeField label="COD fee" value={codFee} onChange={setCodFee} placeholder="0" />
+ <RupeeField label="COD max order value" value={codMaxOrder} onChange={setCodMaxOrder} placeholder="e.g. 10000" hint="Orders above this must pay online." />
+ </div>
+ </div>
 
-            {/* Payment Gateway — default gateway customers pay through */}
-            <div className="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/50 p-4">
-              <span className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-700">
-                <Zap className="h-4 w-4 text-amber-500" /> Default Payment Gateway
-              </span>
-              <p className="text-xs text-neutral-500 -mt-2">
-                Customers always pay through this gateway — there is no choice at checkout.
-                Changing it takes effect on the next payment.
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {([
-                  { id: "cashfree", name: "Cashfree" },
-                  { id: "easebuzz", name: "Easebuzz" },
-                ] as const).map((g) => {
-                  const active = defaultGateway === g.id;
-                  const available = g.id === "cashfree" ? gwStatus.cashfree : gwStatus.easebuzz;
-                  const sandbox = g.id === "cashfree" ? gwStatus.cashfreeSandbox : false;
-                  return (
-                    <label
-                      key={g.id}
-                      className={`flex flex-col gap-1 rounded-xl border-2 p-4 cursor-pointer transition-all ${
-                        active ? "border-neutral-900 bg-white" : "border-neutral-200 bg-white hover:border-neutral-400"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <input
-                          type="radio"
-                          name="default_gateway"
-                          value={g.id}
-                          checked={active}
-                          onChange={() => setDefaultGateway(g.id)}
-                          className="h-4 w-4 accent-neutral-900"
-                        />
-                        <CreditCard className={`h-4 w-4 ${active ? "text-neutral-900" : "text-neutral-400"}`} />
-                        <span className="text-sm font-semibold text-neutral-900">{g.name}</span>
-                      </span>
-                      <span className="ml-6 flex items-center gap-2 text-xs">
-                        {available === undefined ? (
-                          <span className="text-neutral-400">status unknown</span>
-                        ) : available ? (
-                          <>
-                            <span className="inline-flex items-center gap-1 text-green-600 font-medium">
-                              <Check className="h-3.5 w-3.5" /> Configured
-                            </span>
-                            {sandbox && (
-                              <span className="rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-[10px] font-bold px-2 py-0.5 uppercase tracking-wide">
-                                Sandbox
-                              </span>
-                            )}
-                            {!sandbox && (
-                              <span className="text-neutral-400">Live</span>
-                            )}
-                          </>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-red-500 font-medium">
-                            <X className="h-3.5 w-3.5" /> Not configured
-                          </span>
-                        )}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
+ {/* Payment Gateway — default gateway customers pay through */}
+ <div className="space-y-4 rounded-md border border-neutral-200 bg-neutral-50/50 p-4">
+ <span className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-700">
+ <Zap className="h-4 w-4 text-neutral-500" /> Default Payment Gateway
+ </span>
+ <p className="text-xs text-neutral-500 -mt-2">
+ Customers always pay through this gateway — there is no choice at checkout.
+ Changing it takes effect on the next payment.
+ </p>
+ <div className="grid gap-3 sm:grid-cols-2">
+ {([
+ { id:"cashfree", name:"Cashfree" },
+ { id:"easebuzz", name:"Easebuzz" },
+ ] as const).map((g) => {
+ const active = defaultGateway === g.id;
+ const available = g.id ==="cashfree" ? gwStatus.cashfree : gwStatus.easebuzz;
+ const sandbox = g.id ==="cashfree" ? gwStatus.cashfreeSandbox : false;
+ return (
+ <label
+ key={g.id}
+ className={`flex flex-col gap-1 rounded-md border-2 p-4 cursor-pointer transition-colors ${
+ active ?"border-neutral-900 bg-white" :"border-neutral-200 bg-white hover:border-neutral-400"
+ }`}
+ >
+ <span className="flex items-center gap-2">
+ <input
+ type="radio"
+ name="default_gateway"
+ value={g.id}
+ checked={active}
+ onChange={() => setDefaultGateway(g.id)}
+ className="ex-input h-4 w-4 accent-neutral-900"
+ />
+ <CreditCard className={`h-4 w-4 ${active ?"text-neutral-900" :"text-neutral-400"}`} />
+ <span className="text-sm font-semibold text-neutral-900">{g.name}</span>
+ </span>
+ <span className="ml-6 flex items-center gap-2 text-xs">
+ {available === undefined ? (
+ <span className="text-neutral-400">status unknown</span>
+ ) : available ? (
+ <>
+ <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
+ <Check className="h-3.5 w-3.5" /> Configured
+ </span>
+ {sandbox && (
+ <span className="rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold px-2 py-0.5">
+ Sandbox
+ </span>
+ )}
+ {!sandbox && (
+ <span className="text-neutral-400">Live</span>
+ )}
+ </>
+ ) : (
+ <span className="inline-flex items-center gap-1 text-red-500 font-medium">
+ <X className="h-3.5 w-3.5" /> Not configured
+ </span>
+ )}
+ </span>
+ </label>
+ );
+ })}
+ </div>
+ </div>
 
-            {/* Shipping */}
-            <div className="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/50 p-4">
-              <span className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-700">
-                <Truck className="h-4 w-4 text-amber-500" /> Shipping
-              </span>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <RupeeField label="Flat shipping fee" value={flatShipping} onChange={setFlatShipping} placeholder="e.g. 49" />
-                <RupeeField
-                  label="Free shipping threshold"
-                  value={freeShippingThreshold}
-                  onChange={setFreeShippingThreshold}
-                  placeholder="e.g. 999"
-                  hint="Orders at or above this subtotal ship free (0 disables)."
-                />
-                <RupeeField
-                  label="Minimum order for delivery"
-                  value={minOrder}
-                  onChange={setMinOrder}
-                  placeholder="e.g. 199"
-                  hint="Orders below this subtotal cannot check out (0 disables)."
-                />
-              </div>
-            </div>
+ {/* Shipping */}
+ <div className="space-y-4 rounded-md border border-neutral-200 bg-neutral-50/50 p-4">
+ <span className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-700">
+ <Truck className="h-4 w-4 text-neutral-500" /> Shipping
+ </span>
+ <div className="grid gap-4 sm:grid-cols-2">
+ <RupeeField label="Flat shipping fee" value={flatShipping} onChange={setFlatShipping} placeholder="e.g. 49" />
+ <RupeeField
+ label="Free shipping threshold"
+ value={freeShippingThreshold}
+ onChange={setFreeShippingThreshold}
+ placeholder="e.g. 999"
+ hint="Orders at or above this subtotal ship free (0 disables)."
+ />
+ <RupeeField
+ label="Minimum order for delivery"
+ value={minOrder}
+ onChange={setMinOrder}
+ placeholder="e.g. 199"
+ hint="Orders below this subtotal cannot check out (0 disables)."
+ />
+ </div>
+ </div>
 
-            {/* Delhivery Logistics & Pickup Address (Origin Warehouse) */}
-            <div className="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/50 p-4">
-              <div>
-                <span className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-900">
-                  <Truck className="h-4 w-4 text-amber-500" /> Delhivery Logistics &amp; Pickup Warehouse
-                </span>
-                <p className="mt-1 text-xs text-neutral-500">
-                  Default origin warehouse for Delhivery shipping manifests and return labels.
-                  The warehouse name must match the name registered in your Delhivery Client Portal.
-                  Multi-seller drop-shipping: when sellers are active, individual orders can override this pickup address.
-                </p>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className={labelClass}>Registered Warehouse Name</label>
-                  <input
-                    type="text"
-                    className={inputClass}
-                    value={pickupName}
-                    onChange={(e) => setPickupName(e.target.value)}
-                    placeholder="e.g. ELEKTRIX"
-                    required
-                  />
-                  <p className="mt-1 text-xs text-neutral-400">Exact name registered in Delhivery Portal</p>
-                </div>
-                <div>
-                  <label className={labelClass}>Warehouse Contact Phone</label>
-                  <input
-                    type="tel"
-                    className={inputClass}
-                    value={pickupPhone}
-                    onChange={(e) => setPickupPhone(e.target.value)}
-                    placeholder="10-digit mobile number"
-                    maxLength={10}
-                    required
-                  />
-                  <p className="mt-1 text-xs text-neutral-400">Used by Delhivery dispatch riders</p>
-                </div>
-                <div className="sm:col-span-2">
-                  <label className={labelClass}>Pickup Street Address</label>
-                  <input
-                    type="text"
-                    className={inputClass}
-                    value={pickupAdd}
-                    onChange={(e) => setPickupAdd(e.target.value)}
-                    placeholder="e.g. DS1, 109, Near Indian Petrol Pump, Vijayipur"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>City / District</label>
-                  <input
-                    type="text"
-                    className={inputClass}
-                    value={pickupCity}
-                    onChange={(e) => setPickupCity(e.target.value)}
-                    placeholder="e.g. Gopalganj"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>State</label>
-                  <input
-                    type="text"
-                    className={inputClass}
-                    value={pickupState}
-                    onChange={(e) => setPickupState(e.target.value)}
-                    placeholder="e.g. Bihar"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Origin Pincode</label>
-                  <input
-                    type="text"
-                    className={inputClass}
-                    value={pickupPin}
-                    onChange={(e) => setPickupPin(e.target.value)}
-                    placeholder="e.g. 841508"
-                    maxLength={6}
-                    required
-                  />
-                  <p className="mt-1 text-xs text-neutral-400">Official ELEKTRIX warehouse PIN</p>
-                </div>
-              </div>
-            </div>
+ {/* Delhivery Logistics & Pickup Address (Origin Warehouse) */}
+ <div className="space-y-4 rounded-md border border-neutral-200 bg-neutral-50/50 p-4">
+ <div>
+ <span className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-900">
+ <Truck className="h-4 w-4 text-neutral-500" /> Delhivery Logistics &amp; Pickup Warehouse
+ </span>
+ <p className="mt-1 text-xs text-neutral-500">
+ Default origin warehouse for Delhivery shipping manifests and return labels.
+ The warehouse name must match the name registered in your Delhivery Client Portal.
+ Multi-seller drop-shipping: when sellers are active, individual orders can override this pickup address.
+ </p>
+ </div>
+ <div className="grid gap-4 sm:grid-cols-2">
+ <div>
+ <label className={labelClass}>Registered Warehouse Name</label>
+ <input
+ type="text"
+ className={inputClass}
+ value={pickupName}
+ onChange={(e) => setPickupName(e.target.value)}
+ placeholder="e.g. ELEKTRIX"
+ required
+ />
+ <p className="mt-1 text-xs text-neutral-400">Exact name registered in Delhivery Portal</p>
+ </div>
+ <div>
+ <label className={labelClass}>Warehouse Contact Phone</label>
+ <input
+ type="tel"
+ className={inputClass}
+ value={pickupPhone}
+ onChange={(e) => setPickupPhone(e.target.value)}
+ placeholder="10-digit mobile number"
+ maxLength={10}
+ required
+ />
+ <p className="mt-1 text-xs text-neutral-400">Used by Delhivery dispatch riders</p>
+ </div>
+ <div className="sm:col-span-2">
+ <label className={labelClass}>Pickup Street Address</label>
+ <input
+ type="text"
+ className={inputClass}
+ value={pickupAdd}
+ onChange={(e) => setPickupAdd(e.target.value)}
+ placeholder="e.g. DS1, 109, Near Indian Petrol Pump, Vijayipur"
+ required
+ />
+ </div>
+ <div>
+ <label className={labelClass}>City / District</label>
+ <input
+ type="text"
+ className={inputClass}
+ value={pickupCity}
+ onChange={(e) => setPickupCity(e.target.value)}
+ placeholder="e.g. Gopalganj"
+ required
+ />
+ </div>
+ <div>
+ <label className={labelClass}>State</label>
+ <input
+ type="text"
+ className={inputClass}
+ value={pickupState}
+ onChange={(e) => setPickupState(e.target.value)}
+ placeholder="e.g. Bihar"
+ required
+ />
+ </div>
+ <div>
+ <label className={labelClass}>Origin Pincode</label>
+ <input
+ type="text"
+ className={inputClass}
+ value={pickupPin}
+ onChange={(e) => setPickupPin(e.target.value)}
+ placeholder="e.g. 841508"
+ maxLength={6}
+ required
+ />
+ <p className="mt-1 text-xs text-neutral-400">Official ELEKTRIX warehouse PIN</p>
+ </div>
+ </div>
+ </div>
 
-            {/* Festival banner */}
-            <div className="space-y-4 rounded-xl border border-amber-200 bg-amber-50/40 p-4">
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-700">
-                  <Megaphone className="h-4 w-4 text-amber-500" /> Festival Banner
-                </span>
-                <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-neutral-600">
-                  Active
-                  <input type="checkbox" checked={bannerActive} onChange={(e) => setBannerActive(e.target.checked)} className="h-4 w-4 accent-amber-500" />
-                </label>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className={labelClass}>Title</label>
-                  <input className={inputClass} value={bannerTitle} onChange={(e) => setBannerTitle(e.target.value)} placeholder="e.g. Diwali Dhamaka" />
-                </div>
-                <div>
-                  <label className={labelClass}>Subtitle</label>
-                  <input className={inputClass} value={bannerSubtitle} onChange={(e) => setBannerSubtitle(e.target.value)} placeholder="e.g. Up to 40% off" />
-                </div>
-                <div>
-                  <label className={labelClass}>Image URL</label>
-                  <input className={inputClass} value={bannerImage} onChange={(e) => setBannerImage(e.target.value)} placeholder="https://..." />
-                </div>
-                <div>
-                  <label className={labelClass}>Link</label>
-                  <input className={inputClass} value={bannerLink} onChange={(e) => setBannerLink(e.target.value)} placeholder="/shop or https://..." />
-                </div>
-                <div>
-                  <label className={labelClass}>Starts on (optional)</label>
-                  <input type="date" className={inputClass} value={bannerStartsAt} onChange={(e) => setBannerStartsAt(e.target.value)} />
-                </div>
-                <div>
-                  <label className={labelClass}>Ends on (optional — banner auto-hides after this date)</label>
-                  <input type="date" className={inputClass} value={bannerEndsAt} onChange={(e) => setBannerEndsAt(e.target.value)} />
-                </div>
-              </div>
-              {bannerImage && (
-                <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={bannerImage} alt="Banner preview" className="h-24 w-full object-contain" />
-                </div>
-              )}
-            </div>
+ {/* Festival banner */}
+ <div className="space-y-4 rounded-md border border-amber-200 bg-amber-50/40 p-4">
+ <div className="flex items-center justify-between">
+ <span className="inline-flex items-center gap-2 text-sm font-semibold text-neutral-700">
+ <Megaphone className="h-4 w-4 text-neutral-500" /> Festival Banner
+ </span>
+ <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-neutral-600">
+ Active
+ <input type="checkbox" checked={bannerActive} onChange={(e) => setBannerActive(e.target.checked)} className="ex-input h-4 w-4 accent-neutral-900" />
+ </label>
+ </div>
+ <div className="grid gap-4 sm:grid-cols-2">
+ <div>
+ <label className={labelClass}>Title</label>
+ <input className={inputClass} value={bannerTitle} onChange={(e) => setBannerTitle(e.target.value)} placeholder="e.g. Diwali Dhamaka" />
+ </div>
+ <div>
+ <label className={labelClass}>Subtitle</label>
+ <input className={inputClass} value={bannerSubtitle} onChange={(e) => setBannerSubtitle(e.target.value)} placeholder="e.g. Up to 40% off" />
+ </div>
+ <div>
+ <label className={labelClass}>Image URL</label>
+ <input className={inputClass} value={bannerImage} onChange={(e) => setBannerImage(e.target.value)} placeholder="https://..." />
+ </div>
+ <div>
+ <label className={labelClass}>Link</label>
+ <input className={inputClass} value={bannerLink} onChange={(e) => setBannerLink(e.target.value)} placeholder="/shop or https://..." />
+ </div>
+ <div>
+ <label className={labelClass}>Starts on (optional)</label>
+ <input type="date" className={inputClass} value={bannerStartsAt} onChange={(e) => setBannerStartsAt(e.target.value)} />
+ </div>
+ <div>
+ <label className={labelClass}>Ends on (optional — banner auto-hides after this date)</label>
+ <input type="date" className={inputClass} value={bannerEndsAt} onChange={(e) => setBannerEndsAt(e.target.value)} />
+ </div>
+ </div>
+ {bannerImage && (
+ <div className="overflow-hidden rounded-md border border-neutral-200 bg-white">
+ {/* eslint-disable-next-line @next/next/no-img-element */}
+ <img src={bannerImage} alt="Banner preview" className="h-24 w-full object-contain" />
+ </div>
+ )}
+ </div>
 
-            {/* Announcement */}
-            <div>
-              <label className={labelClass}>Announcement bar text</label>
-              <input
-                className={inputClass}
-                value={announcement}
-                onChange={(e) => setAnnouncement(e.target.value)}
-                placeholder="e.g. Free shipping on orders above ₹999"
-              />
-              <p className="mt-1 text-xs text-neutral-400">Shown as a slim bar on the storefront. Empty clears it.</p>
-            </div>
+ {/* Announcement */}
+ <div>
+ <label className={labelClass}>Announcement bar text</label>
+ <input
+ className={inputClass}
+ value={announcement}
+ onChange={(e) => setAnnouncement(e.target.value)}
+ placeholder="e.g. Free shipping on orders above ₹999"
+ />
+ <p className="mt-1 text-xs text-neutral-400">Shown as a slim bar on the storefront. Empty clears it.</p>
+ </div>
 
-            
-            
-            {/* Hero Slides CRUD */}
-            <div className="pt-4 border-t border-neutral-100">
-              <h3 className="text-lg font-semibold mb-4">Home Page Sliding Banners</h3>
-              {heroSlides.map((slide, idx) => (
-                <div key={idx} className="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 mb-4">
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold text-sm">Banner {idx + 1}</span>
-                    <div className="flex gap-4">
-                      {idx > 0 && <button type="button" onClick={() => setHeroSlides(prev => { const n = [...prev]; const temp = n[idx]; n[idx] = n[idx-1]; n[idx-1] = temp; return n; })} className="text-blue-500 text-sm">Move Up</button>}
-                      {idx < heroSlides.length - 1 && <button type="button" onClick={() => setHeroSlides(prev => { const n = [...prev]; const temp = n[idx]; n[idx] = n[idx+1]; n[idx+1] = temp; return n; })} className="text-blue-500 text-sm">Move Down</button>}
-                      <button type="button" onClick={() => setHeroSlides(prev => prev.filter((_, i) => i !== idx))} className="text-red-500 text-sm">Delete</button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <input className={inputClass} value={slide.eyebrow || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].eyebrow = e.target.value; return n; })} placeholder="Eyebrow text" />
-                    <input className={inputClass} value={slide.title || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].title = e.target.value; return n; })} placeholder="Title text" />
-                    <input className={inputClass} value={slide.subtitle || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].subtitle = e.target.value; return n; })} placeholder="Subtitle text" />
-                                        <input className={inputClass} value={slide.cta || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].cta = e.target.value; return n; })} placeholder="Button text" />
-                    <input className={inputClass} value={slide.link || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].link = e.target.value; return n; })} placeholder="Button link URL" />
-                    <input className={inputClass} type="number" value={slide.price || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].price = Number(e.target.value); return n; })} placeholder="Price (₹)" />
-                    <input className={inputClass} type="number" value={slide.mrp || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].mrp = Number(e.target.value); return n; })} placeholder="MRP (₹)" />
-                    
-                    <div className="flex gap-2 col-span-2">
-                      <input className={inputClass} value={slide.img || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].img = e.target.value; return n; })} placeholder="Image URL" />
-                      <label className="shrink-0 flex items-center justify-center h-11 px-4 bg-neutral-100 border border-neutral-200 rounded-xl text-sm font-semibold cursor-pointer hover:bg-neutral-200">
-                        {uploadingBannerIdx === idx ? "Uploading..." : "Upload"}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            if (e.target.files?.[0]) handleBannerImageUpload(idx, e.target.files[0]);
-                          }}
-                        />
-                      </label>
-                    </div>
+ 
+ 
+ {/* Hero Slides CRUD */}
+ <div className="pt-4 border-t border-neutral-100">
+ <h3 className="text-base font-semibold mb-4">Home Page Sliding Banners</h3>
+ {heroSlides.map((slide, idx) => (
+ <div key={idx} className="space-y-4 rounded-md border border-neutral-200 bg-neutral-50 p-4 mb-4">
+ <div className="flex justify-between items-center">
+ <span className="font-semibold text-sm">Banner {idx + 1}</span>
+ <div className="flex gap-4">
+ {idx > 0 && <button type="button" onClick={() => setHeroSlides(prev => { const n = [...prev]; const temp = n[idx]; n[idx] = n[idx-1]; n[idx-1] = temp; return n; })} className="text-sky-500 text-sm">Move Up</button>}
+ {idx < heroSlides.length - 1 && <button type="button" onClick={() => setHeroSlides(prev => { const n = [...prev]; const temp = n[idx]; n[idx] = n[idx+1]; n[idx+1] = temp; return n; })} className="text-sky-500 text-sm">Move Down</button>}
+ <button type="button" onClick={() => setHeroSlides(prev => prev.filter((_, i) => i !== idx))} className="text-red-500 text-sm">Delete</button>
+ </div>
+ </div>
+ <div className="grid grid-cols-2 gap-4">
+ <input className={inputClass} value={slide.eyebrow || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].eyebrow = e.target.value; return n; })} placeholder="Eyebrow text" />
+ <input className={inputClass} value={slide.title || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].title = e.target.value; return n; })} placeholder="Title text" />
+ <input className={inputClass} value={slide.subtitle || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].subtitle = e.target.value; return n; })} placeholder="Subtitle text" />
+ <input className={inputClass} value={slide.cta || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].cta = e.target.value; return n; })} placeholder="Button text" />
+ <input className={inputClass} value={slide.link || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].link = e.target.value; return n; })} placeholder="Button link URL" />
+ <input className={inputClass} type="number" value={slide.price || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].price = Number(e.target.value); return n; })} placeholder="Price (₹)" />
+ <input className={inputClass} type="number" value={slide.mrp || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].mrp = Number(e.target.value); return n; })} placeholder="MRP (₹)" />
+ 
+ <div className="flex gap-2 col-span-2">
+ <input className={inputClass} value={slide.img || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].img = e.target.value; return n; })} placeholder="Image URL" />
+ <label className="shrink-0 flex items-center justify-center h-11 px-4 bg-neutral-100 border border-neutral-200 rounded-md text-sm font-semibold cursor-pointer hover:bg-neutral-200">
+ {uploadingBannerIdx === idx ?"Uploading..." :"Upload"}
+ <input
+ type="file"
+ accept="image/*"
+ className="ex-input hidden"
+ onChange={(e) => {
+ if (e.target.files?.[0]) handleBannerImageUpload(idx, e.target.files[0]);
+ }}
+ />
+ </label>
+ </div>
 
-                    <input className={inputClass} value={slide.bg || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].bg = e.target.value; return n; })} placeholder="Background CSS (e.g. bg-blue-100)" />
-                  </div>
-                  {slide.img && <img src={slide.img} className="w-full h-32 object-cover rounded-xl mt-2" />}
-                </div>
-              ))}
-              <button type="button" onClick={() => setHeroSlides(prev => [...prev, { id: Date.now() }])} className="text-sm font-semibold text-blue-600 bg-blue-50 px-4 py-2 rounded-xl">
-                + Add Banner
-              </button>
-            </div>
-
-
-            {/* Promo Tiles CRUD */}
-            <div className="pt-4 border-t border-neutral-100 mt-8">
-              <h3 className="text-lg font-semibold mb-4">Promo Tiles (Shop by Category)</h3>
-              <p className="text-sm text-neutral-500 mb-4">Add, delete, or rearrange promotional category tiles.</p>
-              {promoTiles.map((slide, idx) => (
-                <div key={idx} className="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 mb-4">
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold text-sm">Tile {idx + 1}</span>
-                    <div className="flex gap-4">
-                      {idx > 0 && <button type="button" onClick={() => setPromoTiles(prev => { const n = [...prev]; const temp = n[idx]; n[idx] = n[idx-1]; n[idx-1] = temp; return n; })} className="text-blue-500 text-sm">Move Up</button>}
-                      {idx < promoTiles.length - 1 && <button type="button" onClick={() => setPromoTiles(prev => { const n = [...prev]; const temp = n[idx]; n[idx] = n[idx+1]; n[idx+1] = temp; return n; })} className="text-blue-500 text-sm">Move Down</button>}
-                      <button type="button" onClick={() => setPromoTiles(prev => prev.filter((_, i) => i !== idx))} className="text-red-500 text-sm">Delete</button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <input className={inputClass} value={slide.title || ''} onChange={(e) => setPromoTiles(prev => { const n = [...prev]; n[idx].title = e.target.value; return n; })} placeholder="Title (e.g. Laptops)" />
-                    <input className={inputClass} value={slide.subtitle || ''} onChange={(e) => setPromoTiles(prev => { const n = [...prev]; n[idx].subtitle = e.target.value; return n; })} placeholder="Subtitle (e.g. Up to 40% off)" />
-                    <input className={inputClass} value={slide.link || ''} onChange={(e) => setPromoTiles(prev => { const n = [...prev]; n[idx].link = e.target.value; return n; })} placeholder="Link URL" />
-                    
-                    <div className="flex gap-2">
-                      <input className={inputClass} value={slide.img || ''} onChange={(e) => setPromoTiles(prev => { const n = [...prev]; n[idx].img = e.target.value; return n; })} placeholder="Image URL" />
-                      <label className="shrink-0 flex items-center justify-center h-11 px-4 bg-neutral-100 border border-neutral-200 rounded-xl text-sm font-semibold cursor-pointer hover:bg-neutral-200">
-                        {uploadingPromoIdx === idx ? "Uploading..." : "Upload"}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            if (e.target.files?.[0]) handlePromoImageUpload(idx, e.target.files[0]);
-                          }}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                  {slide.img && <img src={slide.img} className="w-full h-32 object-contain rounded-xl mt-2 bg-neutral-200" />}
-                </div>
-              ))}
-              <button type="button" onClick={() => setPromoTiles(prev => [...prev, { id: Date.now() }])} className="text-sm font-semibold text-blue-600 bg-blue-50 px-4 py-2 rounded-xl">
-                + Add Tile
-              </button>
-            </div>
-
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={storeSaving}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 transition-all hover:from-amber-600 hover:to-orange-700 disabled:opacity-50"
-              >
-                {storeSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                {storeSaving ? "Saving..." : "Save Store Settings"}
-              </button>
-            </div>
-          </div>
-        )}
-      </form>
-
-      {/* Business settings (existing) */}
-      <form onSubmit={saveBusiness} className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
-        {businessLoading ? (
-          <div className="space-y-6 animate-pulse">
-            <div className="h-6 w-1/3 rounded-md bg-neutral-100" />
-            <div className="h-12 w-full rounded-xl bg-neutral-100" />
-            <div className="h-12 w-full rounded-xl bg-neutral-100" />
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <div className="flex items-center gap-2">
-              <Globe className="h-5 w-5 text-amber-500" />
-              <h2 className="text-lg font-bold text-neutral-900">Business Profile</h2>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className={labelClass}>Company / Store Name</label>
-                <input className={inputClass} value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-amber-500" />
-                <h3 className="text-sm font-bold text-neutral-900">Financial Configuration</h3>
-              </div>
-              <div>
-                <label className={labelClass}>Default Store Currency</label>
-                <select className={inputClass} value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                  <option value="INR">INR (₹) — Indian Rupee</option>
-                  <option value="USD">USD ($) — US Dollar</option>
-                  <option value="EUR">EUR (€) — Euro</option>
-                  <option value="GBP">GBP (£) — British Pound</option>
-                </select>
-                <p className="mt-1 text-xs text-neutral-400">
-                  All monetary values are calculated in integer minor units (paise / cents).
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold text-neutral-900">Theme Accent Color</h3>
-              <div className="flex items-center gap-4">
-                <input
-                  type="color"
-                  value={primaryColor}
-                  onChange={(e) => setPrimaryColor(e.target.value)}
-                  className="h-10 w-16 cursor-pointer rounded-lg border border-neutral-200 bg-white p-1"
-                />
-                <span className="font-mono text-sm text-neutral-500">{primaryColor}</span>
-              </div>
-            </div>
-
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={businessSaving}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 transition-all hover:from-amber-600 hover:to-orange-700 disabled:opacity-50"
-              >
-                {businessSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                {businessSaving ? "Saving..." : "Save Business Settings"}
-              </button>
-            </div>
-          </div>
-        )}
-      </form>
+ <input className={inputClass} value={slide.bg || ''} onChange={(e) => setHeroSlides(prev => { const n = [...prev]; n[idx].bg = e.target.value; return n; })} placeholder="Background CSS (e.g. bg-sky-100)" />
+ </div>
+ {slide.img && <img src={slide.img} className="w-full h-32 object-cover rounded-md mt-2" />}
+ </div>
+ ))}
+ <button type="button" onClick={() => setHeroSlides(prev => [...prev, { id: Date.now() }])} className="text-sm font-semibold text-sky-600 bg-sky-50 px-4 py-2 rounded-md">
+ + Add Banner
+ </button>
+ </div>
 
 
-    </div>
-  );
+ {/* Promo Tiles CRUD */}
+ <div className="pt-4 border-t border-neutral-100 mt-8">
+ <h3 className="text-base font-semibold mb-4">Promo Tiles (Shop by Category)</h3>
+ <p className="text-sm text-neutral-500 mb-4">Add, delete, or rearrange promotional category tiles.</p>
+ {promoTiles.map((slide, idx) => (
+ <div key={idx} className="space-y-4 rounded-md border border-neutral-200 bg-neutral-50 p-4 mb-4">
+ <div className="flex justify-between items-center">
+ <span className="font-semibold text-sm">Tile {idx + 1}</span>
+ <div className="flex gap-4">
+ {idx > 0 && <button type="button" onClick={() => setPromoTiles(prev => { const n = [...prev]; const temp = n[idx]; n[idx] = n[idx-1]; n[idx-1] = temp; return n; })} className="text-sky-500 text-sm">Move Up</button>}
+ {idx < promoTiles.length - 1 && <button type="button" onClick={() => setPromoTiles(prev => { const n = [...prev]; const temp = n[idx]; n[idx] = n[idx+1]; n[idx+1] = temp; return n; })} className="text-sky-500 text-sm">Move Down</button>}
+ <button type="button" onClick={() => setPromoTiles(prev => prev.filter((_, i) => i !== idx))} className="text-red-500 text-sm">Delete</button>
+ </div>
+ </div>
+ <div className="grid grid-cols-2 gap-4">
+ <input className={inputClass} value={slide.title || ''} onChange={(e) => setPromoTiles(prev => { const n = [...prev]; n[idx].title = e.target.value; return n; })} placeholder="Title (e.g. Laptops)" />
+ <input className={inputClass} value={slide.subtitle || ''} onChange={(e) => setPromoTiles(prev => { const n = [...prev]; n[idx].subtitle = e.target.value; return n; })} placeholder="Subtitle (e.g. Up to 40% off)" />
+ <input className={inputClass} value={slide.link || ''} onChange={(e) => setPromoTiles(prev => { const n = [...prev]; n[idx].link = e.target.value; return n; })} placeholder="Link URL" />
+ 
+ <div className="flex gap-2">
+ <input className={inputClass} value={slide.img || ''} onChange={(e) => setPromoTiles(prev => { const n = [...prev]; n[idx].img = e.target.value; return n; })} placeholder="Image URL" />
+ <label className="shrink-0 flex items-center justify-center h-11 px-4 bg-neutral-100 border border-neutral-200 rounded-md text-sm font-semibold cursor-pointer hover:bg-neutral-200">
+ {uploadingPromoIdx === idx ?"Uploading..." :"Upload"}
+ <input
+ type="file"
+ accept="image/*"
+ className="ex-input hidden"
+ onChange={(e) => {
+ if (e.target.files?.[0]) handlePromoImageUpload(idx, e.target.files[0]);
+ }}
+ />
+ </label>
+ </div>
+ </div>
+ {slide.img && <img src={slide.img} className="w-full h-32 object-contain rounded-md mt-2 bg-neutral-200" />}
+ </div>
+ ))}
+ <button type="button" onClick={() => setPromoTiles(prev => [...prev, { id: Date.now() }])} className="text-sm font-semibold text-sky-600 bg-sky-50 px-4 py-2 rounded-md">
+ + Add Tile
+ </button>
+ </div>
+
+ <div className="flex justify-end">
+ <button
+ type="submit"
+ disabled={storeSaving}
+ className="inline-flex items-center gap-2 rounded-md bg-neutral-900 hover:bg-neutral-700 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-neutral-700 disabled:opacity-50"
+ >
+ {storeSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+ {storeSaving ?"Saving..." :"Save Store Settings"}
+ </button>
+ </div>
+ </div>
+ )}
+ </form>
+
+ {/* Business settings (existing) */}
+ <form onSubmit={saveBusiness} className="rounded-md border border-neutral-200 bg-white p-6 sm:p-8">
+ {businessLoading ? (
+ <div className="space-y-6 animate-pulse">
+ <div className="h-6 w-1/3 rounded-md bg-neutral-100" />
+ <div className="h-12 w-full rounded-md bg-neutral-100" />
+ <div className="h-12 w-full rounded-md bg-neutral-100" />
+ </div>
+ ) : (
+ <div className="space-y-6">
+ <div className="flex items-center gap-2">
+ <Globe className="h-5 w-5 text-neutral-500" />
+ <h2 className="text-base font-semibold text-neutral-900">Business Profile</h2>
+ </div>
+ <div className="space-y-4">
+ <div>
+ <label className={labelClass}>Company / Store Name</label>
+ <input className={inputClass} value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
+ </div>
+ </div>
+
+ <div className="space-y-4">
+ <div className="flex items-center gap-2">
+ <Shield className="h-5 w-5 text-neutral-500" />
+ <h3 className="text-sm font-semibold text-neutral-900">Financial Configuration</h3>
+ </div>
+ <div>
+ <label className={labelClass}>Default Store Currency</label>
+ <select className={inputClass} value={currency} onChange={(e) => setCurrency(e.target.value)}>
+ <option value="INR">INR (₹) — Indian Rupee</option>
+ <option value="USD">USD ($) — US Dollar</option>
+ <option value="EUR">EUR (€) — Euro</option>
+ <option value="GBP">GBP (£) — British Pound</option>
+ </select>
+ <p className="mt-1 text-xs text-neutral-400">
+ All monetary values are calculated in integer minor units (paise / cents).
+ </p>
+ </div>
+ </div>
+
+ <div className="space-y-4">
+ <h3 className="text-sm font-semibold text-neutral-900">Theme Accent Color</h3>
+ <div className="flex items-center gap-4">
+ <input
+ type="color"
+ value={primaryColor}
+ onChange={(e) => setPrimaryColor(e.target.value)}
+ className="ex-input w-16 cursor-pointer rounded-md border border-neutral-200 bg-white p-1"
+ />
+ <span className="font-mono text-sm text-neutral-500">{primaryColor}</span>
+ </div>
+ </div>
+
+ <div className="flex justify-end">
+ <button
+ type="submit"
+ disabled={businessSaving}
+ className="inline-flex items-center gap-2 rounded-md bg-neutral-900 hover:bg-neutral-700 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-neutral-700 disabled:opacity-50"
+ >
+ {businessSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+ {businessSaving ?"Saving..." :"Save Business Settings"}
+ </button>
+ </div>
+ </div>
+ )}
+ </form>
+
+
+ </div>
+ );
 }
 
 

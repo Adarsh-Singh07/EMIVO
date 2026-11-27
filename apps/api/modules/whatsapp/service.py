@@ -7,6 +7,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
+from core.money import format_inr_paise
 from core.redis import redis_manager
 from modules.chatbot.service import ask_gemini
 from modules.notifications.whatsapp import get_whatsapp_provider
@@ -34,12 +35,40 @@ To ensure complete trust and eliminate fraud, all ELEKTRIX deliveries are Open-B
 3. *Damaged / Wrong Items:* If the item is damaged or incorrect, reject the delivery or report same-day to support@elektrix.in with photos for an immediate free replacement.
 4. *Warranty:* Internal manufacturing defects are covered under the brand's authorized service center warranty."""
 
-OFFERS_INFO = """🎟️ *Active Offers on ELEKTRIX* ⚡
+OFFERS_FALLBACK = """🎟️ *ELEKTRIX Offers* ⚡
 
-• *WELCOME10*: 10% OFF (up to ₹500) on orders above ₹2,000
-• *FLAT200*: ₹200 OFF on orders above ₹3,000
 • *Free Pan-India Delivery* on all orders over ₹999!
-• Express dispatch directly from our central warehouse in Vijayipur, Bihar (841508) via Delhivery express."""
+• New coupon codes drop during festival sales — keep an eye here.
+• Express dispatch directly from our central warehouse in Vijayipur, Bihar (841508)."""
+
+
+async def _offers_reply(session) -> str:
+    """Live active coupons from the database — the hardcoded WELCOME10/FLAT200
+    copy drifted from the real coupons table (expired codes stayed listed)."""
+    lines = []
+    try:
+        res = await session.execute(text("""
+            SELECT code, discount_type, discount_value, min_order_amount, max_discount_amount
+            FROM coupons
+            WHERE is_active = TRUE
+              AND (start_date IS NULL OR start_date <= now())
+              AND (end_date IS NULL OR end_date >= now())
+            ORDER BY created_at DESC LIMIT 5
+        """))
+        for r in res.mappings():
+            if r["discount_type"] == "PERCENTAGE":
+                offer = f"{r['discount_value']:g}% OFF"
+                if r["max_discount_amount"]:
+                    offer += f" (up to ₹{round(r['max_discount_amount'] / 100):,})"
+            else:
+                offer = f"₹{round(r['discount_value'] / 100):,} OFF"
+            if r["min_order_amount"]:
+                offer += f" on orders above ₹{round(r['min_order_amount'] / 100):,}"
+            lines.append(f"• *{r['code']}*: {offer}")
+    except Exception as e:
+        logger.warning("WhatsApp offers query failed: %s", e)
+    body = "\n".join(lines) if lines else ""
+    return f"🎟️ *Active Offers on ELEKTRIX* ⚡\n\n{body}\n\n{OFFERS_FALLBACK}"
 
 
 def clean_phone(phone_raw: str) -> str:
@@ -51,15 +80,73 @@ def clean_phone(phone_raw: str) -> str:
     return cleaned
 
 
+_STATUS_LABELS = {
+    "PENDING": "Pending confirmation",
+    "CONFIRMED": "Confirmed — being packed",
+    "PROCESSING": "Processing",
+    "PACKED": "Packed — awaiting pickup",
+    "SHIPPED": "Shipped — on the way",
+    "OUT_FOR_DELIVERY": "Out for delivery today",
+    "DELIVERED": "Delivered",
+    "CANCELLED": "Cancelled",
+    "REFUNDED": "Refunded",
+    "PAYMENT_FAILED": "Payment failed",
+}
+
+
+def humanize_status(status: str) -> str:
+    """Order enum -> customer-friendly words ('OUT_FOR_DELIVERY' -> 'Out for
+    delivery today'); unknown values pass through with nicer casing."""
+    if not status:
+        return "In progress"
+    return _STATUS_LABELS.get(status.upper(), status.replace("_", " ").title())
+
+
 def format_for_whatsapp(text_in: str) -> str:
-    """Format markdown text to WhatsApp formatting:
-    - **bold** -> *bold*
-    - [label](url) -> label: url
-    - Strip HTML tags
+    """Convert model markdown into clean WhatsApp markup.
+
+    WhatsApp understands *bold*, _italic_, ~strike~ and ```mono``` — not
+    **bold**, __bold__, ### headings, - bullets, ~~strike~~ or fenced code
+    blocks. Gemini emits those constantly, so every construct is mapped to
+    its WhatsApp equivalent (or dropped) instead of leaking raw markdown:
+
+    - **bold** / __bold__        -> *bold*
+    - ### heading                -> *heading* on its own line
+    - - / * list items           -> bullet dots
+    - [label](url)               -> *label*: url (tap-friendly)
+    - ~~strike~~                 -> ~strike~
+    - ``` fences, HTML tags, --- rules -> removed
     """
-    out = re.sub(r"\*\*([^*]+)\*\*", r"*\1*", text_in)
-    out = re.sub(r"\[([^\]]+)\]\((https?://[^\s)]+)\)", r"*\1* (\2)", out)
+    out = text_in
+
+    # fenced code blocks: keep the content, drop the fences
+    out = re.sub(r"```[a-zA-Z0-9]*\n?", "", out)
+
+    # headings (###, ##, #) -> bold lines
+    out = re.sub(r"^#{1,6}\s+(.+)$", r"*\1*", out, flags=re.MULTILINE)
+
+    # bold (asterisk and underscore forms)
+    out = re.sub(r"\*\*([^*]+)\*\*", r"*\1*", out)
+    out = re.sub(r"__([^_]+)__", r"*\1*", out)
+
+    # strikethrough
+    out = re.sub(r"~~([^~]+)~~", r"~\1~", out)
+
+    # markdown links -> WhatsApp bold label + bare URL
+    out = re.sub(r"\[([^\]]+)\]\((https?://[^\s)]+)\)", r"*\1*: \2", out)
+
+    # dash/asterisk bullets -> bullet dots (anchored at line start so
+    # "*bold*" markers mid-sentence are never touched)
+    out = re.sub(r"^\s*[-*]\s+", "\u2022 ", out, flags=re.MULTILINE)
+
+    # horizontal rules -> nothing (a blank line reads better on mobile)
+    out = re.sub(r"^\s*[-*_]{3,}\s*$", "", out, flags=re.MULTILINE)
+
+    # strip any residual HTML
     out = re.sub(r"<[^>]+>", "", out)
+
+    # collapse runaway blank lines (WhatsApp renders them as big gaps)
+    out = re.sub(r"\n{3,}", "\n\n", out)
     return out.strip()
 
 
@@ -116,7 +203,7 @@ class WhatsAppService:
             reply = await self._handle_stock_alert_prompt(msg_clean, phone_norm, user_id)
 
         elif msg_clean in ("4", "4.") or msg_lower in ("offers", "coupon", "coupons", "discount"):
-            reply = OFFERS_INFO
+            reply = await _offers_reply(self.session)
 
         elif msg_clean in ("5", "5.") or "open box" in msg_lower or "otp" in msg_lower:
             reply = OPEN_BOX_INFO
@@ -171,9 +258,9 @@ class WhatsAppService:
         lines = ["📦 *Your Recent Orders on ELEKTRIX:*"]
         for o in res:
             num = o["order_number"]
-            st = o["status"]
+            st = humanize_status(o["status"])
             items = o["items"]
-            amt = f"₹{round(o['total'] / 100):,}"
+            amt = format_inr_paise(o["total"])
             track_awb = f"AWB: {o['tracking_number']}" if o.get("tracking_number") else ""
 
             otp_alert = ""
@@ -249,6 +336,11 @@ class WhatsAppService:
         )
 
         # 3. Handle actions
+        if not reply:
+            reply = (
+                "Sorry, I couldn't process that just now. Please try again, or reach "
+                "our team at support@elektrix.in / +91 80920 24066 (9 AM – 8 PM IST)."
+            )
         if cancel_number and user_id:
             from modules.orders.service import OrderService
             try:

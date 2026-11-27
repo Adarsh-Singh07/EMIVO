@@ -11,6 +11,26 @@ from core.config import settings
 logger = logging.getLogger(__name__)
 
 
+def _html_to_text(html: str) -> str:
+    """Crude but deliverable plain-text part from the HTML body.
+
+    Spam filters score multipart mail with a text part higher than html-only,
+    and Resend silently omits the text part when it is empty."""
+    import re as _re
+    text_ = _re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", html, flags=_re.S | _re.I)
+    text_ = _re.sub(r"<br\s*/?>", "\n", text_, flags=_re.I)
+    text_ = _re.sub(r"</(p|div|tr|li|h[1-6])>", "\n", text_, flags=_re.I)
+    text_ = _re.sub(r"<[^>]+>", "", text_)
+    text_ = (
+        text_.replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<")
+        .replace("&gt;", ">").replace("&middot;", "·").replace("&ldquo;", "\u201c")
+        .replace("&rdquo;", "\u201d").replace("&rsquo;", "\u2019")
+    )
+    text_ = _re.sub(r"[ \t]+", " ", text_)
+    text_ = _re.sub(r"\n{3,}", "\n\n", text_)
+    return text_.strip()
+
+
 class NotificationProvider(ABC):
     @abstractmethod
     async def send_email(
@@ -53,8 +73,7 @@ class ResendEmailProvider(NotificationProvider):
         }
         if reply_to:
             payload["reply_to"] = reply_to
-        if text:
-            payload["text"] = text
+        payload["text"] = text or _html_to_text(html)
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 resp = await client.post(
@@ -125,7 +144,7 @@ class SmtpEmailProvider(NotificationProvider):
         msg["Subject"] = subject
         if reply_to:
             msg["Reply-To"] = reply_to
-        msg.set_content(text or "Please enable HTML to view this email.")
+        msg.set_content(text or _html_to_text(html))
         msg.add_alternative(html, subtype="html")
 
         def _send():

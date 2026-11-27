@@ -33,13 +33,10 @@ SUPPORTED_EVENTS = (
 
 
 def format_inr(paise: int | float | None) -> str:
-    """Format paise into Indian Rupee currency string."""
-    if paise is None:
-        return "₹0"
-    rupees = paise / 100
-    if rupees == int(rupees):
-        return f"₹{int(rupees):,}"
-    return f"₹{rupees:,.2f}"
+    """Format paise into Indian Rupee currency string (₹1,19,900 grouping —
+    the same en-IN format the storefront and emails use)."""
+    from core.money import format_inr_paise
+    return format_inr_paise(paise)
 
 
 def build_template_components(event_type: str, values: Dict[str, Any]) -> Dict[str, Any]:

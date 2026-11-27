@@ -3,41 +3,26 @@
 import React from "react";
 
 interface BrandLogoProps {
+  /** Edge of the icon tile in px. */
   size?: number;
   className?: string;
+  /** Second line under the wordmark, e.g. "Seller central". */
   subtitle?: string;
   showText?: boolean;
 }
 
-export function BrandLogo({
-  size = 32,
-  className = "",
-  subtitle = "SELLER CENTRAL",
-  showText = true,
-}: BrandLogoProps) {
+/** ELEKTRIX lockup: the icon tile, the wordmark, and which console this is. */
+export function BrandLogo({ size = 28, className = "", subtitle = "Seller central", showText = true }: BrandLogoProps) {
   return (
-    <div className={`inline-flex items-center gap-2 ${className}`}>
-      {/* Exact storefront icon treatment */}
+    <span className={`inline-flex items-center gap-2.5 ${className}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/branding/icon.png"
-        alt="ELEKTRIX"
-        style={{ width: size, height: size }}
-        className="rounded-lg object-contain shrink-0"
-      />
-
+      <img src="/branding/icon.png" alt="" width={size} height={size} className="shrink-0 rounded-md" />
       {showText && (
-        <div className="flex flex-col leading-none">
-          <span className="text-lg font-bold tracking-tight text-neutral-900">
-            ELEKTRIX
-          </span>
-          {subtitle && (
-            <span className="text-[10px] font-semibold tracking-wider uppercase text-neutral-500 mt-0.5">
-              {subtitle}
-            </span>
-          )}
-        </div>
+        <span className="flex flex-col leading-tight">
+          <span className="text-sm font-semibold tracking-tight text-neutral-900">ELEKTRIX</span>
+          {subtitle && <span className="text-xs text-neutral-500">{subtitle}</span>}
+        </span>
       )}
-    </div>
+    </span>
   );
 }

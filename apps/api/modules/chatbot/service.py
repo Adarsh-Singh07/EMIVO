@@ -86,7 +86,9 @@ STORE & PRODUCT KNOWLEDGE:
 - Free Delivery: on all orders over ₹999.
 - Returns: 7-day easy returns/replacement on eligible items — details at https://elektrix.in/refund.
 - Warranty: varies by product — always point the customer to the product page for exact warranty terms.
-- Active coupons: WELCOME10 gives 10% off (capped at ₹500) on orders above ₹2,000. FLAT200 gives ₹200 off on orders above ₹3,000.
+- Active coupons (live from the database — quote ONLY these; if the list says
+  none are running, say there are no active offers and never invent codes):
+{coupons}
 - Customer Support: Phone: +91 80920 24066 | Email: support@elektrix.in | Hours: 9 AM - 8 PM IST.
 
 PRIVACY & SECURITY RULES (STRICT):
@@ -153,6 +155,40 @@ async def get_public_catalog_block(session: Optional[AsyncSession]) -> str:
     except Exception as exc:
         logger.warning("Could not fetch catalog from DB: %s", exc)
         return DEFAULT_CATALOG_FALLBACK
+
+
+async def get_active_coupons_block(session: Optional[AsyncSession]) -> str:
+    """Live active coupons for the assistant to quote — replaces the hardcoded
+    WELCOME10/FLAT200 copy that drifted from the real coupons table (an
+    expired FESTIVE15 stayed is_active and was being offered for weeks)."""
+    if not session:
+        return "- (No coupon data available right now; do not mention specific codes.)"
+    try:
+        res = await session.execute(text("""
+            SELECT code, discount_type, discount_value, min_order_amount, max_discount_amount
+            FROM coupons
+            WHERE is_active = TRUE
+              AND (start_date IS NULL OR start_date <= now())
+              AND (end_date IS NULL OR end_date >= now())
+            ORDER BY created_at DESC LIMIT 5
+        """))
+        lines = []
+        for r in res.mappings():
+            if r["discount_type"] == "PERCENTAGE":
+                offer = f"{r['discount_value']:g}% off"
+                if r["max_discount_amount"]:
+                    offer += f" (up to ₹{round(r['max_discount_amount'] / 100):,})"
+            else:
+                offer = f"₹{round(r['discount_value'] / 100):,} off"
+            if r["min_order_amount"]:
+                offer += f" on orders above ₹{round(r['min_order_amount'] / 100):,}"
+            lines.append(f"- {r['code']}: {offer}")
+        if not lines:
+            return "- (No active coupon offers are running right now.)"
+        return "\n".join(lines)
+    except Exception as exc:
+        logger.warning("Could not fetch coupons from DB: %s", exc)
+        return "- (No coupon data available right now; do not mention specific codes.)"
 
 
 async def build_user_context(session: AsyncSession, user_id: str, user_name: str) -> tuple[str, str, str, str]:
@@ -224,8 +260,10 @@ async def ask_gemini(
         )
     else:
         catalog_block = await get_public_catalog_block(session)
+        coupons_block = await get_active_coupons_block(session)
         prompt = GUEST_SYSTEM_PROMPT.format(
             catalog=catalog_block,
+            coupons=coupons_block,
             history=hist or "(new conversation)",
         )
 

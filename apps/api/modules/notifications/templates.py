@@ -29,6 +29,16 @@ GREEN = "#059669"
 RED = "#dc2626"
 AMBER = "#b45309"
 
+# Precomputed solid tints for status pills. 8-digit hex alpha (#05966914)
+# renders fine in Gmail/Apple Mail but Outlook's Word engine drops the alpha
+# channel (or the whole rule), so every pill colour ships its own light
+# background + border instead of an alpha suffix.
+PILL_TINTS = {
+    GREEN: ("#ecfdf5", "#a7f3d0"),
+    RED: ("#fef2f2", "#fecaca"),
+    AMBER: ("#fffbeb", "#fde68a"),
+}
+
 LEGAL = (
     "M/S APANA ENTERPRISES &middot; DS1, 109, Near Indian Petrol Pump, "
     "Vijayipur, Gopalganj, Bihar 841508 &middot; GSTIN: 10COMPG4070G1ZB"
@@ -36,9 +46,10 @@ LEGAL = (
 
 
 def _pill(text: str, color: str) -> str:
+    bg, border = PILL_TINTS.get(color, (PAPER, LINE))
     return (
-        f'<span style="display:inline-block;background:{color}14;color:{color};'
-        f'border:1px solid {color}33;border-radius:999px;padding:6px 14px;'
+        f'<span style="display:inline-block;background:{bg};color:{color};'
+        f'border:1px solid {border};border-radius:999px;padding:6px 14px;'
         f'font-size:11px;font-weight:700;letter-spacing:1.5px;">{text}</span>'
     )
 
@@ -150,7 +161,12 @@ def _shell(
 
 
 def _rupees(paise: float) -> str:
-    return f"₹{round(paise / 100):,}"
+    """Indian-grouped rupees (₹1,19,900) — the storefront's en-IN format.
+
+    Python's built-in `:,` renders western thousands (119,900), which every
+    other ELEKTRIX surface shows differently."""
+    from core.money import format_inr_paise
+    return format_inr_paise(paise)
 
 
 def _items_table(items: list) -> str:
@@ -206,7 +222,12 @@ def _pay_chip(payment_method: str, gateway: str = "") -> str:
 def _payment_details(p: dict) -> str:
     """Payment details card: gateway, reference id, amount, status.
 
-    Only rendered for prepaid orders — COD orders have no gateway."""
+    Only rendered for prepaid orders — COD orders have no gateway.
+    `amount` comes from the payment capture event; `total` is the fallback
+    so the card never renders ₹0 when only the order payload is at hand."""
+    amount = p.get("amount")
+    if not amount:
+        amount = p.get("total", 0)
     if not p.get("payment_gateway"):
         return ""
     g = p["payment_gateway"].strip()
@@ -217,7 +238,7 @@ def _payment_details(p: dict) -> str:
         ("Paid via", f"<b style='color:{INK};'>{g_label}</b>"),
         ("Payment reference", f"<span style='font-family:Menlo,Consolas,monospace;letter-spacing:0.4px;"
                               f"color:{INK};'>{ref_display}</span>"),
-        ("Amount", f"<b style='color:{INK};'>{_rupees(p.get('amount', 0))}</b>"),
+        ("Amount", f"<b style='color:{INK};'>{_rupees(amount)}</b>"),
         ("Status", f'<span style="color:{GREEN};font-weight:700;">Success</span>'),
     ]
     row_html = "".join(
@@ -477,7 +498,7 @@ def otp_login(p: dict, storefront_url: str) -> tuple[str, str]:
         f"{intro}Use this one-time code to sign in to your ELEKTRIX account:"
         f"<div style='margin:24px auto 20px;max-width:320px;text-align:center;background:{PAPER};"
         f"border:1px solid {LINE};border-radius:14px;padding:20px 10px;'>"
-        f"<div style='font-size:34px;letter-spacing:10px;font-weight:700;color:{INK};'>"
+        f"<div style='font-size:34px;letter-spacing:10px;padding-left:10px;font-weight:700;color:{INK};'>"
         f"{code}</div>"
         f"<div style='margin-top:8px;font-size:11px;color:{FAINT};letter-spacing:1px;'>"
         "EXPIRES IN 10 MINUTES</div></div>"
@@ -500,7 +521,7 @@ def otp_register(p: dict, storefront_url: str) -> tuple[str, str]:
         f"{greeting}Thank you for signing up with ELEKTRIX. Use this one-time code to verify your email and activate your account:"
         f"<div style='margin:24px auto 20px;max-width:320px;text-align:center;background:{PAPER};"
         f"border:1px solid {LINE};border-radius:14px;padding:20px 10px;'>"
-        f"<div style='font-size:34px;letter-spacing:10px;font-weight:700;color:{INK};'>"
+        f"<div style='font-size:34px;letter-spacing:10px;padding-left:10px;font-weight:700;color:{INK};'>"
         f"{code}</div>"
         f"<div style='margin-top:8px;font-size:11px;color:{FAINT};letter-spacing:1px;'>"
         "EXPIRES IN 10 MINUTES</div></div>"
@@ -625,6 +646,218 @@ def marketing_broadcast(p: dict, storefront_url: str) -> tuple[str, str]:
     )
 
 
+def seller_welcome(p: dict, storefront_url: str) -> tuple[str, str]:
+    """Seller Central credentials email — sent when staff provision or approve
+    a merchant account. The temporary password is the only way in until the
+    seller changes it, so the credential box is deliberately prominent."""
+    name = p.get("contact_person") or "Merchant"
+    business = p.get("business_name", "")
+    email = p.get("email", "")
+    password = p.get("temporary_password", "")
+    login_url = p.get("login_url") or "https://sell.elektrix.in/login"
+    body = (
+        f"Hello <b style='color:{INK};'>{name}</b>, your merchant account for "
+        f"<b style='color:{INK};'>{business}</b> is ready. Sign in to Seller Central "
+        "to add your products, set prices and stock, and pack customer orders."
+        "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' "
+        "style='margin:22px 0 0;border:1px solid "
+        f"{LINE};border-radius:12px;border-collapse:separate;'>"
+        "<tr><td colspan='2' style='background:#fafafa;padding:9px 14px;font-size:11px;"
+        "font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#a1a1aa;"
+        "border-radius:12px 12px 0 0;'>Your sign-in credentials</td></tr>"
+        "<tr><td style='padding:10px 14px;color:"
+        f"{FAINT};font-size:13px;white-space:nowrap;'>Login portal</td>"
+        f"<td style='padding:10px 14px;font-size:13px;text-align:right;word-break:break-all;'>"
+        f"<a href='{login_url}' style='color:{INK};font-weight:600;'>sell.elektrix.in/login</a></td></tr>"
+        "<tr><td style='padding:10px 14px;border-top:1px solid "
+        f"{LINE};color:{FAINT};font-size:13px;white-space:nowrap;'>Registered email</td>"
+        f"<td style='padding:10px 14px;border-top:1px solid {LINE};font-size:13px;"
+        f"text-align:right;color:{INK};word-break:break-all;'>{email}</td></tr>"
+        "<tr><td style='padding:10px 14px;border-top:1px solid "
+        f"{LINE};color:{FAINT};font-size:13px;white-space:nowrap;'>Temporary password</td>"
+        f"<td style='padding:10px 14px;border-top:1px solid {LINE};font-size:13px;text-align:right;word-break:break-all;'>"
+        f"<span style='font-family:Menlo,Consolas,monospace;letter-spacing:0.4px;"
+        f"color:{INK};'>{password}</span></td></tr>"
+        "</table>"
+        "<div style='margin:14px 0 0;background:#fffbeb;border:1px solid #fde68a;"
+        "border-radius:12px;padding:12px 16px;font-size:13px;color:"
+        f"{AMBER};'>"
+        "Please change this password when you first sign in — it is for your account's security.</div>"
+        "<p style='margin:16px 0 0;color:"
+        f"{MUTED};'>Once signed in: add your products and set prices, keep stock up to date, "
+        "and mark orders as <b style='color:"
+        f"{INK};'>Packed</b> when they are ready for courier pickup.</p>"
+    )
+    return f"Your ELEKTRIX Seller Central account is ready", _shell(
+        "Welcome to Seller Central", body, login_url, "Sign in to Seller Central",
+        preheader=f"Credentials for {business} — change the temporary password at first sign-in.",
+        header_meta="SELLER CENTRAL",
+        pill=("ACCOUNT READY", GREEN),
+    )
+
+
+def seller_application(p: dict, storefront_url: str) -> tuple[str, str]:
+    """Internal staff alert — a new merchant applied via the storefront."""
+    rows_html = "".join(
+        f"<tr><td style='padding:8px 4px;border-bottom:1px solid {LINE};color:{FAINT};"
+        f"font-size:13px;white-space:nowrap;'>{k}</td>"
+        f"<td style='padding:8px 4px;border-bottom:1px solid {LINE};color:{INK};"
+        f"font-size:13px;text-align:right;'>{v}</td></tr>"
+        for k, v in (
+            ("Business", p.get("business_name", "—")),
+            ("Contact person", p.get("name", "—")),
+            ("Email", p.get("email", "—")),
+            ("Phone", p.get("phone", "—")),
+            ("Location", f"{p.get('city', '—')}, {p.get('state') or 'IN'} — {p.get('pincode', '')}"),
+            ("GSTIN", p.get("gstin") or "Not provided"),
+            ("Category", p.get("category") or "General"),
+        )
+    )
+    body = (
+        "A new merchant has applied to sell on ELEKTRIX and is waiting for approval:"
+        "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' "
+        "style='margin:18px 0 0;border:1px solid "
+        f"{LINE};border-radius:12px;border-collapse:separate;'>"
+        f"<tr><td style='background:#fafafa;padding:9px 14px;font-size:11px;font-weight:700;"
+        f"letter-spacing:1.2px;text-transform:uppercase;color:#a1a1aa;"
+        f"border-radius:12px 12px 0 0;'>Application details</td></tr>"
+        f"<tr><td style='padding:4px 14px;'>"
+        f"<table role='presentation' width='100%' cellpadding='0' cellspacing='0'>{rows_html}</table>"
+        f"</td></tr></table>"
+    )
+    return f"New seller application: {p.get('business_name', '')}", _shell(
+        "New seller application", body, "https://admin.elektrix.in/sellers",
+        "Review and approve seller",
+        preheader=f"{p.get('business_name', 'A merchant')} ({p.get('city', '')}) applied to sell.",
+        header_meta="SELLERS",
+        pill=("REVIEW NEEDED", AMBER),
+    )
+
+
+def _seller_items_table(items: list) -> str:
+    """The seller's own lines from a shared order (not the customer's total)."""
+    if not items:
+        return ""
+    rows = "".join(
+        "<tr>"
+        f"<td style='padding:10px 4px;border-bottom:1px solid {LINE};color:{INK};font-size:14px;'>"
+        f"{i.get('name', 'Item')}</td>"
+        f"<td style='padding:10px 4px;border-bottom:1px solid {LINE};text-align:center;"
+        f"color:{MUTED};font-size:14px;'>{i.get('qty', 1)}</td>"
+        f"<td style='padding:10px 4px;border-bottom:1px solid {LINE};text-align:right;"
+        f"color:{INK};font-size:14px;font-weight:600;'>"
+        f"{_rupees(i.get('unit_price', 0) * i.get('qty', 1))}</td>"
+        "</tr>"
+        for i in items
+    )
+    total = sum(i.get("unit_price", 0) * i.get("qty", 1) for i in items)
+    return (
+        "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' "
+        "style='margin:18px 0 0;border:1px solid "
+        f"{LINE};border-radius:12px;border-collapse:separate;'>"
+        "<tr style='background:#fafafa;'>"
+        "<th style='padding:10px 4px;text-align:left;font-size:11px;color:#a1a1aa;"
+        "letter-spacing:1.2px;text-transform:uppercase;'>Item</th>"
+        "<th style='padding:10px 4px;text-align:center;font-size:11px;color:#a1a1aa;"
+        "letter-spacing:1.2px;text-transform:uppercase;'>Qty</th>"
+        "<th style='padding:10px 4px;text-align:right;font-size:11px;color:#a1a1aa;"
+        "letter-spacing:1.2px;text-transform:uppercase;'>Amount</th>"
+        f"</tr>{rows}"
+        "<tr><td colspan='2' style='padding:12px 4px;text-align:right;color:#3f3f46;"
+        f"font-size:13px;'>Your line total</td>"
+        f"<td style='padding:12px 4px;text-align:right;color:{INK};font-size:13px;'>{_rupees(total)}</td></tr>"
+        "</table>"
+    )
+
+
+def seller_order_new(p: dict, storefront_url: str) -> tuple[str, str]:
+    """A payment-confirmed order containing this seller's items just landed in
+    their packing queue. Fires for COD at placement and prepaid at capture —
+    never for unpaid orders."""
+    body = (
+        f"Hi <b style='color:{INK};'>{p.get('business_name', 'Merchant')}</b>, a new "
+        "order with your products has been confirmed and is waiting in your "
+        "Orders-to-pack queue."
+        f"{_seller_items_table(p.get('items', []))}"
+        f"<p style='margin:14px 0 0;color:{MUTED};'>Pack the items and mark them "
+        f"<b style='color:{INK};'>Packed</b> so the courier pickup can be arranged.</p>"
+    )
+    return f"New order to pack: {p.get('order_number', '')}", _shell(
+        "New order in your queue", body, "https://sell.elektrix.in/orders",
+        "Open Orders to pack",
+        preheader=f"Order {p.get('order_number', '')} is waiting for packing.",
+        header_meta=f"ORDER {p.get('order_number', '')}",
+        pill=("NEW ORDER", AMBER),
+    )
+
+
+def seller_order_shipped(p: dict, storefront_url: str) -> tuple[str, str]:
+    tracking = (
+        f"<div style='margin:18px 0 0;background:{PAPER};border:1px solid {LINE};"
+        f"border-radius:12px;padding:14px 18px;font-size:14px;color:{MUTED};'>"
+        f"AWB: <b style='color:{INK};letter-spacing:0.5px;'>{p.get('tracking_number', '')}</b></div>"
+        if p.get("tracking_number") else ""
+    )
+    body = (
+        f"Order <b style='color:{INK};'>{p.get('order_number', '')}</b> containing your "
+        "items has shipped — the customer can now track it." + tracking
+    )
+    return f"Shipped · {p.get('order_number', '')}", _shell(
+        "Your items are on the way", body, "https://sell.elektrix.in/orders", "View order",
+        preheader=f"Order {p.get('order_number', '')} has shipped.",
+        header_meta=f"ORDER {p.get('order_number', '')}",
+        pill=("SHIPPED", AMBER),
+    )
+
+
+def seller_order_delivered(p: dict, storefront_url: str) -> tuple[str, str]:
+    body = (
+        f"Order <b style='color:{INK};'>{p.get('order_number', '')}</b> containing your "
+        "items has been delivered. COD amounts are settled with your next payout."
+        if p.get("is_cod") else
+        f"Order <b style='color:{INK};'>{p.get('order_number', '')}</b> containing your "
+        "items has been delivered."
+    )
+    return f"Delivered · {p.get('order_number', '')}", _shell(
+        "Delivered", body, "https://sell.elektrix.in/orders", "View order",
+        preheader=f"Order {p.get('order_number', '')} was delivered.",
+        header_meta=f"ORDER {p.get('order_number', '')}",
+        pill=("DELIVERED", GREEN),
+    )
+
+
+def seller_order_cancelled(p: dict, storefront_url: str) -> tuple[str, str]:
+    body = (
+        f"Order <b style='color:{INK};'>{p.get('order_number', '')}</b> containing your "
+        "items was cancelled before dispatch. The reserved units have been released "
+        "back to your stock — no action is needed."
+        f"{_seller_items_table(p.get('items', []))}"
+    )
+    return f"Order cancelled · {p.get('order_number', '')}", _shell(
+        "Order cancelled", body, "https://sell.elektrix.in/orders", "View queue",
+        preheader=f"Order {p.get('order_number', '')} was cancelled — stock released.",
+        header_meta=f"ORDER {p.get('order_number', '')}",
+        pill=("CANCELLED", RED),
+    )
+
+
+def seller_order_refunded(p: dict, storefront_url: str) -> tuple[str, str]:
+    reason = p.get("reason") or "customer refund"
+    body = (
+        f"A refund of <b style='color:{INK};'>{_rupees(p.get('refund_amount', 0))}</b> was "
+        f"issued for order <b style='color:{INK};'>{p.get('order_number', '')}</b> "
+        f"({reason}). Your listing amounts for this order are reversed from the "
+        "settlement — the restocked units are live again."
+        f"{_seller_items_table(p.get('items', []))}"
+    )
+    return f"Refund processed · {p.get('order_number', '')}", _shell(
+        "Refund processed", body, "https://sell.elektrix.in/orders", "View queue",
+        preheader=f"{_rupees(p.get('refund_amount', 0))} refunded on {p.get('order_number', '')}.",
+        header_meta=f"ORDER {p.get('order_number', '')}",
+        pill=("REFUND PROCESSED", RED),
+    )
+
+
 TEMPLATES = {
     "order.created": order_created,
     "payment.captured": payment_captured,
@@ -642,4 +875,11 @@ TEMPLATES = {
     "inventory.low_stock": low_stock_alert,
     "admin.weekly_digest": weekly_digest,
     "marketing.broadcast": marketing_broadcast,
+    "seller.welcome": seller_welcome,
+    "seller.application": seller_application,
+    "seller.order.new": seller_order_new,
+    "seller.order.shipped": seller_order_shipped,
+    "seller.order.delivered": seller_order_delivered,
+    "seller.order.cancelled": seller_order_cancelled,
+    "seller.order.refunded": seller_order_refunded,
 }

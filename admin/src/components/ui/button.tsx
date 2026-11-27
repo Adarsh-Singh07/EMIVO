@@ -1,33 +1,40 @@
-﻿import * as React from "react"
-import { cn } from "@/lib/utils"
+import * as React from "react";
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'default' | 'outline' | 'ghost'
-  size?: 'default' | 'sm' | 'lg' | 'icon'
+import { cn } from "@/lib/utils";
+
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type ButtonSize = "sm" | "md";
+
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'default', size = 'default', ...props }, ref) => {
-    return (
-      <button
-        className={cn(
-          "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
-          variant === 'default' && "bg-primary text-primary-foreground hover:bg-primary/90",
-          variant === 'outline' && "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-          variant === 'ghost' && "hover:bg-accent hover:text-accent-foreground",
-          size === 'default' && "h-10 px-4 py-2",
-          size === 'sm' && "h-9 rounded-md px-3",
-          size === 'lg' && "h-11 rounded-md px-8",
-          size === 'icon' && "h-9 w-9",
-          className
-        )}
-        ref={ref}
-        {...props}
-      />
-    )
-  }
-)
-Button.displayName = "Button"
+const VARIANTS: Record<ButtonVariant, string> = {
+  primary: "border border-neutral-900 bg-neutral-900 text-white hover:border-neutral-700 hover:bg-neutral-700",
+  secondary: "border border-neutral-300 bg-white text-neutral-800 hover:border-neutral-400 hover:bg-neutral-50",
+  ghost: "border border-transparent text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900",
+  danger: "border border-red-200 bg-white text-red-700 hover:border-red-300 hover:bg-red-50",
+};
 
-export { Button }
+const SIZES: Record<ButtonSize, string> = {
+  sm: "h-8 px-3 text-xs",
+  md: "h-9 px-3.5 text-sm",
+};
+
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant = "secondary", size = "md", type = "button", ...props }, ref) => (
+    <button
+      ref={ref}
+      type={type}
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:pointer-events-none disabled:opacity-50",
+        VARIANTS[variant],
+        SIZES[size],
+        className,
+      )}
+      {...props}
+    />
+  ),
+);
+Button.displayName = "Button";

@@ -1,65 +1,36 @@
-import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 /**
  * Status badges shared across the admin console.
- * Light theme, matching the dashboard visual language (rounded-full, /10 backgrounds).
+ * Five tones only: neutral, accent (done/success), attention (needs action),
+ * danger (failed), progress (in motion). Same status = same tone everywhere.
  */
 
-type BadgeTone = "amber" | "emerald" | "blue" | "red" | "purple" | "neutral" | "cyan" | "indigo" | "violet" | "sky" | "green";
-
-const toneClasses: Record<BadgeTone, string> = {
-  amber: "bg-amber-50 text-amber-700 border-amber-200",
-  emerald: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  blue: "bg-blue-50 text-blue-700 border-blue-200",
-  red: "bg-red-50 text-red-600 border-red-200",
-  purple: "bg-purple-50 text-purple-700 border-purple-200",
-  neutral: "bg-neutral-100 text-neutral-600 border-neutral-200",
-  cyan: "bg-cyan-50 text-cyan-700 border-cyan-200",
-  indigo: "bg-indigo-50 text-indigo-700 border-indigo-200",
-  violet: "bg-violet-50 text-violet-700 border-violet-200",
-  sky: "bg-sky-50 text-sky-700 border-sky-200",
-  green: "bg-green-50 text-green-700 border-green-200",
-};
-
-function Pill({ tone, children, className }: { tone: BadgeTone; children: React.ReactNode; className?: string }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap",
-        toneClasses[tone],
-        className
-      )}
-    >
-      {children}
-    </span>
-  );
-}
-
 export function OrderStatusBadge({ status }: { status: string }) {
-  // One semantic mapping shared with storefront account/orders STATUS_STYLES
-  // (design-system Phase 4b): same status = same color on both apps.
+  // Shared mapping with the storefront account orders page (design-system 4b):
+  // same status = same tone on both apps.
   const s = status?.toUpperCase() || "";
   switch (s) {
     case "PENDING":
-      return <Pill tone="amber">Pending</Pill>;
+      return <Badge tone="attention">Pending</Badge>;
     case "CONFIRMED":
-      return <Pill tone="blue">Confirmed</Pill>;
+      return <Badge tone="progress">Confirmed</Badge>;
     case "PROCESSING":
-      return <Pill tone="indigo">Processing</Pill>;
+      return <Badge tone="progress">Processing</Badge>;
     case "PACKED":
-      return <Pill tone="violet">Packed</Pill>;
+      return <Badge tone="progress">Packed</Badge>;
     case "SHIPPED":
-      return <Pill tone="purple">Shipped</Pill>;
+      return <Badge tone="progress">Shipped</Badge>;
     case "OUT_FOR_DELIVERY":
-      return <Pill tone="sky">Out for delivery</Pill>;
+      return <Badge tone="progress">Out for delivery</Badge>;
     case "DELIVERED":
-      return <Pill tone="green">Delivered</Pill>;
+      return <Badge tone="accent">Delivered</Badge>;
     case "CANCELLED":
-      return <Pill tone="red">Cancelled</Pill>;
+      return <Badge tone="danger">Cancelled</Badge>;
     case "REFUNDED":
-      return <Pill tone="neutral">Refunded</Pill>;
+      return <Badge tone="neutral">Refunded</Badge>;
     default:
-      return <Pill tone="neutral">{s || "—"}</Pill>;
+      return <Badge>{s || "—"}</Badge>;
   }
 }
 
@@ -67,15 +38,15 @@ export function PaymentStatusBadge({ status }: { status: string }) {
   const s = status?.toUpperCase() || "";
   switch (s) {
     case "PENDING":
-      return <Pill tone="amber">Pending</Pill>;
+      return <Badge tone="attention">Pending</Badge>;
     case "CAPTURED":
-      return <Pill tone="emerald">Captured</Pill>;
+      return <Badge tone="accent">Captured</Badge>;
     case "FAILED":
-      return <Pill tone="red">Failed</Pill>;
+      return <Badge tone="danger">Failed</Badge>;
     case "REFUNDED":
-      return <Pill tone="purple">Refunded</Pill>;
+      return <Badge tone="neutral">Refunded</Badge>;
     default:
-      return <Pill tone="neutral">{s || "—"}</Pill>;
+      return <Badge>{s || "—"}</Badge>;
   }
 }
 
@@ -83,13 +54,15 @@ export function ProductStatusBadge({ status }: { status: string }) {
   const s = status?.toUpperCase() || "";
   switch (s) {
     case "ACTIVE":
-      return <Pill tone="emerald">Active</Pill>;
+      return <Badge tone="accent">Active</Badge>;
     case "DRAFT":
-      return <Pill tone="amber">Draft</Pill>;
+      return <Badge tone="neutral">Draft</Badge>;
+    case "COMING_SOON":
+      return <Badge tone="progress">Coming soon</Badge>;
     case "ARCHIVED":
-      return <Pill tone="neutral">Archived</Pill>;
+      return <Badge tone="neutral">Archived</Badge>;
     default:
-      return <Pill tone="neutral">{s || "—"}</Pill>;
+      return <Badge>{s || "—"}</Badge>;
   }
 }
 
@@ -102,27 +75,18 @@ export function StockBadge({
   isLowStock?: boolean;
   isOutOfStock?: boolean;
 }) {
-  if (isOutOfStock || available <= 0) return <Pill tone="red">Out of stock</Pill>;
-  if (isLowStock) return <Pill tone="amber">Low · {available}</Pill>;
-  return <Pill tone="emerald">{available} in stock</Pill>;
+  if (isOutOfStock || available <= 0) return <Badge tone="danger">Out of stock</Badge>;
+  if (isLowStock) return <Badge tone="attention">Low · {available}</Badge>;
+  return <Badge>{available} in stock</Badge>;
 }
 
 export function RoleBadge({ role }: { role: string }) {
-  switch (role) {
-    case "owner":
-      return <Pill tone="purple">{role}</Pill>;
-    case "platform_admin":
-      return <Pill tone="red">{role}</Pill>;
-    case "staff":
-      return <Pill tone="blue">{role}</Pill>;
-    default:
-      return <Pill tone="neutral">{role}</Pill>;
-  }
+  return <Badge>{role}</Badge>;
 }
 
 export function PaymentMethodBadge({ method }: { method: string | null | undefined }) {
   const m = method?.toUpperCase() || "";
-  if (m === "COD") return <Pill tone="amber">COD</Pill>;
-  if (m === "ONLINE") return <Pill tone="blue">Online</Pill>;
-  return <Pill tone="neutral">{m || "—"}</Pill>;
+  if (m === "COD") return <Badge tone="attention">COD</Badge>;
+  if (m === "ONLINE") return <Badge>Online</Badge>;
+  return <Badge>{m || "—"}</Badge>;
 }

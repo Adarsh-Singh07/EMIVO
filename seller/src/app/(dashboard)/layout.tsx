@@ -3,19 +3,19 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { 
-  Package, 
-  PlusCircle, 
-  ShoppingCart, 
-  User, 
-  LogOut, 
-  ExternalLink, 
+import {
+  Package,
+  PlusCircle,
+  ShoppingCart,
+  User,
+  LogOut,
+  ExternalLink,
   Star,
   Layers,
   Menu,
   X,
   Store,
-  ShieldCheck
+  ShieldCheck,
 } from "lucide-react";
 import { authStorage, apiClient } from "@/lib/api-client";
 import { BrandLogo } from "@/components/branding/BrandLogo";
@@ -33,10 +33,10 @@ interface SellerInfo {
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: Layers },
-  { href: "/products", label: "Inventory & Products", icon: Package },
-  { href: "/products/new", label: "Add / Search Catalog", icon: PlusCircle },
-  { href: "/orders", label: "Orders to Pack", icon: ShoppingCart },
-  { href: "/profile", label: "Warehouse & Profile", icon: User },
+  { href: "/products", label: "Products", icon: Package },
+  { href: "/products/new", label: "Add product", icon: PlusCircle },
+  { href: "/orders", label: "Orders to pack", icon: ShoppingCart },
+  { href: "/profile", label: "Warehouse & profile", icon: User },
 ];
 
 export default function SellerDashboardLayout({
@@ -83,17 +83,17 @@ export default function SellerDashboardLayout({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-900 text-neutral-400">
-        <div className="flex items-center gap-3">
-          <Store className="w-5 h-5 text-amber-500" />
-          <span className="text-sm font-medium">Loading Seller Central...</span>
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="flex items-center gap-2 text-sm text-neutral-500">
+          <Store className="h-4 w-4" aria-hidden />
+          Loading Seller Central…
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 flex">
+    <div className="flex min-h-screen">
       {/* Mobile Backdrop */}
       {sidebarOpen && (
         <div
@@ -105,60 +105,58 @@ export default function SellerDashboardLayout({
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r border-neutral-200 bg-white transition-all duration-200 ease-in-out ${
+        className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r border-neutral-200 bg-white transition-[margin,width] duration-150 ease-out ${
           sidebarOpen ? "w-64 translate-x-0" : "w-0 -translate-x-full overflow-hidden opacity-0"
         }`}
       >
         {/* Brand Header */}
-        <div className="h-16 flex-shrink-0 flex items-center px-5 border-b border-neutral-200 w-64 justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <BrandLogo size={32} subtitle="SELLER CENTRAL" />
+        <div className="flex h-14 w-64 flex-shrink-0 items-center justify-between border-b border-neutral-200 px-4">
+          <Link href="/" className="flex items-center">
+            <BrandLogo size={28} subtitle="Seller central" />
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100"
+            className="rounded-md p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 lg:hidden"
             aria-label="Close sidebar"
           >
-            <X className="w-5 h-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Merchant Card */}
         {seller && (
-          <div className="p-3.5 border-b border-neutral-100 bg-neutral-50/50 w-64">
-            <div className="flex items-start justify-between">
-              <div className="min-w-0 pr-2">
-                <span className="block text-xs font-bold text-neutral-900 truncate">
+          <div className="w-64 border-b border-neutral-200 px-4 py-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <span className="block truncate text-sm font-medium text-neutral-900">
                   {seller.business_name || "Merchant"}
                 </span>
-                <span className="block text-[11px] text-neutral-500 truncate mt-0.5">
-                  {seller.email}
-                </span>
+                <span className="block truncate text-xs text-neutral-500">{seller.email}</span>
               </div>
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
-                <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                Verified
-              </span>
+              {seller.status?.toUpperCase() === "ACTIVE" || seller.status?.toUpperCase() === "VERIFIED" ? (
+                <span className="inline-flex shrink-0 items-center gap-0.5 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-800">
+                  <ShieldCheck className="h-3 w-3" aria-hidden />
+                  Verified
+                </span>
+              ) : null}
             </div>
-            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-neutral-600 font-medium">
+            <div className="mt-1.5 flex items-center gap-1.5 text-xs text-neutral-600">
               {seller.rating > 0 && (seller.rating_count ?? 0) > 0 ? (
                 <>
-                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+                  <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" aria-hidden />
                   <span>{Number(seller.rating).toFixed(1)} rating</span>
                 </>
               ) : (
-                <span className="text-neutral-500 font-normal">New Seller</span>
+                <span className="text-neutral-500">New seller</span>
               )}
-              {seller.city && <span className="text-neutral-400">&bull; {seller.city}</span>}
+              {seller.city && <span className="text-neutral-400">· {seller.city}</span>}
             </div>
           </div>
         )}
 
         {/* Navigation Items */}
-        <nav className="flex-1 min-h-0 overflow-y-auto py-4 px-3 space-y-1.5 w-64">
-          <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
-            Fulfillment & Catalog
-          </p>
+        <nav className="min-h-0 w-64 flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
+          <p className="px-3 pb-1 text-xs text-neutral-400">Fulfillment & catalog</p>
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive =
@@ -172,89 +170,80 @@ export default function SellerDashboardLayout({
                     setSidebarOpen(false);
                   }
                 }}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
+                className={`flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors ${
                   isActive
-                    ? "bg-neutral-950 text-white font-semibold shadow-sm"
-                    : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 font-medium"
+                    ? "bg-neutral-100 font-medium text-neutral-900"
+                    : "text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? "text-amber-400" : "text-neutral-400"}`} />
-                <span>{item.label}</span>
+                <Icon className={`h-4 w-4 ${isActive ? "text-neutral-700" : "text-neutral-400"}`} />
+                <span className="truncate">{item.label}</span>
               </Link>
             );
           })}
         </nav>
 
         {/* Footer Actions */}
-        <div className="p-3 border-t border-neutral-200 w-64 space-y-1">
+        <div className="w-64 space-y-0.5 border-t border-neutral-200 p-3">
           <a
             href="https://elektrix.in"
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition-colors"
+            className="flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"
           >
-            <ExternalLink className="w-3.5 h-3.5 text-neutral-400" />
-            <span>Open Storefront</span>
+            <ExternalLink className="h-4 w-4 text-neutral-400" />
+            Open storefront
           </a>
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+            className="flex w-full items-center gap-2.5 rounded-md px-3 py-1.5 text-sm text-red-700 hover:bg-red-50 transition-colors"
           >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Sign Out</span>
+            <LogOut className="h-4 w-4" />
+            Sign out
           </button>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-200 ease-in-out ${
-        sidebarOpen ? "lg:ml-64" : "ml-0"
-      }`}>
+      <div className={`flex min-w-0 flex-1 flex-col transition-[margin,width] duration-150 ease-out ${sidebarOpen ? "lg:ml-64" : "ml-0"}`}>
         {/* Top Header */}
-        <header className="sticky top-0 z-30 h-14 sm:h-16 flex-shrink-0 border-b border-neutral-200 bg-white/95 backdrop-blur-md flex items-center justify-between px-4 sm:px-6">
+        <header className="sticky top-0 z-30 flex h-14 flex-shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-4 sm:px-6">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 -ml-2 rounded-lg text-neutral-500 hover:bg-neutral-100 transition-colors"
-              aria-label="Toggle Navigation"
+              className="-ml-2 rounded-md p-2 text-neutral-500 hover:bg-neutral-100 transition-colors"
+              aria-label="Toggle navigation"
             >
-              <Menu className="w-5 h-5" />
+              <Menu className="h-5 w-5" />
             </button>
-            <div className="hidden sm:flex items-center gap-2">
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-neutral-100 text-neutral-800 border border-neutral-200">
-                ELEKTRIX Marketplace Merchant
-              </span>
-            </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Link
               href="/products/new"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-950 text-xs font-semibold text-white hover:bg-neutral-800 transition-colors shadow-sm"
+              className="inline-flex items-center gap-1.5 rounded-md border border-neutral-900 bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:border-neutral-700 hover:bg-neutral-700 transition-colors"
             >
-              <PlusCircle className="w-3.5 h-3.5 text-amber-400" />
-              <span>Add Product</span>
+              <PlusCircle className="h-3.5 w-3.5" />
+              Add product
             </Link>
             <a
               href="https://elektrix.in"
               target="_blank"
               rel="noreferrer"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-200 bg-white text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors"
+              className="hidden items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors sm:inline-flex"
             >
-              <ExternalLink className="w-3.5 h-3.5 text-neutral-400" />
-              <span>View Storefront</span>
+              <ExternalLink className="h-3.5 w-3.5 text-neutral-400" />
+              View storefront
             </a>
           </div>
         </header>
 
         {/* Page Body */}
-        <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
-          {children}
-        </main>
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">{children}</main>
 
         {/* Footer */}
-        <footer className="border-t border-neutral-200 bg-white py-4 px-6 text-center text-xs text-neutral-500">
-          <p>ELEKTRIX Seller Central &copy; {new Date().getFullYear()}. Central Delhivery Logistics Network.</p>
+        <footer className="border-t border-neutral-200 bg-white px-6 py-4 text-center text-xs text-neutral-500">
+          <p>Elektrix Seller Central · {new Date().getFullYear()}</p>
         </footer>
       </div>
     </div>

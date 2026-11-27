@@ -2510,30 +2510,11 @@ class SellerService:
 
         await self.session.commit()
 
-        # Send welcome email with credentials directly
-        try:
-            from modules.notifications.providers import get_notification_provider
-            notifier = get_notification_provider()
-            subject = f"Welcome to ELEKTRIX Seller Central — {seller.business_name}"
-            body_html = f"""
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #111;">
-              <h2 style="color: #ea580c;">Welcome to ELEKTRIX Seller Central</h2>
-              <p>Hello <strong>{seller.name}</strong>,</p>
-              <p>Your marketplace merchant account for <strong>{seller.business_name}</strong> has been provisioned by the ELEKTRIX Platform Administration.</p>
-              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                <p style="margin: 0 0 8px;"><strong>Login Portal:</strong> <a href="https://sell.elektrix.in/login">https://sell.elektrix.in/login</a></p>
-                <p style="margin: 0 0 8px;"><strong>Registered Email:</strong> {norm_email}</p>
-                <p style="margin: 0 0 8px;"><strong>Temporary Password:</strong> <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">{raw_password}</code></p>
-                {"<p style='color: #c2410c; margin: 8px 0 0; font-size: 13px;'>* Please change your password upon your first login for account security.</p>" if data.must_change_password else ""}
-              </div>
-              <p>If you have any questions or need fulfillment assistance, reply to this email or contact <a href="mailto:support@elektrix.in">support@elektrix.in</a>.</p>
-              <p style="color: #64748b; font-size: 12px; margin-top: 24px;">ELEKTRIX India &bull; Marketplace Operations</p>
-            </div>
-            """
-            await notifier.send_email(to=norm_email, subject=subject, body=body_html, html=True)
-            logger.info("Welcome email sent to seller %s (%s)", seller.business_name, norm_email)
-        except Exception as mail_err:
-            logger.warning("Could not dispatch welcome email immediately to seller %s: %s", norm_email, mail_err)
+        # The seller.welcome outbox event queued above is delivered by the
+        # notification worker through TEMPLATES["seller.welcome"] (with
+        # retries). This used to send inline via a get_notification_provider()
+        # helper that never existed — the ImportError was swallowed by the
+        # except below and no seller ever received their credentials mail.
 
         return {
             "id": sid,
@@ -2618,12 +2599,13 @@ class SellerService:
         except Exception as notif_err:
             logger.warning("Could not create in-app admin notification: %s", notif_err)
 
-        # Queue outbox event
+        # Queue outbox event — delivered by the notification worker through
+        # TEMPLATES["seller.application"] (staff alert, with retries).
         from core.models import OutboxEvent
         self.session.add(
             OutboxEvent(
                 tenant_id=None,
-                type="seller.application_received",
+                type="seller.application",
                 payload={
                     "seller_id": sid,
                     "email": norm_email,
@@ -2631,6 +2613,8 @@ class SellerService:
                     "name": data.name,
                     "phone": data.phone,
                     "city": data.city,
+                    "state": data.state,
+                    "pincode": data.pincode,
                     "gstin": data.gstin,
                     "category": data.category,
                 },
@@ -2638,32 +2622,6 @@ class SellerService:
         )
 
         await self.session.commit()
-
-        # Send email alert to Admin
-        try:
-            from modules.notifications.providers import get_notification_provider
-            notifier = get_notification_provider()
-            subject = f"New Seller Registration: {data.business_name} ({data.city})"
-            body_html = f"""
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #111;">
-              <h2 style="color: #ea580c;">New Seller Application Received</h2>
-              <p>A new merchant has submitted a registration request on ELEKTRIX:</p>
-              <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-                <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Business Name:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">{data.business_name}</td></tr>
-                <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Contact Person:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">{data.name}</td></tr>
-                <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Email:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">{norm_email}</td></tr>
-                <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Phone:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">{data.phone}</td></tr>
-                <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Location:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">{data.city}, {data.state or 'IN'} - {data.pincode}</td></tr>
-                <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>GSTIN:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">{data.gstin or 'Not provided'}</td></tr>
-                <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Category:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">{data.category or 'General'}</td></tr>
-              </table>
-              <p><a href="https://admin.elektrix.in/sellers" style="background: #ea580c; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Review and Approve Seller</a></p>
-            </div>
-            """
-            await notifier.send_email(to="admin@elektrix.in", subject=subject, body=body_html, html=True)
-            logger.info("Admin email sent for seller application %s (%s)", data.business_name, norm_email)
-        except Exception as mail_err:
-            logger.warning("Could not dispatch admin email for seller application: %s", mail_err)
 
         return {
             "id": sid,
@@ -2762,37 +2720,9 @@ class SellerService:
 
         await self.session.commit()
 
-        # Send welcome email with credentials directly to the seller
-        try:
-            from modules.notifications.providers import get_notification_provider
-            notifier = get_notification_provider()
-            subject = f"Welcome to ELEKTRIX Seller Central — {seller.business_name} Approved!"
-            body_html = f"""
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #111;">
-              <h2 style="color: #ea580c;">Welcome to ELEKTRIX Seller Central</h2>
-              <p>Hello <strong>{seller.name}</strong>,</p>
-              <p>Congratulations! Your seller application for <strong>{seller.business_name}</strong> has been <strong>approved</strong> by the ELEKTRIX Administration.</p>
-              <p>You can now log in to the Seller Portal to manage your products, catalog, and fulfill customer orders:</p>
-              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0;">
-                <p style="margin: 0 0 8px;"><strong>Login Portal:</strong> <a href="https://sell.elektrix.in/login">https://sell.elektrix.in/login</a></p>
-                <p style="margin: 0 0 8px;"><strong>Registered Email:</strong> {norm_email}</p>
-                <p style="margin: 0 0 8px;"><strong>Temporary Password:</strong> <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">{raw_password}</code></p>
-                <p style='color: #c2410c; margin: 8px 0 0; font-size: 13px;'>* Please change your password upon your first login for account security.</p>
-              </div>
-              <p><strong>Next Steps:</strong></p>
-              <ol>
-                <li>Log in to <a href="https://sell.elektrix.in/login">https://sell.elektrix.in/login</a></li>
-                <li>Add your products and set prices / inventory.</li>
-                <li>When orders are placed, mark them as <strong>Packed</strong> for courier pickup.</li>
-              </ol>
-              <p>If you have any questions, contact our support team at <a href="mailto:support@elektrix.in">support@elektrix.in</a>.</p>
-              <p style="color: #64748b; font-size: 12px; margin-top: 24px;">ELEKTRIX India &bull; Merchant Marketplace Services</p>
-            </div>
-            """
-            await notifier.send_email(to=norm_email, subject=subject, body=body_html, html=True)
-            logger.info("Approval welcome email dispatched to seller %s (%s)", seller.business_name, norm_email)
-        except Exception as mail_err:
-            logger.warning("Could not dispatch welcome email to seller %s: %s", norm_email, mail_err)
+        # The seller.welcome outbox event queued above is delivered by the
+        # notification worker through TEMPLATES["seller.welcome"] — same as the
+        # provision path, with retries.
 
         return {
             "id": seller.id,

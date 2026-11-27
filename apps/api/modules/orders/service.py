@@ -997,19 +997,22 @@ class OrderService:
             if user and user.email:
                 from modules.notifications.providers import get_email_provider
                 from modules.notifications.aliases import ALIAS_TRANSACTIONAL, REPLY_TO_SUPPORT
+                from modules.notifications.templates import order_shipped
+                from core.config import settings as core_settings
                 provider = get_email_provider()
-                user_name = user.first_name or "Valued Customer"
                 order_num = order.order_number or str(order.id)[:8]
+                subject, html = order_shipped(
+                    {
+                        "order_number": order_num,
+                        "tracking_number": awb,
+                        "tracking_url": tracking_url,
+                    },
+                    str(core_settings.storefront_url),
+                )
                 await provider.send_email(
                     to_email=user.email,
-                    subject=f"Your ELEKTRIX order {order_num} has been shipped!",
-                    html=(
-                        f"<p>Hi {user_name},</p>"
-                        f"<p>Great news! Your order <strong>{order_num}</strong> is on the way via Delhivery Express.</p>"
-                        f"<p>Tracking Number (AWB): <strong>{awb}</strong></p>"
-                        f"<p><a href='{tracking_url}' style='display:inline-block;padding:10px 20px;background:#0a0a0a;color:#ffffff;text-decoration:none;border-radius:8px;'>Track Your Package</a></p>"
-                        f"<p>Thank you for shopping with ELEKTRIX!</p>"
-                    ),
+                    subject=subject,
+                    html=html,
                     from_address=ALIAS_TRANSACTIONAL,
                     reply_to=REPLY_TO_SUPPORT,
                 )
