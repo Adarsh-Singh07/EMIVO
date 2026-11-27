@@ -734,6 +734,130 @@ def seller_application(p: dict, storefront_url: str) -> tuple[str, str]:
     )
 
 
+def _seller_items_table(items: list) -> str:
+    """The seller's own lines from a shared order (not the customer's total)."""
+    if not items:
+        return ""
+    rows = "".join(
+        "<tr>"
+        f"<td style='padding:10px 4px;border-bottom:1px solid {LINE};color:{INK};font-size:14px;'>"
+        f"{i.get('name', 'Item')}</td>"
+        f"<td style='padding:10px 4px;border-bottom:1px solid {LINE};text-align:center;"
+        f"color:{MUTED};font-size:14px;'>{i.get('qty', 1)}</td>"
+        f"<td style='padding:10px 4px;border-bottom:1px solid {LINE};text-align:right;"
+        f"color:{INK};font-size:14px;font-weight:600;'>"
+        f"{_rupees(i.get('unit_price', 0) * i.get('qty', 1))}</td>"
+        "</tr>"
+        for i in items
+    )
+    total = sum(i.get("unit_price", 0) * i.get("qty", 1) for i in items)
+    return (
+        "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' "
+        "style='margin:18px 0 0;border:1px solid "
+        f"{LINE};border-radius:12px;border-collapse:separate;'>"
+        "<tr style='background:#fafafa;'>"
+        "<th style='padding:10px 4px;text-align:left;font-size:11px;color:#a1a1aa;"
+        "letter-spacing:1.2px;text-transform:uppercase;'>Item</th>"
+        "<th style='padding:10px 4px;text-align:center;font-size:11px;color:#a1a1aa;"
+        "letter-spacing:1.2px;text-transform:uppercase;'>Qty</th>"
+        "<th style='padding:10px 4px;text-align:right;font-size:11px;color:#a1a1aa;"
+        "letter-spacing:1.2px;text-transform:uppercase;'>Amount</th>"
+        f"</tr>{rows}"
+        "<tr><td colspan='2' style='padding:12px 4px;text-align:right;color:#3f3f46;"
+        f"font-size:13px;'>Your line total</td>"
+        f"<td style='padding:12px 4px;text-align:right;color:{INK};font-size:13px;'>{_rupees(total)}</td></tr>"
+        "</table>"
+    )
+
+
+def seller_order_new(p: dict, storefront_url: str) -> tuple[str, str]:
+    """A payment-confirmed order containing this seller's items just landed in
+    their packing queue. Fires for COD at placement and prepaid at capture —
+    never for unpaid orders."""
+    body = (
+        f"Hi <b style='color:{INK};'>{p.get('business_name', 'Merchant')}</b>, a new "
+        "order with your products has been confirmed and is waiting in your "
+        "Orders-to-pack queue."
+        f"{_seller_items_table(p.get('items', []))}"
+        f"<p style='margin:14px 0 0;color:{MUTED};'>Pack the items and mark them "
+        f"<b style='color:{INK};'>Packed</b> so the courier pickup can be arranged.</p>"
+    )
+    return f"New order to pack: {p.get('order_number', '')}", _shell(
+        "New order in your queue", body, "https://sell.elektrix.in/orders",
+        "Open Orders to pack",
+        preheader=f"Order {p.get('order_number', '')} is waiting for packing.",
+        header_meta=f"ORDER {p.get('order_number', '')}",
+        pill=("NEW ORDER", AMBER),
+    )
+
+
+def seller_order_shipped(p: dict, storefront_url: str) -> tuple[str, str]:
+    tracking = (
+        f"<div style='margin:18px 0 0;background:{PAPER};border:1px solid {LINE};"
+        f"border-radius:12px;padding:14px 18px;font-size:14px;color:{MUTED};'>"
+        f"AWB: <b style='color:{INK};letter-spacing:0.5px;'>{p.get('tracking_number', '')}</b></div>"
+        if p.get("tracking_number") else ""
+    )
+    body = (
+        f"Order <b style='color:{INK};'>{p.get('order_number', '')}</b> containing your "
+        "items has shipped — the customer can now track it." + tracking
+    )
+    return f"Shipped · {p.get('order_number', '')}", _shell(
+        "Your items are on the way", body, "https://sell.elektrix.in/orders", "View order",
+        preheader=f"Order {p.get('order_number', '')} has shipped.",
+        header_meta=f"ORDER {p.get('order_number', '')}",
+        pill=("SHIPPED", AMBER),
+    )
+
+
+def seller_order_delivered(p: dict, storefront_url: str) -> tuple[str, str]:
+    body = (
+        f"Order <b style='color:{INK};'>{p.get('order_number', '')}</b> containing your "
+        "items has been delivered. COD amounts are settled with your next payout."
+        if p.get("is_cod") else
+        f"Order <b style='color:{INK};'>{p.get('order_number', '')}</b> containing your "
+        "items has been delivered."
+    )
+    return f"Delivered · {p.get('order_number', '')}", _shell(
+        "Delivered", body, "https://sell.elektrix.in/orders", "View order",
+        preheader=f"Order {p.get('order_number', '')} was delivered.",
+        header_meta=f"ORDER {p.get('order_number', '')}",
+        pill=("DELIVERED", GREEN),
+    )
+
+
+def seller_order_cancelled(p: dict, storefront_url: str) -> tuple[str, str]:
+    body = (
+        f"Order <b style='color:{INK};'>{p.get('order_number', '')}</b> containing your "
+        "items was cancelled before dispatch. The reserved units have been released "
+        "back to your stock — no action is needed."
+        f"{_seller_items_table(p.get('items', []))}"
+    )
+    return f"Order cancelled · {p.get('order_number', '')}", _shell(
+        "Order cancelled", body, "https://sell.elektrix.in/orders", "View queue",
+        preheader=f"Order {p.get('order_number', '')} was cancelled — stock released.",
+        header_meta=f"ORDER {p.get('order_number', '')}",
+        pill=("CANCELLED", RED),
+    )
+
+
+def seller_order_refunded(p: dict, storefront_url: str) -> tuple[str, str]:
+    reason = p.get("reason") or "customer refund"
+    body = (
+        f"A refund of <b style='color:{INK};'>{_rupees(p.get('refund_amount', 0))}</b> was "
+        f"issued for order <b style='color:{INK};'>{p.get('order_number', '')}</b> "
+        f"({reason}). Your listing amounts for this order are reversed from the "
+        "settlement — the restocked units are live again."
+        f"{_seller_items_table(p.get('items', []))}"
+    )
+    return f"Refund processed · {p.get('order_number', '')}", _shell(
+        "Refund processed", body, "https://sell.elektrix.in/orders", "View queue",
+        preheader=f"{_rupees(p.get('refund_amount', 0))} refunded on {p.get('order_number', '')}.",
+        header_meta=f"ORDER {p.get('order_number', '')}",
+        pill=("REFUND PROCESSED", RED),
+    )
+
+
 TEMPLATES = {
     "order.created": order_created,
     "payment.captured": payment_captured,
@@ -753,4 +877,9 @@ TEMPLATES = {
     "marketing.broadcast": marketing_broadcast,
     "seller.welcome": seller_welcome,
     "seller.application": seller_application,
+    "seller.order.new": seller_order_new,
+    "seller.order.shipped": seller_order_shipped,
+    "seller.order.delivered": seller_order_delivered,
+    "seller.order.cancelled": seller_order_cancelled,
+    "seller.order.refunded": seller_order_refunded,
 }

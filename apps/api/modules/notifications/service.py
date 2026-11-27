@@ -139,6 +139,16 @@ class NotificationService:
             except Exception:
                 logger.warning("whatsapp dispatch failed for %s", event_type, exc_info=True)
 
+        # 2b. Seller copies — the sellers whose items ride on this order get
+        # their own branded email (new queue entry, shipped, delivered,
+        # cancelled, refunded). Queues outbox events; the worker delivers them.
+        if event_type.startswith("order."):
+            try:
+                from modules.notifications.seller_emails import maybe_queue_seller_order_emails
+                await maybe_queue_seller_order_emails(self.session, event_type, payload)
+            except Exception:
+                logger.warning("seller email dispatch failed for %s", event_type, exc_info=True)
+
         # 3. In-app
         if event_type in IN_APP and user_id:
             title_tpl, body_tpl = IN_APP[event_type]
