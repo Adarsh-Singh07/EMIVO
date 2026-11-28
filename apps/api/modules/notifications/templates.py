@@ -858,6 +858,196 @@ def seller_order_refunded(p: dict, storefront_url: str) -> tuple[str, str]:
     )
 
 
+_RETURN_REASON_LABELS = {
+    "DAMAGED": "Physically damaged",
+    "DEFECTIVE": "Defective / not working",
+    "WRONG_ITEM": "Wrong item received",
+    "NOT_AS_DESCRIBED": "Not as described",
+}
+
+
+def _esc(val: object) -> str:
+    import html as _html
+    return _html.escape(str(val or ""), quote=True)
+
+
+def _return_summary_card(p: dict) -> str:
+    reason_label = _RETURN_REASON_LABELS.get(str(p.get("reason") or "").upper(), str(p.get("reason") or "—"))
+    item_line = _esc(p.get("product_name") or "Item")
+    if p.get("variant_name"):
+        item_line += f" ({_esc(p['variant_name'])})"
+    rows = [
+        ("Return ID", f"<span style='font-family:Menlo,Consolas,monospace;color:{INK};font-weight:700;'>{_esc(p.get('return_number') or '—')}</span>"),
+        ("Order", _esc(p.get("order_number") or "—")),
+        ("Item", f"{item_line} &times; {int(p.get('qty') or 1)}"),
+        ("Reason", _esc(reason_label)),
+    ]
+    if p.get("refund_amount") is not None:
+        rows.append(("Refund amount", f"<b style='color:{INK};'>{_rupees(p.get('refund_amount', 0))}</b>"))
+    if p.get("pickup_tracking"):
+        rows.append(("Pickup AWB", f"<span style='font-family:Menlo,Consolas,monospace;color:{INK};'>{_esc(p['pickup_tracking'])}</span>"))
+    trs = "".join(
+        "<tr>"
+        f"<td style='padding:9px 4px;border-bottom:1px solid {LINE};color:{FAINT};font-size:13px;white-space:nowrap;'>{k}</td>"
+        f"<td style='padding:9px 4px;border-bottom:1px solid {LINE};color:{INK};font-size:13px;text-align:right;'>{v}</td>"
+        "</tr>"
+        for k, v in rows
+    )
+    return (
+        f"<table role='presentation' width='100%' cellpadding='0' cellspacing='0' "
+        f"style='margin:18px 0 6px;border:1px solid {LINE};border-radius:12px;border-collapse:separate;'>"
+        f"<tr><td style='padding:4px 14px;'>"
+        f"<table role='presentation' width='100%' cellpadding='0' cellspacing='0'>{trs}</table>"
+        f"</td></tr></table>"
+    )
+
+
+def return_requested(p: dict, storefront_url: str) -> tuple[str, str]:
+    note = (
+        f"<p style='margin:14px 0 0;font-size:13px;color:{FAINT};'>Your note: &ldquo;{_esc(p['customer_note'])}&rdquo;</p>"
+        if p.get("customer_note") else ""
+    )
+    body = (
+        f"We've received your return request for order <b style='color:{INK};'>{_esc(p.get('order_number', ''))}</b>. "
+        "Our team will review it within 24–48 hours and arrange reverse pickup once approved."
+        f"{_return_summary_card(p)}{note}"
+    )
+    return f"Return request received · {_esc(p.get('return_number', ''))}", _shell(
+        "Return request received", body, _order_link(storefront_url), "View order",
+        preheader=f"Return {_esc(p.get('return_number', ''))} received for order {_esc(p.get('order_number', ''))}.",
+        header_meta=f"RETURN {_esc(p.get('return_number', ''))}",
+        pill=("RETURN REQUESTED", AMBER),
+    )
+
+
+def return_approved(p: dict, storefront_url: str) -> tuple[str, str]:
+    note = (
+        f"<p style='margin:14px 0 0;font-size:13px;color:{MUTED};'>Note from ELEKTRIX: {_esc(p['resolution_note'])}</p>"
+        if p.get("resolution_note") else ""
+    )
+    body = (
+        f"Your return request <b style='color:{INK};'>{_esc(p.get('return_number', ''))}</b> for order "
+        f"<b style='color:{INK};'>{_esc(p.get('order_number', ''))}</b> has been approved. "
+        "Please keep the item in its original packaging with all accessories — we'll schedule courier pickup shortly."
+        f"{_return_summary_card(p)}{note}"
+    )
+    return f"Return approved · {_esc(p.get('return_number', ''))}", _shell(
+        "Return approved", body, _order_link(storefront_url), "View order",
+        preheader=f"Return {_esc(p.get('return_number', ''))} approved — pickup details coming soon.",
+        header_meta=f"RETURN {_esc(p.get('return_number', ''))}",
+        pill=("APPROVED", GREEN),
+    )
+
+
+def return_pickup_scheduled(p: dict, storefront_url: str) -> tuple[str, str]:
+    body = (
+        f"Reverse pickup has been scheduled for your return <b style='color:{INK};'>{_esc(p.get('return_number', ''))}</b> "
+        f"(order <b style='color:{INK};'>{_esc(p.get('order_number', ''))}</b>). "
+        "Please hand over the packed item to the courier executive; your refund will be issued after inspection at our warehouse."
+        f"{_return_summary_card(p)}"
+    )
+    return f"Pickup scheduled · {_esc(p.get('return_number', ''))}", _shell(
+        "Return pickup scheduled", body, _order_link(storefront_url), "Track order",
+        preheader=f"Courier pickup scheduled for return {_esc(p.get('return_number', ''))}.",
+        header_meta=f"RETURN {_esc(p.get('return_number', ''))}",
+        pill=("PICKUP SCHEDULED", AMBER),
+    )
+
+
+def return_rejected(p: dict, storefront_url: str) -> tuple[str, str]:
+    reason = _esc(p.get("resolution_note") or "Does not meet return eligibility criteria.")
+    body = (
+        f"We reviewed return request <b style='color:{INK};'>{_esc(p.get('return_number', ''))}</b> for order "
+        f"<b style='color:{INK};'>{_esc(p.get('order_number', ''))}</b>, and unfortunately we can't approve it."
+        f"<div style='margin:16px 0 0;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;"
+        f"padding:14px 16px;font-size:14px;color:{RED};'><b>Reason:</b> {reason}</div>"
+        f"<p style='margin:14px 0 0;font-size:13px;color:{MUTED};'>If you have additional photos or details, reply to this email or contact support@elektrix.in.</p>"
+    )
+    return f"Return update · {_esc(p.get('return_number', ''))}", _shell(
+        "Return request declined", body, f"{SITE}/support", "Contact support",
+        preheader=f"Update on return {_esc(p.get('return_number', ''))}.",
+        header_meta=f"RETURN {_esc(p.get('return_number', ''))}",
+        pill=("DECLINED", RED),
+    )
+
+
+def return_refunded(p: dict, storefront_url: str) -> tuple[str, str]:
+    is_cod = str(p.get("payment_method") or "").upper() == "COD"
+    payout_note = (
+        "Since this was a Cash on Delivery order, our team has recorded your refund for bank/UPI settlement."
+        if is_cod else
+        "It typically reaches your original payment method within <b style='color:#3f3f46;'>5–7 business days</b>, depending on your bank."
+    )
+    body = (
+        f"We've received your returned item and issued a refund of "
+        f"<b style='color:{INK};'>{_rupees(p.get('refund_amount', 0))}</b> for return "
+        f"<b style='color:{INK};'>{_esc(p.get('return_number', ''))}</b> "
+        f"(order <b style='color:{INK};'>{_esc(p.get('order_number', ''))}</b>). {payout_note}"
+        f"{_return_summary_card(p)}"
+    )
+    return f"Return refunded · {_esc(p.get('return_number', ''))}", _shell(
+        "Return refund processed", body, _order_link(storefront_url), "View order",
+        preheader=f"{_rupees(p.get('refund_amount', 0))} refunded for return {_esc(p.get('return_number', ''))}.",
+        header_meta=f"RETURN {_esc(p.get('return_number', ''))}",
+        pill=("REFUNDED", GREEN),
+    )
+
+
+def seller_return_requested(p: dict, storefront_url: str) -> tuple[str, str]:
+    items = [{"name": p.get("product_name", "Item"), "qty": p.get("qty", 1), "unit_price": p.get("unit_price", 0)}]
+    reason_label = _RETURN_REASON_LABELS.get(str(p.get("reason") or "").upper(), str(p.get("reason") or "—"))
+    note = (
+        f"<p style='margin:12px 0 0;font-size:13px;color:{FAINT};'>Customer note: &ldquo;{_esc(p['customer_note'])}&rdquo;</p>"
+        if p.get("customer_note") else ""
+    )
+    body = (
+        f"Hi <b style='color:{INK};'>{_esc(p.get('business_name', 'Merchant'))}</b>, a customer requested a return "
+        f"(<b style='color:{INK};'>{_esc(p.get('return_number', ''))}</b>) for order "
+        f"<b style='color:{INK};'>{_esc(p.get('order_number', ''))}</b>. Reason: <b style='color:{INK};'>{_esc(reason_label)}</b>."
+        f"{_seller_items_table(items)}{note}"
+        f"<p style='margin:14px 0 0;color:{MUTED};'>ELEKTRIX ops is reviewing this request — no packing action is needed.</p>"
+    )
+    return f"Return requested · {_esc(p.get('return_number', ''))}", _shell(
+        "Customer return requested", body, "https://sell.elektrix.in/returns", "View returns",
+        preheader=f"Return {_esc(p.get('return_number', ''))} opened for {_esc(p.get('product_name', 'your item'))}.",
+        header_meta=f"RETURN {_esc(p.get('return_number', ''))}",
+        pill=("RETURN REQUESTED", AMBER),
+    )
+
+
+def seller_return_approved(p: dict, storefront_url: str) -> tuple[str, str]:
+    items = [{"name": p.get("product_name", "Item"), "qty": p.get("qty", 1), "unit_price": p.get("unit_price", 0)}]
+    body = (
+        f"Return <b style='color:{INK};'>{_esc(p.get('return_number', ''))}</b> on order "
+        f"<b style='color:{INK};'>{_esc(p.get('order_number', ''))}</b> has been approved by ELEKTRIX ops. "
+        "Reverse pickup is being coordinated; stock will restock once the item is received and inspected."
+        f"{_seller_items_table(items)}"
+    )
+    return f"Return approved · {_esc(p.get('return_number', ''))}", _shell(
+        "Return approved", body, "https://sell.elektrix.in/returns", "View returns",
+        preheader=f"Return {_esc(p.get('return_number', ''))} approved.",
+        header_meta=f"RETURN {_esc(p.get('return_number', ''))}",
+        pill=("RETURN APPROVED", AMBER),
+    )
+
+
+def seller_return_refunded(p: dict, storefront_url: str) -> tuple[str, str]:
+    items = [{"name": p.get("product_name", "Item"), "qty": p.get("qty", 1), "unit_price": p.get("unit_price", 0)}]
+    body = (
+        f"Returned units for <b style='color:{INK};'>{_esc(p.get('return_number', ''))}</b> "
+        f"(order <b style='color:{INK};'>{_esc(p.get('order_number', ''))}</b>) have been received and a refund of "
+        f"<b style='color:{INK};'>{_rupees(p.get('refund_amount', 0))}</b> was issued. "
+        "The returned quantity has been restocked to your inventory and reversed from settlement."
+        f"{_seller_items_table(items)}"
+    )
+    return f"Return refunded · {_esc(p.get('return_number', ''))}", _shell(
+        "Return received & refunded", body, "https://sell.elektrix.in/returns", "View returns",
+        preheader=f"{_rupees(p.get('refund_amount', 0))} refunded on return {_esc(p.get('return_number', ''))}.",
+        header_meta=f"RETURN {_esc(p.get('return_number', ''))}",
+        pill=("REFUNDED", RED),
+    )
+
+
 TEMPLATES = {
     "order.created": order_created,
     "payment.captured": payment_captured,
@@ -882,4 +1072,12 @@ TEMPLATES = {
     "seller.order.delivered": seller_order_delivered,
     "seller.order.cancelled": seller_order_cancelled,
     "seller.order.refunded": seller_order_refunded,
+    "return.requested": return_requested,
+    "return.approved": return_approved,
+    "return.pickup_scheduled": return_pickup_scheduled,
+    "return.rejected": return_rejected,
+    "return.refunded": return_refunded,
+    "seller.return.requested": seller_return_requested,
+    "seller.return.approved": seller_return_approved,
+    "seller.return.refunded": seller_return_refunded,
 }

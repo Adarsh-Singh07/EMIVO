@@ -25,6 +25,8 @@ export function OrderStatusBadge({ status }: { status: string }) {
       return <Badge tone="progress">Out for delivery</Badge>;
     case "DELIVERED":
       return <Badge tone="accent">Delivered</Badge>;
+    case "RETURNED":
+      return <Badge tone="attention">Returned</Badge>;
     case "CANCELLED":
       return <Badge tone="danger">Cancelled</Badge>;
     case "REFUNDED":
@@ -90,3 +92,32 @@ export function PaymentMethodBadge({ method }: { method: string | null | undefin
   if (m === "ONLINE") return <Badge>Online</Badge>;
   return <Badge>{m || "—"}</Badge>;
 }
+
+export function ReturnStatusBadge({ status }: { status: string }) {
+  const s = status?.toUpperCase() || "";
+  switch (s) {
+    case "REQUESTED":
+      return <Badge tone="attention">Requested</Badge>;
+    case "APPROVED":
+      return <Badge tone="progress">Approved</Badge>;
+    case "PICKUP_SCHEDULED":
+      return <Badge tone="progress">Pickup scheduled</Badge>;
+    case "RETURNED":
+      return <Badge tone="attention">Received</Badge>;
+    case "REFUNDED":
+      return <Badge tone="accent">Refunded</Badge>;
+    case "REJECTED":
+      return <Badge tone="danger">Rejected</Badge>;
+    case "CLOSED":
+      return <Badge tone="neutral">Closed</Badge>;
+    default:
+      return <Badge>{s || "—"}</Badge>;
+  }
+}
+
+export const RETURN_REASON_LABELS: Record<string, string> = {
+  DAMAGED: "Physically damaged",
+  DEFECTIVE: "Defective / not working",
+  WRONG_ITEM: "Wrong item received",
+  NOT_AS_DESCRIBED: "Not as described",
+};

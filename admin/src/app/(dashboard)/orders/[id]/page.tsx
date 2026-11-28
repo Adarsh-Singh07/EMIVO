@@ -28,7 +28,7 @@ import { toast } from"sonner";
 import { apiClient, ApiError, getAccessToken } from"@/lib/api-client";
 import { uploadMediaFile } from"@/lib/media";
 import { formatINR } from"@/lib/money";
-import { OrderStatusBadge, PaymentMethodBadge, PaymentStatusBadge } from"@/components/admin/status-badges";
+import { OrderStatusBadge, PaymentMethodBadge, PaymentStatusBadge, ReturnStatusBadge, RETURN_REASON_LABELS } from"@/components/admin/status-badges";
 import { Modal } from"@/components/admin/Modal";
 
 interface OrderItem {
@@ -153,6 +153,7 @@ const NEXT_ACTIONS: Record<string, Array<OrderAction>> = {
  { label:"Cancel", target:"CANCELLED", style:"danger", reason: true },
  ],
  DELIVERED: [],
+ RETURNED: [],
  CANCELLED: [],
  REFUNDED: [],
 };
@@ -209,6 +210,26 @@ export default function OrderDetailPage() {
  const [fulfillmentSaving, setFulfillmentSaving] = useState(false);
  const [uploadingBill, setUploadingBill] = useState(false);
 
+ // Return Requests on this order
+ interface OrderReturnRow {
+  id: string;
+  return_number: string | null;
+  product_name: string | null;
+  qty: number;
+  reason: string;
+  status: string;
+  refund_amount: number;
+  requested_at: string;
+ }
+ const [orderReturns, setOrderReturns] = useState<OrderReturnRow[]>([]);
+ const [createReturnOpen, setCreateReturnOpen] = useState(false);
+ const [retItemId, setRetItemId] = useState("");
+ const [retQty, setRetQty] = useState(1);
+ const [retReason, setRetReason] = useState("DEFECTIVE");
+ const [retNote, setRetNote] = useState("");
+ const [retBypassWindow, setRetBypassWindow] = useState(false);
+ const [retSaving, setRetSaving] = useState(false);
+
  const load = useCallback(async () => {
  if (!id) return;
  try {
@@ -228,6 +249,10 @@ export default function OrderDetailPage() {
  .get<OrderNote[]>(`/orders/${id}/notes`)
  .then((n) => setNotes(Array.isArray(n) ? n : []))
  .catch(() => setNotes([]));
+ apiClient
+ .get<{ items: OrderReturnRow[] }>(`/orders/${id}/return-requests`)
+ .then((r) => setOrderReturns(Array.isArray(r?.items) ? r.items : []))
+ .catch(() => setOrderReturns([]));
  apiClient.get<any>("/admin/store-settings").then((cfg) => {
  if (cfg?.pickup_location) {
  setPickupName(cfg.pickup_location.name ||"ELEKTRIX");
@@ -530,7 +555,7 @@ export default function OrderDetailPage() {
 
  <div className="grid items-start gap-6 lg:grid-cols-3">
  {/* Main column */}
- <div className="space-y-6 lg:col-span-2">
+ <div className="min-w-0 space-y-6 lg:col-span-2">
  {/* Items */}
  <section className="overflow-hidden rounded-md border border-neutral-200 bg-white">
  <h2 className="border-b border-neutral-200 px-5 py-4 text-base font-semibold text-neutral-900">Items</h2>
@@ -623,6 +648,36 @@ export default function OrderDetailPage() {
  )}
  </section>
 
+ {orderReturns.length > 0 && (
+ <section className="rounded-md border border-neutral-200 bg-white p-5">
+ <div className="mb-3 flex items-center justify-between gap-2">
+ <h2 className="text-base font-semibold text-neutral-900">Return Requests</h2>
+ <Link href="/returns" className="text-xs font-semibold text-emerald-800 hover:underline">
+ Manage in Returns Queue
+ </Link>
+ </div>
+ <ul className="space-y-2.5">
+ {orderReturns.map((rr) => (
+ <li key={rr.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-neutral-100 bg-neutral-50 px-3.5 py-2.5">
+ <div className="min-w-0">
+ <div className="flex flex-wrap items-center gap-2">
+ <span className="font-mono text-xs font-semibold text-neutral-900">{rr.return_number || rr.id.slice(0, 8)}</span>
+ <ReturnStatusBadge status={rr.status} />
+ <span className="text-xs text-neutral-500">{RETURN_REASON_LABELS[rr.reason] || rr.reason}</span>
+ </div>
+ <p className="mt-0.5 text-xs text-neutral-700">
+ {rr.product_name || "Item"} &times; {rr.qty} &middot; Refund {formatINR(rr.refund_amount)}
+ </p>
+ </div>
+ <span className="font-mono text-xs text-neutral-400">
+ {new Date(rr.requested_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+ </span>
+ </li>
+ ))}
+ </ul>
+ </section>
+ )}
+
  {/* Internal notes (staff-only) */}
  <section className="rounded-md border border-neutral-200 bg-white p-5">
  <h2 className="mb-1 text-base font-semibold text-neutral-900">Internal Notes</h2>
@@ -659,7 +714,7 @@ export default function OrderDetailPage() {
  </div>
 
  {/* Side column */}
- <div className="space-y-6">
+ <div className="min-w-0 space-y-6">
  {/* Status actions */}
  <section className="rounded-md border border-neutral-200 bg-white p-5">
  <h2 className="mb-3 text-base font-semibold text-neutral-900">Actions</h2>
@@ -707,6 +762,23 @@ export default function OrderDetailPage() {
  className="inline-flex items-center justify-center gap-2 rounded-md bg-neutral-900 text-white px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral-700 transition-colors text-center cursor-pointer"
  >
  <FileText className="h-4 w-4" /> Download Official Tax Invoice
+ </button>
+ )}
+
+ {(order.status ==="DELIVERED" || order.status ==="RETURNED") && order.items.length > 0 && (
+ <button
+ type="button"
+ onClick={() => {
+ setRetItemId(order.items[0].id);
+ setRetQty(1);
+ setRetReason("DEFECTIVE");
+ setRetNote("");
+ setRetBypassWindow(false);
+ setCreateReturnOpen(true);
+ }}
+ className="inline-flex items-center justify-center gap-2 rounded-md border border-neutral-300 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-800 hover:bg-neutral-50 transition-colors cursor-pointer"
+ >
+ <RotateCcw className="h-4 w-4" /> Create Return Request
  </button>
  )}
 
@@ -1310,6 +1382,117 @@ export default function OrderDetailPage() {
  />
  </details>
  </div>
+ </div>
+ </Modal>
+
+ {/* Create Return Request modal */}
+ <Modal
+ open={createReturnOpen}
+ onClose={() => setCreateReturnOpen(false)}
+ title="Create return request"
+ footer={
+ <>
+ <button
+ type="button"
+ onClick={() => setCreateReturnOpen(false)}
+ className="rounded-md border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+ >
+ Cancel
+ </button>
+ <button
+ type="button"
+ disabled={retSaving || !retItemId}
+ onClick={async () => {
+ if (!order || !retItemId) return;
+ setRetSaving(true);
+ try {
+ await apiClient.post("/admin/return-requests", {
+ order_id: order.id,
+ order_item_id: retItemId,
+ qty: retQty,
+ reason: retReason,
+ customer_note: retNote.trim() || undefined,
+ bypass_window: retBypassWindow,
+ });
+ toast.success("Return request created");
+ setCreateReturnOpen(false);
+ load();
+ } catch (err) {
+ toast.error(err instanceof ApiError ? err.message : "Failed to create return request");
+ } finally {
+ setRetSaving(false);
+ }
+ }}
+ className="inline-flex items-center gap-2 rounded-md bg-neutral-900 px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50"
+ >
+ <RotateCcw className="h-4 w-4" /> {retSaving ? "Creating…" : "Create Return"}
+ </button>
+ </>
+ }
+ >
+ <div className="space-y-3">
+ <div>
+ <label className="mb-1.5 block text-xs font-semibold text-neutral-700">Order Item</label>
+ <select
+ value={retItemId}
+ onChange={(e) => {
+ setRetItemId(e.target.value);
+ setRetQty(1);
+ }}
+ className="ex-input w-full rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-900"
+ >
+ {order.items.map((item) => (
+ <option key={item.id} value={item.id}>
+ {item.product_name} (qty {item.quantity} · {formatINR(item.unit_price)})
+ </option>
+ ))}
+ </select>
+ </div>
+ <div className="grid grid-cols-2 gap-3">
+ <div>
+ <label className="mb-1.5 block text-xs font-semibold text-neutral-700">Quantity</label>
+ <input
+ type="number"
+ min={1}
+ max={order.items.find((i) => i.id === retItemId)?.quantity || 1}
+ value={retQty}
+ onChange={(e) => setRetQty(Math.max(1, Number(e.target.value) || 1))}
+ className="ex-input w-full rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-900"
+ />
+ </div>
+ <div>
+ <label className="mb-1.5 block text-xs font-semibold text-neutral-700">Reason</label>
+ <select
+ value={retReason}
+ onChange={(e) => setRetReason(e.target.value)}
+ className="ex-input w-full rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-900"
+ >
+ <option value="DAMAGED">Physically damaged</option>
+ <option value="DEFECTIVE">Defective / not working</option>
+ <option value="WRONG_ITEM">Wrong item received</option>
+ <option value="NOT_AS_DESCRIBED">Not as described</option>
+ </select>
+ </div>
+ </div>
+ <div>
+ <label className="mb-1.5 block text-xs font-semibold text-neutral-700">Customer Note (optional)</label>
+ <textarea
+ rows={2}
+ value={retNote}
+ onChange={(e) => setRetNote(e.target.value)}
+ placeholder="Details shared by customer on WhatsApp/phone/email"
+ className="w-full rounded-md border border-neutral-200 bg-white p-2.5 text-sm text-neutral-900"
+ />
+ </div>
+ <label className="flex items-center gap-2 text-xs text-neutral-700">
+ <input
+ type="checkbox"
+ checked={retBypassWindow}
+ onChange={(e) => setRetBypassWindow(e.target.checked)}
+ className="h-4 w-4 rounded border-neutral-300"
+ />
+ Override 7-day return window (staff exception)
+ </label>
  </div>
  </Modal>
  </div>

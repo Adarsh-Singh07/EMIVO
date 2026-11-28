@@ -10,7 +10,7 @@ import { Pagination } from"@/components/admin/Pagination";
 
 const PAGE_SIZE = 15;
 
-const STATUS_TABS = ["ALL","PENDING","CONFIRMED","PROCESSING","PACKED","SHIPPED","DELIVERED","CANCELLED","REFUNDED"] as const;
+const STATUS_TABS = ["ALL","PENDING","CONFIRMED","PROCESSING","PACKED","SHIPPED","DELIVERED","RETURNED","CANCELLED","REFUNDED"] as const;
 
 interface OrderRow {
  id: string;

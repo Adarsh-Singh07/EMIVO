@@ -115,3 +115,53 @@ async def maybe_queue_seller_order_emails(session, event_type: str, payload: dic
         logger.info("queued %d seller email(s) for %s on order %s",
                     queued, seller_event, order_row["order_number"])
     return queued
+
+
+SELLER_RETURN_EVENT_MAP = {
+    "return.requested": "seller.return.requested",
+    "return.approved": "seller.return.approved",
+    "return.refunded": "seller.return.refunded",
+}
+
+
+async def maybe_queue_seller_return_email(session, event_type: str, payload: dict) -> int:
+    """Queue a seller email copy for a return lifecycle event on their item."""
+    seller_event = SELLER_RETURN_EVENT_MAP.get(event_type)
+    if not seller_event:
+        return 0
+    seller_id = payload.get("seller_id")
+    if not seller_id and payload.get("return_id"):
+        seller_id = (await session.execute(
+            text("SELECT seller_id FROM return_requests WHERE id = :rid"),
+            {"rid": str(payload["return_id"])},
+        )).scalar()
+    if not seller_id:
+        return 0
+
+    seller_row = (await session.execute(
+        text("SELECT COALESCE(email, '') AS email, COALESCE(business_name, 'Merchant') AS business_name FROM sellers WHERE id = :sid"),
+        {"sid": str(seller_id)},
+    )).mappings().first()
+    if not seller_row or not seller_row["email"]:
+        return 0
+
+    tenant_id = payload.get("business_id") or payload.get("tenant_id")
+    if not tenant_id and payload.get("order_id"):
+        tenant_id = (await session.execute(
+            text("SELECT business_id FROM orders WHERE id = :oid"),
+            {"oid": str(payload["order_id"])},
+        )).scalar()
+
+    from core.models import OutboxEvent
+    session.add(OutboxEvent(
+        tenant_id=str(tenant_id) if tenant_id else None,
+        type=seller_event,
+        payload={
+            **payload,
+            "email": seller_row["email"],
+            "business_name": seller_row["business_name"],
+            "seller_id": str(seller_id),
+        },
+    ))
+    logger.info("queued seller email %s for return %s", seller_event, payload.get("return_number"))
+    return 1
