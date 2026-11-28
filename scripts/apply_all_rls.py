@@ -13,14 +13,14 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
+ROOT = Path(__file__).parent.parent
+
 # Every db/rls/*.sql, in filename order — the same set deploy_vps.sh applies.
 # Keep new policy files here simply by dropping them into db/rls/.
 RLS_FILES = sorted(
     str(p.relative_to(ROOT)).replace("\\", "/")
     for p in (ROOT / "db" / "rls").glob("*.sql")
 )
-
-ROOT = Path(__file__).parent.parent
 
 
 def split_sql_statements(sql: str) -> list[str]:

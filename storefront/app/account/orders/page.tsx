@@ -28,7 +28,7 @@ import {
   FileText,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { storeApi, type OrderV2 } from "@/lib/store-api";
+import { storeApi, type OrderV2, type ReturnRequestItem, type ReturnReason } from "@/lib/store-api";
 import { inr, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import PaymentRetryActions from "@/components/site/PaymentRetryActions";
@@ -43,6 +43,7 @@ const STATUS_STYLES: Record<string, { bg: string; text: string; border: string; 
   SHIPPED:           { bg: "bg-purple-50",   text: "text-purple-700",  border: "border-purple-200",  label: "Shipped" },
   OUT_FOR_DELIVERY:  { bg: "bg-sky-50",      text: "text-sky-700",     border: "border-sky-200",     label: "Out for Delivery" },
   DELIVERED:         { bg: "bg-green-50",    text: "text-green-700",   border: "border-green-200",   label: "Delivered" },
+  RETURNED:          { bg: "bg-amber-50",    text: "text-amber-700",   border: "border-amber-200",   label: "Returned" },
   CANCELLED:         { bg: "bg-red-50",      text: "text-red-700",     border: "border-red-200",     label: "Cancelled" },
   REFUNDED:          { bg: "bg-neutral-50",  text: "text-neutral-600", border: "border-neutral-200", label: "Refunded" },
   PAYMENT_FAILED:    { bg: "bg-red-50",      text: "text-red-700",     border: "border-red-200",     label: "Payment Failed" },
@@ -68,6 +69,23 @@ const CANCEL_REASONS = [
 ];
 
 const CAN_CANCEL = new Set(["PENDING", "CONFIRMED", "PROCESSING"]);
+
+const RETURN_REASONS: Array<{ value: ReturnReason; label: string }> = [
+  { value: "DAMAGED", label: "Physically damaged" },
+  { value: "DEFECTIVE", label: "Defective / not working" },
+  { value: "WRONG_ITEM", label: "Wrong item received" },
+  { value: "NOT_AS_DESCRIBED", label: "Not as described" },
+];
+
+const RETURN_STATUS_STYLES: Record<string, { bg: string; text: string; border: string; label: string }> = {
+  REQUESTED:        { bg: "bg-amber-50",   text: "text-amber-700",   border: "border-amber-200",   label: "Requested" },
+  APPROVED:         { bg: "bg-blue-50",    text: "text-blue-700",    border: "border-blue-200",    label: "Approved" },
+  PICKUP_SCHEDULED: { bg: "bg-sky-50",     text: "text-sky-700",     border: "border-sky-200",     label: "Pickup Scheduled" },
+  RETURNED:         { bg: "bg-amber-50",   text: "text-amber-700",   border: "border-amber-200",   label: "Received" },
+  REFUNDED:         { bg: "bg-green-50",   text: "text-green-700",   border: "border-green-200",   label: "Refunded" },
+  REJECTED:         { bg: "bg-red-50",     text: "text-red-700",     border: "border-red-200",     label: "Declined" },
+  CLOSED:           { bg: "bg-neutral-50", text: "text-neutral-600", border: "border-neutral-200", label: "Closed" },
+};
 
 /** Human gateway name from the payment record — never hard-code one. */
 function gatewayLabel(provider?: string | null): string {
@@ -200,11 +218,181 @@ function CancelModal({
   );
 }
 
+/* ── Return Modal ──────────────────────────────────────────────────── */
+function ReturnModal({
+  order,
+  eligibleItems,
+  onClose,
+  onSubmitted,
+}: {
+  order: OrderV2;
+  eligibleItems: Array<{ id: string; product_name: string; variant_name?: string | null; maxQty: number; unit_price: number }>;
+  onClose: () => void;
+  onSubmitted: (created: ReturnRequestItem) => void;
+}) {
+  const [itemId, setItemId] = useState(eligibleItems[0]?.id || "");
+  const selectedItem = eligibleItems.find((i) => i.id === itemId) || eligibleItems[0];
+  const [qty, setQty] = useState(1);
+  const [reason, setReason] = useState<ReturnReason>("DEFECTIVE");
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!selectedItem) return;
+    setLoading(true);
+    try {
+      const created = await storeApi.createReturnRequest(order.id, {
+        order_item_id: selectedItem.id,
+        qty,
+        reason,
+        customer_note: note.trim() || undefined,
+      });
+      toast.success(`Return ${created.return_number || ""} submitted`);
+      onSubmitted(created);
+    } catch (err: any) {
+      toast.error(err?.message || "Could not submit return request.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div className="absolute inset-0 bg-neutral-950/40 backdrop-blur-sm" />
+      <div
+        className="relative bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 sm:p-8 z-10 max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-8 h-8 rounded-full bg-amber-100 grid place-items-center">
+                <RotateCcw className="w-4 h-4 text-amber-700" />
+              </div>
+              <h2 className="text-lg font-semibold">Request Return</h2>
+            </div>
+            <p className="text-sm text-neutral-500">
+              Order {order.order_number || `#${order.id.slice(0, 8).toUpperCase()}`}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-neutral-100 text-neutral-500"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="space-y-4 mb-6">
+          {eligibleItems.length > 1 && (
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5">
+                Item to return
+              </label>
+              <select
+                value={itemId}
+                onChange={(e) => {
+                  setItemId(e.target.value);
+                  setQty(1);
+                }}
+                className="w-full h-11 rounded-xl border border-neutral-200 px-3 text-sm bg-white"
+              >
+                {eligibleItems.map((it) => (
+                  <option key={it.id} value={it.id}>
+                    {it.product_name} ({it.maxQty} eligible · {inr(it.unit_price)})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {selectedItem && selectedItem.maxQty > 1 && (
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5">
+                Quantity (max {selectedItem.maxQty})
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={selectedItem.maxQty}
+                value={qty}
+                onChange={(e) =>
+                  setQty(Math.min(selectedItem.maxQty, Math.max(1, Number(e.target.value) || 1)))
+                }
+                className="w-full h-11 rounded-xl border border-neutral-200 px-3 text-sm bg-white"
+              />
+            </div>
+          )}
+
+          <div>
+            <p className="text-sm font-medium text-neutral-700 mb-2">Reason for return</p>
+            <div className="space-y-2">
+              {RETURN_REASONS.map((r) => (
+                <label
+                  key={r.value}
+                  className="flex items-center gap-3 p-3 rounded-xl border border-neutral-200 cursor-pointer hover:bg-neutral-50 transition-colors"
+                >
+                  <input
+                    type="radio"
+                    name="return-reason"
+                    value={r.value}
+                    checked={reason === r.value}
+                    onChange={() => setReason(r.value)}
+                    className="accent-neutral-950 w-4 h-4"
+                  />
+                  <span className="text-sm text-neutral-700">{r.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+              Details (optional)
+            </label>
+            <textarea
+              className="w-full border border-neutral-200 rounded-xl p-3 text-sm outline-none focus:border-neutral-950 resize-none"
+              placeholder="Describe the damage, defect, or issue"
+              rows={3}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 h-12 rounded-xl border border-neutral-200 text-sm font-medium hover:bg-neutral-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={loading || !selectedItem}
+            className="flex-1 h-12 rounded-xl bg-neutral-950 text-white text-sm font-semibold hover:bg-neutral-800 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+            {loading ? "Submitting…" : "Submit Return"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Order Timeline ────────────────────────────────────────────────── */
 function OrderTimeline({ status }: { status: string }) {
   const upper = status?.toUpperCase();
   if (
-    ["CANCELLED", "PAYMENT_FAILED", "PAYMENT_PENDING", "REFUNDED"].includes(upper)
+    ["CANCELLED", "PAYMENT_FAILED", "PAYMENT_PENDING", "REFUNDED", "RETURNED"].includes(upper)
   ) {
     return null;
   }
@@ -263,8 +451,52 @@ function OrderDetail({
 }) {
   const router = useRouter();
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [orderReturns, setOrderReturns] = useState<ReturnRequestItem[]>([]);
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   const st = statusStyle(order.status);
   const canCancel = CAN_CANCEL.has(order.status?.toUpperCase());
+
+  const loadOrderReturns = useCallback(() => {
+    const upper = order.status?.toUpperCase();
+    if (!["DELIVERED", "RETURNED", "REFUNDED"].includes(upper)) {
+      setOrderReturns([]);
+      return;
+    }
+    storeApi
+      .listOrderReturns(order.id)
+      .then((res) => setOrderReturns(Array.isArray(res?.items) ? res.items : []))
+      .catch(() => setOrderReturns([]));
+  }, [order.id, order.status]);
+
+  useEffect(() => {
+    loadOrderReturns();
+  }, [loadOrderReturns]);
+
+  const activeReturnedByItem = orderReturns.reduce<Record<string, number>>((acc, rr) => {
+    if (!["REJECTED", "CLOSED"].includes((rr.status || "").toUpperCase())) {
+      acc[rr.order_item_id] = (acc[rr.order_item_id] || 0) + (rr.qty || 0);
+    }
+    return acc;
+  }, {});
+
+  const eligibleReturnItems = (order.items || [])
+    .map((it: any) => ({
+      id: it.id,
+      product_name: it.product_name || "Item",
+      variant_name: it.variant_name,
+      unit_price: it.unit_price || 0,
+      maxQty: Math.max((it.quantity || 0) - (activeReturnedByItem[it.id] || 0), 0),
+    }))
+    .filter((it) => it.id && it.maxQty > 0);
+
+  const deliveredMs = order.delivered_at ? Date.parse(order.delivered_at) : NaN;
+  const withinReturnWindow =
+    Number.isFinite(deliveredMs) && Date.now() - deliveredMs <= 7 * 24 * 60 * 60 * 1000;
+  const canRequestReturn =
+    ["DELIVERED", "RETURNED"].includes(order.status?.toUpperCase()) &&
+    withinReturnWindow &&
+    eligibleReturnItems.length > 0;
 
   const handleDownloadInvoice = () => {
     const token = typeof window !== "undefined" ? localStorage.getItem("token") || localStorage.getItem("access_token") : null;
@@ -669,6 +901,15 @@ function OrderDetail({
             <Ban className="w-4 h-4" /> Cancel Order
           </button>
         )}
+        {canRequestReturn && (
+          <button
+            type="button"
+            onClick={() => setShowReturnModal(true)}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-800 text-sm font-semibold hover:bg-amber-100 transition-colors cursor-pointer"
+          >
+            <RotateCcw className="w-4 h-4" /> Request Return
+          </button>
+        )}
         {!["PAYMENT_FAILED"].includes(order.status?.toUpperCase()) && (
           <Link
             href={`/order-tracking?order=${order.order_number || order.id}`}
@@ -720,11 +961,95 @@ function OrderDetail({
         </div>
       )}
 
+      {orderReturns.length > 0 && (
+        <div className="border border-neutral-200 rounded-2xl p-5 bg-white mt-4">
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <RotateCcw className="w-4 h-4 text-neutral-500" /> Return Requests
+          </h3>
+          <div className="space-y-3">
+            {orderReturns.map((rr) => {
+              const rs = RETURN_STATUS_STYLES[rr.status?.toUpperCase()] || {
+                bg: "bg-neutral-50",
+                text: "text-neutral-700",
+                border: "border-neutral-200",
+                label: rr.status,
+              };
+              const reasonLabel =
+                RETURN_REASONS.find((r) => r.value === rr.reason)?.label || rr.reason;
+              return (
+                <div
+                  key={rr.id}
+                  className="rounded-xl border border-neutral-200 bg-neutral-50/70 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-xs font-semibold text-neutral-900">
+                        {rr.return_number || rr.id.slice(0, 8)}
+                      </span>
+                      <span
+                        className={`text-xs px-2.5 py-0.5 rounded-full border font-semibold ${rs.bg} ${rs.text} ${rs.border}`}
+                      >
+                        {rs.label}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium text-neutral-900 mt-1">
+                      {rr.product_name || "Item"} &times; {rr.qty}
+                    </p>
+                    <p className="text-xs text-neutral-500 mt-0.5">
+                      {reasonLabel} &middot; Refund: {inr(rr.refund_amount)}
+                      {rr.pickup_tracking ? ` · Pickup AWB: ${rr.pickup_tracking}` : ""}
+                    </p>
+                    {rr.resolution_note && (
+                      <p className="text-xs text-neutral-600 mt-1">
+                        Update: {rr.resolution_note}
+                      </p>
+                    )}
+                  </div>
+                  {rr.status?.toUpperCase() === "REQUESTED" && (
+                    <button
+                      type="button"
+                      disabled={withdrawingId === rr.id}
+                      onClick={async () => {
+                        setWithdrawingId(rr.id);
+                        try {
+                          await storeApi.closeReturnRequest(rr.id);
+                          toast.success("Return request withdrawn");
+                          loadOrderReturns();
+                        } catch (err: any) {
+                          toast.error(err?.message || "Could not withdraw return request");
+                        } finally {
+                          setWithdrawingId(null);
+                        }
+                      }}
+                      className="self-start sm:self-center shrink-0 px-3 py-1.5 rounded-lg border border-neutral-300 bg-white text-xs font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-50"
+                    >
+                      {withdrawingId === rr.id ? "Withdrawing…" : "Withdraw"}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {showCancelModal && (
         <CancelModal
           order={order}
           onClose={() => setShowCancelModal(false)}
           onConfirm={handleCancel}
+        />
+      )}
+
+      {showReturnModal && (
+        <ReturnModal
+          order={order}
+          eligibleItems={eligibleReturnItems}
+          onClose={() => setShowReturnModal(false)}
+          onSubmitted={() => {
+            setShowReturnModal(false);
+            loadOrderReturns();
+          }}
         />
       )}
     </div>
@@ -844,7 +1169,7 @@ function matchesStatus(order: OrderV2, key: string): boolean {
     case "cancelled":
       return s === "CANCELLED" || s === "PAYMENT_FAILED";
     case "returned":
-      return s === "REFUNDED";
+      return s === "RETURNED" || s === "REFUNDED";
     default:
       return true;
   }

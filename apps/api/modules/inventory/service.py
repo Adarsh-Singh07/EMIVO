@@ -124,6 +124,26 @@ class InventoryService:
             )
         order.stock_committed = False
 
+    async def restock_item_for_order(
+        self, order: Order, product_id: str, quantity: int, note: Optional[str] = None
+    ) -> None:
+        """Return a specific returned item quantity back to on-hand stock."""
+        if quantity <= 0:
+            return
+        row = await self.repository.restock(product_id, quantity)
+        on_hand, reserved = row
+        await self.repository.log_movement(
+            product_id=product_id,
+            business_id=order.business_id,
+            delta_on_hand=quantity,
+            delta_reserved=0,
+            on_hand_after=on_hand,
+            reserved_after=reserved,
+            reason=InventoryReason.RETURN,
+            order_id=order.id,
+            note=note,
+        )
+
     # ------------------------------------------------------------------ #
     # Admin operations
     # ------------------------------------------------------------------ #

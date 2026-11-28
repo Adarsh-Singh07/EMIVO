@@ -29,6 +29,11 @@ IN_APP: dict[str, tuple[str, str]] = {
     "order.delivered": ("Order delivered", "Your order {order_number} was delivered."),
     "order.cancelled": ("Order cancelled", "Your order {order_number} was cancelled."),
     "order.refunded": ("Refund initiated", "Refund for {order_number} is on its way."),
+    "return.requested": ("Return requested", "Return {return_number} for order {order_number} was submitted."),
+    "return.approved": ("Return approved", "Return {return_number} for order {order_number} was approved."),
+    "return.pickup_scheduled": ("Pickup scheduled", "Pickup scheduled for return {return_number} ({order_number})."),
+    "return.rejected": ("Return update", "Return {return_number} for order {order_number} could not be approved."),
+    "return.refunded": ("Return refunded", "Refund for return {return_number} ({order_number}) has been processed."),
 }
 
 
@@ -149,16 +154,26 @@ class NotificationService:
             except Exception:
                 logger.warning("seller email dispatch failed for %s", event_type, exc_info=True)
 
+        if event_type.startswith("return."):
+            try:
+                from modules.notifications.seller_emails import maybe_queue_seller_return_email
+                await maybe_queue_seller_return_email(self.session, event_type, payload)
+            except Exception:
+                logger.warning("seller return email dispatch failed for %s", event_type, exc_info=True)
+
         # 3. In-app
         if event_type in IN_APP and user_id:
             title_tpl, body_tpl = IN_APP[event_type]
             self.session.add(Notification(
                 user_id=str(user_id),
                 type=event_type,
-                title=title_tpl.format(**payload) if "{order_number}" in title_tpl else title_tpl,
+                title=title_tpl.format(**payload) if "{" in title_tpl else title_tpl,
                 body=body_tpl.format(**payload),
                 link="/account/orders",
-                data={"order_id": payload.get("order_id")},
+                data={
+                    "order_id": payload.get("order_id"),
+                    **({"return_id": payload.get("return_id")} if payload.get("return_id") else {}),
+                },
             ))
             await self.session.flush()
 

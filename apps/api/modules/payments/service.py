@@ -656,7 +656,21 @@ class PaymentService:
         payment_id: str,
         refund_amount: Optional[int] = None,
         reason: Optional[str] = None,
+        *,
+        restock_items: Optional[list[tuple[str, int]]] = None,
+        mark_order_refunded: bool = True,
+        emit_order_refunded: bool = True,
+        commit: bool = True,
     ) -> Payment:
+        # Lock the payment row to serialize concurrent refund attempts and check
+        # cumulative partial refunds safely.
+        lock_res = await self.db.execute(
+            text("SELECT id FROM payments WHERE id = :pid FOR UPDATE"),
+            {"pid": str(payment_id)},
+        )
+        if not lock_res.first():
+            raise DomainException("Payment not found", code="NOT_FOUND", status_code=404)
+
         payment = await self.repository.get_by_id(payment_id)
         if not payment:
             raise DomainException("Payment not found", code="NOT_FOUND", status_code=404)
@@ -665,15 +679,27 @@ class PaymentService:
                 f"Cannot refund payment in status {payment.status.value}. Only CAPTURED payments can be refunded.",
                 code="BAD_REQUEST", status_code=400,
             )
-        if refund_amount and refund_amount > payment.amount:
+
+        already_refunded = int((await self.db.execute(
+            text(
+                "SELECT COALESCE(SUM((payload->>'refund_amount')::bigint), 0) "
+                "FROM payment_events WHERE payment_id = :pid AND event_type = 'payment_refunded'"
+            ),
+            {"pid": str(payment_id)},
+        )).scalar() or 0)
+
+        target_amount = refund_amount if refund_amount is not None else max(payment.amount - already_refunded, 0)
+        if target_amount <= 0:
+            raise DomainException("Refund amount must be positive", code="BAD_REQUEST", status_code=400)
+        if already_refunded + target_amount > payment.amount:
             raise DomainException("Refund exceeds payment amount", code="BAD_REQUEST", status_code=400)
 
+        is_full_settlement = (already_refunded + target_amount) >= payment.amount
         order = await self.order_repository.get_by_id(payment.order_id)
 
-        # Atomically claim the refund before touching the provider, so two
-        # concurrent staff refunds can never both reach provider.refund. If
-        # the provider call fails, the claim is reverted to SUCCESS.
-        if not await self.repository.claim_refund(payment_id):
+        # For full settlement, transition SUCCESS -> REFUNDED before external
+        # call; revert to SUCCESS if provider call fails.
+        if is_full_settlement and not await self.repository.claim_refund(payment_id):
             raise DomainException(
                 "Payment already refunded or refund in progress",
                 code="CONFLICT", status_code=409,
@@ -681,48 +707,60 @@ class PaymentService:
         try:
             # Cashfree requires the order id (provider_order_id), not the payment id.
             if payment.provider_payment_id:
+                provider_amt = None if (refund_amount is None and already_refunded == 0) else target_amount
                 provider_refund = await get_provider(payment.provider.value.lower()).refund(
                     payment.provider_payment_id,
-                    amount=refund_amount,
+                    amount=provider_amt,
                     provider_order_id=payment.provider_order_id,
                 )
                 refund_id = provider_refund.get("id") or provider_refund.get("refund_id")
             else:
                 refund_id = None
         except Exception:
-            await self.repository.update_status(payment_id, PaymentStatus.SUCCESS)
-            await self.db.commit()
+            if is_full_settlement:
+                await self.repository.update_status(payment_id, PaymentStatus.SUCCESS)
+                await self.db.commit()
             raise
 
         await self.repository.log_event(
             payment_id=payment_id,
             event_type="payment_refunded",
             payload={
-                "refund_amount": refund_amount or payment.amount,
+                "refund_amount": target_amount,
                 "reason": reason,
                 "provider_refund_id": refund_id,
             },
         )
 
         if order:
-            order.status = OrderStatus.REFUNDED
-            await self.order_repository.update(order)
-            # Full refunds restock committed units
-            if order.stock_committed:
+            if mark_order_refunded and is_full_settlement:
+                order.status = OrderStatus.REFUNDED
+                await self.order_repository.update(order)
+            if restock_items is not None:
+                if order.stock_committed:
+                    for prod_id, qty in restock_items:
+                        await self.inventory.restock_item_for_order(
+                            order, prod_id, qty, note=reason
+                        )
+            elif order.stock_committed:
                 await self.inventory.restock_for_order(order)
-            self.db.add(OutboxEvent(
-                tenant_id=order.business_id,
-                type="order.refunded",
-                payload={
-                    "order_id": str(order.id),
-                    "order_number": order.order_number,
-                    "user_id": str(order.user_id),
-                    "refund_amount": refund_amount or payment.amount,
-                    "reason": reason,
-                },
-            ))
+            if emit_order_refunded:
+                self.db.add(OutboxEvent(
+                    tenant_id=order.business_id,
+                    type="order.refunded",
+                    payload={
+                        "order_id": str(order.id),
+                        "order_number": order.order_number,
+                        "user_id": str(order.user_id),
+                        "refund_amount": target_amount,
+                        "reason": reason,
+                    },
+                ))
 
-        await self.db.commit()
+        if commit:
+            await self.db.commit()
+        else:
+            await self.db.flush()
         return await self.repository.get_by_id(payment_id)
 
     # ------------------------------------------------------------------ #

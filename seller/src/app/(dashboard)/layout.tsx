@@ -16,6 +16,7 @@ import {
   X,
   Store,
   ShieldCheck,
+  RotateCcw,
 } from "lucide-react";
 import { authStorage, apiClient } from "@/lib/api-client";
 import { BrandLogo } from "@/components/branding/BrandLogo";
@@ -36,6 +37,7 @@ const NAV_ITEMS = [
   { href: "/products", label: "Products", icon: Package },
   { href: "/products/new", label: "Add product", icon: PlusCircle },
   { href: "/orders", label: "Orders to pack", icon: ShoppingCart },
+  { href: "/returns", label: "Returns", icon: RotateCcw },
   { href: "/profile", label: "Warehouse & profile", icon: User },
 ];
 

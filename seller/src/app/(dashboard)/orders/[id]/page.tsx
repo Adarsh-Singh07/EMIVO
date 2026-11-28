@@ -88,6 +88,9 @@ const STATUS_STYLES: Record<string, string> = {
  SHIPPED:"bg-neutral-50 text-neutral-800 border-neutral-200",
  OUT_FOR_DELIVERY:"bg-neutral-50 text-neutral-800 border-neutral-200",
  DELIVERED:"bg-emerald-50 text-emerald-800 border-emerald-200",
+ RETURNED:"bg-amber-50 text-amber-800 border-amber-200",
+ REFUNDED:"bg-neutral-100 text-neutral-700 border-neutral-200",
+ CANCELLED:"bg-red-50 text-red-700 border-red-200",
  PENDING:"bg-amber-50 text-amber-800 border-amber-200",
 };
 

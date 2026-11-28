@@ -88,6 +88,7 @@ _STATUS_LABELS = {
     "SHIPPED": "Shipped — on the way",
     "OUT_FOR_DELIVERY": "Out for delivery today",
     "DELIVERED": "Delivered",
+    "RETURNED": "Returned",
     "CANCELLED": "Cancelled",
     "REFUNDED": "Refunded",
     "PAYMENT_FAILED": "Payment failed",
@@ -210,11 +211,19 @@ class WhatsAppService:
 
         elif msg_clean in ("6", "6.") or msg_lower in ("support", "complaint", "return", "refund"):
             reply = (
-                "🛠️ *ELEKTRIX Customer Support* ⚡\n\n"
-                "• *Open-Box Return/Replacement:* Report damage/wrong delivery on the same day with photos to support@elektrix.in.\n"
+                "🛠️ *ELEKTRIX Returns & Support* ⚡\n\n"
+                "• *7-Day Easy Return:* Reply with `return ELK-XXXXXX damaged` (or `defective` / `wrong` / `not as described`) to start a return.\n"
                 "• *Phone Support:* +91 80920 24066 (9 AM - 8 PM IST)\n"
                 "• *Email:* support@elektrix.in\n\n"
-                "If you have an issue with a specific order, reply with the order number and describe what happened — I can raise a ticket for our team right now."
+                "If you have an issue with a specific order, reply with the order number and describe what happened — I can raise a ticket or return request right away."
+            )
+
+        elif re.match(r"^return\s+ELK-[A-Za-z0-9-]+", msg_clean, re.IGNORECASE):
+            m_ret = re.match(r"^return\s+(ELK-[A-Za-z0-9-]+)(?:\s+(.*))?$", msg_clean, re.IGNORECASE)
+            reply = await self._handle_return_intent(
+                user_id,
+                m_ret.group(1).upper() if m_ret else "",
+                (m_ret.group(2) or "").strip() if m_ret else "",
             )
 
         # 3. Conversational Fallback -> Gemini / Agnes AI
@@ -274,6 +283,111 @@ class WhatsAppService:
 
         lines.append("\nTrack live delivery progress at https://elektrix.in/order-tracking")
         return "\n".join(lines)
+
+    async def _handle_return_intent(
+        self, user_id: Optional[str], order_number: str, details: str
+    ) -> str:
+        """Handle `return ELK-xxxxxx [reason]` WhatsApp requests."""
+        if not user_id:
+            return (
+                "To request a return on WhatsApp, please message from your registered ELEKTRIX mobile number "
+                "or contact support@elektrix.in with your order number."
+            )
+
+        from core.store import get_store_business_id
+        from modules.returns.models import ReturnReason
+        from modules.returns.schemas import ReturnRequestCreate
+        from modules.returns.service import ReturnService
+
+        bid = await get_store_business_id(self.session)
+        await self.session.execute(text("SELECT set_config('app.business_id', :bid, true)"), {"bid": str(bid)})
+        await self.session.execute(text("SELECT set_config('app.user_id', :uid, true)"), {"uid": str(user_id)})
+
+        order_row = (
+            await self.session.execute(
+                text(
+                    "SELECT id, order_number, status::text AS status, delivered_at "
+                    "FROM orders WHERE order_number ILIKE :num AND user_id = :uid AND deleted_at IS NULL LIMIT 1"
+                ),
+                {"num": order_number, "uid": str(user_id)},
+            )
+        ).mappings().first()
+        if not order_row:
+            return f"We couldn't find order *{order_number}* under your account."
+
+        items = (
+            await self.session.execute(
+                text("SELECT id, product_name, quantity FROM order_items WHERE order_id = :oid"),
+                {"oid": str(order_row["id"])},
+            )
+        ).mappings().all()
+        if not items:
+            return f"No items found on order *{order_row['order_number']}*."
+
+        det_low = details.lower()
+        reason: Optional[ReturnReason] = None
+        if "damag" in det_low or "broken" in det_low:
+            reason = ReturnReason.DAMAGED
+        elif "defect" in det_low or "fault" in det_low or "not work" in det_low or "dead" in det_low:
+            reason = ReturnReason.DEFECTIVE
+        elif "wrong" in det_low or "incorrect" in det_low:
+            reason = ReturnReason.WRONG_ITEM
+        elif "described" in det_low or "different" in det_low or "mismatch" in det_low:
+            reason = ReturnReason.NOT_AS_DESCRIBED
+
+        if reason is None or len(items) > 1:
+            item_lines = "\n".join(
+                f"• {it['product_name']} (qty {it['quantity']})" for it in items
+            )
+            if len(items) > 1 and reason is not None:
+                # For multi-item orders via WhatsApp, create a return for the first
+                # matching product name if mentioned, else list the items.
+                matched = next(
+                    (it for it in items if it["product_name"].lower().split()[0] in det_low),
+                    None,
+                )
+                if not matched:
+                    return (
+                        f"Order *{order_row['order_number']}* has multiple items:\n{item_lines}\n\n"
+                        f"Reply with the product name + reason, e.g. `return {order_row['order_number']} {items[0]['product_name'].split()[0]} damaged`."
+                    )
+                target_item = matched
+            elif reason is None:
+                return (
+                    f"To start a return for *{order_row['order_number']}*, reply with one of these reasons:\n"
+                    f"• `return {order_row['order_number']} damaged`\n"
+                    f"• `return {order_row['order_number']} defective`\n"
+                    f"• `return {order_row['order_number']} wrong`\n"
+                    f"• `return {order_row['order_number']} not as described`"
+                )
+            else:
+                target_item = items[0]
+        else:
+            target_item = items[0]
+
+        try:
+            rr = await ReturnService(self.session).create_return_request(
+                str(order_row["id"]),
+                ReturnRequestCreate(
+                    order_item_id=str(target_item["id"]),
+                    qty=int(target_item["quantity"]),
+                    reason=reason,
+                    customer_note=details[:500] or None,
+                ),
+                actor_user_id=str(user_id),
+                is_staff=False,
+            )
+            return (
+                f"✅ *Return Request Submitted*\n\n"
+                f"• Return ID: *{rr.return_number}*\n"
+                f"• Order: *{rr.order_number}*\n"
+                f"• Item: {rr.product_name} × {rr.qty}\n"
+                f"• Refund estimate: *{format_inr_paise(rr.refund_amount)}*\n\n"
+                "Our team will review this within 24–48 hours and send pickup details by email."
+            )
+        except Exception as exc:
+            msg = getattr(exc, "message", str(exc))
+            return f"⚠️ Could not start return for *{order_row['order_number']}*: {msg}"
 
     async def _handle_stock_alert_prompt(self, msg: str, phone: str, user_id: Optional[str]) -> str:
         """Handles explicit back-in-stock intent or guides customer."""

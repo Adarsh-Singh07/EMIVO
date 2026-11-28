@@ -26,6 +26,7 @@ from modules.addresses.models import Address
 from modules.wishlist.models import WishlistItem
 from modules.notifications.models import Notification
 from modules.marketing.models import NewsletterSubscriber
+from modules.returns.models import ReturnRequest
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -39,7 +39,8 @@ VALID_TRANSITIONS = {
     OrderStatus.PACKED: {OrderStatus.SHIPPED, OrderStatus.OUT_FOR_DELIVERY, OrderStatus.CANCELLED},
     OrderStatus.SHIPPED: {OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DELIVERED, OrderStatus.CANCELLED},
     OrderStatus.OUT_FOR_DELIVERY: {OrderStatus.DELIVERED, OrderStatus.CANCELLED},
-    OrderStatus.DELIVERED: {OrderStatus.REFUNDED},
+    OrderStatus.DELIVERED: {OrderStatus.REFUNDED, OrderStatus.RETURNED},
+    OrderStatus.RETURNED: {OrderStatus.REFUNDED},
     OrderStatus.CANCELLED: set(),
     OrderStatus.REFUNDED: set(),
 }

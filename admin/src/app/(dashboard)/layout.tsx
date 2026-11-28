@@ -26,6 +26,7 @@ import {
   GitMerge,
   ClipboardCheck,
   ExternalLink,
+  RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -52,6 +53,7 @@ const NAV_SECTIONS: Array<{
     label: "Commerce",
     links: [
       { href: "/orders", label: "Orders", icon: ShoppingCart },
+      { href: "/returns", label: "Returns", icon: RotateCcw },
       { href: "/products", label: "Marketplace Catalog", icon: Package },
       { href: "/products/change-requests", label: "Product Edits", icon: ClipboardCheck },
       { href: "/catalog/duplicates", label: "Duplicate Merges", icon: GitMerge },

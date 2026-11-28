@@ -283,6 +283,7 @@ export interface OrderV2 {
     | "SHIPPED"
     | "OUT_FOR_DELIVERY"
     | "DELIVERED"
+    | "RETURNED"
     | "CANCELLED"
     | "REFUNDED"
     | "PAYMENT_FAILED"
@@ -319,6 +320,29 @@ export interface CheckoutResponse {
   order: OrderV2;
   payment_required: boolean;
   payment_id?: string;
+}
+
+export type ReturnReason = "DAMAGED" | "DEFECTIVE" | "WRONG_ITEM" | "NOT_AS_DESCRIBED";
+
+export interface ReturnRequestItem {
+  id: string;
+  return_number?: string | null;
+  order_id: string;
+  order_number?: string | null;
+  order_item_id: string;
+  product_id?: string | null;
+  product_name?: string | null;
+  variant_name?: string | null;
+  unit_price?: number | null;
+  purchased_qty?: number | null;
+  qty: number;
+  reason: ReturnReason | string;
+  customer_note?: string | null;
+  status: string;
+  refund_amount: number;
+  pickup_tracking?: string | null;
+  resolution_note?: string | null;
+  requested_at: string;
 }
 
 export interface PaymentInitiateResponse {
@@ -787,6 +811,37 @@ export const storeApi = {
       method: "POST",
       body: reason ? JSON.stringify({ reason }) : undefined,
     });
+  },
+
+  listOrderReturns(orderId: string): Promise<{ items: ReturnRequestItem[]; total: number }> {
+    return fetchApi<{ items: ReturnRequestItem[]; total: number }>(
+      `/orders/${encodeURIComponent(orderId)}/return-requests`
+    );
+  },
+
+  createReturnRequest(
+    orderId: string,
+    payload: {
+      order_item_id: string;
+      qty: number;
+      reason: ReturnReason;
+      customer_note?: string;
+    }
+  ): Promise<ReturnRequestItem> {
+    return fetchApi<ReturnRequestItem>(
+      `/orders/${encodeURIComponent(orderId)}/return-requests`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    );
+  },
+
+  closeReturnRequest(returnId: string): Promise<ReturnRequestItem> {
+    return fetchApi<ReturnRequestItem>(
+      `/return-requests/${encodeURIComponent(returnId)}/close`,
+      { method: "POST", body: JSON.stringify({}) }
+    );
   },
 
   listOrders(params: { page?: number; page_size?: number; status?: string } = {}): Promise<{
